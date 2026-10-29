@@ -29,7 +29,7 @@ describe('Insights on the core', () => {
     )
     const demo = INSIGHTS_BY_BRAND['casa-vostra']
     expect(screen.getByText(/^Insights arrive once/)).toBeInTheDocument()
-    expect(screen.queryByText(demo.period)).toBeNull()
+    expect(screen.queryByText(/^Last 30 days/)).toBeNull()
     expect(screen.queryByText(demo.kpis[0]!.value)).toBeNull()
     expect(screen.queryByRole('region', { name: 'The month in numbers' })).toBeNull()
   })

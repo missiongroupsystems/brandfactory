@@ -37,7 +37,7 @@ export function FailedPill({
       aria-pressed={on}
       title={on ? 'Show every post' : 'Show only the posts that did not go out'}
       onClick={() => onChange(on ? ALL_STAGES : ONLY_FAILED)}
-      className={`bb-pop flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] whitespace-nowrap transition-colors font-medium text-fail-ink ${on ? 'bg-(--fail-soft)' : 'hover:bg-(--fail-soft)'}`}
+      className={`bb-pop flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[13px] whitespace-nowrap transition-colors font-medium text-fail-ink ${on ? 'bg-(--fail-soft)' : 'hover:bg-(--fail-soft)'}`}
     >
       <span className="size-1.5 rounded-full bg-fail" />
       {posts.length === 0 ? 'None failed' : `${posts.length} failed`}

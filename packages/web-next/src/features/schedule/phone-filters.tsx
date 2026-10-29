@@ -11,7 +11,7 @@ import { ALL_STAGES, STAGES, type StageFilter } from './calendar-items'
 import { StageMark } from './stage-mark'
 import { ONLY_FAILED, onlyFailed } from './failed-menu'
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+const EYEBROW = 'font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase'
 const CHIP =
   'flex h-10 items-center gap-2 rounded-full px-3.5 text-[13.5px] font-medium transition-colors'
 
@@ -50,7 +50,7 @@ export function PhoneFilters({
       >
         <FilterIcon />
         {failed.length > 0 && (
-          <span className="bb-pop absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-fail px-1 font-mono text-[10.5px] font-medium text-page shadow-[0_0_0_2px_var(--page)]">
+          <span className="bb-pop absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-fail px-1 font-mono text-[12px] font-medium text-page shadow-[0_0_0_2px_var(--page)]">
             {failed.length}
           </span>
         )}
@@ -78,7 +78,7 @@ export function PhoneFilters({
                   <button
                     type="button"
                     onClick={() => onStages(ALL_STAGES)}
-                    className="text-[12.5px] text-ink-3"
+                    className="text-[13px] text-ink-3"
                   >
                     Show all
                   </button>

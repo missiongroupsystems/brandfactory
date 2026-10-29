@@ -27,7 +27,7 @@ export function VoiceCard({ model, index }: { model: Model; index: number }) {
           <span className={TITLE}>Voice</span>
           {n ? <span className={META}>v{n}</span> : null}
         </span>
-        <span className="line-clamp-3 text-[12.5px] leading-[1.45] text-ink-3">{summary}</span>
+        <span className="line-clamp-3 text-[13px] leading-[1.45] text-ink-3">{summary}</span>
       </span>
     </Card>
   )

@@ -61,7 +61,7 @@ export function AppHeader({ section }: { section?: (typeof NAV)[number]['href'] 
               {n.label}
               {/* Inbox counts what still needs a reply, quietly. */}
               {n.href === '/inbox' && waiting > 0 && (
-                <span className="ml-1.5 text-[11px] text-ink-4 tabular-nums">{waiting}</span>
+                <span className="ml-1.5 text-[12px] text-ink-4 tabular-nums">{waiting}</span>
               )}
             </Link>
           )

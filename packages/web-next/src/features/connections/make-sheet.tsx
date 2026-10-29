@@ -106,7 +106,7 @@ export function MakeSheet({
         </div>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="make-account-id" className="text-[12.5px] font-medium text-ink-2">
+            <label htmlFor="make-account-id" className="text-[13px] font-medium text-ink-2">
               {copy.id}
             </label>
             <input
@@ -123,7 +123,7 @@ export function MakeSheet({
             <span className="text-[12px] text-ink-4">{copy.idHint}</span>
           </div>
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12.5px] font-medium text-ink-2">{copy.name}</span>
+            <span className="text-[13px] font-medium text-ink-2">{copy.name}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}

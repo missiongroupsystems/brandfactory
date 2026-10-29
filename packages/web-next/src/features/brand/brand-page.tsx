@@ -160,9 +160,7 @@ function LogoSection() {
             />
           </span>
         </span>
-        {logo.name && (
-          <span className="truncate text-[12.5px] text-ink-4">Updated today · {logo.name}</span>
-        )}
+        {logo.name && <span className="truncate text-[13px] text-ink-4">Today · {logo.name}</span>}
       </div>
     </Section>
   )
@@ -291,7 +289,7 @@ function FileRow({
           <span className="truncate text-[14.5px] font-medium">{file.title}</span>
         )}
         <span className="truncate text-[12px] text-ink-4">
-          {file.updated === 'Today' ? 'Updated today' : `Updated ${file.updated}`} · {file.name}
+          {file.updated} · {file.name}
         </span>
       </span>
       {!editing && (

@@ -208,7 +208,7 @@ function List({
                   >
                     <span
                       aria-hidden="true"
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold"
                       style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
                     >
                       {row.initials}
@@ -227,7 +227,7 @@ function List({
                 )}
               </span>
               {!typed && row.meta && (
-                <span className="shrink-0 text-[11.5px] text-ink-4 tabular-nums max-md:text-[12.5px]">
+                <span className="shrink-0 text-[12px] text-ink-4 tabular-nums max-md:text-[13px]">
                   {row.meta}
                 </span>
               )}

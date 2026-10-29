@@ -68,7 +68,7 @@ describe('Posted on the core', () => {
     expect(items.map((r) => r.textContent?.includes('Sent from Brand Base'))).toEqual([true, false])
     expect(items[0]).not.toHaveTextContent(/\d(k|m)?(views|reach|likes|comments|shares|saves)/)
     expect(items[1]).toHaveTextContent('214')
-    expect(screen.getByText('as of 22 Oct')).toBeInTheDocument()
+    expect(screen.getByText('Last 30 days, as of 22 Oct')).toBeInTheDocument()
     // Only Instagram has anything, and nothing is linked: the rail holds Instagram alone.
     expect(screen.queryAllByRole('radio', { name: /TikTok|Facebook/ })).toEqual([])
   })

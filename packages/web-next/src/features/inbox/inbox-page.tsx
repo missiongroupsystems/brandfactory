@@ -33,7 +33,6 @@ import {
   type InboxFilter,
 } from './model'
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 /** How long a replied row takes to tick, slide and fold away before it leaves the store. */
 const LEAVE_MS = 620
 /** How long a picked direction takes to write its reply. */
@@ -127,7 +126,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
               setFilter(f.value)
               setSelected(null)
             }}
-            className={`h-7 text-[12.5px] transition-colors ${on ? 'font-medium text-ink' : 'text-ink-4 hover:text-ink'}`}
+            className={`h-7 text-[13px] transition-colors ${on ? 'font-medium text-ink' : 'text-ink-4 hover:text-ink'}`}
           >
             {f.label}
           </button>
@@ -138,12 +137,13 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
 
   return (
     <main className="bb-swap mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
-      <div className="flex flex-col gap-3 pt-6 pb-8 max-md:pt-2 max-md:pb-6">
-        <span className={EYEBROW}>{brand.name}</span>
+      {/* The count is on the Inbox tab already, and the brand in the switcher. */}
+      <div className="flex flex-col pt-6 pb-8 max-md:pt-2 max-md:pb-6">
         <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
           Inbox
         </h1>
-        <p className="text-[15px] text-ink-3" aria-live="polite">
+        {/* The count is not shown, but a screen reader still hears it change after a reply. */}
+        <p className="sr-only" aria-live="polite">
           {waiting.length === 0 ? 'Nothing to reply to.' : `${waiting.length} to reply to`}
         </p>
       </div>
@@ -380,7 +380,7 @@ function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[]
           {noise.slice(0, 5).map((m, i) => (
             <span
               key={m.id}
-              className={`flex size-5 items-center justify-center rounded-full bg-tile text-[8.5px] font-semibold text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1.5' : ''}`}
+              className={`flex size-5 items-center justify-center rounded-full bg-tile text-[10px] font-semibold text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1.5' : ''}`}
             >
               {m.from.name.charAt(0).toUpperCase()}
             </span>
@@ -498,7 +498,7 @@ function Thread({
         <Avatar m={m} size={36} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[15px] font-medium">{m.from.name}</span>
-          <span className="truncate text-[12.5px] text-ink-4">{whereFrom(m)}</span>
+          <span className="truncate text-[13px] text-ink-4">{whereFrom(m)}</span>
         </div>
         {/* The post it is about, as a thumbnail at the edge, the way Instagram shows it. */}
         {m.post && <PostPeek m={m} post={m.post} />}
@@ -522,7 +522,7 @@ function Thread({
             >
               {marks[i] && (
                 <time
-                  className={`self-center pb-3 text-[11.5px] text-ink-4 ${i === 0 ? '' : 'pt-4'}`}
+                  className={`self-center pb-3 text-[12px] text-ink-4 ${i === 0 ? '' : 'pt-4'}`}
                 >
                   {marks[i]}
                 </time>
@@ -607,7 +607,7 @@ function Bubble({ item, tail }: { item: InboxEarlier; tail: boolean }) {
   if (item.from === 'note') {
     return (
       <div className="flex max-w-[82%] flex-col gap-0.5 self-center rounded-[14px] border border-dashed border-line-strong px-3.5 py-2.5 text-center">
-        <span className="text-[11.5px] text-ink-4">
+        <span className="text-[12px] text-ink-4">
           {firstName(item.by ?? '')} · only the team sees this
         </span>
         <p className="text-[13.5px] leading-[1.45] text-ink-2">{item.text}</p>

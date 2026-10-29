@@ -93,7 +93,7 @@ export function MonthPicker({ shown, today, from, to, onPick }: MonthPick) {
                 move(by)
               }}
               onClick={() => onPick({ year: cursor.year, month })}
-              className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] transition-colors outline-none focus-visible:shadow-[inset_0_0_0_1.5px_var(--ink)] max-md:h-10 max-md:text-[14px] ${
+              className={`relative flex h-9 items-center justify-center rounded-[9px] text-[13px] transition-colors outline-none focus-visible:shadow-[inset_0_0_0_1.5px_var(--ink)] max-md:h-10 max-md:text-[14px] ${
                 on
                   ? 'bg-ink text-page'
                   : now

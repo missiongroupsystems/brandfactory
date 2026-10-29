@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Instrument_Sans } from 'next/font/google'
 
 import { NoImageDrag } from '@/components/no-image-drag'
+import { PathTrail } from '@/components/path-trail'
 import { RemoteSync } from '@/components/remote-sync'
 import { TabBar } from '@/components/tab-bar'
 import { BrandProvider } from '@/features/schedule/posts-store'
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} antialiased`}>
       <body className="min-h-svh font-sans text-sm leading-[1.45]">
         <NoImageDrag />
+        <PathTrail />
         <BrandProvider>
           <RemoteSync>
             {children}

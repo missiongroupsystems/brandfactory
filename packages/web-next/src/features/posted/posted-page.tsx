@@ -205,8 +205,10 @@ function Profile({
                 {f.label}
               </span>
             ))}
-            {sum.measuredAt && (
-              <span className="text-[12px] text-ink-3">as of {asOf(sum.measuredAt)}</span>
+            {figures.length > 0 && (
+              <span className="text-[13px] text-ink-3">
+                Last 30 days{sum.measuredAt && `, as of ${asOf(sum.measuredAt)}`}
+              </span>
             )}
           </p>
         </div>
@@ -296,7 +298,7 @@ function Ring({ item, left, today }: { item: PostedItem; left: number | null; to
           {item.post.images[0] && <Media src={item.post.images[0]} sizes="136px" />}
         </span>
       </span>
-      <span className="grid text-[11.5px] leading-none whitespace-nowrap tabular-nums">
+      <span className="grid text-[12px] leading-none whitespace-nowrap tabular-nums">
         <span
           className={`col-start-1 row-start-1 text-center transition-opacity duration-200 ${live ? 'text-ink group-hover:opacity-0 group-focus-visible:opacity-0 [@media(hover:none)]:opacity-0' : 'text-ink-3'}`}
         >
@@ -338,14 +340,14 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
       <Cover src={post.images[0]} />
       {mark && (
         <span
-          className={`pointer-events-none absolute top-2 right-2 flex h-[22px] min-w-[22px] items-center justify-center px-1.5 font-mono text-[10.5px] tabular-nums max-md:top-1 max-md:right-1 max-md:h-5 max-md:min-w-5 max-md:text-[9.5px] ${ON_COVER}`}
+          className={`pointer-events-none absolute top-2 right-2 flex h-[22px] min-w-[22px] items-center justify-center px-1.5 font-mono text-[12px] tabular-nums max-md:top-1 max-md:right-1 max-md:h-5 max-md:min-w-5 max-md:text-[12px] ${ON_COVER}`}
         >
           {mark}
         </span>
       )}
       {head && (
         <span
-          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[10.5px] ${ON_COVER}`}
+          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[12px] ${ON_COVER}`}
         >
           {GLYPH[head.key] ?? null}
           {k(head.value)}
@@ -368,7 +370,7 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
             {counts.map((c) => (
               <span key={c.key} className="flex flex-col gap-[3px]">
                 <span className={`${NUM} text-[16px] leading-none`}>{k(c.value)}</span>
-                <span className="text-[11px] text-(--pc-dim)">{c.label.toLowerCase()}</span>
+                <span className="text-[12px] text-(--pc-dim)">{c.label.toLowerCase()}</span>
               </span>
             ))}
           </span>

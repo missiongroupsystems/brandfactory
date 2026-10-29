@@ -23,6 +23,9 @@ vi.stubGlobal(
   },
 )
 
+// jsdom has no scrolling; the setup panel scrolls itself into view when it opens.
+Element.prototype.scrollIntoView = vi.fn()
+
 beforeEach(() => {
   resetIdeas()
   push.mockClear()
@@ -50,10 +53,8 @@ describe('the moodboard', () => {
       'aria-checked',
       'true',
     )
-    expect(screen.getByRole('radio', { name: 'Temper board' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
+    // Other brands' boards are not even listed: no greyed noise, nothing to pick by mistake.
+    expect(screen.queryByRole('radio', { name: 'Temper board' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Connect Casa Vostra’s board' }))
     act(() => {
       vi.advanceTimersByTime(1000)
@@ -73,7 +74,8 @@ describe('the moodboard', () => {
       vi.advanceTimersByTime(1000)
     })
     expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: false, dm: true, tt: false })
-    expect(screen.getByRole('tab', { name: /Shared/ })).toBeInTheDocument()
+    // One name for one thing: the source button says Instagram DMs, so the chip says Instagram.
+    expect(screen.getByRole('tab', { name: /Instagram/ })).toBeInTheDocument()
   })
 
   it('offers the sources not yet on the board behind one chip, not one chip each', () => {
@@ -117,5 +119,17 @@ describe('the moodboard', () => {
     expect(made.inspiration[0]).toBe(lead.id)
     expect(made).toMatchObject({ hook: lead.seed.hook, format: lead.seed.format })
     expect(push).toHaveBeenCalledWith(`/ideate/${made.id}`)
+  })
+})
+
+// The judge found the cards uneven: a green statistic on some, "Use it" on moments and "Plan it"
+// on ideas. One action word, and the statistic stays on the idea's own page.
+describe('the current ideas', () => {
+  it('show no statistic on a card, and one action word: Plan it', () => {
+    openMoodboard()
+    fireEvent.click(screen.getByRole('radio', { name: 'Current ideas' }))
+    expect(screen.queryByText('Hand-made reels hold viewers 2× longer')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Use it' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Plan it' }).length).toBeGreaterThan(0)
   })
 })

@@ -42,6 +42,21 @@ const open = () =>
 const shoots = () => renderHook(() => useShoots('casa-vostra')).result.current
 const shotList = () => screen.getByRole('region', { name: 'Storyboard' })
 
+// A shoot is planned from Ideas: the judge found no tab lit and a back link that said Calendar.
+describe('where the shoot sits', () => {
+  it('lights the Ideas tab and goes back to where it was opened from', () => {
+    open()
+    const main = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(main).getByRole('link', { name: 'Ideas' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    // Opened straight from a link, there is no in-app page to go back to: Back goes to Ideas.
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/ideate')
+    expect(screen.queryByRole('link', { name: 'Calendar' })).toBeNull()
+  })
+})
+
 describe('the address', () => {
   it('offers every outlet first, so the team picks where it shoots', () => {
     open()

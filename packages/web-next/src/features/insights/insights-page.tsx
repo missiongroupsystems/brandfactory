@@ -35,7 +35,6 @@ import { remote } from '@/lib/remote'
 
 import { addSplits, bestOffSocial, bookingsByFormat, percents, sum } from './hub-model'
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const HAIR = 'border-(--cal-line)'
 const CARD = 'rounded-[18px] bg-surface-2'
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -140,7 +139,6 @@ export function InsightsPage() {
       >
         <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
           <div className="flex flex-col gap-3">
-            <span className={EYEBROW}>{data.period}</span>
             <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
               Insights
             </h1>
@@ -158,6 +156,8 @@ export function InsightsPage() {
               ]}
             />
           </div>
+          {/* One period for all three views: every number below covers it. */}
+          <p className="text-[13px] text-ink-3">Last 30 days · {plain(data.period)}</p>
         </div>
 
         <div key={tab} className="bb-swap">
@@ -202,7 +202,7 @@ function Tip({ tip }: { tip: TipState | null }) {
     >
       <span className="text-[12px] font-medium">{tip.title}</span>
       {tip.lines.map((l) => (
-        <span key={l} className="font-mono text-[10.5px] text-page/70 tabular-nums">
+        <span key={l} className="font-mono text-[12px] text-page/70 tabular-nums">
           {l}
         </span>
       ))}
@@ -278,7 +278,7 @@ function NumberCard({ kpis }: { kpis: Kpi[] }) {
             role="radio"
             aria-checked={at === String(i)}
             onClick={() => setAt(String(i))}
-            className={`h-8 rounded-full px-3 text-[12.5px] font-medium transition-colors ${at === String(i) ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
+            className={`h-8 rounded-full px-3 text-[13px] font-medium transition-colors ${at === String(i) ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
           >
             {q.label}
           </button>
@@ -362,7 +362,7 @@ function WeekBars({ kpi }: { kpi: Kpi }) {
           />
         )}
       </div>
-      <span className="relative font-mono text-[10.5px] text-ink-4 tabular-nums">
+      <span className="relative font-mono text-[12px] text-ink-4 tabular-nums">
         {ticks.map((v) => (
           <span
             key={v}
@@ -373,7 +373,7 @@ function WeekBars({ kpi }: { kpi: Kpi }) {
           </span>
         ))}
       </span>
-      <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
+      <span className="relative h-4 font-mono text-[12px] text-ink-4 tabular-nums">
         {[0, 4, 8, n - 1].map((i) => (
           <span
             key={i}
@@ -437,7 +437,7 @@ function Finding({ story, first }: { story: Story; first: boolean }) {
       <Fold open={open}>
         <div className="flex flex-col gap-5 pr-6 pb-6 pl-[92px] max-md:pl-5">
           <div className="flex flex-col gap-3">
-            <span className="text-[12.5px] text-ink-3">{chartTitle(story.chart)}</span>
+            <span className="text-[13px] text-ink-3">{chartTitle(story.chart)}</span>
             {story.chart.kind === 'compare' && <CompareBars chart={story.chart} />}
             {story.chart.kind === 'trend' && <Growth chart={story.chart} />}
           </div>
@@ -548,7 +548,7 @@ function BestTime({
             />
           )}
         </div>
-        <span className="flex font-mono text-[10.5px] text-ink-4">
+        <span className="flex font-mono text-[12px] text-ink-4">
           {DAYS.map((d, i) => (
             <span
               key={d}
@@ -593,7 +593,7 @@ function Heat({ days, hours }: { days: number[]; hours: number[] }) {
       <div className="grid grid-cols-[76px_repeat(7,minmax(0,1fr))] items-center gap-1">
         <span />
         {DAYS.map((d) => (
-          <span key={d} className="pb-0.5 text-center font-mono text-[10.5px] text-ink-4">
+          <span key={d} className="pb-0.5 text-center font-mono text-[12px] text-ink-4">
             {d}
           </span>
         ))}
@@ -849,7 +849,7 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-2">
-        <span className="relative font-mono text-[10px] text-ink-4 tabular-nums">
+        <span className="relative font-mono text-[12px] text-ink-4 tabular-nums">
           {[top, top / 2, 0].map((t) => (
             <span key={t} className="absolute right-0 -translate-y-1/2" style={{ top: y(t) }}>
               +{t}%
@@ -927,19 +927,17 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pl-[42px]">
         {series.map((s) => (
-          <span key={s.label} className="flex items-center gap-2 text-[12.5px] text-ink-2">
+          <span key={s.label} className="flex items-center gap-2 text-[13px] text-ink-2">
             <span className="h-0.5 w-3 rounded-full" style={{ background: s.colour }} />
             {s.label}
-            <span className="font-mono text-[11px] text-ink-4 tabular-nums">
+            <span className="font-mono text-[12px] text-ink-4 tabular-nums">
               {k(s.followers)} · {s.delta >= 0 ? '+' : ''}
               {s.delta}% this month
             </span>
           </span>
         ))}
       </div>
-      {chart.note && (
-        <span className="pl-[42px] text-[12.5px] text-(--insight-6)">{chart.note}</span>
-      )}
+      {chart.note && <span className="pl-[42px] text-[13px] text-(--insight-6)">{chart.note}</span>}
     </div>
   )
 }
@@ -1026,7 +1024,7 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
                 </span>
                 <span className="truncate">{r.name}</span>
               </span>
-              <span className="truncate font-mono text-[10.5px] text-ink-4 tabular-nums">
+              <span className="truncate font-mono text-[12px] text-ink-4 tabular-nums">
                 {k(total(r.metric))} {r.unit}
               </span>
             </span>
@@ -1141,7 +1139,7 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
         </div>
 
         <span />
-        <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
+        <span className="relative h-4 font-mono text-[12px] text-ink-4 tabular-nums">
           {[0, 7, 14, 21, n - 1].map((d, i, all) => (
             <span
               key={d}
@@ -1171,7 +1169,7 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
       </button>
       <Fold open={byFormat}>
         <div className="flex flex-col gap-3 pt-5">
-          <span className="text-[12.5px] text-ink-3">
+          <span className="text-[13px] text-ink-3">
             Bookings above a usual day, in the two days after
           </span>
           <CompareBars
@@ -1299,10 +1297,10 @@ function SentimentView({ sentiment }: { sentiment: Sentiment }) {
         </div>
         <span className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
           {TONES.map((t) => (
-            <span key={t.key} className="flex items-center gap-2 text-[12.5px] text-ink-2">
+            <span key={t.key} className="flex items-center gap-2 text-[13px] text-ink-2">
               <span className="size-2 rounded-full" style={{ background: t.colour }} />
               {t.label}
-              <span className="font-mono text-[11px] text-ink-4 tabular-nums">{p[t.key]}%</span>
+              <span className="font-mono text-[12px] text-ink-4 tabular-nums">{p[t.key]}%</span>
             </span>
           ))}
         </span>
@@ -1317,14 +1315,14 @@ function SentimentView({ sentiment }: { sentiment: Sentiment }) {
             >
               <span className="flex flex-col">
                 <span className="text-[13px]">{row.label}</span>
-                <span className="font-mono text-[10.5px] text-ink-4 tabular-nums">
+                <span className="font-mono text-[12px] text-ink-4 tabular-nums">
                   {sum(row.split)}
                 </span>
               </span>
               <span className="max-md:order-last max-md:col-span-2">
                 <SplitBar split={row.split} height={6} title={row.label.toLowerCase()} />
               </span>
-              <span className="font-mono text-[11px] text-ink-3 tabular-nums">
+              <span className="font-mono text-[12px] text-ink-3 tabular-nums">
                 {percents(row.split).pos}% · {percents(row.split).neu}% · {percents(row.split).neg}%
               </span>
             </div>
@@ -1395,7 +1393,7 @@ function Themes({
           <li key={t.theme} className="flex flex-col gap-1.5">
             <span className="flex items-baseline justify-between gap-3 text-[13px]">
               <span className={i === 0 ? 'font-medium text-ink' : 'text-ink-2'}>{t.theme}</span>
-              <span className="font-mono text-[11.5px] text-ink-3 tabular-nums">{t.count}</span>
+              <span className="font-mono text-[12px] text-ink-3 tabular-nums">{t.count}</span>
             </span>
             <span className="h-1.5 overflow-hidden rounded-full bg-(--track)/50">
               <span
@@ -1467,7 +1465,7 @@ function WeekMood({ weeks }: { weeks: Split[] }) {
           />
         )}
       </div>
-      <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
+      <span className="relative h-4 font-mono text-[12px] text-ink-4 tabular-nums">
         {[0, 4, 8, n - 1].map((i) => (
           <span
             key={i}

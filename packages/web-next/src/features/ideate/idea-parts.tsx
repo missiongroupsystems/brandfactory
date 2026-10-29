@@ -16,7 +16,7 @@ import { setHook, useIdeas } from './ideas-store'
  * day, and a new hook carried to the calendar.
  */
 
-export const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+export const EYEBROW = 'font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase'
 
 export const STATUS_LABEL: Record<IdeaStatus, string> = {
   suggested: 'Suggested',
@@ -90,7 +90,7 @@ export function FormatIcon({ format, size = 12 }: { format: IdeaFormat; size?: n
 export function StatusDot({ status }: { status: IdeaStatus }) {
   return (
     <span
-      className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.06em] uppercase"
+      className="flex items-center gap-1.5 font-mono text-[12px] tracking-[0.06em] uppercase"
       style={{ color: status === 'suggested' ? 'var(--insight-6)' : 'var(--ink-4)' }}
     >
       <span className="size-1.5 rounded-full" style={{ background: statusColour(status) }} />

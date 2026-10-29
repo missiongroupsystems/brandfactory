@@ -11,6 +11,10 @@ const avatar = 'flex size-9 items-center justify-center rounded-full text-xs fon
 const ITEM =
   'rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
 const avatarColours = { background: 'var(--avatar)', color: 'var(--avatar-ink)' }
+const DEMO_ITEMS = [
+  { href: '/brand', label: 'Brand kit' },
+  { href: '/brand/connections', label: 'Connections' },
+]
 
 /**
  * The first letters of the first and last names; with no name, of the email's name part split on
@@ -26,7 +30,8 @@ export function initials(name: string, email: string): string {
 
 /**
  * The round avatar at the header's end. On the core it is the signed-in person's photo or initials, and opens a
- * menu with their name and email, Edit profile and Sign out. The static demo keeps its demo initials and no menu.
+ * menu with their name and email, Edit profile and Sign out. The static demo has no account: its demo initials
+ * open the brand's kit and connections instead, so the avatar is never a dead end.
  */
 export function AccountMenu() {
   const [user, setUser] = React.useState<{ name: string; email: string; avatar?: string | null }>({
@@ -52,13 +57,6 @@ export function AccountMenu() {
     return () => window.removeEventListener('pointerdown', onPointer)
   }, [open])
 
-  if (!remote)
-    return (
-      <span aria-label="You" className={avatar} style={avatarColours}>
-        {BRAND.user}
-      </span>
-    )
-
   function onMenuKey(e: React.KeyboardEvent) {
     const list = items.current.filter((el): el is HTMLElement => el !== null)
     const at = list.indexOf(document.activeElement as HTMLElement)
@@ -80,7 +78,7 @@ export function AccountMenu() {
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Account: ${user.email}`}
+        aria-label={remote ? `Account: ${user.email}` : 'Account'}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' && !open) {
@@ -92,9 +90,13 @@ export function AccountMenu() {
         style={avatarColours}
       >
         {/* The person's own photo when they added one, else their initials. */}
-        <ProfilePicture src={user.avatar ?? undefined} size={36} className="rounded-full">
-          {initials(user.name, user.email)}
-        </ProfilePicture>
+        {remote ? (
+          <ProfilePicture src={user.avatar ?? undefined} size={36} className="rounded-full">
+            {initials(user.name, user.email)}
+          </ProfilePicture>
+        ) : (
+          BRAND.user
+        )}
       </button>
       {open && (
         <div
@@ -104,35 +106,59 @@ export function AccountMenu() {
           onKeyDown={onMenuKey}
           className="bb-menu absolute top-11 right-0 z-30 flex w-[232px] origin-top-right flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
         >
-          <span className="flex flex-col px-2.5 pt-2 pb-1.5">
-            {user.name && <span className="truncate text-[13.5px] text-ink">{user.name}</span>}
-            <span className="truncate text-[12.5px] text-ink-4">{user.email}</span>
-          </span>
-          <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
-          <Link
-            ref={(el) => {
-              items.current[0] = el
-            }}
-            href="/profile"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => setOpen(false)}
-            className={ITEM}
-          >
-            Edit profile
-          </Link>
-          <button
-            ref={(el) => {
-              items.current[1] = el
-            }}
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={leave}
-            className={`${ITEM} text-left`}
-          >
-            Sign out
-          </button>
+          {remote ? (
+            <>
+              <span className="flex flex-col px-2.5 pt-2 pb-1.5">
+                {user.name && <span className="truncate text-[13.5px] text-ink">{user.name}</span>}
+                <span className="truncate text-[13px] text-ink-4">{user.email}</span>
+              </span>
+              <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
+            </>
+          ) : (
+            DEMO_ITEMS.map((d, i) => (
+              <Link
+                key={d.href}
+                ref={(el) => {
+                  items.current[i] = el
+                }}
+                href={d.href}
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => setOpen(false)}
+                className={ITEM}
+              >
+                {d.label}
+              </Link>
+            ))
+          )}
+          {remote && (
+            <>
+              <Link
+                ref={(el) => {
+                  items.current[0] = el
+                }}
+                href="/profile"
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => setOpen(false)}
+                className={ITEM}
+              >
+                Edit profile
+              </Link>
+              <button
+                ref={(el) => {
+                  items.current[1] = el
+                }}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                onClick={leave}
+                className={`${ITEM} text-left`}
+              >
+                Sign out
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

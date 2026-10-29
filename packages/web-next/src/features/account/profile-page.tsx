@@ -12,7 +12,7 @@ import { ProfilePhoto } from './profile-photo'
 
 const FIELD =
   'h-11 w-full rounded-[10px] border border-line bg-page px-3 text-[16px] outline-none focus:border-ink-3'
-const LABEL = 'text-[12.5px] text-ink-4'
+const LABEL = 'text-[13px] text-ink-4'
 const BUTTON =
   'bb-press mt-1 h-11 rounded-full bg-ink text-[14px] font-medium text-page disabled:opacity-50'
 

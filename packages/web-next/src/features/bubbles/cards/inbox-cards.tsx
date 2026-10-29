@@ -24,7 +24,7 @@ function Message({ m }: { m: InboxMessage }) {
       <Avatar m={m} size={28} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13px] font-medium">{m.from.name}</span>
-        <span className="line-clamp-2 text-[12.5px] leading-[1.4] text-ink-3">{m.text}</span>
+        <span className="line-clamp-2 text-[13px] leading-[1.4] text-ink-3">{m.text}</span>
       </span>
     </span>
   )
@@ -74,7 +74,7 @@ export function SentToCard({ model, index }: { model: Model; index: number }) {
             <Initials key={n} name={n} size={22} />
           ))}
         </Stack>
-        <span className="truncate text-[12.5px] text-ink-2">{names.join(', ')}</span>
+        <span className="truncate text-[13px] text-ink-2">{names.join(', ')}</span>
       </span>
     </Card>
   )
@@ -116,7 +116,7 @@ export function CommentCard({ model, index }: { model: Model; index: number }) {
           <span className="truncate text-[13px] font-medium">{comment?.name ?? 'A guest'}</span>
           {comment && (
             <span
-              className={`line-clamp-2 text-[12.5px] leading-[1.4] text-ink-3 ${done ? 'line-through decoration-ink-5' : ''}`}
+              className={`line-clamp-2 text-[13px] leading-[1.4] text-ink-3 ${done ? 'line-through decoration-ink-5' : ''}`}
             >
               {comment.text}
             </span>

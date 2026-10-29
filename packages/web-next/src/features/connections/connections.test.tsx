@@ -159,13 +159,15 @@ describe('first-time Lark calendar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send Lark invites' }))
     expect(screen.getByRole('dialog', { name: 'Connect Lark calendar' })).toBeInTheDocument()
     allow()
-    expect(screen.getByText('Synced with Lark')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Connect Lark calendar' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Invites sent' })).toBeDisabled()
   })
 
   it('keeps the shoot flow as it was where Lark is linked', () => {
     show(<ShootPage id="cv-shoot-raffles" />)
-    expect(screen.getByText('Synced with Lark')).toBeInTheDocument()
+    // Linked is the normal state: no "Synced with Lark" line, and no way to connect it again.
+    expect(screen.queryByText('Synced with Lark')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connect Lark calendar' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Send Lark invites' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('button', { name: 'Invites sent' })).toBeDisabled()

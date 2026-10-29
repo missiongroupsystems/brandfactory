@@ -59,7 +59,7 @@ export function LinkCard({ model, index }: { model: Model; index: number }) {
         <button
           type="button"
           onClick={copy}
-          className="bb-press h-8 w-fit rounded-full border border-line px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-surface hover:text-ink"
+          className="bb-press h-8 w-fit rounded-full border border-line px-3 text-[13px] text-ink-2 transition-colors hover:bg-surface hover:text-ink"
         >
           {copied ? 'Copied' : 'Copy link'}
         </button>

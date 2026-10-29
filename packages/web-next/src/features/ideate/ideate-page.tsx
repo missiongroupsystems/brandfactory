@@ -151,7 +151,7 @@ export function IdeatePage({ view: initial }: { view?: View }) {
           {toast}
           <Link
             href="/"
-            className="flex h-8 items-center rounded-full bg-page px-3 text-[12.5px] text-ink hover:opacity-85"
+            className="flex h-8 items-center rounded-full bg-page px-3 text-[13px] text-ink hover:opacity-85"
           >
             Open
           </Link>
@@ -287,7 +287,7 @@ function Ideas({
                   className="flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-medium text-(--insight-6) transition-colors hover:bg-(--insight-wash)"
                 >
                   <SparkIcon size={10} />
-                  Suggest {open}
+                  Suggest {open === 1 ? 'an idea' : `${open} ideas`}
                 </button>
               )}
             </span>
@@ -436,7 +436,8 @@ function IdeaView({
 /** Where the idea came from, in one quiet line, when the photos alone do not say it. */
 function sourceOf(card: IdeaCard): { text: string; colour: string } | null {
   const s = card.source
-  if (s.kind === 'insight') return { text: s.line, colour: 'var(--insight-6)' }
+  // An insight's statistic is for the idea's page: on a card it only made the rows uneven.
+  if (s.kind === 'insight') return null
   if (s.kind === 'moment') return { text: s.title, colour: 'var(--layer-holiday-ink)' }
   if (s.kind === 'suggested' && card.builtOn)
     return { text: `Built on “${card.builtOn.idea.hook}”`, colour: 'var(--insight-6)' }
@@ -505,7 +506,7 @@ function Collage({
   )
 }
 
-/** A moment nearby, pitched like an idea: use it and it lands on the calendar's next open day. */
+/** A moment nearby, pitched like an idea: plan it and it lands on the calendar's next open day. */
 function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
   const [, day, month] = moment.when.split(' ')
   return (
@@ -532,7 +533,7 @@ function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
         onClick={onUse}
         className={`${ACT} self-start px-0.5 text-ink hover:opacity-70`}
       >
-        Use it
+        Plan it
       </button>
     </article>
   )
@@ -788,7 +789,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
       ? [
           {
             id: 'dm',
-            label: 'Shared',
+            label: 'Instagram',
             source: 'dm' as const,
             pins: [...pasted, ...references.filter((r) => r.platform === 'ig')].filter(
               (r) => r.platform !== 'pinterest',
@@ -1056,7 +1057,7 @@ function SourceSetup({ source, onDone }: { source: MoodSource; onDone?: () => vo
 
 /** A short pretend step, or on the core the amber state, since it cannot connect yet. */
 function DemoSetup({ source }: { source: MoodSource }) {
-  const { brand, brands } = useBrand()
+  const { brand } = useBrand()
   const [busy, setBusy] = React.useState(false)
 
   function connect() {
@@ -1114,32 +1115,25 @@ function DemoSetup({ source }: { source: MoodSource }) {
   return (
     <div className="flex flex-col gap-4 text-left">
       <span className={EYEBROW}>Pinterest · {PINTEREST_ACCOUNT}</span>
+      {/* Only this brand's board: the others on the team's account are noise here. */}
       <div role="radiogroup" aria-label="Boards" className="flex flex-col">
-        {brands.map((b) => {
-          const own = b.id === brand.id
-          const pins = boardsOf(b.id).reduce((n, s) => n + s.pinCount, 0)
-          return (
-            <span
-              key={b.id}
-              role="radio"
-              aria-checked={own}
-              aria-disabled={!own}
-              aria-label={`${b.name} board`}
-              className={`flex items-center gap-3 border-t border-line py-2.5 first:border-t-0 ${own ? '' : 'opacity-45'}`}
-            >
-              <span className="relative size-7 shrink-0 overflow-hidden rounded-full">
-                <BrandLogo brandId={b.id} sizes="56px" />
-              </span>
-              <span className="flex flex-1 flex-col">
-                <span className="text-[13.5px] font-medium">{b.name}</span>
-                <span className="text-[12px] text-ink-4">
-                  {pins} pins{own ? '' : ` · on ${b.name}’s moodboard`}
-                </span>
-              </span>
-              {own && <CheckIcon size={13} />}
+        <span
+          role="radio"
+          aria-checked
+          aria-label={`${brand.name} board`}
+          className="flex items-center gap-3 py-2.5"
+        >
+          <span className="relative size-7 shrink-0 overflow-hidden rounded-full">
+            <BrandLogo brandId={brand.id} sizes="56px" />
+          </span>
+          <span className="flex flex-1 flex-col">
+            <span className="text-[13.5px] font-medium">{brand.name}</span>
+            <span className="text-[12px] text-ink-4">
+              {boardsOf(brand.id).reduce((n, s) => n + s.pinCount, 0)} pins
             </span>
-          )
-        })}
+          </span>
+          <CheckIcon size={13} />
+        </span>
       </div>
       {action(`Connect ${brand.name}’s board`)}
     </div>
@@ -1231,7 +1225,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
       {busy ? pending : label}
     </button>
   )
-  const problem = error && <p className="text-[12.5px] text-fail-ink">{error}</p>
+  const problem = error && <p className="text-[13px] text-fail-ink">{error}</p>
 
   if (!setup) {
     return (
@@ -1276,7 +1270,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
     <button
       type="button"
       onClick={() => void run(() => startPinterest(brand.id))}
-      className="self-start text-[12.5px] text-ink-4 underline-offset-2 hover:text-ink hover:underline"
+      className="self-start text-[13px] text-ink-4 underline-offset-2 hover:text-ink hover:underline"
     >
       Use another Pinterest account
     </button>
@@ -1404,7 +1398,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
           <div key={g.label} className="flex flex-col">
             {/* Headings only when the boards split in two: one list needs no title. */}
             {reading.length > 0 && reading.length < setup.boards.length && (
-              <span className="pb-0.5 text-[11.5px] text-ink-4">{g.label}</span>
+              <span className="pb-0.5 text-[12px] text-ink-4">{g.label}</span>
             )}
             {g.boards.map(row)}
           </div>
@@ -1455,6 +1449,10 @@ function ConnectSources() {
   React.useEffect(() => {
     if (asked && picked === undefined) setup.current?.scrollIntoView({ block: 'center' })
   }, [asked, picked])
+  // Opened by a tap: the panel lands below the fold on a short screen, so bring it into view.
+  React.useEffect(() => {
+    if (picked) setup.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [picked])
 
   return (
     <section
@@ -1605,7 +1603,7 @@ function Masonry({
                   {/* The pick mark: a number once picked, an empty ring on hover or while picking. */}
                   <span
                     aria-hidden="true"
-                    className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[11px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : `bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md group-hover/pin:opacity-100 ${selected.length > 0 ? 'opacity-100' : 'opacity-0'}`}`}
+                    className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[12px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : `bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md group-hover/pin:opacity-100 ${selected.length > 0 ? 'opacity-100' : 'opacity-0'}`}`}
                   >
                     {on ? order + 1 : ''}
                   </span>
@@ -1621,7 +1619,7 @@ function Masonry({
                     </span>
                     <span className="truncate text-[12px] text-ink-2">{ref.account}</span>
                     {used && (
-                      <span className="ml-auto shrink-0 text-[11.5px] text-ink-4">{used}</span>
+                      <span className="ml-auto shrink-0 text-[12px] text-ink-4">{used}</span>
                     )}
                   </span>
                 </span>

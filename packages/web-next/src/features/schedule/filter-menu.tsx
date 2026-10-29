@@ -9,7 +9,7 @@ import { NewShootForm } from '@/features/shoot/new-shoot'
 import { ALL_STAGES, STAGES, type StageFilter } from './calendar-items'
 import { StageMark } from './stage-mark'
 
-const EYEBROW = 'px-2.5 pt-2 pb-1.5 font-mono text-[9.5px] tracking-[0.08em] text-ink-5'
+const EYEBROW = 'px-2.5 pt-2 pb-1.5 font-mono text-[12px] tracking-[0.08em] text-ink-4'
 const ROW =
   'flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-surface'
 const POP =
@@ -88,7 +88,7 @@ export function MoreMenu({
               <button
                 type="button"
                 onClick={() => onStages(ALL_STAGES)}
-                className="font-sans text-[11px] tracking-normal text-ink-3 normal-case hover:text-ink"
+                className="font-sans text-[12px] tracking-normal text-ink-3 normal-case hover:text-ink"
               >
                 Show all
               </button>

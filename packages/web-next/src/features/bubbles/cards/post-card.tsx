@@ -29,7 +29,7 @@ function StagePill({ stage }: { stage: Stage }) {
   return (
     <span
       key={stage}
-      className="bb-fade flex h-[20px] items-center gap-1 rounded-full bg-surface px-2 text-[11px] font-medium text-ink"
+      className="bb-fade flex h-[20px] items-center gap-1 rounded-full bg-surface px-2 text-[12px] font-medium text-ink"
     >
       <span style={{ color: `var(--stage-${stage})` }}>
         <StageGlyph stage={stage} />

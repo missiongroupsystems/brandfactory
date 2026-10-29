@@ -106,7 +106,7 @@ export function MoodboardPicksCard({
     >
       <span className="flex flex-col gap-3">
         {hook && <span className={`${TITLE} line-clamp-2`}>{hook}</span>}
-        {why && <span className="text-[12.5px] leading-[1.5] text-ink-4">{why}</span>}
+        {why && <span className="text-[13px] leading-[1.5] text-ink-4">{why}</span>}
         <ol aria-label="Moodboard posts" className="flex flex-wrap gap-2.5 p-0.5">
           {shown.map((p, i) => (
             <li key={p.id} className={i >= first.length ? 'bb-pop' : ''}>
@@ -134,7 +134,7 @@ export function MoodboardPicksCard({
           )}
         </ol>
         {decided ? (
-          <span className="text-[12.5px] text-ink-4">
+          <span className="text-[13px] text-ink-4">
             {decided === 'saved' ? 'Saved to idea' : 'Sent'}
           </span>
         ) : (

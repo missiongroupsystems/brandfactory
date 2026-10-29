@@ -62,7 +62,8 @@ describe('Posted in the static demo', () => {
     )
     // "as of" once, beside the totals, never repeated on each post.
     expect(screen.getAllByText(/as of/)).toHaveLength(1)
-    expect(screen.getByText('as of 6 Oct').parentElement).toHaveAttribute(
+    // The totals name their period beside the day they were read.
+    expect(screen.getByText('Last 30 days, as of 6 Oct').parentElement).toHaveAttribute(
       'title',
       expect.stringMatching(/^Last 30 days/),
     )

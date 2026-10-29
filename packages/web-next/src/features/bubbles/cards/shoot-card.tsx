@@ -58,14 +58,14 @@ export function ShootCard({ model, index }: { model: Model; index: number }) {
           >
             {date ? (
               <>
-                <span className="font-mono text-[9.5px] tracking-[0.08em] uppercase opacity-80">
+                <span className="font-mono text-[12px] tracking-[0.08em] uppercase opacity-80">
                   {WEEKDAY[weekdayOf(date)]}
                 </span>
                 <span className="font-display text-[22px] leading-none">{dayNumber(date)}</span>
-                <span className="text-[10px] opacity-80">{MONTH_SHORT[monthOf(date).month]}</span>
+                <span className="text-[12px] opacity-80">{MONTH_SHORT[monthOf(date).month]}</span>
               </>
             ) : (
-              <span className="text-[10.5px] opacity-80">No day</span>
+              <span className="text-[12px] opacity-80">No day</span>
             )}
           </span>
         </Slide>
@@ -89,7 +89,7 @@ export function ShootCard({ model, index }: { model: Model; index: number }) {
                     <Initials key={`${c.name}-${i}`} name={c.name} size={24} />
                   ))}
                   {crew.length > 4 && (
-                    <span className="pl-2.5 text-[11px] text-ink-4">+{crew.length - 4}</span>
+                    <span className="pl-2.5 text-[12px] text-ink-4">+{crew.length - 4}</span>
                   )}
                 </Stack>
               )}

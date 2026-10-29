@@ -69,9 +69,9 @@ export function VoiceSection() {
             aria-expanded={history}
             aria-label="Version history"
             onClick={() => setHistory((h) => !h)}
-            className="-ml-2 flex h-8 items-center gap-2 self-start rounded-full px-2 text-[12.5px] text-ink-4 transition-colors hover:bg-surface hover:text-ink-2"
+            className="-ml-2 flex h-8 items-center gap-2 self-start rounded-full px-2 text-[13px] text-ink-4 transition-colors hover:bg-surface hover:text-ink-2"
           >
-            <span className="font-mono text-[11px] text-ink-3">v{current.n}</span>
+            <span className="font-mono text-[12px] text-ink-3">v{current.n}</span>
             <span>
               {current.by} · {current.when}
             </span>
@@ -131,16 +131,16 @@ function History({
           )}
           <span
             aria-hidden="true"
-            className={`flex size-5 items-center justify-center rounded-full text-[10px] leading-none font-medium ${i === 0 ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
+            className={`flex size-5 items-center justify-center rounded-full text-[12px] leading-none font-medium ${i === 0 ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
           >
             {v.by[0]}
           </span>
           <span className="flex min-w-0 flex-col gap-0.5 pt-px">
             <span className="flex items-baseline gap-2 text-[13.5px]">
               <span className="font-medium">{v.by}</span>
-              <span className="font-mono text-[11px] text-ink-4">v{v.n}</span>
+              <span className="font-mono text-[12px] text-ink-4">v{v.n}</span>
               {/* No hover on touch, so the date sits here and Bring back stays shown. */}
-              <span className="hidden text-[12.5px] text-ink-4 [@media(hover:none)]:inline">
+              <span className="hidden text-[13px] text-ink-4 [@media(hover:none)]:inline">
                 {v.when}
               </span>
             </span>
@@ -314,7 +314,7 @@ function Flow({
   const hint = done
     ? `v${next} writes every caption, hook and reply.`
     : [
-        'Two sentences. AI reads them first.',
+        'Two sentences.',
         'Words to reach for, and words to never use.',
         'Lines the team would post as they are.',
         `What AI writes now, and as v${next}.`,

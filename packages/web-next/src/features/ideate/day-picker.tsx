@@ -90,6 +90,20 @@ export function DayPicker({
     }
   }, [open, phone, close])
 
+  // Near the foot of the window the popover opens upward; with room on neither side, the page
+  // scrolls it into view. Below the field it was cut off at the window's edge.
+  const [up, setUp] = React.useState(false)
+  React.useLayoutEffect(() => {
+    if (!open || phone) return
+    const f = field.current?.getBoundingClientRect()
+    const h = pop.current?.offsetHeight ?? 0
+    if (!f) return
+    const below = f.bottom + 8 + h <= window.innerHeight
+    const above = f.top - 8 - h >= 0
+    setUp(!below && above)
+    if (!below && !above) pop.current?.scrollIntoView({ block: 'nearest' })
+  }, [open, phone])
+
   const text = value ? `${dayLabel(value)}${time ? `, ${time}` : ''}` : placeholder
   const body = (
     <Body
@@ -130,7 +144,7 @@ export function DayPicker({
         aria-controls={open ? id : undefined}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className={`flex h-8 items-center gap-2 rounded-full bg-surface pr-3 pl-3 text-[12.5px] font-medium outline-none transition-colors hover:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)] disabled:cursor-default disabled:opacity-50 ${value ? 'text-ink' : 'text-ink-3'}`}
+        className={`flex h-8 items-center gap-2 rounded-full bg-surface pr-3 pl-3 text-[13px] font-medium outline-none transition-colors hover:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)] disabled:cursor-default disabled:opacity-50 ${value ? 'text-ink' : 'text-ink-3'}`}
       >
         <CalendarGlyph />
         {text}
@@ -146,7 +160,7 @@ export function DayPicker({
             id={id}
             role="dialog"
             aria-label={label}
-            className="bb-menu absolute top-full left-0 z-20 mt-2 w-[296px] rounded-[16px] bg-page p-3 shadow-sheet ring-1 ring-(--cal-line)"
+            className={`bb-menu absolute left-0 z-20 w-[296px] ${up ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-[16px] bg-page p-3 shadow-sheet ring-1 ring-(--cal-line)`}
           >
             {body}
           </div>
@@ -352,14 +366,14 @@ function Body({
               Clear
             </button>
           ) : (
-            <span className="font-mono text-[9.5px] tracking-[0.08em] text-ink-5 uppercase">
+            <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
               Today {dayNumber(today)} {MONTH_SHORT[monthOf(today).month]}
             </span>
           )}
         </div>
         <div aria-hidden="true" className="grid grid-cols-7 text-center">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-            <span key={i} className="font-mono text-[9.5px] text-ink-5">
+            <span key={i} className="font-mono text-[12px] text-ink-4">
               {d}
             </span>
           ))}
@@ -388,7 +402,7 @@ function Body({
                   step(by)
                 }}
                 onClick={() => onDay(day.date)}
-                className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] tabular-nums transition-colors outline-none focus-visible:shadow-[inset_0_0_0_1.5px_var(--ink)] max-md:h-10 max-md:text-[14px] ${
+                className={`relative flex h-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums transition-colors outline-none focus-visible:shadow-[inset_0_0_0_1.5px_var(--ink)] max-md:h-10 max-md:text-[14px] ${
                   on
                     ? 'bg-ink text-page'
                     : info.disabled
@@ -432,7 +446,7 @@ function Body({
                 {t}
                 {t === best && (
                   <span
-                    className={`font-mono text-[8.5px] tracking-[0.08em] uppercase ${on ? 'text-page/70' : 'text-(--insight-6)'}`}
+                    className={`font-mono text-[12px] tracking-[0.04em] uppercase ${on ? 'text-page/70' : 'text-(--insight-6)'}`}
                   >
                     Best
                   </span>

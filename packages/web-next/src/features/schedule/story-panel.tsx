@@ -62,7 +62,7 @@ export function StoryDeck({
           ))
           .reverse()}
       </span>
-      <span className="font-mono text-[10.5px] tracking-[0.04em] text-ink-3 group-hover/deck:text-ink">
+      <span className="font-mono text-[12px] tracking-[0.04em] text-ink-3 group-hover/deck:text-ink">
         {stories.length} {stories.length > 1 ? 'stories' : 'story'}
       </span>
     </button>
@@ -115,7 +115,7 @@ export function StoryPanel({
       <header className="flex items-start justify-between gap-3 px-6 pt-5 pb-4">
         <span className="flex items-baseline gap-2.5 pt-1">
           <span className="font-display text-[24px] leading-none tracking-[-0.02em]">Stories</span>
-          <span className="font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase">
+          <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
             {label}
           </span>
         </span>
@@ -153,9 +153,7 @@ export function StoryPanel({
                     {s.image && <Media src={s.image} sizes="36px" />}
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="font-mono text-[10.5px] text-ink-4 tabular-nums">
-                      {s.time}
-                    </span>
+                    <span className="font-mono text-[12px] text-ink-4 tabular-nums">{s.time}</span>
                     <span className="truncate text-[14px]">{s.title}</span>
                   </span>
                   <span

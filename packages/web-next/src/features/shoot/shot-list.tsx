@@ -321,7 +321,9 @@ export function ShotList({
       <SortableContext items={ids.map(groupId)} strategy={horizontalListSortingStrategy}>
         <ol
           aria-label="Shots in order"
-          className="flex w-max min-w-full items-start gap-7 max-md:gap-4"
+          // Read only (the share page), the ideas wrap to new rows: a strip cut at the edge
+          // with nothing to drag it by read as broken.
+          className={`flex items-start gap-7 max-md:gap-4 ${canDrag ? 'w-max min-w-full' : 'flex-wrap gap-y-8 max-md:gap-y-6'}`}
         >
           {ideas.map((card) => (
             <Group
@@ -495,7 +497,7 @@ function Group({
         type="button"
         aria-label={`Remove ${card.hook}`}
         onClick={onRemove}
-        className={`ml-auto shrink-0 text-[11.5px] text-ink-4 hover:text-ink [@media(hover:none)]:hidden ${ON_HOVER}`}
+        className={`ml-auto shrink-0 text-[12px] text-ink-4 hover:text-ink [@media(hover:none)]:hidden ${ON_HOVER}`}
       >
         Remove
       </button>
@@ -561,7 +563,7 @@ function Group({
         </Label>
       )}
       {card.shots.length === 0 ? (
-        <p className="text-[12.5px] text-ink-4">No storyboard yet.</p>
+        <p className="text-[13px] text-ink-4">No storyboard yet.</p>
       ) : (
         <SortableContext
           items={card.shots.map((s) => clipId(card.id, s.id))}
@@ -624,12 +626,12 @@ function Label({
       onTouchStart={(e) => {
         if (grab && !onControl(e.target)) grab.onTouchStart?.(e)
       }}
-      className={`group/label bb-touch-drag relative flex w-full min-w-0 flex-col gap-2 pb-1 text-[12.5px] font-medium select-none ${grab ? 'cursor-grab touch-manipulation' : ''}`}
+      className={`group/label bb-touch-drag relative flex w-full min-w-0 flex-col gap-2 pb-1 text-[13px] font-medium select-none ${grab ? 'cursor-grab touch-manipulation' : ''}`}
     >
       {grip}
       <span className="flex min-w-0 items-center gap-2 px-0.5">
         {hook}
-        <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-[0.06em] text-ink-4 uppercase">
+        <span className="flex shrink-0 items-center gap-1 font-mono text-[12px] tracking-[0.06em] text-ink-4 uppercase">
           <FormatIcon format={card.format} size={9} />
           {FORMAT_LABEL[card.format]}
         </span>
@@ -719,10 +721,10 @@ function FrameBody({
         {src && <Media src={src} sizes="(max-width: 768px) 108px, 152px" />}
       </span>
       <span className="flex min-w-0 items-baseline gap-1.5 px-0.5">
-        <span className="font-mono text-[10px] text-ink-4 tabular-nums">
+        <span className="font-mono text-[12px] text-ink-4 tabular-nums">
           {String(n).padStart(2, '0')}
         </span>
-        <span className="min-w-0 text-[12px] leading-snug text-ink-2 max-md:line-clamp-2 md:truncate">
+        <span className="line-clamp-2 min-w-0 text-[13px] leading-snug text-ink-2">
           {shot.title || 'Untitled shot'}
         </span>
       </span>

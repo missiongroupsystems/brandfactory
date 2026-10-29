@@ -7,10 +7,10 @@ import type { BrandKit } from '@/data/brand-kit'
 
 /** The pieces of the Brand page that its sections share. */
 
-export const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+export const EYEBROW = 'font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase'
 
 export const QUIET =
-  'flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] text-ink-3 transition-colors hover:bg-surface hover:text-ink'
+  'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] text-ink-3 transition-colors hover:bg-surface hover:text-ink'
 
 export type Voice = BrandKit['voice']
 export type Colour = BrandKit['colours'][number]

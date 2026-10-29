@@ -26,11 +26,25 @@ describe('the static demo', () => {
       </BrandProvider>,
     )
     const demo = INSIGHTS_BY_BRAND['casa-vostra']
-    expect(screen.getByText(demo.period)).toBeInTheDocument()
+    // The numbers name their period: the last 30 days, and its dates.
+    expect(screen.getByText('Last 30 days · 7 Sep – 6 Oct')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'The month in numbers' })).toHaveTextContent(
       demo.kpis[0]!.value,
     )
     expect(screen.queryByText(/^Nothing yet\./)).toBeNull()
+  })
+
+  // Sentiment and Creators count the same 30 days: the period stays in sight in every view.
+  it('names the period in every view', () => {
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+    for (const view of ['Sentiment', 'Creators']) {
+      fireEvent.click(screen.getByRole('radio', { name: view }))
+      expect(screen.getByText('Last 30 days · 7 Sep – 6 Oct')).toBeInTheDocument()
+    }
   })
 })
 

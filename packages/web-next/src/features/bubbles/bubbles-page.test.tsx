@@ -514,7 +514,7 @@ describe('the moodboard in the chat', () => {
 })
 
 describe('with no Bubbles address', () => {
-  it('says so quietly instead of a broken chat', async () => {
+  it('says so in one line, with a way back, instead of a broken chat', async () => {
     vi.resetModules()
     vi.stubEnv('NEXT_PUBLIC_BUBBLES_URL', '')
     // After a module reset, the provider must come from the same module graph as the page.
@@ -525,7 +525,8 @@ describe('with no Bubbles address', () => {
         <Page />
       </Provider>,
     )
-    expect(screen.getByText('Bubbles is not connected.')).toBeTruthy()
+    expect(screen.getByText('Bubbles is not connected yet.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Go to Schedule' })).toHaveAttribute('href', '/')
     expect(screen.queryByRole('textbox')).toBeNull()
     vi.unstubAllEnvs()
   })

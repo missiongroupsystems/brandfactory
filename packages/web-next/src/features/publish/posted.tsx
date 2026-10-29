@@ -2,13 +2,10 @@
 
 import * as React from 'react'
 
-import { Segmented } from '@/components/controls'
 import { ArrowUpRightIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { Post } from '@/data/demo'
-import { NotAvailable, reasonOf } from '@/features/connections/not-available'
 import { asOf, bodyOf, k, openOn, readingOn, type ReadingOn } from '@/features/posted/model'
-import { useBrand } from '@/features/schedule/posts-store'
 
 import { CHANNELS, FORMAT_LABEL, type ChannelKey, type Shot } from './model'
 import { TypeBadge } from './preview-media'
@@ -17,8 +14,8 @@ import { ShotView } from './shot'
 /*
  * A posted post, imported or sent: the cover first, large and sticky, its slides under it; beside
  * it the title and the caption, then one card for the account on show (its counts as last read,
- * and the way to the post there), then what analytics will show, drawn with no figures. A post on
- * more than one account switches between them. Nothing on it can be changed.
+ * and the way to the post there), or one line when it has none. A post on more than one account
+ * switches between them. Nothing on it can be changed.
  */
 
 /** What a posted post carries, already read out of the post and its kept draft. */
@@ -43,7 +40,6 @@ export interface PostedView {
 const NAME = Object.fromEntries(CHANNELS.map((c) => [c.key, c.name])) as Record<ChannelKey, string>
 const CARD =
   'rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)] max-md:rounded-none max-md:p-0 max-md:shadow-none'
-const HEADING = 'font-display text-[15px] font-semibold tracking-[-0.01em]'
 const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
 
 /**
@@ -69,7 +65,7 @@ function Cover({
         <ShotView shot={first} sizes="400px" />
         <TypeBadge format={v.post.format} slides={v.media.length} />
         {v.media.length > 1 && (
-          <span className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-[2px] font-mono text-[10.5px] text-page tabular-nums">
+          <span className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-[2px] font-mono text-[12px] text-page tabular-nums">
             1/{v.media.length}
           </span>
         )}
@@ -199,6 +195,9 @@ function Switch({
   )
 }
 
+/** A post with no counts: one line. The ghost of a chart with no figures read as broken. */
+const NO_NUMBERS = <p className="text-[13px] text-ink-3">No numbers yet.</p>
+
 /** "Open on Instagram ↗": a pill, so the way to the post is easy to find. */
 function OpenPill({ href, on }: { href: string; on: ChannelKey }) {
   return (
@@ -230,7 +229,7 @@ function OnAccount({
   read: ReadingOn
 }) {
   const many = v.went.length > 1
-  if (!many && read.counts.length === 0 && !read.permalink) return null
+  if (!many && read.counts.length === 0 && !read.permalink) return NO_NUMBERS
   return (
     <section aria-label={NAME[on]} className={`flex flex-col gap-6 ${CARD}`}>
       {(many || read.permalink) && (
@@ -239,6 +238,7 @@ function OnAccount({
           {read.permalink && <OpenPill href={read.permalink} on={on} />}
         </div>
       )}
+      {read.counts.length === 0 && NO_NUMBERS}
       {read.counts.length > 0 && (
         <div key={on} className="bb-swap flex flex-wrap items-end gap-x-9 gap-y-4 max-md:gap-x-7">
           {read.counts.map((c) => (
@@ -246,7 +246,7 @@ function OnAccount({
               <span className={`${NUM} text-[28px] leading-none max-md:text-[24px]`}>
                 {k(c.value)}
               </span>
-              <span className="text-[12.5px] text-ink-3">{c.label.toLowerCase()}</span>
+              <span className="text-[13px] text-ink-3">{c.label.toLowerCase()}</span>
             </span>
           ))}
           {read.measuredAt && (
@@ -256,190 +256,6 @@ function OnAccount({
           )}
         </div>
       )}
-    </section>
-  )
-}
-
-// ── Analytics: not connected, with a preview of what arrives ─────────────────────────────────
-
-type Series = { key: string; label: string; shape: number[] }
-
-/** The first two weeks after it went out, as shapes with no numbers: a preview, not a reading. */
-const SERIES: Record<string, Series> = {
-  reach: {
-    key: 'reach',
-    label: 'Reach',
-    shape: [1, 0.82, 0.55, 0.4, 0.3, 0.26, 0.22, 0.3, 0.2, 0.16, 0.14, 0.12, 0.11, 0.1],
-  },
-  watch: {
-    key: 'watch',
-    label: 'Watch time',
-    shape: [0.9, 0.95, 0.7, 0.5, 0.42, 0.38, 0.35, 0.4, 0.3, 0.26, 0.24, 0.2, 0.18, 0.17],
-  },
-  visits: {
-    key: 'visits',
-    label: 'Profile visits',
-    shape: [0.7, 1, 0.5, 0.3, 0.2, 0.35, 0.15, 0.1, 0.25, 0.1, 0.08, 0.12, 0.06, 0.05],
-  },
-  followers: {
-    key: 'followers',
-    label: 'New followers',
-    shape: [0.6, 1, 0.5, 0.3, 0.2, 0.35, 0.15, 0.1, 0.25, 0.1, 0.08, 0.12, 0.06, 0.05],
-  },
-  spend: {
-    key: 'spend',
-    label: 'Spend',
-    shape: [0, 0, 0.7, 0.7, 0.7, 0.7, 0.7, 1, 1, 1, 0, 0, 0, 0],
-  },
-}
-
-/** Fourteen days of bars with no figures: the shape of the chart that arrives, nothing read. */
-function GhostBars({ shape }: { shape: number[] }) {
-  const h = 128
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_28px] gap-x-2.5 gap-y-2">
-      <div className="relative" style={{ height: h }}>
-        {[1 / 3, 2 / 3].map((t) => (
-          <span
-            key={t}
-            className="absolute inset-x-0 border-t border-dashed border-(--line)"
-            style={{ bottom: `${t * 100}%` }}
-          />
-        ))}
-        <span className="absolute inset-x-0 bottom-0 border-t border-(--line)" />
-        <div className="absolute inset-0 flex items-end">
-          {shape.map((p, i) => (
-            <span key={i} className="flex h-full flex-1 items-end justify-center">
-              <span
-                className="bb-grow block w-[56%] max-w-[30px] rounded-t-[4px] rounded-b-[2px] bg-(--track)"
-                style={{ height: `${Math.max(p * 92, 2)}%`, animationDelay: `${i * 22}ms` }}
-              />
-            </span>
-          ))}
-        </div>
-      </div>
-      <span className="relative">
-        {[1 / 3, 2 / 3].map((t) => (
-          <span
-            key={t}
-            className="absolute block h-2 w-5 translate-y-1/2 rounded-[3px] bg-tile"
-            style={{ bottom: `${t * 100}%` }}
-          />
-        ))}
-      </span>
-      <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
-        {[0, 6, 13].map((i) => (
-          <span
-            key={i}
-            className="absolute -translate-x-1/2 whitespace-nowrap"
-            style={{ left: `${((i + 0.5) / shape.length) * 100}%` }}
-          >
-            Day {i + 1}
-          </span>
-        ))}
-      </span>
-    </div>
-  )
-}
-
-/** Rows with a bar each and no figures, as Insights draws "what worked". */
-function GhostRows({ title, rows }: { title: string; rows: Array<[string, number]> }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="text-[13px] font-medium">{title}</span>
-      <div className="flex flex-col gap-2.5">
-        {rows.map(([label, w], i) => (
-          <div key={label} className="flex flex-col gap-1">
-            <span className="flex items-center justify-between gap-3 text-[13px]">
-              <span className="text-ink-2">{label}</span>
-              <span className="block h-2.5 w-7 rounded-[3px] bg-tile" />
-            </span>
-            <span className="h-2 overflow-hidden rounded-full bg-(--track)/40">
-              <span
-                className="bb-fill block h-full rounded-full bg-(--track)"
-                style={{ width: `${w * 100}%`, animationDelay: `${200 + i * 90}ms` }}
-              />
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/**
- * What analytics will show for this post on the account on show, once its analytics are
- * connected: the number card and two small rows from Insights, drawn with no figures. The pill
- * says why it is empty, on hover; the switch shows each number that will appear.
- */
-function Analytics({ v, on }: { v: PostedView; on: ChannelKey | undefined }) {
-  const { brand } = useBrand()
-  const series = [
-    SERIES.reach!,
-    v.post.format === 'reel' ? SERIES.watch! : SERIES.visits!,
-    SERIES.followers!,
-    SERIES.spend!,
-  ]
-  const [at, setAt] = React.useState(series[0]!.key)
-  const s = series.find((x) => x.key === at) ?? series[0]!
-  const viewers: Array<[string, number]> = [
-    ['Followers', 0.55],
-    ['Not yet followers', 1],
-    ['Followed after', 0.14],
-  ]
-  const second: { title: string; rows: Array<[string, number]> } =
-    v.collabs.length > 0
-      ? {
-          title: 'Reach by account',
-          rows: [[brand.name, 1], ...v.collabs.map((c): [string, number] => [c, 0.62])],
-        }
-      : {
-          title: 'Found it through',
-          rows: [
-            [on === 'tt' ? 'For You' : 'Explore', 1],
-            ['Following', 0.5],
-            ['Profile', 0.22],
-            ['Search', 0.12],
-          ],
-        }
-  return (
-    <section aria-label="Analytics" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className={HEADING}>Analytics</h2>
-        <NotAvailable reason={reasonOf(on ? `${NAME[on]} analytics` : 'Analytics')} />
-      </div>
-      <div className={`flex flex-col ${CARD}`}>
-        <div className="max-md:hidden">
-          <Segmented
-            label="Number"
-            pill
-            value={at}
-            onChange={setAt}
-            options={series.map((x) => ({ value: x.key, label: x.label }))}
-          />
-        </div>
-        <div role="radiogroup" aria-label="Number" className="flex flex-wrap gap-1.5 md:hidden">
-          {series.map((x) => (
-            <button
-              key={x.key}
-              type="button"
-              role="radio"
-              aria-checked={at === x.key}
-              onClick={() => setAt(x.key)}
-              className={`h-8 rounded-full px-3 text-[12.5px] font-medium transition-colors ${at === x.key ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
-            >
-              {x.label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-7">
-          <GhostBars key={s.key} shape={s.shape} />
-        </div>
-        <div className="mt-8 grid grid-cols-2 gap-8 max-sm:grid-cols-1">
-          <GhostRows title="Who watched" rows={viewers} />
-          <GhostRows title={second.title} rows={second.rows} />
-        </div>
-      </div>
     </section>
   )
 }
@@ -491,8 +307,7 @@ export function PostedPost({ v }: { v: PostedView }) {
             <FactRows v={v} />
           </div>
         )}
-        {on && <OnAccount v={v} on={on} setOn={setOn} read={read} />}
-        <Analytics key={on} v={v} on={on} />
+        {on ? <OnAccount v={v} on={on} setOn={setOn} read={read} /> : NO_NUMBERS}
       </div>
     </div>
   )

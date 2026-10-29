@@ -36,18 +36,22 @@ export function TabBar() {
     PUBLIC_PATHS.includes(pathname)
   )
     return null
-  const current = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
+  // A shoot is planned from Ideas: its page lights that tab, as the header does.
+  const current = (href: string) =>
+    href === '/'
+      ? pathname === '/'
+      : pathname.startsWith(href) || (href === '/ideate' && pathname.startsWith('/shoot/'))
   const tab = (t: (typeof TABS)[number]) => (
     <Link
       key={t.href}
       href={t.href}
       aria-current={current(t.href) ? 'page' : undefined}
-      className={`flex flex-1 flex-col items-center gap-1 pt-2 text-[10.5px] font-medium transition-colors ${current(t.href) ? 'text-ink' : 'text-ink-4'}`}
+      className={`flex flex-1 flex-col items-center gap-1 pt-2 text-[12px] font-medium transition-colors ${current(t.href) ? 'text-ink' : 'text-ink-4'}`}
     >
       <span className="relative">
         {t.icon}
         {t.href === '/inbox' && waiting > 0 && (
-          <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[10px] leading-none font-semibold text-page tabular-nums">
+          <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[12px] leading-none font-semibold text-page tabular-nums">
             {waiting}
           </span>
         )}

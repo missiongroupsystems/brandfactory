@@ -32,7 +32,7 @@ const STAGE_LABEL = {
 } as const
 
 /** The hours' labels, also used for the band above them. */
-const GUTTER = 'font-mono text-[10px] text-ink-4'
+const GUTTER = 'font-mono text-[12px] text-ink-4'
 
 /**
  * One day by the hour. Each post sits at its time as a thumbnail with its hook, channels and
@@ -124,7 +124,7 @@ export function DayView({
           {hours.map((h, i) => (
             <React.Fragment key={h}>
               <span
-                className="font-mono text-[10px] text-ink-4 tabular-nums"
+                className="font-mono text-[12px] text-ink-4 tabular-nums"
                 style={{ position: 'absolute', top: i * HOUR_H - 6, left: 0 }}
               >
                 {String(h % 24).padStart(2, '0')}:00
@@ -148,7 +148,7 @@ export function DayView({
               className="pointer-events-none absolute right-0 left-16 rounded-[10px] bg-(--insight-wash) shadow-[inset_2px_0_0_var(--insight-4)]"
               style={{ top: (best - FIRST_HOUR) * HOUR_H, height: 2 * HOUR_H }}
             >
-              <span className="absolute top-2 right-3 flex items-center gap-1 text-[11px] font-medium text-(--insight-6)">
+              <span className="absolute top-2 right-3 flex items-center gap-1 text-[12px] font-medium text-(--insight-6)">
                 <SparkIcon size={8} />
                 Best time to post
               </span>
@@ -172,7 +172,7 @@ export function DayView({
                   right: 148,
                 }}
               >
-                <span className="font-mono text-[10.5px] tabular-nums opacity-75">
+                <span className="font-mono text-[12px] tabular-nums opacity-75">
                   Shoot · {timeRange(shoot)}
                 </span>
                 <span className="truncate text-[14px] font-medium">{shoot.title}</span>
@@ -190,7 +190,7 @@ export function DayView({
               className="absolute right-3 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface"
               style={{ top: top(s.time) + 4 }}
             >
-              <span className="font-mono text-[10px] text-ink-4 tabular-nums">{s.time}</span>
+              <span className="font-mono text-[12px] text-ink-4 tabular-nums">{s.time}</span>
               <span className="relative block h-[44px] w-[25px] overflow-hidden rounded-[4px] bg-tile shadow-[0_0_0_1px_var(--line)]">
                 {s.image && <Media src={s.image} sizes="64px" />}
               </span>
@@ -214,13 +214,13 @@ export function DayView({
                 onClick={() => onOpenPost(post.id)}
                 className="flex min-w-0 flex-col gap-1.5 pt-0.5 text-left"
               >
-                <span className="font-mono text-[10.5px] text-ink-3 tabular-nums">
+                <span className="font-mono text-[12px] text-ink-3 tabular-nums">
                   {postTime(post)}
                 </span>
                 <span className="line-clamp-2 font-display text-[15px] leading-[1.2]">
                   {post.hook}
                 </span>
-                <span className="flex items-center gap-2 text-[11px] text-ink-3">
+                <span className="flex items-center gap-2 text-[12px] text-ink-3">
                   <span className="flex items-center gap-1 text-ink-4">
                     {channelsOf(post).map((c) => (
                       <PlatformLogo key={c} platform={c} size={10} />
@@ -235,7 +235,7 @@ export function DayView({
                   </span>
                 </span>
                 {post.stage === 'failed' && post.error && (
-                  <span className="text-[11.5px] leading-[1.35] font-medium text-fail-ink">
+                  <span className="text-[12px] leading-[1.35] font-medium text-fail-ink">
                     {post.error}
                   </span>
                 )}

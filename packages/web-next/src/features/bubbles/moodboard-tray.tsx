@@ -70,7 +70,7 @@ export function MoodboardTray({
               type="button"
               aria-pressed={filter === f.key}
               onClick={() => setFilter(f.key)}
-              className={`bb-press h-7 shrink-0 rounded-full px-2.5 text-[12.5px] whitespace-nowrap transition-colors ${
+              className={`bb-press h-7 shrink-0 rounded-full px-2.5 text-[13px] whitespace-nowrap transition-colors ${
                 filter === f.key ? 'bg-ink text-page' : 'text-ink-3 hover:bg-surface hover:text-ink'
               }`}
             >

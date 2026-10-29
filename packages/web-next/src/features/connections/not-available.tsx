@@ -90,7 +90,7 @@ export function NotAvailable({
           setHushed(false)
           setOpen(true)
         }}
-        className="flex h-8 items-center gap-1.5 rounded-full bg-(--pending-soft) px-3 text-[12.5px] font-medium text-(--pending-ink) outline-none focus-visible:shadow-[0_0_0_2px_var(--pending)]"
+        className="flex h-8 items-center gap-1.5 rounded-full bg-(--pending-soft) px-3 text-[13px] font-medium text-(--pending-ink) outline-none focus-visible:shadow-[0_0_0_2px_var(--pending)]"
       >
         <span aria-hidden="true" className="size-1.5 rounded-full bg-(--pending)" />
         {label}
@@ -98,7 +98,7 @@ export function NotAvailable({
       <span
         id={id}
         role="tooltip"
-        className={`absolute top-[calc(100%+8px)] z-30 before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-[""] w-max max-w-[240px] rounded-[12px] bg-page px-3 py-2.5 text-left text-[12.5px] leading-[1.45] text-ink-2 shadow-pop transition-opacity duration-150 ${hushed ? '' : 'group-hover/na:visible group-hover/na:opacity-100 group-focus-within/na:visible group-focus-within/na:opacity-100'} ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
+        className={`absolute top-[calc(100%+8px)] z-30 before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-[""] w-max max-w-[240px] rounded-[12px] bg-page px-3 py-2.5 text-left text-[13px] leading-[1.45] text-ink-2 shadow-pop transition-opacity duration-150 ${hushed ? '' : 'group-hover/na:visible group-hover/na:opacity-100 group-focus-within/na:visible group-focus-within/na:opacity-100'} ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
       >
         {reason}
       </span>

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
@@ -54,13 +55,14 @@ export function BubblesPage() {
 
 function NotConnected() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-32 text-center">
-      <h1 className="bb-rise font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-        Bubbles
-      </h1>
-      <p className="bb-rise text-[15px] text-ink-3" style={{ animationDelay: '120ms' }}>
-        Bubbles is not connected.
-      </p>
+    <main className="flex flex-1 flex-col items-center justify-center gap-5 px-4 pb-32 text-center">
+      <p className="bb-rise text-[15px] text-ink-2">Bubbles is not connected yet.</p>
+      <Link
+        href="/"
+        className="bb-press flex h-10 items-center rounded-full bg-ink px-5 text-[14px] font-medium text-page"
+      >
+        Go to Schedule
+      </Link>
     </main>
   )
 }
@@ -235,7 +237,7 @@ function useElapsed(live: boolean, startedAt: number): number {
 
 function Steps({ tools, notes }: { tools: Turn['tools']; notes: string[] }) {
   return (
-    <details className="text-[12.5px] text-ink-4">
+    <details className="text-[13px] text-ink-4">
       <summary className="w-fit cursor-pointer list-none transition-colors select-none hover:text-ink [&::-webkit-details-marker]:hidden">
         How Bubbles did this ›
       </summary>
@@ -250,7 +252,7 @@ function Steps({ tools, notes }: { tools: Turn['tools']; notes: string[] }) {
         {tools.map((t) => (
           <li key={t.id} className="flex flex-wrap gap-x-2">
             <span>{doing(t.tool)}</span>
-            <span className="font-mono text-[11.5px] text-ink-5">{t.tool}</span>
+            <span className="font-mono text-[12px] text-ink-4">{t.tool}</span>
             {t.ok === false && (
               <span className="text-fail-ink">{t.refusal?.message ?? 'The core said no.'}</span>
             )}
@@ -318,7 +320,7 @@ function ApprovalCard({
           </button>
         </div>
       ) : (
-        <span className="text-[12.5px] text-ink-4">
+        <span className="text-[13px] text-ink-4">
           {approval.decision === 'sent' ? 'Sent' : 'Not sent'}
         </span>
       )}

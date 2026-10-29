@@ -22,8 +22,6 @@ import { MakeSheet } from './make-sheet'
 import { NotAvailable, notAvailable, reasonOf } from './not-available'
 import { connectTikTok, disconnectTikTok, tiktokOn, useTikTokAccount } from './tiktok'
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
-
 /** The sources by the job they do, in the order a week uses them. */
 const GROUPS: Array<{ label: string; keys: SourceKey[] }> = [
   { label: 'Publishing', keys: ['ig', 'tt', 'fb'] },
@@ -71,8 +69,8 @@ export function ConnectionsPage() {
         </h1>
 
         {GROUPS.map((g) => (
+          // Each row says what it brings: the group is named for a screen reader only.
           <section key={g.label} aria-label={g.label} className="flex flex-col gap-3">
-            <h2 className={`${EYEBROW} px-1`}>{g.label}</h2>
             <ul className="flex flex-col rounded-[18px] bg-page shadow-[0_0_0_1px_var(--line)]">
               {g.keys.map((key) => (
                 <Row key={key} source={key} status={status[key]} onConnect={() => open(key)} />
@@ -128,7 +126,7 @@ function Row({
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14.5px] font-medium">{info.name}</span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-ink-4">
+        <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
           {status !== 'off' && (
             <span
               aria-hidden="true"
@@ -171,7 +169,7 @@ function Row({
           type="button"
           aria-label={`${status === 'off' ? 'Connect' : 'Reconnect'} ${info.name}`}
           onClick={onConnect}
-          className={`bb-press h-8 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition-colors ${status === 'off' ? 'bg-surface text-ink hover:bg-paper' : 'bg-ink text-page hover:opacity-85'}`}
+          className={`bb-press h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition-colors ${status === 'off' ? 'bg-surface text-ink hover:bg-paper' : 'bg-ink text-page hover:opacity-85'}`}
         >
           {status === 'off' ? 'Connect' : 'Reconnect'}
         </button>

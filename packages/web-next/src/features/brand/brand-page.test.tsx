@@ -50,7 +50,7 @@ describe('the brand page', () => {
     fireEvent.change(title, { target: { value: 'Autumn menu' } })
     fireEvent.keyDown(title, { key: 'Enter' })
     expect(files().getByText('Autumn menu')).toBeInTheDocument()
-    expect(files().getByText('Updated today · CV_menu-autumn.pdf')).toBeInTheDocument()
+    expect(files().getByText('Today · CV_menu-autumn.pdf')).toBeInTheDocument()
   })
 
   it('deletes a file from its menu', () => {
@@ -161,6 +161,6 @@ describe('editing the kit', () => {
       'src',
       'blob:new-logo',
     )
-    expect(logo.getByText('Updated today · casa-mark-2026.png')).toBeInTheDocument()
+    expect(logo.getByText('Today · casa-mark-2026.png')).toBeInTheDocument()
   })
 })

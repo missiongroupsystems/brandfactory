@@ -117,7 +117,7 @@ export function IdeaPage({ id }: { id: string }) {
         <div className="flex items-center justify-between gap-3 pb-6 max-md:pb-5">
           <Link
             href={IDEAS_HREF}
-            className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
+            className="inline-flex items-center gap-1.5 font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
           >
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path
@@ -709,7 +709,7 @@ function StageSection({ stage, children }: { stage: StageState; children: React.
     >
       <div className="flex flex-col gap-2">
         <h2 className="font-display text-[22px] leading-[1.1] tracking-[-0.02em]">{stage.label}</h2>
-        <p className="flex items-center gap-2 text-[12.5px] text-ink-4">
+        <p className="flex items-center gap-2 text-[13px] text-ink-4">
           <StageMark done={stage.done} current={stage.current} />
           {stage.note}
         </p>
@@ -932,7 +932,7 @@ function RefTile({
         >
           <Media src={r.src} sizes={SIZES} />
           {index === 0 && (
-            <span className="absolute top-2 left-2 rounded-full bg-page/90 px-2 py-1 font-mono text-[9px] tracking-[0.08em] text-ink uppercase">
+            <span className="absolute top-2 left-2 rounded-full bg-page/90 px-2 py-1 font-mono text-[12px] tracking-[0.08em] text-ink uppercase">
               Main look
             </span>
           )}
@@ -1307,7 +1307,7 @@ function ShotCard({
             className="bb-menu absolute inset-0 z-[2] flex flex-col gap-1 overflow-y-auto rounded-[14px] bg-page p-1.5 shadow-pop [scrollbar-width:none]"
           >
             <span className="sticky top-0 z-[1] flex items-center justify-between px-1 pb-0.5">
-              <span className="font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase">
+              <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
                 Shoot it like
               </span>
               <button
@@ -1341,14 +1341,14 @@ function ShotCard({
                 aria-pressed={!shot.ref}
                 onKeyDown={escape}
                 onClick={() => choose(undefined)}
-                className={`flex items-center justify-center rounded-[6px] text-[11px] text-ink-4 hover:text-ink ${shot.ref ? 'bg-surface' : OVER}`}
+                className={`flex items-center justify-center rounded-[6px] text-[12px] text-ink-4 hover:text-ink ${shot.ref ? 'bg-surface' : OVER}`}
               >
                 None
               </button>
             </span>
             {more.length > 0 && (
               <>
-                <span className="px-1 pt-2 pb-0.5 font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase">
+                <span className="px-1 pt-2 pb-0.5 font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
                   From the moodboard
                 </span>
                 <span className={picks}>
@@ -1482,7 +1482,7 @@ function ShootLine({ card }: { card: IdeaCard }) {
           {others > 0 ? ` · ${others} more ${others === 1 ? 'idea' : 'ideas'} that day` : ''}
         </span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-[12.5px] font-medium">
+      <span className="flex shrink-0 items-center gap-1 text-[13px] font-medium">
         Call sheet
         <svg
           width="10"
@@ -1687,7 +1687,7 @@ function FinalEdit({
     >
       <span className={`${EYEBROW} flex items-center gap-2`}>
         Final edit
-        {slides && cut.length > 0 && <span className="text-ink-5 tabular-nums">{cut.length}</span>}
+        {slides && cut.length > 0 && <span className="text-ink-4 tabular-nums">{cut.length}</span>}
       </span>
       <span className="flex flex-wrap gap-2.5">
         {slides &&
@@ -1797,7 +1797,7 @@ function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) =>
             <button
               type="button"
               onClick={() => setAsking(false)}
-              className="h-8 rounded-full px-3 text-[12.5px] text-ink-3 transition-colors hover:text-ink"
+              className="h-8 rounded-full px-3 text-[13px] text-ink-3 transition-colors hover:text-ink"
             >
               Cancel
             </button>
@@ -1808,7 +1808,7 @@ function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) =>
                 setAsking(false)
                 onChange('posted')
               }}
-              className="bb-press h-8 rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page hover:opacity-85"
+              className="bb-press h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page hover:opacity-85"
             >
               Mark as posted
             </button>
@@ -1852,7 +1852,7 @@ function Suggestion({ slot }: { slot: Slot }) {
           </span>
           <span className="font-display text-[16px] leading-[1.2]">“{b.idea.hook}”</span>
           {b.insight && (
-            <span className="text-[12.5px] text-ink-2">
+            <span className="text-[13px] text-ink-2">
               {b.insight.line} ({b.insight.unit})
             </span>
           )}

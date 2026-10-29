@@ -163,7 +163,7 @@ export function WeekGrid({
                 {DAY_NAMES.map((d, i) => (
                   <span
                     key={d}
-                    className={`px-2.5 font-mono text-[10px] tracking-[0.08em] ${i === todayCol ? 'text-ink' : 'text-ink-5'}`}
+                    className={`px-2.5 font-mono text-[12px] tracking-[0.08em] ${i === todayCol ? 'text-ink' : 'text-ink-4'}`}
                   >
                     {d}
                   </span>
@@ -244,7 +244,7 @@ function WeekRow({
           <EventChip
             key={event.shootId ?? event.eventId ?? event.text}
             event={event}
-            className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[10.5px] leading-none font-medium"
+            className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[12px] leading-none font-medium"
             style={{ gridColumn: `${event.col} / span ${event.span}`, gridRow: lane + 1 }}
           >
             <span className="truncate">{event.text}</span>
@@ -329,9 +329,7 @@ function DayCell({
         className="pointer-events-none absolute inset-1.5 rounded-[10px] bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-opacity duration-200"
         style={{ opacity: (over || drag.touchOver === day.date) && canDrop ? 1 : 0 }}
       />
-      <div
-        className={`flex h-6 items-center justify-between gap-1 ${day.past ? 'opacity-40' : ''}`}
-      >
+      <div className="flex h-6 items-center justify-between gap-1">
         <span
           className={`flex size-[22px] items-center justify-center rounded-full text-[12px] font-medium tabular-nums ${day.today ? 'bg-ink text-page' : day.past ? 'text-ink-4' : 'text-ink-2'}`}
         >
@@ -345,7 +343,7 @@ function DayCell({
       />
       {/* A past day fades, but a post that failed there stays in full: it still needs someone. */}
       <div
-        className={`mt-2.5 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-40' : ''}`}
+        className={`mt-2.5 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-60' : ''}`}
       >
         {mode === 'month' ? (
           <DaySummary day={day} stages={stages} onOpen={onOpen} />
@@ -404,7 +402,7 @@ function DaySummary({
         <span
           key={channel ?? 'none'}
           title={`${n} post${n > 1 ? 's' : ''} did not go out${channel ? ` on ${CHANNEL_NAME[channel]}` : ''}`}
-          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)]"
+          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[12px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)]"
         >
           <span className="size-1.5 rounded-full bg-fail" />
           {channel && <PlatformLogo platform={channel} size={11} />}
@@ -415,7 +413,7 @@ function DaySummary({
         <span
           key={channel}
           title={`${n} on ${CHANNEL_NAME[channel]}`}
-          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[11px] font-medium text-ink-2 tabular-nums"
+          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[12px] font-medium text-ink-2 tabular-nums"
         >
           <PlatformLogo platform={channel} size={11} />
           {n}
@@ -424,7 +422,7 @@ function DaySummary({
       {stories > 0 && (
         <span
           title={`${stories} ${stories > 1 ? 'stories' : 'story'}`}
-          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[11px] font-medium text-ink-2 tabular-nums"
+          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[12px] font-medium text-ink-2 tabular-nums"
         >
           <StoriesIcon />
           {stories}
@@ -434,7 +432,7 @@ function DaySummary({
         <span
           key={word}
           title={`${n} ${word === 'idea' && n > 1 ? 'ideas' : word}`}
-          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[11px] font-medium text-ink-2 tabular-nums"
+          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[12px] font-medium text-ink-2 tabular-nums"
         >
           {/* A plan's mark: the idea card's dashed outline, small. */}
           <span
@@ -490,7 +488,7 @@ function WeekDay({
         <div key={post.id} className="flex flex-col gap-1.5">
           <PostTile post={post} eager={eager} onOpen={() => onOpenPost(post.id)} />
           <span
-            className={`flex items-center gap-1.5 text-[11px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
+            className={`flex items-center gap-1.5 text-[12px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
           >
             {postTime(post)}
             {post.stage === 'failed' && <span>· Fix it</span>}
@@ -510,7 +508,7 @@ function WeekDay({
           type="button"
           onClick={() => onNewPost(day.date)}
           aria-label={`New post on ${dayNumber(day.date)}`}
-          className="flex h-9 max-w-[200px] items-center justify-center rounded-[8px] border border-dashed border-(--cal-ghost) text-ink-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100"
+          className={`flex h-9 max-w-[200px] items-center justify-center rounded-[8px] border border-dashed border-(--cal-ghost) text-ink-4 transition-opacity duration-200 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 ${items.posts.length + items.ideas.length > 0 ? 'opacity-0' : 'opacity-100'}`}
         >
           <PlusIcon size={12} />
         </button>
@@ -579,7 +577,7 @@ export function IdeaTile({
           )}
         </span>
         <span
-          className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase"
+          className="shrink-0 font-mono text-[12px] tracking-[0.08em] uppercase"
           style={{ color: tint }}
         >
           {mark.suggested ? 'Suggested' : 'Idea'}
@@ -597,14 +595,14 @@ export function IdeaTile({
       style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)` }}
     >
       <span
-        className="flex items-center gap-1 font-mono text-[9px] tracking-[0.08em] uppercase"
+        className="flex items-center gap-1 font-mono text-[12px] tracking-[0.08em] uppercase"
         style={{ color: tint }}
       >
         {mark.suggested ? 'Suggested' : 'Idea'}
       </span>
       <span className="font-display text-[13.5px] leading-[1.15] text-ink">{mark.hook}</span>
-      <span className="line-clamp-2 text-[10.5px] leading-[1.3] text-ink-3">{mark.why}</span>
-      <span className="mt-1 flex items-center gap-1.5 text-[10px] text-ink-4">
+      <span className="line-clamp-2 text-[12px] leading-[1.3] text-ink-3">{mark.why}</span>
+      <span className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-4">
         {cover && (
           <span className="relative size-4 shrink-0 overflow-hidden rounded-[4px] bg-tile">
             <Image
@@ -711,7 +709,7 @@ export function PostTile({
             draggable={false}
             className="object-cover opacity-40 grayscale-[0.4]"
           />
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 font-mono text-[9px] tracking-[0.08em] whitespace-nowrap text-ink-2 uppercase">
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 font-mono text-[12px] tracking-[0.08em] whitespace-nowrap text-ink-2 uppercase">
             No media yet
           </span>
         </>
@@ -719,10 +717,10 @@ export function PostTile({
       {/* An idea typed on the calendar has no cover to lend: its words stand in. */}
       {!image && !standIn && (
         <span className="absolute inset-0 flex flex-col justify-center gap-1.5 px-3 pt-6 pb-8">
-          <span className="line-clamp-4 font-display text-[13px] leading-[1.2] text-ink-2 @max-[100px]:line-clamp-3 @max-[100px]:text-[11px]">
+          <span className="line-clamp-4 font-display text-[13px] leading-[1.2] text-ink-2 @max-[100px]:line-clamp-3 @max-[100px]:text-[12px]">
             {post.hook}
           </span>
-          <span className="font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase @max-[100px]:hidden">
+          <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase @max-[100px]:hidden">
             No media yet
           </span>
         </span>
@@ -746,7 +744,7 @@ function FailedBadge() {
   return (
     // A frosted pill like the other stage chips, but always open, with the red kept to a dot.
     // On a small tile (the Day view's) only the dot shows.
-    <span className="bb-pop absolute bottom-1.5 left-1.5 flex h-[20px] items-center gap-1.5 rounded-full bg-white/90 pr-2 pl-1.5 text-[10.5px] font-medium text-fail-ink shadow-[0_1px_4px_rgba(0,0,0,0.14)] backdrop-blur-sm @max-[100px]:size-[20px] @max-[100px]:justify-center @max-[100px]:p-0">
+    <span className="bb-pop absolute bottom-1.5 left-1.5 flex h-[20px] items-center gap-1.5 rounded-full bg-white/90 pr-2 pl-1.5 text-[12px] font-medium text-fail-ink shadow-[0_1px_4px_rgba(0,0,0,0.14)] backdrop-blur-sm @max-[100px]:size-[20px] @max-[100px]:justify-center @max-[100px]:p-0">
       <span className="size-[7px] rounded-full bg-fail shadow-[0_0_0_2.5px_var(--fail-soft)]" />
       <span className="@max-[100px]:hidden">Not posted</span>
     </span>
@@ -762,7 +760,7 @@ function StageChip({ stage }: { stage: Stage }) {
   return (
     <span
       key={stage}
-      className="bb-pop absolute bottom-1.5 left-1.5 flex h-[18px] items-center rounded-full bg-(--tile-pill) px-[5px] text-[9.5px] leading-none font-medium whitespace-nowrap text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+      className="bb-pop absolute bottom-1.5 left-1.5 flex h-[18px] items-center rounded-full bg-(--tile-pill) px-[5px] text-[12px] leading-none font-medium whitespace-nowrap text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
     >
       <span style={{ color: `var(--stage-${stage})` }}>
         <StageGlyph stage={stage} />

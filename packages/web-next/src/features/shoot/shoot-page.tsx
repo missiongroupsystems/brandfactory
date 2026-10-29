@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon } from '@/components/icons'
 import { Media } from '@/components/media'
+import { cameFromApp } from '@/components/path-trail'
 import { Sheet } from '@/components/sheet'
 import { Combobox } from '@/components/suggest'
 import { usePhone } from '@/components/use-phone'
@@ -56,7 +58,8 @@ export function ShootPage({ id }: { id: string }) {
   const shoot = useShoots(brand.id).find((s) => s.id === id)
   return (
     <div className="flex min-h-svh flex-col">
-      <AppHeader />
+      {/* A shoot is planned from Ideas: that tab stays lit. */}
+      <AppHeader section="/ideate" />
       <main className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4 max-md:pt-2 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
         {shoot ? (
           <CallSheet key={id} shoot={shoot} />
@@ -74,11 +77,21 @@ export function ShootPage({ id }: { id: string }) {
   )
 }
 
+/**
+ * Back to where the shoot was opened from (Ideas or the calendar). Opened from outside the app,
+ * Back would leave it: then the link goes to Ideas, the tab the page lights.
+ */
 function BackLink() {
+  const router = useRouter()
   return (
     <Link
-      href="/"
-      className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
+      href="/ideate"
+      onClick={(e) => {
+        if (!cameFromApp()) return
+        e.preventDefault()
+        router.back()
+      }}
+      className="inline-flex items-center gap-1.5 font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
     >
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path
@@ -89,7 +102,7 @@ function BackLink() {
           strokeLinejoin="round"
         />
       </svg>
-      Calendar
+      Back
     </Link>
   )
 }
@@ -153,12 +166,8 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
           >
             {editing ? 'Done' : 'Edit details'}
           </button>
-          {lark ? (
-            <span className="flex items-center gap-1.5 text-[12px] text-ink-4">
-              <span className="size-1.5 rounded-full bg-(--live)" />
-              Synced with Lark
-            </span>
-          ) : (
+          {/* Linked is the normal state and says nothing; only a missing link asks for one. */}
+          {!lark && (
             <button
               type="button"
               onClick={() => setLinking({})}
@@ -231,7 +240,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
 }
 
 const SELECT =
-  'h-8 cursor-pointer appearance-none rounded-full bg-surface px-3 text-[12.5px] font-medium tabular-nums outline-none transition-colors hover:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)]'
+  'h-8 cursor-pointer appearance-none rounded-full bg-surface px-3 text-[13px] font-medium tabular-nums outline-none transition-colors hover:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)]'
 const INPUT =
   'h-8 w-full rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_2px_var(--ink)]'
 
@@ -426,14 +435,14 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
             >
               <span
                 aria-hidden="true"
-                className="flex size-8 items-center justify-center rounded-full text-[11px] font-semibold"
+                className="flex size-8 items-center justify-center rounded-full text-[12px] font-semibold"
                 style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
               >
                 {initials(c.name)}
               </span>
               <span className="flex min-w-0 items-baseline gap-2">
                 <span className="truncate text-[14px] font-medium">{c.name}</span>
-                <span className="truncate text-[12.5px] text-ink-4">{c.role}</span>
+                <span className="truncate text-[13px] text-ink-4">{c.role}</span>
               </span>
               <span className="flex items-center gap-2">
                 {status.text && (

@@ -281,7 +281,7 @@ export function figuresOf(
 
 /**
  * What the totals cover, for the hover on them: the window and, when only some have numbers, how
- * many: "Last 30 days · 3 of 20 with numbers · as of 28 Oct". The page shows only "as of".
+ * many: "Last 30 days · 3 of 20 with numbers · as of 28 Oct". The page shows "Last 30 days, as of …".
  */
 export function windowLine(sum: Summary): string {
   return [

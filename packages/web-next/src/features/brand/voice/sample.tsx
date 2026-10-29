@@ -32,7 +32,7 @@ export function SampleDiff({
   )
   const same = diff.after.every((p) => !p.changed)
   const label = (text: string) => (
-    <span className="w-7 shrink-0 pt-[3px] font-mono text-[10.5px] text-ink-5">{text}</span>
+    <span className="w-7 shrink-0 pt-[3px] font-mono text-[12px] text-ink-4">{text}</span>
   )
   return (
     <div className="flex flex-col">

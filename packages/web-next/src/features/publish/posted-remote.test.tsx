@@ -256,8 +256,6 @@ describe('a posted post from the calendar, on the core', () => {
     const link = screen.getByRole('link', { name: 'Open on Instagram' })
     expect(link).toHaveAttribute('href', 'https://www.instagram.com/p/C1/')
     expect(link).toHaveAttribute('target', '_blank')
-    // The collaborator reaches the analytics preview too.
-    expect(screen.getByText('Reach by account')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()

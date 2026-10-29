@@ -43,7 +43,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={checked}
             onClick={() => onChange(o.value)}
-            className={`relative px-3.5 font-medium whitespace-nowrap transition-colors ${pill ? 'h-8 text-[12.5px]' : 'h-9 text-[13px]'} ${checked ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
+            className={`relative px-3.5 font-medium whitespace-nowrap transition-colors ${pill ? 'h-8 text-[13px]' : 'h-9 text-[13px]'} ${checked ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
           >
             {o.label}
           </button>
@@ -102,7 +102,7 @@ export function QuietButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 transition-colors hover:text-ink ${className}`}
+      className={`inline-flex items-center gap-1.5 text-[13px] text-ink-2 transition-colors hover:text-ink ${className}`}
       {...props}
     >
       {children}

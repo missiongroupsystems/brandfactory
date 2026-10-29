@@ -98,9 +98,6 @@ export function BrandSwitcher() {
           onKeyDown={onMenuKey}
           className="bb-menu absolute top-11 right-0 z-30 flex w-[232px] origin-top-right flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
         >
-          <span className="px-2.5 pt-2 pb-1.5 font-mono text-[10.5px] tracking-[0.06em] text-ink-4">
-            BRANDS
-          </span>
           {brands.map((b, i) => {
             const current = b.id === brand.id
             return (
@@ -162,7 +159,6 @@ export function BrandSwitcher() {
             className="flex items-center justify-between rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
           >
             Brand kit
-            <span className="text-[12px] text-ink-4">{brand.name}</span>
           </Link>
           {/* What the brand has linked; a dot when something needs signing in again. */}
           <Link

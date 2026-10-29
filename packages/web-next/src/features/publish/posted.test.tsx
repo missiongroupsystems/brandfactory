@@ -73,7 +73,6 @@ const open = (v: Partial<PostedView>) =>
     </BrandProvider>,
   )
 const aside = () => document.querySelector('aside')!
-const analytics = () => screen.getByRole('region', { name: 'Analytics' })
 
 describe('the caption', () => {
   it('folds a long one after three lines, and More opens it with its blank lines back', () => {
@@ -135,9 +134,7 @@ describe('the cover', () => {
 
   it('names no account, and offers no counts or link, when none is recorded', () => {
     open({ went: [], post: { ...post, permalink: 'https://www.instagram.com/p/C1/' } })
-    expect(
-      within(analytics()).getByRole('button', { name: 'Unavailable' }),
-    ).toHaveAccessibleDescription('Analytics isn’t connected yet.')
+    expect(screen.getByText('No numbers yet.')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /^Open on/ })).toBeNull()
     expect(screen.queryByText('22.1k')).toBeNull()
   })
@@ -214,61 +211,20 @@ describe('the facts and the link', () => {
   })
 })
 
-describe('the analytics preview', () => {
-  it('is marked Unavailable, and says which analytics on hover', () => {
+describe('a post with no numbers', () => {
+  // A chart of grey bars with an "Unavailable" pill read as a broken page: one line says it.
+  it('says so in one line, with no empty chart and no Spend', () => {
+    open({ post: { ...post, metrics: undefined } })
+    expect(screen.getByText('No numbers yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Analytics' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unavailable' })).toBeNull()
+    expect(screen.queryByText('Spend')).toBeNull()
+  })
+
+  it('has no such line when the counts are there', () => {
     open({})
-    const pill = within(analytics()).getByRole('button', { name: 'Unavailable' })
-    expect(pill).toHaveAccessibleDescription('TikTok analytics isn’t connected yet.')
-    // No words it does not need: no "Preview" tag, no sentence under the number.
-    expect(within(analytics()).queryByText('Preview')).toBeNull()
-    expect(within(analytics()).queryByText(/each day of its first two weeks/)).toBeNull()
-  })
-
-  it('shows reach by account when there are collaborators', () => {
-    open({ collabs: ['@giulia.cooks'] })
-    expect(within(analytics()).getByText('Reach by account')).toBeInTheDocument()
-    expect(within(analytics()).getByText('Casa Vostra')).toBeInTheDocument()
-    expect(within(analytics()).getByText('@giulia.cooks')).toBeInTheDocument()
-    expect(within(analytics()).queryByText('Found it through')).toBeNull()
-  })
-
-  it('shows where people found it when there are none: For You on TikTok', () => {
-    open({})
-    expect(within(analytics()).getByText('Found it through')).toBeInTheDocument()
-    expect(within(analytics()).getByText('For You')).toBeInTheDocument()
-    expect(within(analytics()).queryByText('Explore')).toBeNull()
-    expect(within(analytics()).queryByText('Reach by account')).toBeNull()
-  })
-
-  it('says Explore on Instagram', () => {
-    open({ went: ['ig'] })
-    expect(within(analytics()).getByText('Explore')).toBeInTheDocument()
-    expect(within(analytics()).queryByText('For You')).toBeNull()
-  })
-
-  it('prints no figure anywhere: the bars and the rows are shapes', () => {
-    open({ post: { ...post, metrics: undefined }, at: '' })
-    expect(analytics().textContent!.replace(/Day \d+/g, '')).not.toMatch(/\d/)
-  })
-
-  it('offers watch time on a reel and profile visits on a post', () => {
-    open({})
-    expect(screen.getAllByRole('radio', { name: 'Watch time' }).length).toBeGreaterThan(0)
-    expect(screen.queryByRole('radio', { name: 'Profile visits' })).toBeNull()
-  })
-
-  it("switches the number from a phone's row of pills", () => {
-    open({})
-    // The desktop control and the phone's pills are both in the DOM; the phone's is the second.
-    const phone = screen.getAllByRole('radiogroup', { name: 'Number' })[1]!
-    fireEvent.click(within(phone).getByRole('radio', { name: 'Watch time' }))
-    expect(within(phone).getByRole('radio', { name: 'Watch time' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
-    // The chart redraws as watch time's shape: its first day is 0.9 of the top, reach's is 1.
-    const first = analytics().querySelector<HTMLElement>('.bb-grow')!
-    expect(first.style.height).toBe(`${0.9 * 92}%`)
+    expect(screen.getByText('22.1k')).toBeInTheDocument()
+    expect(screen.queryByText('No numbers yet.')).toBeNull()
   })
 })
 
@@ -315,10 +271,6 @@ describe('a post on more than one account', () => {
       'href',
       'https://www.instagram.com/p/DSent1/',
     )
-    // The analytics preview follows the account on show.
-    expect(
-      within(analytics()).getByRole('button', { name: 'Unavailable' }),
-    ).toHaveAccessibleDescription('Instagram analytics isn’t connected yet.')
   })
 
   it('opens on the first account with numbers when none is asked for', () => {

@@ -163,7 +163,7 @@ function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
                 <span className="relative aspect-[4/5] overflow-hidden rounded-[12px] bg-tile">
                   <Media src={r.src} sizes="180px" />
                 </span>
-                {r.note && <span className="truncate text-[11.5px] text-ink-4">{r.note}</span>}
+                {r.note && <span className="truncate text-[12px] text-ink-4">{r.note}</span>}
               </li>
             ))}
           </ul>

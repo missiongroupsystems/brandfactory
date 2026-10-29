@@ -74,7 +74,7 @@ export function Comments({
             type="button"
             aria-expanded={showDone}
             onClick={() => setShowDone((s) => !s)}
-            className="flex items-center gap-1.5 self-start text-[12.5px] text-ink-4 transition-colors hover:text-ink"
+            className="flex items-center gap-1.5 self-start text-[13px] text-ink-4 transition-colors hover:text-ink"
           >
             <CheckIcon size={10} strokeWidth={2} />
             Done · {done.length}
@@ -87,7 +87,7 @@ export function Comments({
                   <button
                     type="button"
                     onClick={() => setDone(c, false)}
-                    className="self-start text-[12.5px] text-ink-3 transition-colors hover:text-ink"
+                    className="self-start text-[13px] text-ink-3 transition-colors hover:text-ink"
                   >
                     Reopen
                   </button>
@@ -137,9 +137,9 @@ function Comment({
               <li key={i} className="grid grid-cols-[24px_minmax(0,1fr)] gap-x-2.5">
                 <Avatar name={r.name} small />
                 <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="flex items-baseline gap-2 text-[12.5px]">
+                  <span className="flex items-baseline gap-2 text-[13px]">
                     <span className="font-medium">{r.name}</span>
-                    <span className="text-[11.5px] text-ink-4">{r.when}</span>
+                    <span className="text-[12px] text-ink-4">{r.when}</span>
                   </span>
                   <span className="text-[13.5px] leading-[1.5] whitespace-pre-line text-ink-2">
                     {r.text}
@@ -159,7 +159,7 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex items-center justify-center rounded-full font-semibold ${small ? 'size-6 text-[10px]' : 'size-8 text-[12px]'}`}
+      className={`flex items-center justify-center rounded-full font-semibold ${small ? 'size-6 text-[12px]' : 'size-8 text-[12px]'}`}
       style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
     >
       {name.charAt(0).toUpperCase()}
@@ -189,7 +189,7 @@ function Actions({
   React.useEffect(() => {
     if (replying) field.current?.focus()
   }, [replying])
-  const quiet = 'text-[12.5px] text-ink-3 transition-colors hover:text-ink'
+  const quiet = 'text-[13px] text-ink-3 transition-colors hover:text-ink'
   return (
     <>
       <span className="flex items-center gap-4">

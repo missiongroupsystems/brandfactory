@@ -140,7 +140,7 @@ export function AvatarCrop({
           className="pointer-events-none absolute inset-0 rounded-full shadow-[0_0_0_999px_rgba(0,0,0,0.45)]"
         />
       </div>
-      <label className="flex h-9 items-center gap-3 text-[12.5px] text-ink-3">
+      <label className="flex h-9 items-center gap-3 text-[13px] text-ink-3">
         <span className="w-10 shrink-0">Zoom</span>
         <input
           type="range"

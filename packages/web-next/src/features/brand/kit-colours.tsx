@@ -55,7 +55,7 @@ export function ColoursEditable() {
             />
             <span className="flex flex-col">
               <span className="text-[13.5px] font-medium">{c.name}</span>
-              <span className="font-mono text-[11.5px] text-ink-4">{c.hex}</span>
+              <span className="font-mono text-[12px] text-ink-4">{c.hex}</span>
             </span>
           </button>
         ))}
@@ -67,7 +67,7 @@ export function ColoursEditable() {
           setDraft(next)
           setOpen({ i: next.length - 1, anchor: anchorOf(e.currentTarget) })
         }}
-        className="-mt-2 -ml-2 flex h-8 items-center gap-1.5 self-start rounded-full px-2 text-[12.5px] text-ink-5 transition-colors hover:text-ink-2"
+        className="-mt-2 -ml-2 flex h-8 items-center gap-1.5 self-start rounded-full px-2 text-[13px] text-ink-4 transition-colors hover:text-ink-2"
       >
         <PlusIcon size={10} />
         Add colour

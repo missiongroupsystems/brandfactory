@@ -200,7 +200,7 @@ export function PhoneCalendar({
         className="flex h-10 items-center justify-center"
       >
         <span
-          className={`flex size-[30px] items-center justify-center rounded-full text-[15px] font-medium tabular-nums transition-colors ${picked ? 'bg-ink text-page' : target ? 'bg-(--cal-drop) text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.today ? 'text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.past ? 'text-ink-5' : 'text-ink-2'}`}
+          className={`flex size-[30px] items-center justify-center rounded-full text-[15px] font-medium tabular-nums transition-colors ${picked ? 'bg-ink text-page' : target ? 'bg-(--cal-drop) text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.today ? 'text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.past ? 'text-ink-4' : 'text-ink-2'}`}
         >
           {dayNumber(d.date)}
         </span>
@@ -248,7 +248,12 @@ export function PhoneCalendar({
               post={t.post}
               dim={moving === t.post.id}
               landed={landed === t.post.id}
-              onClick={() => pick(wi, di)}
+              // The first tap opens the post. In the month's own rows the day is picked too, so the
+              // way back lands on it; a borrowed row's day would switch to its own month.
+              onClick={() => {
+                if (wi >= 0) pick(wi, di)
+                onOpenPost(t.post.id)
+              }}
               // The borrowed row belongs to another month: its posts move from there.
               onPointerDown={wi < 0 ? undefined : lift(t.post)}
             />
@@ -262,7 +267,7 @@ export function PhoneCalendar({
           <button
             type="button"
             onClick={() => pick(wi, di)}
-            className="font-mono text-[10px] tracking-[0.04em] text-ink-4 tabular-nums"
+            className="font-mono text-[12px] tracking-[0.04em] text-ink-4 tabular-nums"
           >
             +{more}
           </button>
@@ -318,7 +323,7 @@ export function PhoneCalendar({
         <button
           type="button"
           onClick={() => onStages(ALL_STAGES)}
-          className="bb-pop mx-4 mb-2 flex h-9 items-center justify-between rounded-[10px] bg-(--fail-soft) px-3 text-[12.5px] font-medium text-fail-ink"
+          className="bb-pop mx-4 mb-2 flex h-9 items-center justify-between rounded-[10px] bg-(--fail-soft) px-3 text-[13px] font-medium text-fail-ink"
         >
           <span className="flex items-center gap-2">
             <span className="size-1.5 rounded-full bg-fail" />
@@ -348,7 +353,7 @@ export function PhoneCalendar({
           {LETTERS.map((l, i) => (
             <span
               key={i}
-              className={`py-1 text-center font-mono text-[10px] tracking-[0.06em] ${shownWeek.days[i]?.today && view !== 'month' ? 'text-ink' : 'text-ink-4'}`}
+              className={`py-1 text-center font-mono text-[12px] tracking-[0.06em] ${shownWeek.days[i]?.today && view !== 'month' ? 'text-ink' : 'text-ink-4'}`}
             >
               {l}
             </span>
@@ -633,7 +638,7 @@ function Photo({ src, standIn, words }: { src?: string; standIn?: string; words?
     if (!standIn)
       return words ? (
         <span className="absolute inset-0 overflow-hidden px-1 py-1.5 text-left">
-          <span className="line-clamp-4 font-display text-[9px] leading-[1.15] [overflow-wrap:anywhere] text-ink-2">
+          <span className="line-clamp-2 font-display text-[12px] leading-[1.15] [overflow-wrap:anywhere] text-ink-2">
             {words}
           </span>
         </span>
@@ -679,7 +684,7 @@ function IdeaSquare({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>;
       className={`flex aspect-[2/1] w-full items-center justify-center rounded-[8px] border border-dashed ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page'}`}
       style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)`, color: tint }}
     >
-      <span className="font-mono text-[8px] tracking-[0.06em] uppercase">Idea</span>
+      <span className="font-mono text-[12px] tracking-[0.04em] uppercase">Idea</span>
     </button>
   )
 }
@@ -836,7 +841,7 @@ function Hours({
             key={h}
             className={`relative flex min-h-[44px] gap-2 border-t border-(--cal-line) ${shaded ? 'bg-(--insight-wash)' : ''}`}
           >
-            <span className="w-11 shrink-0 pt-1.5 font-mono text-[10px] text-ink-4 tabular-nums">
+            <span className="w-11 shrink-0 pt-1.5 font-mono text-[12px] text-ink-4 tabular-nums">
               {time}
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
@@ -853,7 +858,7 @@ function Hours({
               ))}
             </div>
             {h === best && (
-              <span className="pointer-events-none absolute top-1.5 right-2 flex items-center gap-1 text-[11px] font-medium text-(--insight-6)">
+              <span className="pointer-events-none absolute top-1.5 right-2 flex items-center gap-1 text-[12px] font-medium text-(--insight-6)">
                 <SparkIcon size={8} />
                 Best time
               </span>
@@ -909,7 +914,7 @@ function PostRow({
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[15px]">{post.hook}</span>
         <span
-          className={`flex items-center gap-1.5 text-[12.5px] tabular-nums ${failed ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
+          className={`flex items-center gap-1.5 text-[13px] tabular-nums ${failed ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
         >
           {postTime(post)}
           <span
@@ -960,7 +965,7 @@ function IdeaRow({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>; da
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span
-          className="truncate font-mono text-[9.5px] tracking-[0.08em] uppercase"
+          className="truncate font-mono text-[12px] tracking-[0.08em] uppercase"
           style={{ color: tint }}
         >
           {mark.suggested ? 'Suggested' : 'Idea'} · {mark.why}
