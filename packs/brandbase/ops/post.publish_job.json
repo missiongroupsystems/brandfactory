@@ -1,6 +1,6 @@
 {
   "name": "post.publish_job",
-  "description": "Sends one account's job of a post: the text that account gets, the media and the format. An effect: it sends only what a person approved, and the scheduler calls it at the job's time. A job that no longer waits (cancelled, sent, moved off) sends nothing.",
+  "description": "Sends one account's job of a post through the social connector (packages/connect: Instagram and Facebook through Make): the text that account gets, the format, the post's own files, and the brand's account id on that platform, so the person's yes covers the account too. An effect: it sends only what a person approved, and the scheduler calls it at the job's time. A job that no longer waits (cancelled, sent, moved off) sends nothing. An agent sends a job only once it is due: the person's yes covers what goes out at its time, not earlier.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -16,9 +16,9 @@
       }
     }
   },
-  "before": ["brand.reachable"],
-  "connector": "simulated",
-  "payload": "select jsonb_build_object('job', j.id, 'channel', j.channel, 'format', p.format, 'text', brandbase.text_for(p.caption, p.hook, p.draft, j.channel), 'media', p.media) as result from brandbase.post_jobs j join brandbase.posts p on p.id = j.post_id where j.id = :job and j.brand_id = :brand and j.status = 'scheduled'",
-  "sql": "update brandbase.post_jobs j set status = 'live', external_id = :outcome::jsonb ->> 'externalId', error = null, attempts = j.attempts + 1, updated_at = now() where j.id = :job and j.brand_id = :brand and j.status = 'scheduled' returning j.id, j.status, j.external_id as \"externalId\"",
+  "before": ["brand.reachable", "job.agent_on_time"],
+  "connector": "social",
+  "payload": "select jsonb_build_object('brand', j.brand_id, 'job', j.id, 'post', p.id, 'channel', j.channel, 'format', p.format, 'text', brandbase.text_for(p.caption, p.hook, p.draft, j.channel), 'media', brandbase.post_files(p.id), 'account', (select a.account_id from brandbase.accounts a where a.brand_id = j.brand_id and a.platform = case j.channel when 'ig' then 'instagram' when 'fb' then 'facebook' end), 'shareToFeed', case when jsonb_typeof(p.draft -> 'extra' -> 'igShareToFeed') = 'boolean' then (p.draft -> 'extra' ->> 'igShareToFeed')::boolean else true end) as result from brandbase.post_jobs j join brandbase.posts p on p.id = j.post_id where j.id = :job and j.brand_id = :brand and j.status = 'scheduled'",
+  "sql": "with j as (update brandbase.post_jobs j set status = 'live', external_id = :outcome::jsonb ->> 'externalId', error = null, attempts = j.attempts + 1, updated_at = now() where j.id = :job and j.brand_id = :brand and j.status = 'scheduled' returning j.*), l as (update brandbase.posts p set permalink = :outcome::jsonb ->> 'permalink' from j where p.id = j.post_id and p.permalink is null and nullif(:outcome::jsonb ->> 'permalink', '') is not null) select j.id, j.status, j.external_id as \"externalId\" from j",
   "returns": "one"
 }

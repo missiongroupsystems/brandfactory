@@ -89,6 +89,53 @@ describe('an effect move', () => {
     expect((await call('note.share', { id: 'n1' })).data.code).toBe('NEEDS_APPROVAL')
   })
 
+  it('says in the connector’s words when nothing went out, and still needs a new yes', async () => {
+    const refusing: Connector = {
+      async send() {
+        throw Object.assign(new Error('Instagram takes JPEG photos only.'), { sent: false })
+      },
+    }
+    const { call, approve } = await setup(refusing)
+    await approve('note.share', { id: 'n1' })
+    expect((await call('note.share', { id: 'n1' })).data).toMatchObject({
+      code: 'SEND_REFUSED',
+      message: 'Instagram takes JPEG photos only.',
+    })
+    expect((await call('note.share', { id: 'n1' })).data.code).toBe('NEEDS_APPROVAL')
+  })
+
+  it('calls a send that may have gone out unknown, in the connector’s words', async () => {
+    const unsure: Connector = {
+      async send() {
+        throw Object.assign(new Error('It may have posted. Check first.'), { sent: 'maybe' })
+      },
+    }
+    const { db, call, approve } = await setup(unsure)
+    await approve('note.share', { id: 'n1' })
+    expect((await call('note.share', { id: 'n1' })).data).toMatchObject({
+      code: 'OUTCOME_UNKNOWN',
+      message: 'It may have posted. Check first.',
+    })
+    const [row] = await db.query<{ outcome: unknown }>('select outcome from packs.approvals')
+    expect(row!.outcome).toEqual({ unknown: 'It may have posted. Check first.' })
+  })
+
+  it('waits as long as the connector says, and then calls the send unknown', async () => {
+    const slow = (timeoutMs: number): Connector => ({
+      timeoutMs,
+      send: (input) =>
+        new Promise((resolve) =>
+          setTimeout(() => void resolve(simulatedConnector.send(input)), 150),
+        ),
+    })
+    const patient = await setup(slow(2000))
+    await patient.approve('note.share', { id: 'n1' })
+    expect((await patient.call('note.share', { id: 'n1' })).status).toBe(200)
+    const hasty = await setup(slow(20))
+    await hasty.approve('note.share', { id: 'n1' })
+    expect((await hasty.call('note.share', { id: 'n1' })).data.code).toBe('OUTCOME_UNKNOWN')
+  })
+
   it('is an effect because it names a connector, whatever else the version says', async () => {
     const { approve } = await setup()
     expect((await approve('note.add', { id: 'n2', body: 'mint' })).data.code).toBe('NOT_AN_EFFECT')
@@ -144,6 +191,50 @@ describe('a person’s yes', () => {
     expect((await approve('note.share', { id: 'n1' })).data.code).toBe('SENDING')
     release()
     expect((await first).status).toBe(200)
+  })
+
+  it('counts a send as on its way for as long as its connector may take', async () => {
+    let release: () => void = () => undefined
+    const slow = (timeoutMs?: number): Connector => ({
+      timeoutMs,
+      send: (input) =>
+        new Promise((resolve) => {
+          release = () => void simulatedConnector.send(input).then(resolve)
+        }),
+    })
+    // Five minutes into a send whose connector may take twenty: still on its way.
+    const long = await setup(slow(20 * 60 * 1000))
+    await long.approve('note.share', { id: 'n1' })
+    const first = long.call('note.share', { id: 'n1' })
+    await new Promise((r) => setTimeout(r, 300))
+    await long.db.query(`update packs.approvals set used_at = now() - interval '5 minutes'`)
+    expect((await long.approve('note.share', { id: 'n1' })).data.code).toBe('SENDING')
+    release()
+    await first
+    // The same five minutes with the core's own 30 s limit: that send is long over.
+    const short = await setup(slow())
+    await short.approve('note.share', { id: 'n1' })
+    const second = short.call('note.share', { id: 'n1' })
+    await new Promise((r) => setTimeout(r, 300))
+    await short.db.query(`update packs.approvals set used_at = now() - interval '5 minutes'`)
+    expect((await short.approve('note.share', { id: 'n1' })).status).toBe(200)
+    release()
+    await second
+  })
+
+  it('calls a send with nothing left to record it on unknown, never a quiet success', async () => {
+    const held: { db?: Db } = {}
+    const dropping: Connector = {
+      async send(input) {
+        // The note goes while the send is out, as a job a person removes mid-upload.
+        await held.db!.query(`delete from toy.notes where id = 'n1'`)
+        return simulatedConnector.send(input)
+      },
+    }
+    const s = await setup(dropping)
+    held.db = s.db
+    await s.approve('note.share', { id: 'n1' })
+    expect((await s.call('note.share', { id: 'n1' })).data.code).toBe('OUTCOME_UNKNOWN')
   })
 
   it('keeps the connector’s answer the moment it comes back', async () => {

@@ -38,7 +38,7 @@ export const simulatedConnector = {
 const hashOf = (connector: string, payload: unknown) =>
   createHash('sha256').update(canonical({ connector, payload })).digest('hex')
 
-/** Longest a connector may take before the send counts as failed, its outcome unknown. */
+/** Longest a connector may take, unless it sets its own: after that its outcome is unknown. */
 const SEND_TIMEOUT_MS = 30_000
 
 /** What a move would send now, for this caller, under their row rules and its before-rules. */
@@ -68,20 +68,24 @@ async function payloadOf(
  */
 export async function approveIn(
   tx: Conn,
-  deps: Pick<CoreDeps, 'now' | 'statementTimeoutMs'>,
+  deps: Pick<CoreDeps, 'now' | 'statementTimeoutMs' | 'connectors'>,
   content: PackContent,
   op: Op,
   caller: Caller,
   input: Record<string, unknown>,
 ) {
   const { payload, hash } = await payloadOf(tx, deps, content, op, caller, input)
-  // A send of exactly this that used its yes and has not answered yet is on its way: a second
-  // yes now would send it twice (two presses, two tabs).
+  // A send of exactly this that used its yes and has not answered yet is on its way, for as long
+  // as its connector may take: a second yes now would send it twice (two presses, two tabs).
+  const connectors = deps.connectors ?? {}
+  const limit = Object.hasOwn(connectors, op.connector!)
+    ? (connectors[op.connector!]!.timeoutMs ?? SEND_TIMEOUT_MS)
+    : SEND_TIMEOUT_MS
   const [sending] = await tx.query(
     `select 1 from packs.approvals
      where pack = $1 and op = $2 and payload_hash = $3 and used_at is not null
-       and outcome is null and used_at > now() - interval '2 minutes'`,
-    [content.manifest.name, op.name, hash],
+       and outcome is null and used_at > now() - make_interval(secs => $4::double precision)`,
+    [content.manifest.name, op.name, hash, limit / 1000 + 120],
   )
   if (sending) throw new Refused(409, 'SENDING', 'this is on its way already')
   const [row] = await tx.query<{ id: string }>(
@@ -185,10 +189,12 @@ export async function fire(
     })
 
   let outcome: unknown
+  const silent = Object.assign(new Error('the connector did not answer'), { sent: 'maybe' })
   try {
     let timer: NodeJS.Timeout | undefined
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error('the connector did not answer')), SEND_TIMEOUT_MS)
+      // The send may still be under way: what it did is unknown.
+      timer = setTimeout(() => reject(silent), connector.timeoutMs ?? SEND_TIMEOUT_MS)
     })
     outcome = await Promise.race([
       connector.send({ pack: content.manifest.name, op: op.name, payload }),
@@ -196,13 +202,23 @@ export async function fire(
     ]).finally(() => clearTimeout(timer))
   } catch (err) {
     console.error('connector failed', op.name, hash, err)
+    const words = String((err as Error)?.message ?? err)
+    const sent = (err as { sent?: unknown } | null)?.sent
     // Marked, so the yes it used no longer reads as a send on its way.
     await deps.db
       .query('update packs.approvals set outcome = $2 where id = $1::bigint', [
         approval,
-        JSON.stringify({ failed: String((err as Error)?.message ?? err) }),
+        JSON.stringify(sent === 'maybe' ? { unknown: words } : { failed: words }),
       ])
       .catch((markErr: unknown) => console.error('could not mark a failed send', markErr))
+    // The connector's own words when it knows what happened: nothing went out, or it may have.
+    if (sent === false) throw new Refused(422, 'SEND_REFUSED', words)
+    if (sent === 'maybe') {
+      // The core's own time limit has no words for people: the pack's own say what to do.
+      throw new Refused(502, 'OUTCOME_UNKNOWN', words, {
+        details: { approval, connector: err !== silent },
+      })
+    }
     throw new Refused(502, 'SEND_FAILED', 'the send failed; a person checks before another try')
   }
   // From here the platform has it. Anything that goes wrong now leaves the outcome unknown to the
@@ -221,6 +237,9 @@ export async function fire(
       const { text, params: values } = bind(op.sql, params)
       const rows = await tx.query(text, values, { prepare: true })
       await tx.exec('reset role')
+      // Nothing to record it on (the row went while the send was out): the send's outcome is
+      // the person's to check, never a quiet success.
+      if (op.returns === 'one' && rows.length === 0) throw new Error('nothing recorded the send')
       await done(tx)
       return op.returns === 'many' ? rows.map(unwrap) : rows[0] ? unwrap(rows[0]) : null
     })

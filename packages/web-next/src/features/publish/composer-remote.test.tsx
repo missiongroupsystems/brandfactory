@@ -81,7 +81,8 @@ function Loaded({ children }: { children: React.ReactNode }) {
   return useBrand().posts.length > 0 ? children : null
 }
 
-const crust = POSTS.find((p) => p.id === 'crust')!
+// A scheduled post of two photos: a reel needs its video for Instagram (`makeBlockers`).
+const crust = POSTS.find((p) => p.id === 'ravioli')!
 const schedule = () => screen.getAllByRole('button', { name: /^Schedule on/ })[0]!
 
 describe('the composer on the API', () => {

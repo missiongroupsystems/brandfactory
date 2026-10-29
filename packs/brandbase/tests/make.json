@@ -1,0 +1,575 @@
+{
+  "name": "make",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "owner",
+  "agents": {
+    "bot": "owner"
+  },
+  "cases": [
+    {
+      "name": "an owner links the brand's Instagram account and Facebook Page: the state shows them, ig and fb turn on, and forgetting turns them off",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "instagram": {
+                "name": "@casavostra",
+                "accountId": "17841400000000001"
+              },
+              "facebook": {
+                "name": "Casa Vostra",
+                "accountId": "100000000000001"
+              }
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key in ('ig', 'fb') order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "fb",
+                "status": "connected"
+              },
+              {
+                "key": "ig",
+                "status": "connected"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.forget",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001"
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "instagram": null,
+              "facebook": {
+                "name": "Casa Vostra"
+              }
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key in ('ig', 'fb') order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "fb",
+                "status": "connected"
+              },
+              {
+                "key": "ig",
+                "status": "off"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "only the owners and admins of a company on the operator's list link or forget them, an account another brand holds is refused, and the pretend switch no longer takes ig or fb",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          },
+          "as": "member",
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.forget",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001"
+          },
+          "as": "member",
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "osteria",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          },
+          "expect": {
+            "status": 409,
+            "code": "ACCOUNT_TAKEN"
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa",
+            "tokens": "sealed",
+            "details": {}
+          },
+          "as": "member"
+        },
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "casa",
+            "key": "ig",
+            "status": "connected"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "temper",
+            "platform": "facebook",
+            "accountId": "100000000000002",
+            "username": "Temper",
+            "tokens": "make",
+            "details": {}
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          },
+          "as": "both"
+        }
+      ]
+    },
+    {
+      "name": "a due Instagram job sends the account id and the post's own files, keeps the planned TikTok account on the post, and records the id and the permalink",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('m1', 'casa', 'brandbase/11111111-1111-1111-1111-111111111111.jpg', 'photo', 'image/jpeg', 2000)"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/11111111-1111-1111-1111-111111111111.jpg",
+                "kind": "photo"
+              },
+              {
+                "src": "/photos/sample.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["ig", "tt"]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig"]
+          },
+          "expect": {
+            "result": {
+              "channels": ["ig", "tt"],
+              "jobs": [
+                {
+                  "channel": "ig",
+                  "status": "scheduled"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "expect": {
+            "result": {
+              "payload": {
+                "post": "p1",
+                "channel": "ig",
+                "format": "carousel",
+                "text": "Fresh pasta tonight.",
+                "account": "17841400000000001",
+                "shareToFeed": true,
+                "media": [
+                  {
+                    "kind": "photo",
+                    "mime": "image/jpeg",
+                    "key": "brandbase/11111111-1111-1111-1111-111111111111.jpg"
+                  },
+                  {
+                    "missing": true
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-08T10:00:00Z",
+          "answer": {
+            "externalId": "17890000000000001",
+            "permalink": "https://www.instagram.com/p/abc/"
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "posted",
+                "permalink": "https://www.instagram.com/p/abc/",
+                "channels": ["ig", "tt"],
+                "jobs": [
+                  {
+                    "channel": "ig",
+                    "status": "live"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select external_id from brandbase.post_jobs where id = 'p1:ig'",
+          "expect": {
+            "rows": [
+              {
+                "external_id": "17890000000000001"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "an agent cannot send a scheduled Instagram job before its time, even with its person's yes",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "channels": ["ig"],
+            "media": [
+              {
+                "src": "/photos/pasta.jpg",
+                "kind": "photo"
+              }
+            ],
+            "draft": {
+              "extra": {
+                "igShareToFeed": "not a boolean"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig"]
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "expect": {
+            "result": {
+              "payload": {
+                "shareToFeed": true
+              }
+            }
+          }
+        },
+        {
+          "call": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "as": "bot",
+          "expect": {
+            "status": 409,
+            "code": "NOT_DUE"
+          }
+        },
+        {
+          "sql": "select status from brandbase.post_jobs where id = 'p1:ig'",
+          "expect": {
+            "rows": [
+              {
+                "status": "scheduled"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "an account taken off a scheduled post takes its waiting job with it, and a post marked planned loses its waiting jobs",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "channels": ["ig", "fb"],
+            "media": [
+              {
+                "src": "/photos/pasta.jpg",
+                "kind": "photo"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig", "fb"]
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "channels": ["ig"]
+          },
+          "expect": {
+            "result": {
+              "stage": "scheduled",
+              "channels": ["ig"],
+              "jobs": [
+                {
+                  "channel": "ig",
+                  "status": "scheduled"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "sql": "select channel from brandbase.post_jobs where post_id = 'p1' order by channel",
+          "expect": {
+            "rows": [
+              {
+                "channel": "ig"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "channels": ["tt"]
+          },
+          "expect": {
+            "result": {
+              "stage": "scheduled",
+              "jobs": []
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.post_jobs where post_id = 'p1'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "channels": ["ig", "fb"]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig", "fb"]
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "scheduled"
+          },
+          "expect": {
+            "result": {
+              "stage": "scheduled",
+              "jobs": []
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.post_jobs where post_id = 'p1'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

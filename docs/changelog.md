@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.0** — 2026-10-29 — `feat/make-publishing`: Instagram and Facebook post through Make (make.com) until our own Meta app passes review (brandbase 1.12.0, migration 0020, not applied to production). An owner or admin of a company on the operator's list (Mission Group) enters the brand's Instagram account id and Page id on Connections; at a post's time the scheduler sends the job to a Make custom webhook (`MAKE_WEBHOOK_URL`, key in `x-make-apikey`), the scenario posts with Make's modules and answers in the same request. Photo, carousel and reel; Stories stay planned only, TikTok stays planned only beside them. The core runs up to ten sends at once and keeps a connector's own words. 1328 tests, all run on a throwaway Postgres 18.
 - **2.41.0** — 2026-10-23 — `feat/tiktok-upload`: TikTok, upload only (brandbase 1.10.0, migration 0018, not applied to production). A brand connects its own TikTok account on Connections (Login Kit, scopes `user.info.basic` and `video.upload` only), which then shows the account's name and picture; a planned TikTok video post has a "Send to TikTok inbox" card: the video goes to the account's TikTok inbox as a draft, and the team finishes the post in the TikTok app. Nothing is posted from Brand Base; Instagram and Facebook stay "Unavailable" and the composer still plans only. The core needs a deploy and the `TIKTOK_*` settings. 1288 tests, all run on a throwaway Postgres; `core test brandbase 1.10.0` 193/193.
 - **2.40.3** — 2026-10-23 — `fix/counts-as-of`: on a posted post's page the real counts end with "as of 22 Oct", the day the core read them (the post's `measuredAt`, from migration 0014's `measured_at`, in Singapore; the year only when it is not this one). The counts are a snapshot from the import, not live. Nothing shows without counts or without a date, so the static demo is unchanged. The core's `measuredAt` now reaches the web app. No pack change, no migration. 1247 tests (220 skipped without a Postgres server).
 - **2.40.2** — 2026-10-23 — `fix/profile-photo-edit`: on `/profile` the zoomed crop pans again. The browser's own image drag took the press and cancelled the pan; no image in the app is a drag source of its own now (a CSS rule, and one `dragstart` handler for Firefox), while a calendar tile, an idea's reference or a storyboard shot still drags by its photo. The photo controls are a small pencil on the photo: View photo (a lightbox, also on a click on the photo), Change photo and Remove photo. No pack change, no migration. 1244 tests (220 skipped without a Postgres server).
@@ -86,6 +87,58 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.43.0 — 2026-10-29
+
+- **Why.** No Meta developer account yet. Make has its own approved Meta app; Brand Base calls a
+  Make scenario, which posts with Make's "Instagram for Business (Facebook login)" and "Facebook
+  Pages" modules. Make holds the tokens; that is accepted for this bridge. Plan and the exact
+  payload and answer: `docs/executing/make-publishing-plan.md`.
+- **Core.** Ported from `feat/real-publishing`: a connector says how a send failed (`sent: false`
+  is `SEND_REFUSED` in its words, `sent: 'maybe'` is `OUTCOME_UNKNOWN` in its words; the core's own
+  time limit keeps the pack's words) and sets its own `timeoutMs`; the "on its way" window follows
+  it; a send with nothing left to record it on is unknown, never a quiet success (this holds for
+  `shoot.invite` and `event.pull` too: a shoot removed while its invite is out now ends as an
+  unknown outcome with an alert, not a quiet null). The scheduler runs
+  up to ten calls at once, and `stop()` waits up to four minutes (`kill_timeout = 300`). A host adds
+  connectors.
+- **Pack 1.12.0.** Migration `0020_make_accounts.sql`: `accounts` takes `instagram` and
+  `facebook`; `account_connections` turns `ig` and `fb` on with them; `post_files(post)`, a post's
+  own files by key; old pretend `ig`/`fb` connections off. Rule `account.make_managed`: only the
+  owners and admins of a company on the operator's list (`make_orgs`, Mission Group) link or forget
+  them (the ids are typed, not proved by a sign-in, and Make's login reaches every Page its user
+  admins).
+  `post.publish_job` goes to the `social` connector with the account id and the files, so the yes
+  covers the account; it keeps Make's permalink on the post. `post.schedule` keeps a post's
+  planned-only accounts. `post.job_unknown` keeps the connector's words. `connection.set` no longer
+  takes `ig` or `fb`. `brand.state` answers `instagram` and `facebook` (name and id).
+- **Server.** `packages/connect`: `make.ts` (the `social` connector: checks the post against
+  Make's modules, signs two-hour read links, calls the webhook, reads the answer as the plan's
+  table says; every other channel is refused, so nothing is marked posted that did not go out),
+  `make-routes.ts` (`PUT`/`DELETE /brands/:brand/make/:platform`), `MAKE_WEBHOOK_URL` and
+  `MAKE_WEBHOOK_SECRET` (both or none), `GET /platforms` with `instagram` and `facebook` (posting
+  only: the inbox and the moodboard stay off). The key never follows a redirect; a post id must be
+  a string.
+- **web-next.** Connections: Instagram and Facebook rows take the id and the name in a small sheet,
+  then show the name, with Change and Disconnect. Composer: Instagram and Facebook are sent for
+  Post and Reel; a Story, or TikTok, is planned only with "Not available yet"; Schedule only on the
+  core (no "Publish now"); Make's media rules before Schedule (JPEG photos on Instagram, one video
+  is a Reel, Facebook posts take photos).
+- **Checked** in a browser (Playwright, a local core with this branch's host and the demo data on
+  Postgres 18): link Instagram and Facebook, the linked rows, the composer for a post and a story;
+  desktop and phone.
+- **Review (Opus and Sonnet panel, three passes).** Fixed: an account taken off a scheduled post kept its waiting job, and a post marked planned kept its jobs, so they could still post (`post.edit` drops them, `post.mark` cancels them at the same stage); another company's admin could point a
+  brand at a Page Make reaches (the `make_orgs` list); `GET /platforms` turned Instagram on for the
+  inbox and the moodboard too (now `instagram`/`facebook`, posting only); an agent could send a
+  scheduled job before its time with its person's yes (rule `job.agent_on_time`); an unlinked
+  Instagram or Facebook vanished from the composer (now planned only); a failed post's retry
+  dropped its planned TikTok; a bad share-to-feed value broke the send; a post id past 2^53 lost
+  digits; the key could follow a redirect; Make's raw 400 body reached the post; a queued run can
+  still post after "Accepted" (the words say so, and the setup turns sequential runs and stored
+  incomplete runs off); the core deploys before the pack. Not changed: a deploy waits up to four
+  minutes for sends under way; `ok: false` relies on the scenario's error handlers (the setup says
+  how).
+- **Gate:** typecheck, lint, format, build; tests 1328, all run on a throwaway Postgres 18.
 
 ## 2.41.0 — 2026-10-23
 

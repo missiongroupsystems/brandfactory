@@ -182,7 +182,9 @@ export async function runClaimed(deps: CoreDeps, job: Claimed) {
          where id = $1::bigint and status = 'running'`,
         [job.id, err.message, deps.now().toISOString()],
       )
-      await unknown(deps, job)
+      // The connector's own words when it said what may have happened; the pack's otherwise.
+      const said = (err.details as { connector?: boolean } | undefined)?.connector
+      await unknown(deps, job, said ? err.message : undefined)
       return
     }
     await end('refused', err.toJSON(), `${err.code}: ${err.message}`)
@@ -237,10 +239,13 @@ export async function markStuck(deps: CoreDeps) {
   return stuck.length
 }
 
-/** A call whose outcome is unknown: an alert to its principal, and the pack's `onUnknown`. */
-async function unknown(deps: CoreDeps, job: Claimed) {
+/**
+ * A call whose outcome is unknown: an alert to its principal, and the pack's `onUnknown`, with the
+ * connector's words when it gave some.
+ */
+async function unknown(deps: CoreDeps, job: Claimed, message?: string) {
   await alert(deps, job, `${job.op} was cut off; it may or may not have gone out`)
-  await follow(deps, job, 'onUnknown', {})
+  await follow(deps, job, 'onUnknown', message ? { message } : {})
   changed(job.pack)
 }
 
@@ -264,15 +269,48 @@ export async function tick(deps: CoreDeps, limit = 10) {
   return ran
 }
 
-/** Runs the loop every `intervalMs` until stopped; one pass at a time. */
-export function startScheduler(deps: CoreDeps, intervalMs = 5000) {
-  let running = false
+/** The most calls the loop runs at once: a long send does not hold the others. */
+export const MAX_RUNNING = 10
+/** How long `stop()` waits for running calls before it gives up on them. */
+export const STOP_WAIT_MS = 4 * 60 * 1000
+
+/**
+ * Runs the loop every `intervalMs` until stopped: stuck calls, then due calls, up to
+ * `MAX_RUNNING` at once, each claimed in one statement as `tick` does. `stop()` claims nothing
+ * more and waits for the running calls, up to `STOP_WAIT_MS`; a call still running after that ends
+ * `unknown_outcome` when its heartbeat stops.
+ */
+export function startScheduler(deps: CoreDeps, intervalMs = 5000, stopWaitMs = STOP_WAIT_MS) {
+  const running = new Set<Promise<void>>()
+  let claiming: Promise<void> | null = null
+  let stopped = false
+
+  const pass = async () => {
+    await markStuck(deps)
+    while (!stopped && running.size < MAX_RUNNING) {
+      const job = await claim(deps)
+      if (!job) break
+      const run = runClaimed(deps, job)
+        .catch((err: unknown) => console.error('scheduled call', job.id, err))
+        .finally(() => running.delete(run))
+      running.add(run)
+    }
+  }
   const timer = setInterval(() => {
-    if (running) return
-    running = true
-    tick(deps)
+    if (claiming || stopped) return
+    claiming = pass()
       .catch((err: unknown) => console.error('scheduler', err))
-      .finally(() => (running = false))
+      .finally(() => (claiming = null))
   }, intervalMs)
-  return () => clearInterval(timer)
+
+  return async () => {
+    stopped = true
+    clearInterval(timer)
+    await claiming
+    let timeout: NodeJS.Timeout | undefined
+    await Promise.race([
+      Promise.all(running),
+      new Promise((done) => (timeout = setTimeout(done, stopWaitMs))),
+    ]).finally(() => clearTimeout(timeout))
+  }
 }

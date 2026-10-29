@@ -11,6 +11,8 @@ import {
   readAccount,
   type Who,
 } from './accounts'
+import { type MakeApp } from './make'
+import { makeRoutes } from './make-routes'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
 import { type TikTokApp } from './tiktok'
 import { tiktokRoutes } from './tiktok-routes'
@@ -19,6 +21,8 @@ import { tiktokRoutes } from './tiktok-routes'
 const REFRESH_MARGIN_MS = 24 * 60 * 60 * 1000
 
 export interface Platforms {
+  /** Instagram and Facebook, posted to through Make. */
+  make?: MakeApp
   pinterest?: PinterestApp
   tiktok?: TikTokApp
 }
@@ -113,8 +117,17 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
       // Which platforms have an app set up on this server: the web app offers Connect only for
       // these. It names no account and needs no sign-in.
       .get('/platforms', (c) =>
-        c.json({ pinterest: Boolean(platforms.pinterest), tiktok: Boolean(platforms.tiktok) }),
+        c.json({
+          pinterest: Boolean(platforms.pinterest),
+          tiktok: Boolean(platforms.tiktok),
+          // Posting only, through Make: the inbox and the moodboard stay off for both.
+          instagram: Boolean(platforms.make),
+          facebook: Boolean(platforms.make),
+        }),
       )
+
+      // Each brand's Instagram account and Facebook Page, as Make posts to them.
+      .route('/', makeRoutes(core, platforms.make))
 
       // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
       .route('/', tiktokRoutes(core, platforms.tiktok))

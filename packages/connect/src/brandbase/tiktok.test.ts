@@ -167,9 +167,19 @@ const send = (t: T, post = 'tp1', token = 'member') =>
 describe('TikTok', () => {
   it('says TikTok is set up only when its app is', async () => {
     const on = await setUp()
-    expect((await on.call('GET', '/platforms')).data).toEqual({ pinterest: false, tiktok: true })
+    expect((await on.call('GET', '/platforms')).data).toEqual({
+      pinterest: false,
+      tiktok: true,
+      instagram: false,
+      facebook: false,
+    })
     const off = await serve({})
-    expect((await off.call('GET', '/platforms')).data).toEqual({ pinterest: false, tiktok: false })
+    expect((await off.call('GET', '/platforms')).data).toEqual({
+      pinterest: false,
+      tiktok: false,
+      instagram: false,
+      facebook: false,
+    })
     expect(await off.call('POST', '/brands/casa/tiktok/connect')).toMatchObject({
       status: 503,
       data: { code: 'PLATFORM_OFF' },

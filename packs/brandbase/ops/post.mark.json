@@ -1,6 +1,6 @@
 {
   "name": "post.mark",
-  "description": "Sets a post's stage by hand, as the idea page does: draft, scheduled or posted. Kept apart from publishing: jobs not yet sent are cancelled, an account already live stays live. Scheduled needs a day and an account; posted is final.",
+  "description": "Sets a post's stage by hand, as the idea page does: draft, scheduled or posted. Kept apart from publishing: jobs not yet sent are cancelled, an account already live stays live. Scheduled needs a day and an account; posted is final. A post marked while it still has waiting jobs loses them, even at the same stage: marked is planned, never sent.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -28,5 +28,5 @@
     "post.mark_has_day"
   ],
   "returns": "one",
-  "sql": "with p as (select * from brandbase.posts where id = :id and brand_id = :brand and brandbase.post_stage(id) <> :stage),\ncancelled as (delete from brandbase.post_jobs j using p where j.post_id = p.id and j.status <> 'live' returning j.id),\nmarked as (\n  update brandbase.posts x set marked = case when :stage = 'draft' then null else :stage end,\n    version = x.version + 1, updated_at = now()\n  from p where x.id = p.id\n  returning x.*\n)\nselect brandbase.post_json(to_jsonb(m), coalesce((\n  select jsonb_agg(to_jsonb(j)) from brandbase.post_jobs j where j.post_id = m.id and j.status = 'live'), '[]')) as result\nfrom marked m\nunion all\nselect brandbase.post_json(x) from brandbase.posts x\nwhere x.id = :id and x.brand_id = :brand and not exists (select 1 from p)"
+  "sql": "with p as (select * from brandbase.posts x where x.id = :id and x.brand_id = :brand and (brandbase.post_stage(x.id) <> :stage or exists (select 1 from brandbase.post_jobs j where j.post_id = x.id and j.status not in ('live', 'uploading')))),\ncancelled as (delete from brandbase.post_jobs j using p where j.post_id = p.id and j.status <> 'live' returning j.id),\nmarked as (\n  update brandbase.posts x set marked = case when :stage = 'draft' then null else :stage end,\n    version = x.version + 1, updated_at = now()\n  from p where x.id = p.id\n  returning x.*\n)\nselect brandbase.post_json(to_jsonb(m), coalesce((\n  select jsonb_agg(to_jsonb(j)) from brandbase.post_jobs j where j.post_id = m.id and j.status = 'live'), '[]')) as result\nfrom marked m\nunion all\nselect brandbase.post_json(x) from brandbase.posts x\nwhere x.id = :id and x.brand_id = :brand and not exists (select 1 from p)"
 }

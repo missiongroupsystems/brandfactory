@@ -1,6 +1,6 @@
 {
   "name": "post.job_unknown",
-  "description": "The scheduler's word that a job's send was cut off: it may or may not have gone out. The job fails and a person checks the account before anyone retries; a retry needs a new yes.",
+  "description": "The scheduler's word that a job's send was cut off: it may or may not have gone out. The job fails, in the connector's words when it gave some, and a person checks the account before anyone retries; a retry needs a new yes.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -32,6 +32,6 @@
     }
   },
   "returns": "many",
-  "sql": "update brandbase.post_jobs j set status = 'failed', error = 'Interrupted. Check the account before you retry.', updated_at = now() where j.id = :input::jsonb ->> 'job' and j.brand_id = :input::jsonb ->> 'brand' and j.status = 'scheduled' returning j.id, j.status, j.error",
+  "sql": "update brandbase.post_jobs j set status = 'failed', error = coalesce(:message::text, 'Interrupted. Check the account before you retry.'), updated_at = now() where j.id = :input::jsonb ->> 'job' and j.brand_id = :input::jsonb ->> 'brand' and j.status = 'scheduled' returning j.id, j.status, j.error",
   "before": ["job.reachable", "job.not_events_tick"]
 }

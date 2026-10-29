@@ -1,6 +1,6 @@
 {
   "name": "post.edit",
-  "description": "Changes a post's hook, caption, accounts, media or whole composer draft. A write made from an older copy is refused with the post as it is now.",
+  "description": "Changes a post's hook, caption, accounts, media or whole composer draft. A write made from an older copy is refused with the post as it is now. An account taken off a post takes its waiting job with it, so nothing goes to an account the post no longer names; a scheduled post left with no job stays scheduled, as planned.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -75,5 +75,5 @@
     "post.scheduled_keeps_channel"
   ],
   "returns": "one",
-  "sql": "update brandbase.posts p set\n  hook = coalesce(:hook, p.hook),\n  caption = coalesce(:caption, p.caption),\n  channels = case when :channels::jsonb is null then p.channels\n    else array(select c from jsonb_array_elements_text(:channels::jsonb) with ordinality t(c, n) group by c order by min(n)) end,\n  media = coalesce(:media::jsonb, p.media),\n  draft = coalesce(:draft::jsonb, p.draft),\n  version = p.version + 1,\n  updated_at = now()\nwhere p.id = :id and p.brand_id = :brand\nreturning brandbase.post_json(p) as result"
+  "sql": "with nc as (\n  select case when :channels::jsonb is null then null\n    else array(select c from jsonb_array_elements_text(:channels::jsonb) with ordinality t(c, n) group by c order by min(n)) end as chans\n),\ndropped as (\n  delete from brandbase.post_jobs j using nc\n  where nc.chans is not null and j.post_id = :id and j.brand_id = :brand and j.status not in ('live', 'uploading')\n    and not (j.channel = any (nc.chans))\n  returning j.id, j.status\n),\nedited as (\n  update brandbase.posts p set\n    hook = coalesce(:hook, p.hook),\n    caption = coalesce(:caption, p.caption),\n    channels = coalesce(nc.chans, p.channels),\n    media = coalesce(:media::jsonb, p.media),\n    draft = coalesce(:draft::jsonb, p.draft),\n    marked = case when p.marked is null and exists (select 1 from dropped d where d.status in ('scheduled', 'failed'))\n        and not exists (select 1 from brandbase.post_jobs j where j.post_id = p.id\n          and j.status in ('scheduled', 'live') and not exists (select 1 from dropped d where d.id = j.id))\n      then 'scheduled' else p.marked end,\n    version = p.version + 1,\n    updated_at = now()\n  from nc\n  where p.id = :id and p.brand_id = :brand\n  returning p.*\n)\nselect brandbase.post_json(to_jsonb(e), coalesce((\n  select jsonb_agg(to_jsonb(j)) from brandbase.post_jobs j\n  where j.post_id = e.id and not exists (select 1 from dropped d where d.id = j.id)), '[]')) as result\nfrom edited e"
 }

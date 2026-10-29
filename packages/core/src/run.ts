@@ -34,8 +34,14 @@ export interface CoreDeps {
 
 /** The way out of the app for effect moves: a platform, a message, a payment. */
 export interface Connector {
-  /** Sends one payload; answers what came back (an id on the platform, say). */
+  /**
+   * Sends one payload; answers what came back (an id on the platform, say). An error it throws
+   * with `sent: false` says nothing went out, and `sent: 'maybe'` that it may have; either way
+   * its message is for people. Any other error is a failed send.
+   */
   send(input: { pack: string; op: string; payload: unknown }): Promise<unknown>
+  /** Longest one send may take, in milliseconds; 30 s unless set. */
+  timeoutMs?: number
 }
 
 /**

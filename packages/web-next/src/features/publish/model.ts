@@ -206,6 +206,43 @@ export function blockers(draft: Draft): string[] {
   return out
 }
 
+/** A photo or video of the post, as the composer holds it: its address, and whether it plays. */
+export interface MediaFile {
+  src: string
+  video: boolean
+}
+
+/**
+ * What Instagram and Facebook cannot take through Make's modules (docs/executing/
+ * make-publishing-plan.md), for the accounts a post is really sent to: Instagram photos are JPEG,
+ * one video on Instagram is a Reel, a Facebook post takes photos only, and a Reel is one video.
+ * A file whose type its address does not show is left to the server's own check.
+ */
+export function makeBlockers(format: Format, sending: ChannelKey[], media: MediaFile[]): string[] {
+  const out: string[] = []
+  const ig = sending.includes('ig')
+  const fb = sending.includes('fb')
+  if ((!ig && !fb) || media.length === 0 || format === 'story') return out
+  const videos = media.filter((m) => m.video)
+  if (format === 'reel') {
+    if (media.length !== 1 || videos.length !== 1) out.push('A Reel takes one video.')
+    return out
+  }
+  if (ig) {
+    const notJpeg = media.some((m) => {
+      const ext = /\.([a-z0-9]{1,5})$/i.exec(m.src.split(/[?#]/)[0]!)?.[1]?.toLowerCase()
+      return !m.video && ext !== undefined && ext !== 'jpg' && ext !== 'jpeg'
+    })
+    if (notJpeg) out.push('Instagram takes JPEG photos only.')
+    if (media.length === 1 && videos.length === 1) {
+      out.push('Instagram posts a single video as a Reel: make it a Reel.')
+    }
+  }
+  if (fb && videos.length > 0)
+    out.push('A Facebook post takes photos only: put the video in a Reel.')
+  return out
+}
+
 export function primaryLabel(draft: Draft): string {
   const n = activeChannels(draft).length
   if (n === 0) return 'Pick a channel'

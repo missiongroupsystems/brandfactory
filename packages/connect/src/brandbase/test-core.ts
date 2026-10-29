@@ -15,14 +15,14 @@ const pack = readPack(
 
 /**
  * A core with the brandbase pack live on a fresh database, loaded with the pack's own test
- * fixture: `member` in company A (casa, osteria), `both` in company A and B (temper too), `gone`
- * deactivated.
+ * fixture: `member` and `owner` in company A (casa, osteria), `both` in company A and an admin of B
+ * (temper too), `gone` deactivated.
  */
 export async function testCore(now = NOW, files?: Files) {
   const db = await freshDb()
   await goLive(db, pack)
   await db.exec(pack.fixture)
-  for (const id of ['member', 'both', 'gone']) await person(db, id, pack)
+  for (const id of ['member', 'owner', 'both', 'gone']) await person(db, id, pack)
   let at = now
   const core = { ...deps(db), now: () => at, files }
   /** Moves the core's clock. */

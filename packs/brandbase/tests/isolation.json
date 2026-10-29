@@ -658,7 +658,7 @@
           "call": "connection.set",
           "input": {
             "brand": "temper",
-            "key": "ig",
+            "key": "drive",
             "status": "off"
           },
           "expect": {

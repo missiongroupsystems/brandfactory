@@ -13,6 +13,7 @@ import {
 import { dropBoard, startPinterest } from '@/features/ideate/pinterest'
 import { onState, push, remote, report, request } from '@/lib/remote'
 
+import { makeOn } from './make'
 import { NOT_SET_UP, notAvailable } from './not-available'
 
 /**
@@ -69,7 +70,8 @@ if (remote) {
     for (const r of rows) {
       // Stored as connected or not, a platform not set up on our side is not trusted: it is off.
       // Pinterest's source is the ideas store's, which reads it from the same state.
-      if (notAvailable(r.key) || r.key === 'pinterest') continue
+      // Instagram and Facebook through Make are on for posting.
+      if ((notAvailable(r.key) && !makeOn(r.key)) || r.key === 'pinterest') continue
       own[r.key] = r.status
     }
     state = { ...state, [brandId]: own }
@@ -104,7 +106,7 @@ export function useConnections(brandId: BrandId): Record<SourceKey, ConnectionSt
       pinterest: pinterest ? 'connected' : 'off',
     }
     // On the core these are never connected, whatever was stored or seeded for them.
-    for (const k of NOT_SET_UP) if (notAvailable(k)) all[k] = 'off'
+    for (const k of NOT_SET_UP) if (notAvailable(k) && !makeOn(k)) all[k] = 'off'
     return all
   }, [own, pinterest])
 }

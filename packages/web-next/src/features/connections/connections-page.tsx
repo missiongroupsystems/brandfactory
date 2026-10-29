@@ -17,6 +17,8 @@ import {
   useConnections,
   type SourceKey,
 } from './connections-store'
+import { makeOn, type MakeKey, unlinkMake, useMakeAccount } from './make'
+import { MakeSheet } from './make-sheet'
 import { NotAvailable, notAvailable, reasonOf } from './not-available'
 import { connectTikTok, disconnectTikTok, tiktokOn, useTikTokAccount } from './tiktok'
 
@@ -37,15 +39,18 @@ const GROUPS: Array<{ label: string; keys: SourceKey[] }> = [
  * read. Simulated: a Connect is a pretend sign-in (`ConnectSheet`), except Pinterest on the core,
  * which leaves for Pinterest's own sign-in and comes back to the moodboard to pick the board, and
  * TikTok on the core once the server has its app, which leaves for TikTok's sign-in (upload only:
- * `tiktok.ts`) and comes back here.
+ * `tiktok.ts`) and comes back here, and Instagram and Facebook on the core once the server posts
+ * through Make, which take the account's id and name in a small sheet (`make.ts`).
  */
 export function ConnectionsPage() {
   const { brand } = useBrand()
   const status = useConnections(brand.id)
   const [connecting, setConnecting] = React.useState<SourceKey | null>(null)
+  const [making, setMaking] = React.useState<MakeKey | null>(null)
 
   function open(key: SourceKey) {
-    if (remote && key === 'pinterest') connect(brand.id, key)
+    if (makeOn(key)) setMaking(key)
+    else if (remote && key === 'pinterest') connect(brand.id, key)
     else if (key === 'tt' && tiktokOn()) {
       // A real sign-in: the browser leaves for TikTok and comes back to `/connect/tiktok`.
       connectTikTok(brand.id).catch((err: unknown) =>
@@ -77,6 +82,7 @@ export function ConnectionsPage() {
         ))}
       </main>
       {connecting && <ConnectSheet source={connecting} onClose={() => setConnecting(null)} />}
+      {making && <Making source={making} onClose={() => setMaking(null)} />}
     </div>
   )
 }
@@ -96,8 +102,19 @@ function Row({
   // TikTok on the core, once the server has its app: the brand's own account, upload only.
   const tiktok = source === 'tt' && tiktokOn()
   const account = useTikTokAccount(brand.id)
-  const status: ConnectionStatus = tiktok ? (account ? 'connected' : 'off') : stored
-  const name = tiktok ? (account?.name ?? null) : linkedName
+  // Instagram and Facebook through Make: the id and name an owner or admin typed.
+  const make = makeOn(source)
+  const linked = useMakeAccount(brand.id, source === 'fb' ? 'fb' : 'ig')
+  const status: ConnectionStatus = tiktok
+    ? account
+      ? 'connected'
+      : 'off'
+    : make
+      ? linked
+        ? 'connected'
+        : 'off'
+      : stored
+  const name = tiktok ? (account?.name ?? null) : make ? (linked?.name ?? null) : linkedName
   return (
     <li className="flex items-center gap-3.5 border-t border-line px-4 py-3.5 first:border-t-0 max-md:gap-3 max-md:px-3.5">
       <span
@@ -122,22 +139,28 @@ function Row({
             {status === 'off'
               ? tiktok
                 ? 'Videos to the TikTok inbox'
-                : info.brings
+                : make
+                  ? MAKE_BRINGS[source as MakeKey]
+                  : info.brings
               : status === 'attention'
                 ? 'Signed out · sign in again'
                 : (name ?? info.account(brand))}
           </span>
         </span>
       </span>
-      {notAvailable(source) && !tiktok ? (
+      {notAvailable(source) && !tiktok && !make ? (
         <NotAvailable reason={reasonOf(info.name)} />
       ) : status === 'connected' ? (
         <RowMenu
           name={info.name}
+          reconnect={make ? 'Change' : 'Reconnect'}
           onReconnect={onConnect}
           onDisconnect={() =>
-            tiktok
-              ? disconnectTikTok(brand.id).catch((err: unknown) =>
+            tiktok || make
+              ? (tiktok
+                  ? disconnectTikTok(brand.id)
+                  : unlinkMake(brand.id, source as MakeKey)
+                ).catch((err: unknown) =>
                   report(err instanceof Error && err.message ? err.message : 'That did not work.'),
                 )
               : disconnect(brand.id, source)
@@ -157,13 +180,28 @@ function Row({
   )
 }
 
+/** What Instagram and Facebook bring through Make: no Stories, which Make cannot post. */
+const MAKE_BRINGS: Record<MakeKey, string> = {
+  ig: 'Posts and reels',
+  fb: 'Posts and reels to the Page',
+}
+
+/** The Make sheet for the brand in the header, with the account it holds now. */
+function Making({ source, onClose }: { source: MakeKey; onClose: () => void }) {
+  const { brand } = useBrand()
+  const current = useMakeAccount(brand.id, source)
+  return <MakeSheet source={source} current={current} onClose={onClose} />
+}
+
 /** Reconnect or disconnect: kept behind one quiet button, since nobody does them often. */
 function RowMenu({
   name,
+  reconnect = 'Reconnect',
   onReconnect,
   onDisconnect,
 }: {
   name: string
+  reconnect?: string
   onReconnect: () => void
   onDisconnect: () => void
 }) {
@@ -222,7 +260,7 @@ function RowMenu({
           aria-label={`${name} actions`}
           className="bb-menu absolute top-10 right-0 z-30 flex w-[160px] origin-top-right flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
         >
-          {item('Reconnect', onReconnect)}
+          {item(reconnect, onReconnect)}
           {item('Disconnect', onDisconnect, true)}
         </div>
       )}

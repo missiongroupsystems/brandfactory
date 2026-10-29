@@ -1,0 +1,7 @@
+{
+  "id": "account.make_managed",
+  "sql": "select :platform::text not in ('instagram', 'facebook') or exists (select 1 from brandbase.brands b join brandbase.make_orgs o on o.org_id = b.org_id where b.id = :brand and b.org_id = any (brandbase.managed_orgs())) as ok",
+  "status": 403,
+  "code": "FORBIDDEN",
+  "message": "only the owners and admins of a company on the operator's list link Instagram and Facebook"
+}

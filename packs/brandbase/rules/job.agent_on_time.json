@@ -1,0 +1,7 @@
+{
+  "id": "job.agent_on_time",
+  "sql": "select :agent::text is null or exists (select 1 from brandbase.post_jobs j where j.id = :job and j.brand_id = :brand and j.run_at <= :now::timestamptz) as ok",
+  "status": 409,
+  "code": "NOT_DUE",
+  "message": "an agent sends a job only at its time"
+}

@@ -26,12 +26,17 @@
 #   TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URL: all three or none. The redirect
 #                          is the web app's /connect/tiktok page, as registered on the TikTok app
 #                          (the Sandbox's keys until the app passes review).
+#   MAKE_WEBHOOK_URL, MAKE_WEBHOOK_SECRET: both or none. The Make scenario that posts to Instagram
+#                          and Facebook until our own Meta app passes review; the secret goes in
+#                          Make's x-make-apikey header (docs/executing/make-publishing-plan.md).
 #   MISSION_EVENTS_URL, MISSION_EVENTS_SERVICE_KEY: both or none (src/env.ts). The Mission Events
 #                          feed that `event.pull` reads (src/feeds.ts).
 
 app            = "brandfactory"
 primary_region = "sin"
 kill_signal    = "SIGTERM"
+# Running sends get up to four minutes to finish on a deploy (STOP_WAIT_MS in scheduler.ts).
+kill_timeout   = 300
 
 [build]
   dockerfile = "packages/core/Dockerfile"

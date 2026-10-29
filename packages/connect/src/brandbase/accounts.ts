@@ -4,9 +4,17 @@ import { call, type CoreDeps } from '@brandfactory/core/src/run'
 /** The pack whose accounts these are. */
 export const PACK = 'brandbase'
 
-/** The platforms a brand links an account on. Meta has no sign-in yet. */
-export type Platform = 'pinterest' | 'tiktok'
-export const NAME: Record<Platform, string> = { pinterest: 'Pinterest', tiktok: 'TikTok' }
+/**
+ * The platforms a brand links an account on. Instagram and Facebook are posted to through Make
+ * (`make.ts`): their ids are typed in, with no sign-in of ours.
+ */
+export type Platform = 'pinterest' | 'tiktok' | 'instagram' | 'facebook'
+export const NAME: Record<Platform, string> = {
+  pinterest: 'Pinterest',
+  tiktok: 'TikTok',
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+}
 
 /**
  * Who an account move runs as: the signed-in person behind a route's request. The pack's row

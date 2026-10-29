@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  makeBlockers,
   activeChannels,
   blockers,
   collabHeader,
@@ -334,5 +335,38 @@ describe('a typed post time', () => {
     expect(parseTime('19:75')).toBeNull()
     expect(parseTime('13pm')).toBeNull()
     expect(parseTime('soon')).toBeNull()
+  })
+})
+
+describe('what Make can post to Instagram and Facebook', () => {
+  const jpg = { src: 'https://core.test/files/s/brandbase/a.jpg', video: false }
+  const png = { src: 'https://core.test/files/s/brandbase/b.png', video: false }
+  const mp4 = { src: 'https://core.test/files/s/brandbase/c.mp4#video', video: true }
+  const sample = { src: '/photos/sample', video: false }
+
+  it('lets a JPEG post, a carousel and a one-video Reel through', () => {
+    expect(makeBlockers('carousel', ['ig', 'fb'], [jpg, jpg])).toEqual([])
+    expect(makeBlockers('carousel', ['ig'], [jpg, mp4])).toEqual([])
+    expect(makeBlockers('reel', ['ig', 'fb'], [mp4])).toEqual([])
+  })
+
+  it('asks for JPEG photos and a Reel for one video on Instagram', () => {
+    expect(makeBlockers('carousel', ['ig'], [png])).toEqual(['Instagram takes JPEG photos only.'])
+    expect(makeBlockers('carousel', ['ig'], [mp4])).toEqual([
+      'Instagram posts a single video as a Reel: make it a Reel.',
+    ])
+  })
+
+  it('keeps videos out of a Facebook post, and a Reel to one video', () => {
+    expect(makeBlockers('carousel', ['fb'], [png, mp4])).toEqual([
+      'A Facebook post takes photos only: put the video in a Reel.',
+    ])
+    expect(makeBlockers('reel', ['fb'], [jpg])).toEqual(['A Reel takes one video.'])
+  })
+
+  it('leaves Stories, other accounts and files of no known type to the server', () => {
+    expect(makeBlockers('story', ['ig'], [png])).toEqual([])
+    expect(makeBlockers('carousel', ['tt'], [png])).toEqual([])
+    expect(makeBlockers('carousel', ['ig'], [sample])).toEqual([])
   })
 })

@@ -64,8 +64,9 @@ The repository is a pnpm workspaces monorepo with these packages:
 - `packages/connect` (`@brandfactory/connect`) links each brand's own accounts by OAuth, with
   tokens sealed per brand. Its `src/brandbase/` is what runs: `host.ts` is the server's entry (the
   Dockerfile's), which starts the core with the account routes beside it, so connect imports the
-  core and the core still imports nothing. Only Pinterest signs in so far (the moodboard's board);
-  Meta and TikTok are on `feat/real-publishing`. The accounts live in the pack's
+  core and the core still imports nothing. Pinterest and TikTok (upload only) sign in;
+  Instagram and Facebook post through Make (`make.ts`, the `social` connector) until our own Meta
+  app passes review; the Graph API version is on `feat/real-publishing`. The accounts live in the pack's
   `brandbase.accounts`, read and written only through the pack's internal moves. The older
   standalone service in the same package (`src/app.ts`, `src/main.ts`) is not deployed.
 - `packages/core` (`@brandfactory/core`) is BrandBase's backend: a generic

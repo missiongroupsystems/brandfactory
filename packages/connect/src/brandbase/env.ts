@@ -1,3 +1,4 @@
+import { type MakeApp } from './make'
 import { pinterestApp } from './pinterest'
 import { tiktokApp } from './tiktok'
 import { type Platforms } from './routes'
@@ -14,6 +15,14 @@ const GROUPS = {
  */
 export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platforms {
   const problems: string[] = []
+  // Make holds the Meta tokens: its two settings, both or none, and no key of ours.
+  const makeKeys = ['MAKE_WEBHOOK_URL', 'MAKE_WEBHOOK_SECRET'] as const
+  if (makeKeys.some((k) => env[k])) {
+    for (const k of makeKeys.filter((k) => !env[k])) problems.push(`${k}: Make needs both`)
+    if (env.MAKE_WEBHOOK_URL && !/^https:\/\//.test(env.MAKE_WEBHOOK_URL)) {
+      problems.push('MAKE_WEBHOOK_URL: an https address')
+    }
+  }
   for (const [name, keys] of Object.entries(GROUPS)) {
     if (!keys.some((k) => env[k])) continue
     for (const k of [...keys, 'TOKEN_ENCRYPTION_KEY'].filter((k) => !env[k])) {
@@ -35,6 +44,10 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
           masterKey: masterKey!,
         })
       : undefined,
+    make:
+      env.MAKE_WEBHOOK_URL && env.MAKE_WEBHOOK_SECRET
+        ? ({ url: env.MAKE_WEBHOOK_URL, secret: env.MAKE_WEBHOOK_SECRET } satisfies MakeApp)
+        : undefined,
     tiktok: env.TIKTOK_CLIENT_KEY
       ? tiktokApp({
           clientKey: env.TIKTOK_CLIENT_KEY,

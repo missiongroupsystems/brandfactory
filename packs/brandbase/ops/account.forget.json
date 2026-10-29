@@ -1,6 +1,6 @@
 {
   "name": "account.forget",
-  "description": "Forgets a brand's account on one platform, and its tokens: only the account named, so one linked since is kept. Internal: packages/connect.",
+  "description": "Forgets a brand's account on one platform, and its tokens: only the account named, so one linked since is kept. Instagram and Facebook only by an owner or admin of the brand's company. Internal: packages/connect.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -11,7 +11,7 @@
         "pattern": "^[A-Za-z0-9_-]{1,80}$"
       },
       "platform": {
-        "enum": ["pinterest", "tiktok"]
+        "enum": ["pinterest", "tiktok", "instagram", "facebook"]
       },
       "accountId": {
         "type": "string",
@@ -20,8 +20,8 @@
       }
     }
   },
-  "before": ["brand.reachable"],
+  "before": ["brand.reachable", "account.make_managed"],
   "internal": true,
   "returns": "many",
-  "sql": "with a as (delete from brandbase.accounts a where a.brand_id = :brand and a.platform = :platform and a.account_id = :accountId returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, 'off' from a, brandbase.account_keys(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id) as result from a"
+  "sql": "with a as (delete from brandbase.accounts a where a.brand_id = :brand and a.platform = :platform and a.account_id = :accountId returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, 'off' from a, brandbase.account_connections(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id) as result from a"
 }

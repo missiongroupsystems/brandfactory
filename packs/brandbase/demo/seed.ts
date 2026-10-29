@@ -104,6 +104,8 @@ async function seed(db: pg.Client) {
   const insert = (table: string, rows: object | object[]) => into(db, table, rows)
   const ownerOf = new Map<string, string>()
   await insert('organizations', { id: DEMO_ORG, name: 'Demo' })
+  // The demo company may link Instagram and Facebook through Make (0020).
+  await insert('make_orgs', { orgId: DEMO_ORG })
 
   for (const [position, content] of BRAND_CONTENT.entries()) {
     const brand = content.brand

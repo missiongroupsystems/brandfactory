@@ -1,6 +1,6 @@
 {
   "name": "account.link",
-  "description": "Links a brand's account after the platform's sign-in, with its sealed tokens: one per platform per brand, and an account another brand holds is refused. Linking the same account again keeps its Pinterest board; another account starts clean. Internal: packages/connect calls it as the person who signed in.",
+  "description": "Links a brand's account: after the platform's sign-in with its sealed tokens (Pinterest, TikTok), or, for Instagram and Facebook through Make, the id an owner or admin of the brand's company typed, with the word make for tokens (Make holds them). One per platform per brand, and an account another brand holds is refused. Linking the same account again keeps its Pinterest board; another account starts clean. Internal: packages/connect calls it as the person.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -11,7 +11,7 @@
         "pattern": "^[A-Za-z0-9_-]{1,80}$"
       },
       "platform": {
-        "enum": ["pinterest", "tiktok"]
+        "enum": ["pinterest", "tiktok", "instagram", "facebook"]
       },
       "accountId": {
         "type": "string",
@@ -32,9 +32,9 @@
       }
     }
   },
-  "before": ["brand.reachable"],
+  "before": ["brand.reachable", "account.make_managed"],
   "internal": true,
   "returns": "one",
-  "sql": "with a as (insert into brandbase.accounts as a (brand_id, platform, account_id, username, tokens, details, connected_by) values (:brand, :platform, :accountId, :username, :tokens, :details::jsonb, :actor) on conflict (brand_id, platform) do update set account_id = excluded.account_id, username = excluded.username, tokens = excluded.tokens, details = case when a.account_id = excluded.account_id then a.details || excluded.details else excluded.details end, connected_by = excluded.connected_by, updated_at = now() returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, case when x.linked then 'connected' else 'off' end from a, brandbase.account_keys(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id, 'username', a.username, 'details', a.details) as result from a",
+  "sql": "with a as (insert into brandbase.accounts as a (brand_id, platform, account_id, username, tokens, details, connected_by) values (:brand, :platform, :accountId, :username, :tokens, :details::jsonb, :actor) on conflict (brand_id, platform) do update set account_id = excluded.account_id, username = excluded.username, tokens = excluded.tokens, details = case when a.account_id = excluded.account_id then a.details || excluded.details else excluded.details end, connected_by = excluded.connected_by, updated_at = now() returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, case when x.linked then 'connected' else 'off' end from a, brandbase.account_connections(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id, 'username', a.username, 'details', a.details) as result from a",
   "secret": ["tokens"]
 }

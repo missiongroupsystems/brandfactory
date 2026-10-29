@@ -28,6 +28,7 @@ import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/c
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { makeOn } from '@/features/connections/make'
 import { NotAvailable, notAvailable } from '@/features/connections/not-available'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
@@ -54,6 +55,7 @@ import {
   kindOn,
   lengthFor,
   linkedChannels,
+  makeBlockers,
   parseTime,
   EARLIEST_POST,
   PRIVACY,
@@ -177,21 +179,30 @@ export function Composer({
   // The accounts linked on the Connections page. One that needs signing in again still shows,
   // with Reconnect; one disconnected there is gone from the composer.
   const links = useConnections(brand.id)
-  // On the core no account can connect yet: a post is planned on the brand's own platforms, and
-  // Schedule dates it on the calendar without sending anything (`post.mark`, no job).
-  const planOnly = PUBLISHERS.every((k) => notAvailable(k))
+  // On the core with no account set up to post, a post is planned on the brand's own platforms,
+  // and Schedule dates it on the calendar without sending anything (`post.mark`, no job). Once
+  // the server posts to Instagram and Facebook through Make, those are sent at their time, and the
+  // others (TikTok) stay planned only: always offered, never sent.
+  // Through Make an account is sent only once the brand has linked it; until then it is planned.
+  const sends = PUBLISHERS.filter((k) => postsTo(k) && (!makeOn(k) || links[k] === 'connected'))
+  const planOnly = sends.length === 0
+  const plans = planOnly
+    ? []
+    : PUBLISHERS.filter((k) => !sends.includes(k) && (brand.platforms ?? PUBLISHERS).includes(k))
   const publishing = planOnly
     ? PUBLISHERS.filter((k) => (brand.platforms ?? PUBLISHERS).includes(k))
-    : PUBLISHERS.filter((k) => links[k] !== 'off')
+    : PUBLISHERS.filter((k) => plans.includes(k) || links[k] !== 'off')
   const api = usePublishDraft({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
     caption: post ? kept?.caption || captions[post.id] || post.hook : '',
     // A failed post is retried on the account it failed on; on the core it is planned again on
     // all of its own, not narrowed to that one.
-    selected: post ? (planOnly ? channelsOf(post) : composeChannels(post)) : undefined,
+    selected: post ? (remote ? channelsOf(post) : composeChannels(post)) : undefined,
     linked: publishing,
-    connected: planOnly ? publishing : publishing.filter((k) => links[k] === 'connected'),
+    connected: planOnly
+      ? publishing
+      : publishing.filter((k) => plans.includes(k) || links[k] === 'connected'),
     tiktok:
       keptDraft.privacy !== undefined && keptDraft.interactions && keptDraft.promo
         ? {
@@ -232,7 +243,7 @@ export function Composer({
   )
   // A failed post was due already: the fix is to send it now.
   const [when, setWhen] = React.useState<WhenChoice>(
-    post?.stage === 'failed' && !planOnly ? 'now' : 'schedule',
+    post?.stage === 'failed' && !remote ? 'now' : 'schedule',
   )
   const [date, setDate] = React.useState<string>(
     () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
@@ -292,10 +303,16 @@ export function Composer({
   const [waiting, setWaiting] = React.useState<'send' | 'save' | null>(null)
 
   const active = activeChannels(draft)
+  // Planned, not sent: Make cannot post a Story, and the planned-only accounts (TikTok) never go.
+  const planned =
+    planOnly ||
+    (remote &&
+      (draft.format === 'story' ||
+        active.every((c) => !(sends as readonly string[]).includes(c.key))))
   // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn) are
   // kept on every save, here and on the calendar, not dropped. One the brand no longer uses goes:
   // the core refuses a save that names it.
-  const others = planOnly
+  const others = remote
     ? (opened?.channels ?? []).filter(
         (k) =>
           !(PUBLISHERS as readonly string[]).includes(k) && (brand.platforms ?? [k]).includes(k),
@@ -305,7 +322,8 @@ export function Composer({
   const storyDay = when === 'now' ? todayDate() : date
   const blocked = [
     ...(readOnly ? ['Not on the calendar: it can be viewed, not changed.'] : []),
-    ...(post?.stage === 'failed' && !reconnected && !planOnly
+    // On the core a failed account is retried as it is: the job's error says what to fix.
+    ...(post?.stage === 'failed' && !reconnected && !planOnly && !remote
       ? [`Reconnect ${failedName} first.`]
       : []),
     // 6. A planned post needs a platform: the core refuses a scheduled post with none.
@@ -321,6 +339,14 @@ export function Composer({
     ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
     // A draft can sit on a day that has since passed: a schedule needs a day ahead.
     ...(when === 'schedule' && date && date < todayDate() ? ['Pick a day ahead.'] : []),
+    // What Make's Instagram and Facebook modules cannot post, before the server says so at its time.
+    ...(remote && !planned
+      ? makeBlockers(
+          draft.format,
+          active.map((c) => c.key).filter((k) => (sends as readonly string[]).includes(k)),
+          media.map((m) => ({ src: m.src, video: isVideo(m.src) })),
+        )
+      : []),
   ]
   // Nothing can go out: a read-only post, or a blocker (a draft may still be saved unfinished).
   const stuck = readOnly || blocked.length > 0
@@ -335,7 +361,7 @@ export function Composer({
         remote && draft.linked.length === 0
         ? 'No platform listed'
         : 'Pick an account'
-      : planOnly
+      : planned
         ? 'Schedule'
         : when === 'now'
           ? 'Post on'
@@ -399,14 +425,18 @@ export function Composer({
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
       }
       await request('PATCH', `/brands/${b}/posts/${id}`, content)
-      if (send && planOnly) {
+      // Only the accounts the server posts to are sent; the planned-only ones stay on the post.
+      const sending = planned
+        ? []
+        : content.channels.filter((k) => (sends as readonly string[]).includes(k))
+      if (send && sending.length === 0) {
         // Planned, not sent: the post is scheduled on the calendar and no job will publish it.
         await request('POST', `/brands/${b}/posts/${id}/mark`, { stage: 'scheduled' })
       } else if (send) {
         await request(
           'POST',
           `/brands/${b}/posts/${id}/send`,
-          { when: send, channels: content.channels },
+          { when: send, channels: sending },
           { 'idempotency-key': sendKey.current },
         )
       }
@@ -421,7 +451,7 @@ export function Composer({
   function toCalendar(stage: Stage): string | null {
     const day = when === 'now' ? todayDate() : date
     // On the core the calendar holds exactly what the save sends.
-    const channels = planOnly
+    const channels = remote
       ? [...active.map((c) => c.key), ...others]
       : sentChannels(
           opened,
@@ -486,7 +516,7 @@ export function Composer({
   const keeps = post !== undefined && post.stage !== 'draft'
 
   // A scheduled post with no platform cannot be kept scheduled: the core refuses it.
-  const unsaveable = readOnly || (planOnly && post?.stage === 'scheduled' && active.length === 0)
+  const unsaveable = readOnly || (remote && post?.stage === 'scheduled' && active.length === 0)
 
   async function saveDraft() {
     if (unsaveable || waiting) return
@@ -512,7 +542,8 @@ export function Composer({
         media={media}
         people={{ collabs: details.collab, tags: media[0]?.tags ?? [] }}
         slot={`${dayLabel(date)}, ${time}`}
-        planned={planOnly}
+        planned={planned}
+        plannedOn={plans}
         onBack={() => router.push('/')}
       />
     )
@@ -617,7 +648,7 @@ export function Composer({
   }
   // The sheet a phone row opened, over the same cards the desktop shows in place.
   const inSheet: Partial<Record<SheetKey, { title: string; body: React.ReactNode }>> = {
-    accounts: { title: 'Post to', body: <Accounts api={api} /> },
+    accounts: { title: 'Post to', body: <Accounts api={api} sends={sends} /> },
     details: {
       title: 'Details',
       body: (
@@ -725,7 +756,7 @@ export function Composer({
                   : post.error}
             </span>
           </span>
-          {!reconnected && !planOnly && (
+          {!reconnected && !planOnly && !remote && (
             <button
               type="button"
               onClick={() => {
@@ -746,7 +777,7 @@ export function Composer({
       <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 max-md:gap-7">
           <div className="max-md:hidden">
-            <Accounts api={api} />
+            <Accounts api={api} sends={sends} />
           </div>
           <Content
             api={api}
@@ -855,6 +886,9 @@ type SheetKey = 'accounts' | 'details' | 'when' | 'preview' | ChannelKey
 /** The accounts a post is published to. */
 const PUBLISHERS = ['ig', 'tt', 'fb'] as const satisfies readonly ChannelKey[]
 
+/** True when a post on this account is really sent: set up on our side, or through Make. */
+const postsTo = (key: ChannelKey) => !notAvailable(key) || makeOn(key)
+
 /** One line of the phone's list: what it is, its answer so far, and a chevron into its sheet. */
 function Row({
   label,
@@ -947,9 +981,29 @@ const STAGE_LABEL: Record<Stage, string> = {
 // ── Accounts and format ──────────────────────────────────────────────────────────────────────
 
 /** The brand's accounts on the platforms it uses, ticked together, and the format they all take. */
-function Accounts({ api }: { api: PublishDraftApi }) {
+function Accounts({
+  api,
+  sends,
+}: {
+  api: PublishDraftApi
+  /** The accounts a post is really sent to; the others are planned only. */
+  sends: readonly ChannelKey[]
+}) {
   const { brand } = useBrand()
   const { draft, update, toggleChannel, connect } = api
+  // On the core beside Instagram and Facebook through Make: what is only planned, and why.
+  const ticked = activeChannels(draft)
+  const plannedOnly =
+    remote && sends.length > 0
+      ? draft.format === 'story' && ticked.some((c) => c.key === 'ig' || c.key === 'fb')
+        ? 'Make can’t post Stories yet: Schedule plans this one on the calendar.'
+        : ticked.some((c) => !sends.includes(c.key))
+          ? `${ticked
+              .filter((c) => !sends.includes(c.key))
+              .map((c) => c.name)
+              .join(' and ')} isn’t set up for posting: Schedule plans it on the calendar.`
+          : null
+      : null
   return (
     <section aria-label="Accounts" className={CARD}>
       <span className={`${EYEBROW} max-md:hidden`}>Post to</span>
@@ -1002,7 +1056,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               </button>
             )
           })}
-          {PUBLISHERS.every((k) => notAvailable(k)) ? (
+          {sends.length === 0 ? (
             // On the core no account can publish yet: the post is planned on them, and the note
             // says publishing is not set up. It does not promise the post goes out later.
             linkedChannels(draft).length > 0 ? (
@@ -1019,6 +1073,10 @@ function Accounts({ api }: { api: PublishDraftApi }) {
                 This brand has no Instagram, TikTok or Facebook.
               </span>
             )
+          ) : plannedOnly ? (
+            <span className="flex h-10 items-center max-md:h-14">
+              <NotAvailable label="Not available yet" reason={plannedOnly} align="left" />
+            </span>
           ) : (
             linkedChannels(draft).length === 0 && (
               <Link
@@ -2451,11 +2509,9 @@ function WhenCard({
             pill
             value={when}
             onChange={setWhen}
-            // On the core nothing publishes yet: a post is planned for a day, never sent now.
+            // On the core a post is planned for a day and sent at its time, never now.
             options={[
-              ...(PUBLISHERS.every((k) => notAvailable(k))
-                ? []
-                : [{ value: 'now' as const, label: 'Publish now' }]),
+              ...(remote ? [] : [{ value: 'now' as const, label: 'Publish now' }]),
               { value: 'schedule', label: 'Schedule' },
             ]}
           />
@@ -2830,6 +2886,7 @@ function Outcomes({
   people,
   slot,
   planned = false,
+  plannedOn = [],
   onBack,
 }: {
   api: PublishDraftApi
@@ -2838,6 +2895,8 @@ function Outcomes({
   slot: string
   /** On the core: dated on the calendar, sent nowhere until the accounts are set up. */
   planned?: boolean
+  /** The accounts that are only planned while the others are sent (TikTok beside Instagram). */
+  plannedOn?: readonly ChannelKey[]
   onBack: () => void
 }) {
   const { phase, outcomes, draft } = api
@@ -2907,7 +2966,7 @@ function Outcomes({
                       : textFor(draft, k).text
                   }
                 />
-                <OutcomePill outcome={o} planned={planned} />
+                <OutcomePill outcome={o} planned={planned || plannedOn.includes(k)} />
               </Phone>
               <span className="flex items-center gap-1.5 text-[13px]">
                 <PlatformLogo platform={k} size={12} />

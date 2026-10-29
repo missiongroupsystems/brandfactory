@@ -146,6 +146,9 @@ describe('the account routes', () => {
     expect(isAccountRoute('POST', '/brands/b1/tiktok/connect')).toBe(true)
     expect(isAccountRoute('POST', '/tiktok/callback')).toBe(true)
     expect(isAccountRoute('DELETE', '/brands/b1/tiktok')).toBe(true)
+    expect(isAccountRoute('PUT', '/brands/b1/make/instagram')).toBe(true)
+    expect(isAccountRoute('DELETE', '/brands/b1/make/facebook')).toBe(true)
+    expect(isAccountRoute('PUT', '/brands/b1/make/threads')).toBe(false)
     expect(isAccountRoute('POST', '/brands/b1/posts/p1/tiktok')).toBe(true)
     expect(isAccountRoute('GET', '/brands/b1/posts/p1/tiktok')).toBe(true)
     // Meta has no sign-in on the server yet.

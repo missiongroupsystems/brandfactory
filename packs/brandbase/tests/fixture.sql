@@ -33,3 +33,5 @@ insert into brandbase.moodboard_posts (id, brand_id, board_id, platform, account
   ('temper-p1', 'temper', 'temper-b', 'pinterest', 'Steak', '/tp.jpg', 'Smoke', 1, '{"format": "reel", "hook": "Smoke"}', 0);
 -- Company A's brands may read Mission Events (event_orgs); company B's may not.
 insert into brandbase.event_orgs (org_id) values ('co-a');
+-- Company A's brands may post through Make (make_orgs); company B's may not.
+insert into brandbase.make_orgs (org_id) values ('co-a');

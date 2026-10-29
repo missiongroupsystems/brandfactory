@@ -149,3 +149,41 @@ describe('migration 0015 on a 1.6.0 database', () => {
     }
   })
 })
+
+/**
+ * Migration 0020 on a 1.10.0 database: an Instagram or Facebook connection the pretend sign-in
+ * stored has no account behind it, so it goes off; Mission Group goes on the operator's list for
+ * Make, and no other company does.
+ */
+describe('migration 0020 on a 1.10.0 database', () => {
+  it('turns off ig and fb with no account, and lists Mission Group alone for Make', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0020'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values
+          ('mission-group', 'Mission Group'), ('other', 'Other');
+        insert into brandbase.brands (id, name, handle, org_id) values ('one', 'One', '@one', 'mission-group');
+        insert into brandbase.connections (brand_id, key, status) values
+          ('one', 'ig', 'connected'), ('one', 'fb', 'connected'), ('one', 'lark', 'connected');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+      expect(await db.query('select key, status from brandbase.connections order by key')).toEqual([
+        { key: 'fb', status: 'off' },
+        { key: 'ig', status: 'off' },
+        { key: 'lark', status: 'connected' },
+      ])
+      expect(await db.query('select org_id from brandbase.make_orgs')).toEqual([
+        { org_id: 'mission-group' },
+      ])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+})
