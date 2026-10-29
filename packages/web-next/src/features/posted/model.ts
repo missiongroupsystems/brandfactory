@@ -348,22 +348,37 @@ export function tileCountsOf(item: PostedItem, platform: Platform) {
 }
 
 /**
- * The one count a tile shows: views on a reel, likes on the rest; the first count it has when
- * that one is missing or 0 (an import with reach only). None when it has no counts on this
- * platform.
+ * The one count every tile of a grid shows, so the tiles compare: the count most posts have,
+ * so few covers go bare; between equals, reach before views before likes. None when no post
+ * has a count.
  */
-export function headlineOf(item: PostedItem, platform: Platform) {
-  const counts = tileCountsOf(item, platform)
-  const want: CountKey = item.post.format === 'reel' ? 'views' : 'likes'
-  return counts.find((c) => c.key === want) ?? counts[0]
+export function headlineKeyOf(grid: PostedItem[], platform: Platform): CountKey | undefined {
+  const tally = new Map<CountKey, number>()
+  for (const item of grid)
+    for (const c of tileCountsOf(item, platform)) tally.set(c.key, (tally.get(c.key) ?? 0) + 1)
+  const rank = (k: CountKey) => {
+    const at = (['reach', 'views', 'likes'] as CountKey[]).indexOf(k)
+    return at === -1 ? 3 : at
+  }
+  return [...tally.entries()].sort((a, b) => b[1] - a[1] || rank(a[0]) - rank(b[0]))[0]?.[0]
+}
+
+/** The grid's count on this tile; none when the tile has no such count, or it is 0. */
+export function headlineOf(item: PostedItem, platform: Platform, key: CountKey | undefined) {
+  return tileCountsOf(item, platform).find((c) => c.key === key)
 }
 
 /**
  * A tile in words, for a reader that cannot see the cover: "Reel · Sun 25 Oct, 12:40: Sunday
- * roast is back · 12.4k views". A collab names its creators; no count when it has none.
+ * roast is back · 12.4k reach". A collab names its creators; no count when it has none.
  */
-export function tileLabel(item: PostedItem, platform: Platform, today: string): string {
-  const head = headlineOf(item, platform)
+export function tileLabel(
+  item: PostedItem,
+  platform: Platform,
+  today: string,
+  key: CountKey | undefined,
+): string {
+  const head = headlineOf(item, platform, key)
   const collab = item.collabs.length > 0 ? ` · with ${item.collabs.join(', ')}` : ''
   const count = head ? ` · ${k(head.value)} ${head.label.toLowerCase()}` : ''
   return `${kindOf(item.post, platform)} · ${whenOf(item, today)}${collab}: ${item.post.hook}${count}`

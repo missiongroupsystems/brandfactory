@@ -1,12 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Fold, Segmented } from '@/components/controls'
 import { SparkIcon } from '@/components/icons'
+import { PAGE, PageTitle } from '@/components/page-title'
 import { PlatformLogo } from '@/components/platform-logos'
 import { ProfilePicture } from '@/components/profile-picture'
 import {
@@ -30,6 +32,8 @@ import {
   type Split,
 } from '@/data/insights-hub'
 import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
+import { channelsOf } from '@/features/schedule/calendar-items'
+import { archive } from '@/features/schedule/month'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
@@ -49,7 +53,7 @@ const DAYPARTS = [
 
 /** What each headline number counts, said after it: "49.1k accounts reached". */
 const UNIT: Record<string, string> = {
-  Reach: 'accounts reached',
+  Reach: 'reach',
   'Engagement rate': 'of people who saw a post reacted',
   'New followers': 'new followers',
   Saves: 'saves',
@@ -93,17 +97,21 @@ function plain(s: string): string {
     .join(' ')
 }
 
-type Tab = 'overview' | 'sentiment' | 'creators'
+type Tab = 'overview' | 'posts' | 'creators'
+
+const VIEWS: Array<{ value: Tab; label: string }> = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'posts', label: 'Posts' },
+  { value: 'creators', label: 'Creators' },
+]
 
 /**
- * The insights page, one calm column in three views, switched the way Ideate switches its two.
- * It reads five sources: Instagram, TikTok, the website, Google Business Profile and
- * reservations. Overview: the month in a sentence, one number at a time over its twelve weeks,
- * every source on one time axis beside the posts, what worked (each opens to its chart and its
- * idea) and the best time to post. Creators: each creator, ranked. Each post's own numbers are
- * on Posted, beside the post.
- * Sentiment: what people think of the brand, from comments and mentions. Every chart shows its
- * numbers on hover.
+ * The insights page, one calm column in three views. Overview answers "how did this week go?"
+ * first: this week's reach against last week's and the best post, then the last 30 days one
+ * number at a time, what worked, and, folded shut, what people think of the brand, every source
+ * on one time axis beside the posts, and the best time to post. Posts ranks the period's posts
+ * by reach, one row each, and opens any of them. Creators ranks who posted about the brand.
+ * Every chart shows its numbers on hover.
  */
 export function InsightsPage() {
   const { brand } = useBrand()
@@ -116,54 +124,37 @@ export function InsightsPage() {
     return (
       <div className="flex min-h-svh flex-col">
         <AppHeader />
-        <main key={brand.id} className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4">
-          <div className="flex flex-col gap-4 pt-6 max-md:pt-2">
-            <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-              Insights
-            </h1>
-            <p className="text-[15px] text-ink-3">
-              Insights arrive once the brand&apos;s accounts are connected.
-            </p>
-          </div>
+        <main key={brand.id} className={`bb-swap flex flex-col ${PAGE}`}>
+          <PageTitle title="Insights" />
+          <p className="text-[15px] text-ink-3">
+            Insights arrive once the brand&apos;s accounts are connected.
+          </p>
         </main>
       </div>
     )
   }
 
+  const period = `Last 30 days · ${plain(data.period)}`
+
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <main
-        key={brand.id}
-        className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4 pb-24"
-      >
-        <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
-          <div className="flex flex-col gap-3">
-            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
-              Insights
-            </h1>
+      <main key={brand.id} className={`bb-swap flex flex-col pb-24 ${PAGE}`}>
+        <PageTitle title="Insights" />
+        {/* The switch sits with the column it switches, not at the far edge of the page. */}
+        <div className="flex w-full max-w-[760px] flex-col gap-6">
+          <div className="w-[300px] max-md:w-full">
+            <Segmented label="View" pill value={tab} onChange={setTab} options={VIEWS} />
           </div>
-          <div className="w-[340px] max-sm:w-full">
-            <Segmented
-              label="View"
-              pill
-              value={tab}
-              onChange={setTab}
-              options={[
-                { value: 'overview', label: 'Overview' },
-                { value: 'sentiment', label: 'Sentiment' },
-                { value: 'creators', label: 'Creators' },
-              ]}
-            />
+          <div key={tab} className="bb-swap flex flex-col gap-4">
+            {/* Posts and Creators count the same 30 days as the overview's second card. */}
+            {tab !== 'overview' && <p className="text-[13px] text-ink-3">{period}</p>}
+            {tab === 'overview' && (
+              <Overview data={data} hub={hub} period={period} onPosts={() => setTab('posts')} />
+            )}
+            {tab === 'posts' && <Posts posts={data.posts} />}
+            {tab === 'creators' && <Creators creators={data.creators} />}
           </div>
-          {/* One period for all three views: every number below covers it. */}
-          <p className="text-[13px] text-ink-3">Last 30 days · {plain(data.period)}</p>
-        </div>
-
-        <div key={tab} className="bb-swap">
-          {tab === 'overview' && <Overview data={data} hub={hub} />}
-          {tab === 'sentiment' && <SentimentView sentiment={hub.sentiment} />}
-          {tab === 'creators' && <Creators creators={data.creators} />}
         </div>
       </main>
     </div>
@@ -219,34 +210,223 @@ function anchor(e: React.SyntheticEvent<Element>, box: HTMLElement | null) {
 
 // ── Overview ─────────────────────────────────────────────────────────────────────────────────
 
-function Overview({ data, hub }: { data: BrandInsights; hub: BrandHub }) {
+function Overview({
+  data,
+  hub,
+  period,
+  onPosts,
+}: {
+  data: BrandInsights
+  hub: BrandHub
+  period: string
+  onPosts: () => void
+}) {
   const stories = data.stories.filter((s) => s.chart.kind !== 'days')
   const time = data.stories.find((s) => s.chart.kind === 'days')
+  const [more, setMore] = React.useState(false)
+  const lead = bestOffSocial(data.posts, hub)
+  const mood = percents(
+    addSplits([addSplits(Object.values(hub.sentiment.posts)), hub.sentiment.mentions]),
+  )
   return (
-    <div className="flex flex-col gap-11">
-      <NumberCard kpis={data.kpis} />
+    <div className="flex flex-col gap-9">
+      <ThisWeek data={data} onPosts={onPosts} />
 
-      <section aria-label="Beyond social" className="flex flex-col gap-3">
-        <Heading title="Beyond social" />
-        <Lineup posts={data.posts} hub={hub} />
-      </section>
+      <NumberCard kpis={data.kpis} period={period} />
 
       <section aria-label="What worked" className="flex flex-col gap-3">
         <Heading title="What worked" />
         <div className={`${CARD} overflow-hidden`}>
-          {stories.map((s, i) => (
+          {stories.slice(0, more ? undefined : 1).map((s, i) => (
             <Finding key={s.id} story={s} first={i === 0} />
           ))}
+          {/* The top finding first; the rest wait one click away. */}
+          {!more && stories.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setMore(true)}
+              className={`flex h-11 w-full items-center border-t px-6 text-left text-[13px] text-ink-3 transition-colors hover:bg-(--cal-hover) hover:text-ink max-md:px-5 ${HAIR}`}
+            >
+              {stories.length - 1} more
+            </button>
+          )}
         </div>
       </section>
 
-      {time && time.chart.kind === 'days' && (
-        <section aria-label="Best time to post" className="flex flex-col gap-3">
-          <Heading title="Best time to post" />
-          <BestTime story={time} days={time.chart} hours={data.hours} />
-        </section>
-      )}
+      {/* Other jobs than "how did my posts do", folded shut until asked for. */}
+      <div className="flex flex-col border-t border-line">
+        <FoldRow title="Sentiment" meta={`${mood.pos}% positive`}>
+          <SentimentView sentiment={hub.sentiment} />
+        </FoldRow>
+        <FoldRow
+          title="Beyond social"
+          meta={`+${Math.round((lead.bookings - 1) * 100)}% bookings after one post`}
+        >
+          <section aria-label="Beyond social">
+            <Lineup posts={data.posts} hub={hub} />
+          </section>
+        </FoldRow>
+        {time && time.chart.kind === 'days' && (
+          <FoldRow title="Best time to post" meta={`${time.figure} ${plain(time.label)}`}>
+            <section aria-label="Best time to post">
+              <BestTime story={time} days={time.chart} hours={data.hours} />
+            </section>
+          </FoldRow>
+        )}
+      </div>
     </div>
+  )
+}
+
+/** Where a post of the period opens: its own page, on the first account it went to. */
+function usePostLink() {
+  const { brand } = useBrand()
+  const posts = React.useMemo(() => archive(brand.id), [brand.id])
+  return (p: PostStat) => {
+    const own = posts.find((a) => a.post.hook === p.hook)
+    return own ? `/post/${own.post.id}?posted=${channelsOf(own.post)[0]}` : undefined
+  }
+}
+
+/** The week's answer: its reach against last week's, and the post that reached furthest. */
+function ThisWeek({ data, onPosts }: { data: BrandInsights; onPosts: () => void }) {
+  const link = usePostLink()
+  const reach = data.kpis.find((q) => q.label === 'Reach') ?? data.kpis[0]!
+  const now = reach.points[reach.points.length - 1]!
+  const before = reach.points[reach.points.length - 2] ?? now
+  const delta = before === 0 ? 0 : Math.round(((now - before) / before) * 100)
+  // The week is the last seven days of the period.
+  const week = data.posts.filter((p) => dayOf(p.date) >= PERIOD_DAYS - 7)
+  const best = week.sort((a, b) => b.reach - a.reach)[0]
+  const href = best && link(best)
+  return (
+    <section aria-label="This week" className={`${CARD} flex flex-col p-6 max-md:p-5`}>
+      <span className="text-[13px] text-ink-3">This week</span>
+      <span className="mt-2 flex items-baseline gap-2.5">
+        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap tabular-nums">
+          {k(now)}
+        </span>
+        <span className="text-[14px] text-ink-3">reach</span>
+      </span>
+      <p className="mt-2 text-[13.5px] text-ink-3">
+        {delta === 0 ? (
+          'The same as last week.'
+        ) : (
+          <>
+            <span
+              className={`font-medium ${delta > 0 ? 'text-(--insight-6)' : 'text-(--fail-ink)'}`}
+            >
+              {delta > 0 ? 'Up' : 'Down'} {Math.abs(delta)}%
+            </span>{' '}
+            on last week.
+          </>
+        )}
+      </p>
+      {best && href ? (
+        <Link
+          href={href}
+          className="-mx-2 mt-5 flex items-center gap-3.5 rounded-[12px] px-2 py-2 transition-colors hover:bg-(--cal-hover)"
+        >
+          <span className="relative block size-12 shrink-0 overflow-hidden rounded-[8px] bg-tile">
+            <Image src={best.image} alt="" fill sizes="96px" className="object-cover" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[13px] text-ink-3">Best post this week</span>
+            <span className="truncate text-[14px] font-medium">{best.hook}</span>
+          </span>
+          <span className="shrink-0 text-[13px] text-ink-3 tabular-nums">
+            {k(best.reach)} reach
+          </span>
+        </Link>
+      ) : (
+        <p className="mt-5 text-[13px] text-ink-3">No posts this week.</p>
+      )}
+      <button
+        type="button"
+        onClick={onPosts}
+        className="mt-4 w-fit text-[13px] text-ink-3 transition-colors hover:text-ink"
+      >
+        See all posts
+      </button>
+    </section>
+  )
+}
+
+/** One row that opens in place: a title, a figure that answers it, and a chevron. */
+function FoldRow({
+  title,
+  meta,
+  children,
+}: {
+  title: string
+  meta: string
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <div className="flex flex-col border-b border-line">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-14 w-full items-center gap-4 text-left"
+      >
+        <span className="flex-1 text-[14px] font-medium">{title}</span>
+        <span className="truncate text-[13px] text-ink-3 tabular-nums">{meta}</span>
+        <span
+          className="text-ink-5 transition-transform duration-200"
+          style={{ transform: open ? 'rotate(180deg)' : undefined }}
+        >
+          <ChevronDown />
+        </span>
+      </button>
+      <Fold open={open}>
+        <div className="pb-6">{children}</div>
+      </Fold>
+    </div>
+  )
+}
+
+// ── Posts ────────────────────────────────────────────────────────────────────────────────────
+
+const KIND = { reel: 'Reel', carousel: 'Carousel', photo: 'Post' } as const
+
+/** The period's posts ranked by reach, the same two counts on every row; a row opens the post. */
+function Posts({ posts }: { posts: PostStat[] }) {
+  const link = usePostLink()
+  const ranked = posts.map((p, i) => ({ p, i })).sort((a, b) => b.p.reach - a.p.reach)
+  return (
+    <section aria-label="Posts" className="flex flex-col gap-4">
+      <ol className={`${CARD} px-6 py-1 max-md:px-4`}>
+        {ranked.map(({ p, i }, r) => (
+          <li
+            key={i}
+            className={`bb-rise ${r > 0 ? `border-t ${HAIR}` : ''}`}
+            style={{ animationDelay: `${r * 40}ms` }}
+          >
+            <Link
+              href={link(p) ?? '/posted'}
+              className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3.5 py-3"
+            >
+              <span className="relative block h-[55px] w-[44px] overflow-hidden rounded-[8px] bg-tile">
+                <Image src={p.image} alt="" fill sizes="88px" className="object-cover" />
+              </span>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-[14px] font-medium">{p.hook}</span>
+                <span className="text-[12px] text-ink-4">
+                  {KIND[p.format]} · {plain(p.date)}
+                  {p.collab && ` · with ${p.collab.join(', ')}`}
+                </span>
+              </span>
+              <span className="flex flex-col items-end gap-0.5 tabular-nums">
+                <span className="text-[14px] font-medium">{k(p.reach)} reach</span>
+                <span className="text-[12px] text-ink-4">{k(p.saves)} saves</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
   )
 }
 
@@ -254,8 +434,11 @@ function Heading({ title }: { title: string }) {
   return <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
 }
 
-/** One headline number at a time, picked above it, with its last twelve weeks as bars. */
-function NumberCard({ kpis }: { kpis: Kpi[] }) {
+/**
+ * One headline number at a time, picked above it, with its last twelve weeks as bars. The period
+ * labels the number: the bars reach further back, and say so on their own axis.
+ */
+function NumberCard({ kpis, period }: { kpis: Kpi[]; period: string }) {
   const [at, setAt] = React.useState('0')
   const kpi = kpis[Number(at)]!
   const up = kpi.delta >= 0
@@ -284,7 +467,8 @@ function NumberCard({ kpis }: { kpis: Kpi[] }) {
           </button>
         ))}
       </div>
-      <span className="mt-6 flex items-baseline gap-2.5">
+      <span className="mt-6 text-[13px] text-ink-3">{period}</span>
+      <span className="mt-2 flex items-baseline gap-2.5">
         <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap tabular-nums">
           {kpi.value}
         </span>

@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/app-header'
 import { CarouselIcon, ClockIcon, EyeIcon, HeartIcon, PlayIcon, RankIcon } from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
+import { TITLE } from '@/components/page-title'
 import { PlatformLogo } from '@/components/platform-logos'
 import { BrandLogo } from '@/features/brand/brand-logo'
 import { useConnections } from '@/features/connections/connections-store'
@@ -22,6 +23,7 @@ import {
   canRank,
   figuresOf,
   gridOf,
+  headlineKeyOf,
   headlineOf,
   k,
   kindOf,
@@ -78,9 +80,9 @@ export function PostedPage({ on }: { on?: Platform }) {
       <AppHeader />
       <main
         key={brand.id}
-        className="bb-swap mx-auto grid w-full max-w-[1080px] grid-cols-[168px_minmax(0,1fr)] items-start gap-16 px-10 pt-10 pb-28 max-lg:grid-cols-[148px_minmax(0,1fr)] max-lg:gap-10 max-lg:px-6 max-md:grid-cols-1 max-md:gap-0 max-md:px-4 max-md:pt-2"
+        className="bb-swap mx-auto grid w-full max-w-[1120px] grid-cols-[168px_minmax(0,1fr)] items-start gap-16 px-10 pt-6 pb-28 max-lg:grid-cols-[148px_minmax(0,1fr)] max-lg:gap-10 max-lg:px-6 max-md:grid-cols-1 max-md:gap-0 max-md:px-4 max-md:pt-2"
       >
-        <nav aria-label="Platforms" className="sticky top-10 max-md:hidden">
+        <nav aria-label="Platforms" className="sticky top-6 max-md:hidden">
           <div role="radiogroup" aria-label="Platform" className="flex flex-col gap-1">
             {rail.map((p) => (
               <button
@@ -177,6 +179,8 @@ function Profile({
   const sum = summaryOf(ledger, platform, now.day)
   const figures = figuresOf(sum, platform)
   const grid = gridOf(ledger, platform, order)
+  // One count on every cover, the same for all, so the covers compare at a glance.
+  const key = headlineKeyOf(grid, platform)
   const ranks = canRank(gridOf(ledger, platform, 'newest'), platform)
   const rings = ringsOf(ledger, now)
   return (
@@ -190,9 +194,7 @@ function Profile({
           <BrandLogo brandId={brand.id} sizes="176px" className="object-cover" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
-          <h1 className="truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
-            {profileName(platform, accounts, brand)}
-          </h1>
+          <h1 className={`truncate ${TITLE}`}>{profileName(platform, accounts, brand)}</h1>
           <p
             title={windowLine(sum)}
             className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[14px] text-ink-3 max-md:gap-x-4 max-md:text-[13px]"
@@ -229,7 +231,7 @@ function Profile({
       <ol aria-label="Posts" className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5">
         {grid.map((item) => (
           <li key={item.post.id}>
-            <Tile item={item} platform={platform} today={now.day} />
+            <Tile item={item} platform={platform} today={now.day} headline={key} />
           </li>
         ))}
       </ol>
@@ -316,13 +318,23 @@ function Ring({ item, left, today }: { item: PostedItem; left: number | null; to
 
 /**
  * A post's cover at 4:5, as the platform's grid crops it. A small mark top right says a reel's
- * length or a carousel; one count sits bottom left. Hover or focus lays the post over it: what it
- * was, when, and every count it has.
+ * length or a carousel; the grid's one count sits bottom left. Hover or focus lays the post over
+ * it: what it was, when, and every count it has.
  */
-function Tile({ item, platform, today }: { item: PostedItem; platform: Platform; today: string }) {
+function Tile({
+  item,
+  platform,
+  today,
+  headline,
+}: {
+  item: PostedItem
+  platform: Platform
+  today: string
+  headline: CountKey | undefined
+}) {
   const { post } = item
   const counts = tileCountsOf(item, platform)
-  const head = headlineOf(item, platform)
+  const head = headlineOf(item, platform, headline)
   const collab = item.collabs.length > 0 ? ` · with ${item.collabs.join(', ')}` : ''
   // A reel's length, or a carousel's mark; a single photo, or a reel with no length, has none.
   const mark =
@@ -334,7 +346,7 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
   return (
     <Link
       href={`/post/${post.id}?posted=${platform}`}
-      aria-label={tileLabel(item, platform, today)}
+      aria-label={tileLabel(item, platform, today, headline)}
       className="group relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none"
     >
       <Cover src={post.images[0]} />

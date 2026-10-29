@@ -5,6 +5,7 @@ import * as React from 'react'
 
 import { CheckIcon, ChevronIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { isVideo, Media } from '@/components/media'
+import { TITLE } from '@/components/page-title'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { startTouchDrag } from '@/components/touch-drag'
@@ -457,7 +458,7 @@ function ViewMenu({
   return (
     <div ref={root} className="relative min-w-0">
       {/* The heading holds the button, so the page keeps its heading for a screen reader. */}
-      <h1 className="min-w-0 font-display text-[26px] leading-none tracking-[-0.03em] max-[360px]:text-[22px]">
+      <h1 className={`min-w-0 ${TITLE} max-[360px]:text-[22px]`}>
         <button
           ref={button}
           type="button"

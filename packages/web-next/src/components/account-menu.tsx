@@ -5,16 +5,14 @@ import * as React from 'react'
 
 import { ProfilePicture } from '@/components/profile-picture'
 import { BRAND } from '@/data/demo'
+import { useConnections } from '@/features/connections/connections-store'
+import { useBrand } from '@/features/schedule/posts-store'
 import { leave, onUser, remote } from '@/lib/remote'
 
 const avatar = 'flex size-9 items-center justify-center rounded-full text-xs font-semibold'
 const ITEM =
-  'rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
+  'flex items-center justify-between gap-3 rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
 const avatarColours = { background: 'var(--avatar)', color: 'var(--avatar-ink)' }
-const DEMO_ITEMS = [
-  { href: '/brand', label: 'Brand kit' },
-  { href: '/brand/connections', label: 'Connections' },
-]
 
 /**
  * The first letters of the first and last names; with no name, of the email's name part split on
@@ -29,11 +27,15 @@ export function initials(name: string, email: string): string {
 }
 
 /**
- * The round avatar at the header's end. On the core it is the signed-in person's photo or initials, and opens a
- * menu with their name and email, Edit profile and Sign out. The static demo has no account: its demo initials
- * open the brand's kit and connections instead, so the avatar is never a dead end.
+ * The round avatar at the header's end: the signed-in person's photo or initials on the core, the
+ * demo's initials in the static demo. Its menu is where settings live: the current brand's kit
+ * and its connections (with a dot when one needs signing in again, shown on the avatar too, so a
+ * broken connection is seen without opening anything), then on the core the person's own profile
+ * and Sign out.
  */
 export function AccountMenu() {
+  const { brand, brands } = useBrand()
+  const attention = Object.values(useConnections(brand.id)).includes('attention')
   const [user, setUser] = React.useState<{ name: string; email: string; avatar?: string | null }>({
     name: '',
     email: '',
@@ -78,7 +80,7 @@ export function AccountMenu() {
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={remote ? `Account: ${user.email}` : 'Account'}
+        aria-label={`${remote ? `Account: ${user.email}` : 'Account'}${attention ? ', a connection needs attention' : ''}`}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' && !open) {
@@ -98,6 +100,12 @@ export function AccountMenu() {
           BRAND.user
         )}
       </button>
+      {attention && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 size-2 rounded-full bg-fail shadow-[0_0_0_2px_var(--page)]"
+        />
+      )}
       {open && (
         <div
           role="menu"
@@ -106,7 +114,7 @@ export function AccountMenu() {
           onKeyDown={onMenuKey}
           className="bb-menu absolute top-11 right-0 z-30 flex w-[232px] origin-top-right flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
         >
-          {remote ? (
+          {remote && (
             <>
               <span className="flex flex-col px-2.5 pt-2 pb-1.5">
                 {user.name && <span className="truncate text-[13.5px] text-ink">{user.name}</span>}
@@ -114,28 +122,44 @@ export function AccountMenu() {
               </span>
               <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
             </>
-          ) : (
-            DEMO_ITEMS.map((d, i) => (
-              <Link
-                key={d.href}
-                ref={(el) => {
-                  items.current[i] = el
-                }}
-                href={d.href}
-                role="menuitem"
-                tabIndex={-1}
-                onClick={() => setOpen(false)}
-                className={ITEM}
-              >
-                {d.label}
-              </Link>
-            ))
           )}
+          {/* The current brand's voice, colours and files: named only where there is a choice. */}
+          <Link
+            ref={(el) => {
+              items.current[0] = el
+            }}
+            href="/brand"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className={ITEM}
+          >
+            Brand kit
+            {brands.length > 1 && (
+              <span className="truncate text-[12px] text-ink-4">{brand.name}</span>
+            )}
+          </Link>
+          <Link
+            ref={(el) => {
+              items.current[1] = el
+            }}
+            href="/brand/connections"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className={ITEM}
+          >
+            Connections
+            {attention && (
+              <span aria-label="Needs attention" className="size-1.5 rounded-full bg-fail" />
+            )}
+          </Link>
           {remote && (
             <>
+              <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
               <Link
                 ref={(el) => {
-                  items.current[0] = el
+                  items.current[2] = el
                 }}
                 href="/profile"
                 role="menuitem"
@@ -147,13 +171,13 @@ export function AccountMenu() {
               </Link>
               <button
                 ref={(el) => {
-                  items.current[1] = el
+                  items.current[3] = el
                 }}
                 type="button"
                 role="menuitem"
                 tabIndex={-1}
                 onClick={leave}
-                className={`${ITEM} text-left`}
+                className={ITEM}
               >
                 Sign out
               </button>

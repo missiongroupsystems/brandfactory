@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
+import { PAGE, PageTitle } from '@/components/page-title'
 import type { ConnectionStatus } from '@/data/connections'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote, report } from '@/lib/remote'
@@ -60,24 +61,20 @@ export function ConnectionsPage() {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <main
-        key={brand.id}
-        className="bb-swap mx-auto flex w-full max-w-[640px] flex-col gap-10 px-4 pb-24 max-md:gap-8"
-      >
-        <h1 className="pt-6 font-display text-[56px] leading-none tracking-[-0.035em] max-md:pt-2 max-md:text-[34px]">
-          Connections
-        </h1>
-
-        {GROUPS.map((g) => (
-          // Each row says what it brings: the group is named for a screen reader only.
-          <section key={g.label} aria-label={g.label} className="flex flex-col gap-3">
-            <ul className="flex flex-col rounded-[18px] bg-page shadow-[0_0_0_1px_var(--line)]">
-              {g.keys.map((key) => (
-                <Row key={key} source={key} status={status[key]} onConnect={() => open(key)} />
-              ))}
-            </ul>
-          </section>
-        ))}
+      <main key={brand.id} className={`bb-swap flex flex-col pb-24 ${PAGE}`}>
+        <PageTitle title="Connections" back />
+        <div className="flex w-full max-w-[640px] flex-col gap-8 pt-2 max-md:pt-1">
+          {GROUPS.map((g) => (
+            // Each row says what it brings: the group is named for a screen reader only.
+            <section key={g.label} aria-label={g.label} className="flex flex-col gap-3">
+              <ul className="flex flex-col rounded-[18px] bg-page shadow-[0_0_0_1px_var(--line)]">
+                {g.keys.map((key) => (
+                  <Row key={key} source={key} status={status[key]} onConnect={() => open(key)} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       </main>
       {connecting && <ConnectSheet source={connecting} onClose={() => setConnecting(null)} />}
       {making && <Making source={making} onClose={() => setMaking(null)} />}

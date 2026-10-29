@@ -7,8 +7,8 @@ import { CloseIcon, PlusIcon } from '@/components/icons'
 import { EYEBROW, QUIET, type Voice } from '../kit-parts'
 
 /**
- * The voice's fields, one step at a time: the voice as it reads at rest, set in the same type,
- * with a caret where you type and no boxes. A field shows itself only by a hairline on focus.
+ * The voice's fields: the voice as it reads at rest, set in the same type, with a caret where
+ * you type and no boxes. A field shows itself only by a hairline on focus.
  */
 
 const BARE = 'min-w-0 bg-transparent outline-none placeholder:text-ink-5'
@@ -27,7 +27,7 @@ export function SummaryField({
       placeholder="How does the brand sound?"
       onChange={(e) => onChange(e.target.value)}
       rows={2}
-      className={`${BARE} w-full field-sizing-content resize-none font-display text-[26px] leading-[1.28] tracking-[-0.025em] caret-ink max-md:text-[21px] max-md:leading-[1.32]`}
+      className={`${BARE} w-full field-sizing-content resize-none font-display text-[24px] leading-[1.3] tracking-[-0.02em] caret-ink max-md:text-[20px]`}
     />
   )
 }

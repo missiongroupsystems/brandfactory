@@ -3,23 +3,37 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
+import { Fold } from '@/components/controls'
 import { ChevronIcon, CloseIcon } from '@/components/icons'
 import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf } from '@/lib/remote'
 
 import { useBrandKit } from '../brand-store'
-import { EYEBROW, QUIET, Section, type Voice, VoiceView } from '../kit-parts'
+import { EYEBROW, QUIET, Section, type Voice } from '../kit-parts'
 import { voiceEdited } from '../model'
 import { LinesField, SummaryField, useTakeover, WordsField } from './editor'
 import { changesBetween, SAMPLES, type SampleKind } from './preview'
 import { SampleDiff } from './sample'
 import { publishVoice, useVoiceVersions, type VoiceVersion } from './versions'
 
+/** Each brand's unsaved draft, kept while the person switches brand or page and comes back. */
+const drafts = new Map<string, Voice>()
+
+/** Tests start from no drafts. */
+export function resetVoiceDrafts() {
+  drafts.clear()
+}
+
+const sameVoice = (a: Voice, b: Voice) => JSON.stringify(a) === JSON.stringify(b)
+
 /**
- * The voice. Edit asks for a new voice one part at a time, a question a screen, like setting up
- * a new iPhone. The last screen is the proof: a caption, a hook and a reply as AI writes them now
- * and as it will. "Make this the voice" publishes a new version. Every version stays in the
- * history under the section, and an old one comes back the same way, as a new version.
+ * The voice, edited where it is read: the summary, the Say and Not words and the example lines
+ * are fields set in the page's own type. Once something differs from the voice in use, one bar
+ * offers to save it as the next version, or to discard; a preview folds open under it with a
+ * caption, a hook and a reply as AI writes them now and as it would. An unsaved draft stays
+ * with its brand until it is saved or discarded. Every version stays in the history under the
+ * section, and an old one comes back the same way, as a new version. Only a brand with no voice
+ * yet gets the step-by-step flow, which asks for it one part at a time.
  */
 export function VoiceSection() {
   const { brand } = useBrand()
@@ -28,40 +42,169 @@ export function VoiceSection() {
   // A brand made on the core has no version until its voice is first written.
   const [current] = versions
   const n = current?.n ?? 0
+  const next = n + 1
   const empty = !voice.summary && voice.words.length === 0 && voice.examples.length === 0
-  // The voice when the flow opened (what the proof compares with), and the draft's start: the
-  // same voice, or an old version to bring back.
-  const [flow, setFlow] = React.useState<{
-    base: Voice
-    from: Voice
-    /** The number the new version takes, fixed while the flow is open. */
-    next: number
-    restoring?: VoiceVersion
-  } | null>(null)
+  const [flow, setFlow] = React.useState(false)
   const [history, setHistory] = React.useState(false)
   const [landed, setLanded] = React.useState<number | null>(null)
+  const [preview, setPreview] = React.useState(false)
+  const [draft, setDraftState] = React.useState<Voice>(() => drafts.get(brand.id) ?? voice)
+  // A new voice in use (the first one, or one saved elsewhere) fills fields with no draft.
+  const [base, setBase] = React.useState(voice)
+  if (base !== voice) {
+    setBase(voice)
+    if (!drafts.has(brand.id)) setDraftState(voice)
+  }
+  // The old version the draft was filled from, and one waiting while the draft has changes.
+  const [restoring, setRestoring] = React.useState<VoiceVersion | null>(null)
+  const [asking, setAsking] = React.useState<VoiceVersion | null>(null)
+  const result = React.useMemo(() => voiceEdited(voice, draft), [voice, draft])
+  const changes = changesBetween(voice, result)
+  const changed = changes.length > 0
+
+  function setDraft(d: Voice) {
+    setDraftState(d)
+    if (sameVoice(d, voice)) drafts.delete(brand.id)
+    else drafts.set(brand.id, d)
+  }
+
+  function save() {
+    if (!changed) return
+    // The history says what changed, in the words of the review.
+    const note =
+      restoring && sameVoice(draft, restoring.voice)
+        ? `Brought back v${restoring.n}`
+        : changes.length > 1
+          ? `${changes[0]}, and ${changes.length - 1} more`
+          : changes[0]
+    const v = publishVoice(brand.id, draft, note)
+    drafts.delete(brand.id)
+    setDraftState(v.voice)
+    setRestoring(null)
+    setPreview(false)
+    setLanded(v.n)
+    setHistory(true)
+  }
+
+  function discard() {
+    setDraft(voice)
+    setRestoring(null)
+    setPreview(false)
+  }
+
+  function restore(v: VoiceVersion) {
+    setDraft(v.voice)
+    setRestoring(v)
+    setAsking(null)
+  }
+
+  // ⌘Enter saves from any field; Escape leaves the field, and only Discard drops the draft.
+  const root = React.useRef<HTMLDivElement>(null)
+  const onKey = React.useEffectEvent((e: KeyboardEvent) => {
+    if (e.isComposing || e.keyCode === 229) return
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      save()
+    } else if (e.key === 'Escape') {
+      ;(e.target as HTMLElement).blur()
+    }
+  })
+  React.useEffect(() => {
+    const el = root.current
+    const listen = (e: KeyboardEvent) => onKey(e)
+    el?.addEventListener('keydown', listen)
+    return () => el?.removeEventListener('keydown', listen)
+    // The fields mount again after a save (and after the first voice): listen on the new ones.
+  }, [n, empty])
 
   return (
     <Section
       label="Voice"
       action={
-        <button
-          type="button"
-          aria-label="Edit voice"
-          onClick={() => setFlow({ base: voice, from: voice, next: n + 1 })}
-          className={`${QUIET} -mr-3`}
-        >
-          Edit
-        </button>
+        empty ? (
+          <button type="button" onClick={() => setFlow(true)} className={`${QUIET} -mr-3`}>
+            Write the voice
+          </button>
+        ) : undefined
       }
     >
-      <div key={n} className={`flex flex-col gap-6 ${landed ? 'bb-rise' : ''}`}>
-        {empty ? (
-          <p className="text-[15px] text-ink-4">No voice yet.</p>
-        ) : (
-          <VoiceView voice={voice} />
-        )}
-      </div>
+      {empty ? (
+        <p className="text-[15px] text-ink-4">No voice yet.</p>
+      ) : (
+        <div ref={root} key={n} className={`flex flex-col gap-7 ${landed === n ? 'bb-rise' : ''}`}>
+          <SummaryField
+            value={draft.summary}
+            onChange={(summary) => setDraft({ ...draft, summary })}
+          />
+          <WordsField words={draft.words} onChange={(words) => setDraft({ ...draft, words })} />
+          <LinesField
+            lines={draft.examples}
+            onChange={(examples) => setDraft({ ...draft, examples })}
+          />
+          {changed && (
+            <div className="bb-rise flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  onClick={save}
+                  className="bb-press flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page hover:opacity-85"
+                >
+                  Save as v{next}
+                </button>
+                <button type="button" onClick={discard} className={QUIET}>
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  aria-expanded={preview}
+                  onClick={() => setPreview((p) => !p)}
+                  className={`${QUIET} ml-auto`}
+                >
+                  Preview
+                  <ChevronIcon open={preview} size={8} />
+                </button>
+              </div>
+              <Fold open={preview}>
+                <div className="flex flex-col">
+                  {KINDS.map((k) => (
+                    <div
+                      key={k}
+                      className="flex flex-col gap-3 border-t border-line py-5 first:border-t-0 first:pt-0"
+                    >
+                      <span className={EYEBROW}>{k}</span>
+                      <SampleDiff
+                        draft={demoOf(SAMPLES, brand.id)?.[k] ?? ''}
+                        before={voice}
+                        after={result}
+                        labels={[`v${next - 1}`, `v${next}`]}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Fold>
+            </div>
+          )}
+        </div>
+      )}
+      {asking && (
+        <div
+          role="alertdialog"
+          aria-label={`Bring back v${asking.n}`}
+          className="bb-rise flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-surface px-4 py-3 text-[13.5px]"
+        >
+          <span className="flex-1">Replace your unsaved changes with v{asking.n}?</span>
+          <button
+            type="button"
+            onClick={() => restore(asking)}
+            className="bb-press h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page hover:opacity-85"
+          >
+            Replace
+          </button>
+          <button type="button" onClick={() => setAsking(null)} className={`${QUIET} -mr-3`}>
+            Keep editing
+          </button>
+        </div>
+      )}
       {current && (
         <div className="flex flex-col">
           <button
@@ -82,9 +225,8 @@ export function VoiceSection() {
               <History
                 versions={versions}
                 landed={landed}
-                onRestore={(v) =>
-                  setFlow({ base: voice, from: v.voice, restoring: v, next: n + 1 })
-                }
+                // A draft with changes is not thrown away without a word.
+                onRestore={(v) => (changed ? setAsking(v) : restore(v))}
               />
             </div>
           </div>
@@ -92,14 +234,12 @@ export function VoiceSection() {
       )}
       {flow && (
         <Flow
-          voice={flow.base}
-          start={flow.from}
-          restoring={flow.restoring}
-          next={flow.next}
-          onClose={() => setFlow(null)}
-          onDone={(n) => {
-            setFlow(null)
-            setLanded(n)
+          voice={voice}
+          next={next}
+          onClose={() => setFlow(false)}
+          onDone={(v) => {
+            setFlow(false)
+            setLanded(v)
             setHistory(true)
           }}
         />
@@ -107,6 +247,8 @@ export function VoiceSection() {
     </Section>
   )
 }
+
+const KINDS: SampleKind[] = ['Caption', 'Hook', 'Reply']
 
 /** Like an activity feed: who made each version, and when. A hover offers to bring one back. */
 function History({
@@ -171,7 +313,6 @@ function History({
   )
 }
 
-const KINDS: SampleKind[] = ['Caption', 'Hook', 'Reply']
 const STEPS = 4
 const PROOF = STEPS - 1
 /** How long a step takes to leave, and how long "in use" holds before the flow closes. */
@@ -204,17 +345,14 @@ function useLater() {
   )
 }
 
+/** The first voice, asked for one part at a time, a question a screen, like setting up a new phone. */
 function Flow({
   voice,
-  start,
-  restoring,
   next,
   onClose,
   onDone,
 }: {
   voice: Voice
-  start: Voice
-  restoring?: VoiceVersion
   next: number
   onClose: () => void
   onDone: (n: number) => void
@@ -224,9 +362,8 @@ function Flow({
   const body = React.useRef<HTMLDivElement>(null)
   const heading = React.useRef<HTMLHeadingElement>(null)
   const later = useLater()
-  const [draft, setDraft] = React.useState(start)
-  // A version brought back goes straight to the proof.
-  const [step, setStep] = React.useState(restoring ? PROOF : 0)
+  const [draft, setDraft] = React.useState(voice)
+  const [step, setStep] = React.useState(0)
   // Which way the steps move (1 forward, -1 back, 0 on open), and whether one is leaving.
   const [dir, setDir] = React.useState(0)
   const [leavingStep, setLeavingStep] = React.useState(false)
@@ -261,11 +398,7 @@ function Flow({
   function commit() {
     if (!proof || !changed || done || leaving) return
     // The history says what changed, in the words of the review.
-    const note = restoring
-      ? `Brought back v${restoring.n}`
-      : changes.length > 1
-        ? `${changes[0]}, and ${changes.length - 1} more`
-        : changes[0]
+    const note = changes.length > 1 ? `${changes[0]}, and ${changes.length - 1} more` : changes[0]
     publishVoice(brand.id, draft, note)
     setDone(true)
     later.after(HOLD, () => close(() => onDone(next)))
@@ -309,7 +442,7 @@ function Flow({
         `How should ${brand.name} sound?`,
         'Say this, not that.',
         'It sounds like this.',
-        restoring ? `Bring back v${restoring.n}?` : 'Here is what changes.',
+        'Here is what changes.',
       ][step]
   const hint = done
     ? `v${next} writes every caption, hook and reply.`
@@ -413,8 +546,8 @@ function Flow({
           <button
             type="button"
             onClick={() => go(-1)}
-            className={`-ml-4 h-10 rounded-full px-4 text-[13.5px] text-ink-3 transition duration-300 hover:bg-surface hover:text-ink ${step === 0 || done || restoring ? 'pointer-events-none opacity-0' : ''}`}
-            tabIndex={step === 0 || done || restoring ? -1 : undefined}
+            className={`-ml-4 h-10 rounded-full px-4 text-[13.5px] text-ink-3 transition duration-300 hover:bg-surface hover:text-ink ${step === 0 || done ? 'pointer-events-none opacity-0' : ''}`}
+            tabIndex={step === 0 || done ? -1 : undefined}
           >
             Back
           </button>

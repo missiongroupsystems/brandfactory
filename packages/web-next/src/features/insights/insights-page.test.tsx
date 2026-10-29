@@ -34,14 +34,14 @@ describe('the static demo', () => {
     expect(screen.queryByText(/^Nothing yet\./)).toBeNull()
   })
 
-  // Sentiment and Creators count the same 30 days: the period stays in sight in every view.
+  // Posts and Creators count the same 30 days: the period stays in sight in every view.
   it('names the period in every view', () => {
     render(
       <BrandProvider>
         <InsightsPage />
       </BrandProvider>,
     )
-    for (const view of ['Sentiment', 'Creators']) {
+    for (const view of ['Posts', 'Creators']) {
       fireEvent.click(screen.getByRole('radio', { name: view }))
       expect(screen.getByText('Last 30 days · 7 Sep – 6 Oct')).toBeInTheDocument()
     }
@@ -63,8 +63,45 @@ describe('planning an idea from a finding', () => {
   })
 })
 
+describe('this week', () => {
+  const open = () =>
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+  const card = () => within(screen.getByRole('region', { name: 'This week' }))
+
+  it('answers first: the week’s reach against last week’s, and its best post', () => {
+    open()
+    const demo = INSIGHTS_BY_BRAND['casa-vostra']
+    const reach = demo.kpis[0]!.points
+    // 12,600 this week against 12,100 the week before.
+    expect(reach.slice(-2)).toEqual([12100, 12600])
+    expect(card().getByText('12.6k')).toBeInTheDocument()
+    expect(card().getByText('Up 4%')).toBeInTheDocument()
+    // The post of the last seven days with the most reach, opening on its own page.
+    const best = card().getByRole('link', { name: /Pasta by hand in 30 seconds\./ })
+    expect(best).toHaveAttribute('href', '/post/casa-vostra-archive-6?posted=ig')
+    expect(best).toHaveTextContent('6.1k reach')
+    // The card is the first thing under the title.
+    const main = screen.getByRole('main')
+    expect(main.querySelector('section')).toBe(screen.getByRole('region', { name: 'This week' }))
+  })
+
+  it('leads to every post, ranked by reach with the same counts on each row', () => {
+    open()
+    fireEvent.click(card().getByRole('button', { name: 'See all posts' }))
+    expect(screen.getByRole('radio', { name: 'Posts', checked: true })).toBeInTheDocument()
+    const rows = within(screen.getByRole('region', { name: 'Posts' })).getAllByRole('link')
+    expect(rows[0]).toHaveTextContent('Ravioli, filled by hand.')
+    expect(rows[0]).toHaveTextContent('11.2k reach')
+    for (const row of rows) expect(row).toHaveTextContent(/\d(k|\.\dk)? reach.*\d saves/)
+  })
+})
+
 describe('the views', () => {
-  it('keep the brand’s story and leave each post’s numbers to Posted', () => {
+  it('are the overview, the posts and the creators; the rest folds inside the overview', () => {
     render(
       <BrandProvider>
         <InsightsPage />
@@ -73,7 +110,16 @@ describe('the views', () => {
     const views = within(screen.getByRole('radiogroup', { name: 'View' }))
       .getAllByRole('radio')
       .map((r) => r.textContent)
-    expect(views).toEqual(['Overview', 'Sentiment', 'Creators'])
+    expect(views).toEqual(['Overview', 'Posts', 'Creators'])
+    // One finding at first; the others are one click away.
+    expect(screen.queryByRole('button', { name: /A chef in frame/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '2 more' }))
+    expect(screen.getByRole('button', { name: /A chef in frame/ })).toBeInTheDocument()
+    for (const fold of ['Sentiment', 'Beyond social', 'Best time to post'])
+      expect(screen.getByRole('button', { name: new RegExp(`^${fold}`) })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      )
   })
 })
 
@@ -84,7 +130,7 @@ describe('the marketing hub', () => {
         <InsightsPage />
       </BrandProvider>,
     )
-    fireEvent.click(screen.getByRole('radio', { name: 'Sentiment' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Sentiment/ }))
     // Nat's ask: "so we know what areas we need to work on".
     expect(screen.getByRole('region', { name: 'What to work on' })).toHaveTextContent(
       'Wait for a table',
@@ -97,6 +143,7 @@ describe('the marketing hub', () => {
         <InsightsPage />
       </BrandProvider>,
     )
+    fireEvent.click(screen.getByRole('button', { name: /^Beyond social/ }))
     // The marker in green is the post bookings rose most after; its label says so, not only its colour.
     expect(
       within(screen.getByRole('region', { name: 'Beyond social' })).getByRole('img', {
@@ -111,6 +158,7 @@ describe('the marketing hub', () => {
         <InsightsPage />
       </BrandProvider>,
     )
+    fireEvent.click(screen.getByRole('button', { name: /^Best time to post/ }))
     const fold = screen.getByRole('button', { name: /By time of day/ })
     expect(fold).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(fold)

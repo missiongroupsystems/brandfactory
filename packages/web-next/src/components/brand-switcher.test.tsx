@@ -59,6 +59,11 @@ describe('adding a brand from the switcher', () => {
   it('is not offered to a plain member', async () => {
     await openMenu('member')
     expect(screen.queryByRole('menuitem', { name: 'Add brand' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: /Brand kit/ })).toBeInTheDocument()
+  })
+
+  // The switcher has one job: the kit and the connections live under the avatar instead.
+  it('holds only the brands', async () => {
+    await openMenu('owner')
+    expect(screen.queryByRole('menuitem', { name: /Brand kit|Connections/ })).toBeNull()
   })
 })

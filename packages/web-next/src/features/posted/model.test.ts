@@ -9,6 +9,7 @@ import {
   figuresOf,
   fromServer,
   gridOf,
+  headlineKeyOf,
   headlineOf,
   hoursLeft,
   kindOf,
@@ -309,27 +310,37 @@ describe('counts', () => {
 })
 
 describe('a tile', () => {
-  it('shows views on a reel and likes on the rest', () => {
+  it('shows the one count most of the grid has; between equals reach, then views, then likes', () => {
     const reel = item('r', TODAY, { format: 'reel', metrics: { views: 900, likes: 40 } })
     const photo = item('p', TODAY, { metrics: { reach: 900, likes: 40 } })
-    expect(headlineOf(reel, 'ig')).toMatchObject({ key: 'views', value: 900 })
-    expect(headlineOf(photo, 'ig')).toMatchObject({ key: 'likes', value: 40 })
+    // Both have likes: that leaves no cover bare. Only one has reach or views.
+    expect(headlineKeyOf([reel, photo], 'ig')).toBe('likes')
+    expect(headlineKeyOf([photo, item('q', TODAY, { metrics: { reach: 5 } })], 'ig')).toBe('reach')
+    expect(headlineKeyOf([reel], 'ig')).toBe('views')
+    expect(headlineKeyOf([item('l', TODAY, { metrics: { likes: 3, saves: 9 } })], 'ig')).toBe(
+      'likes',
+    )
+    expect(headlineKeyOf([item('s', TODAY, { metrics: { saves: 9 } })], 'ig')).toBe('saves')
+    expect(headlineKeyOf([item('b', TODAY)], 'ig')).toBeUndefined()
+    // The same count on every tile, never a different one where it is missing.
+    expect(headlineOf(photo, 'ig', 'reach')).toMatchObject({ key: 'reach', value: 900 })
+    expect(headlineOf(reel, 'ig', 'reach')).toBeUndefined()
   })
 
-  it('falls back to the first count it has, and shows none without counts or off its first account', () => {
-    const reach = item('a', TODAY, { metrics: { reach: 300 } })
-    expect(headlineOf(reach, 'ig')).toMatchObject({ key: 'reach', value: 300 })
-    expect(headlineOf(item('b', TODAY), 'ig')).toBeUndefined()
+  it('shows none without counts or off its first account', () => {
+    expect(headlineOf(item('b', TODAY), 'ig', 'reach')).toBeUndefined()
     // Instagram's counts never show on Facebook.
     const both = item('c', TODAY, { metrics: { likes: 5 } }, { went: ['ig', 'fb'] })
-    expect(headlineOf(both, 'fb')).toBeUndefined()
+    expect(headlineKeyOf([both], 'fb')).toBeUndefined()
+    expect(headlineOf(both, 'fb', 'likes')).toBeUndefined()
   })
 
-  it('never shows a 0: the next count stands in, and the hover leaves it out', () => {
+  it('never shows a 0: the grid picks a count someone has, and the hover leaves 0s out', () => {
     const reel = item('r', TODAY, { format: 'reel', metrics: { views: 0, likes: 12, saves: 0 } })
-    expect(headlineOf(reel, 'ig')).toMatchObject({ key: 'likes', value: 12 })
+    expect(headlineKeyOf([reel], 'ig')).toBe('likes')
+    expect(headlineOf(reel, 'ig', 'likes')).toMatchObject({ key: 'likes', value: 12 })
     expect(tileCountsOf(reel, 'ig').map((c) => c.key)).toEqual(['likes'])
-    expect(headlineOf(item('z', TODAY, { metrics: { likes: 0 } }), 'ig')).toBeUndefined()
+    expect(headlineOf(item('z', TODAY, { metrics: { likes: 0 } }), 'ig', 'likes')).toBeUndefined()
   })
 
   it('says itself in words: kind, when, collab, hook and its one count', () => {
@@ -337,11 +348,13 @@ describe('a tile', () => {
       format: 'reel',
       metrics: { views: 12400, likes: 318 },
     })
-    expect(tileLabel(reel, 'ig', TODAY)).toBe(
+    expect(tileLabel(reel, 'ig', TODAY, 'views')).toBe(
       'Reel · Sun 25 Oct, 12:00: Sunday roast is back · 12.4k views',
     )
     const collab = item('Wine night', TODAY, {}, { collabs: ['@dan'] })
-    expect(tileLabel(collab, 'ig', TODAY)).toBe('Post · Today, 12:00 · with @dan: Wine night')
+    expect(tileLabel(collab, 'ig', TODAY, 'views')).toBe(
+      'Post · Today, 12:00 · with @dan: Wine night',
+    )
   })
 })
 

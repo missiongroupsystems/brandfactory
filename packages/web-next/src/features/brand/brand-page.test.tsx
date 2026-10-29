@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
@@ -6,6 +6,7 @@ import { BrandProvider } from '@/features/schedule/posts-store'
 import { BrandPage } from './brand-page'
 import { resetBrandKit } from './brand-store'
 import { resetVoiceVersions } from './voice/versions'
+import { resetVoiceDrafts } from './voice/voice-section'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/brand',
@@ -15,6 +16,7 @@ vi.mock('next/navigation', () => ({
 beforeEach(() => {
   resetBrandKit()
   resetVoiceVersions()
+  resetVoiceDrafts()
 })
 afterEach(() => vi.useRealTimers())
 
@@ -62,61 +64,37 @@ describe('the brand page', () => {
 })
 
 describe('editing the kit', () => {
-  // The voice changes through its flow: a few steps, then the proof, then Make this the voice.
-  const step = () => {
-    fireEvent.click(screen.getByRole('button', { name: /^Continue/ }))
-    act(() => {
-      vi.advanceTimersByTime(400)
-    })
-  }
-  const makeItTheVoice = () => {
-    fireEvent.click(screen.getByRole('button', { name: /Make this the voice/ }))
-    act(() => {
-      vi.advanceTimersByTime(3000)
-    })
-  }
+  // The voice is edited where it is read; Save makes the next version.
+  const save = () => fireEvent.click(voice().getByRole('button', { name: /^Save as v/ }))
 
   it('saves a new voice as the brand’s voice', () => {
-    vi.useFakeTimers()
     open()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'How the brand sounds' }), {
       target: { value: 'Short and bright. Never fussy.' },
     })
-    step()
-    step()
-    step()
-    makeItTheVoice()
-    vi.useRealTimers()
-    expect(voice().getByText('Short and bright. Never fussy.')).toBeInTheDocument()
+    save()
+    expect(voice().getByRole('textbox', { name: 'How the brand sounds' })).toHaveValue(
+      'Short and bright. Never fussy.',
+    )
+    expect(voice().getByRole('button', { name: 'Version history' })).toHaveTextContent('v5')
   })
 
-  it('removes a pair and adds one, and keeps neither change after Escape', () => {
-    vi.useFakeTimers()
+  it('removes a pair and adds one, and keeps neither change after Discard', () => {
     open()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
-    step()
     fireEvent.click(screen.getByRole('button', { name: 'Remove wood-fired' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add a pair' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Say 4' }), { target: { value: 'pasta' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Not 4' }), { target: { value: 'carbs' } })
-    step()
-    step()
-    makeItTheVoice()
-    expect(voice().queryByText('wood-fired')).not.toBeInTheDocument()
-    expect(voice().getByText('carbs')).toBeInTheDocument()
+    save()
+    expect(voice().queryByDisplayValue('wood-fired')).not.toBeInTheDocument()
+    expect(voice().getByDisplayValue('carbs')).toBeInTheDocument()
 
-    // Escape drops an edit in progress: the pair removed while open comes back.
-    fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
-    step()
+    // Discard drops an edit in progress: the pair removed comes back.
     fireEvent.click(screen.getByRole('button', { name: 'Remove pasta' }))
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Say 1' }), { key: 'Escape' })
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
-    vi.useRealTimers()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(voice().getByText('pasta')).toBeInTheDocument()
+    expect(voice().queryByDisplayValue('pasta')).not.toBeInTheDocument()
+    fireEvent.click(voice().getByRole('button', { name: 'Discard' }))
+    expect(voice().getByDisplayValue('pasta')).toBeInTheDocument()
+    expect(voice().queryByRole('button', { name: /^Save as v/ })).toBeNull()
   })
 
   it('changes a colour in the picker, and never saves a hex that is not one', () => {

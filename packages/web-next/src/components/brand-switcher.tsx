@@ -1,12 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import * as React from 'react'
 
 import type { Brand } from '@/data/brands'
 import { BrandLogo } from '@/features/brand/brand-logo'
 import { NewBrandForm } from '@/features/brand/new-brand-form'
-import { useConnections } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { CheckIcon, ChevronIcon, PlusIcon } from './icons'
@@ -23,15 +21,16 @@ function BrandMark({ brand, size }: { brand: Brand; size: 'sm' | 'md' }) {
   )
 }
 
-/** The header pill: shows the current brand and opens a menu to switch to another. */
+/**
+ * The header pill: shows the current brand and opens a menu to switch to another. One job: the
+ * brand's kit and connections live under the avatar, with the rest of the settings.
+ */
 export function BrandSwitcher() {
   const { brand, brands, setBrandId, companies, addBrand } = useBrand()
-  const attention = Object.values(useConnections(brand.id)).includes('attention')
   const [open, setOpen] = React.useState(false)
   const [adding, setAdding] = React.useState(false)
-  // Only an owner or an admin of a company adds a brand; the item takes one place in the menu.
+  // Only an owner or an admin of a company adds a brand.
   const canAdd = companies.length > 0
-  const links = brands.length + (canAdd ? 1 : 0)
   const root = React.useRef<HTMLDivElement>(null)
   const trigger = React.useRef<HTMLButtonElement>(null)
   const items = React.useRef<Array<HTMLElement | null>>([])
@@ -146,36 +145,6 @@ export function BrandSwitcher() {
               Add brand
             </button>
           )}
-          <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
-          {/* The current brand's voice, colours and files: not a daily page, so it lives here. */}
-          <Link
-            ref={(el) => {
-              items.current[links] = el
-            }}
-            href="/brand"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => close(false)}
-            className="flex items-center justify-between rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
-          >
-            Brand kit
-          </Link>
-          {/* What the brand has linked; a dot when something needs signing in again. */}
-          <Link
-            ref={(el) => {
-              items.current[links + 1] = el
-            }}
-            href="/brand/connections"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => close(false)}
-            className="flex items-center justify-between rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
-          >
-            Connections
-            {attention && (
-              <span aria-label="Needs attention" className="size-1.5 rounded-full bg-fail" />
-            )}
-          </Link>
         </div>
       )}
       {adding && (

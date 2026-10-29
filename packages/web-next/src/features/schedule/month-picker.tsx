@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 
+import { TITLE } from '@/components/page-title'
 import { MONTH_SHORT } from '@/lib/dates'
 
 import { monthTitle } from './month'
@@ -139,7 +140,7 @@ export function TitleMonthPicker({ title, pick }: { title: string; pick: MonthPi
 
   return (
     <div ref={root} className="relative">
-      <h1 className="font-display text-[38px] leading-none tracking-[-0.035em]">
+      <h1 className={TITLE}>
         <button
           ref={button}
           type="button"

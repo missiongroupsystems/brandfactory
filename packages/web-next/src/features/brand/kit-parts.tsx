@@ -7,7 +7,8 @@ import type { BrandKit } from '@/data/brand-kit'
 
 /** The pieces of the Brand page that its sections share. */
 
-export const EYEBROW = 'font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase'
+/** A section's or a field's label: plain words, never mono capitals. */
+export const EYEBROW = 'text-[13px] font-medium text-ink-3'
 
 export const QUIET =
   'flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] text-ink-3 transition-colors hover:bg-surface hover:text-ink'
@@ -58,54 +59,5 @@ export function SavedWhisper({ at }: { at: number }) {
       <CheckIcon size={10} />
       Saved
     </span>
-  )
-}
-
-export function VoiceView({ voice }: { voice: Voice }) {
-  return (
-    <>
-      <SummaryView summary={voice.summary} />
-      {voice.words.length > 0 && <WordsView words={voice.words} />}
-      {voice.examples.length > 0 && <ExamplesView examples={voice.examples} />}
-    </>
-  )
-}
-
-export function SummaryView({ summary }: { summary: string }) {
-  return (
-    <p className="font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]">
-      {summary}
-    </p>
-  )
-}
-
-export function WordsView({ words }: { words: Voice['words'] }) {
-  return (
-    <div className="grid grid-cols-2 gap-x-6">
-      <span className={`${EYEBROW} pb-2`}>Say</span>
-      <span className={`${EYEBROW} pb-2`}>Not</span>
-      {words.map((w, i) => (
-        // Edits may repeat a word, so the place is the key.
-        <React.Fragment key={i}>
-          <span className="border-t border-line py-2.5 text-[14.5px]">{w.use}</span>
-          <span className="border-t border-line py-2.5 text-[14.5px] text-ink-4 line-through decoration-ink-5">
-            {w.avoid}
-          </span>
-        </React.Fragment>
-      ))}
-    </div>
-  )
-}
-
-export function ExamplesView({ examples }: { examples: string[] }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className={EYEBROW}>Sounds like</span>
-      {examples.map((line, i) => (
-        <p key={i} className="border-l-2 border-line-strong pl-4 text-[15px] text-ink-2">
-          {line}
-        </p>
-      ))}
-    </div>
   )
 }

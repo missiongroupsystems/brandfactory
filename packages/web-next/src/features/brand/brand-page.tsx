@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
+import { PAGE as COLUMN, PageTitle } from '@/components/page-title'
 import type { BrandFile, FileKind } from '@/data/brand-kit'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote, report, upload as uploadFile } from '@/lib/remote'
@@ -76,21 +77,16 @@ export function BrandPage() {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <main
-        key={brand.id}
-        className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4 pb-24"
-      >
-        <div className="flex flex-col gap-4 pt-6 pb-10 max-md:pt-2 max-md:pb-8">
-          <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-            {brand.name}
-          </h1>
-          <p className="max-w-[560px] text-[15px] text-ink-3">{brand.line}</p>
+      <main key={brand.id} className={`bb-swap flex flex-col pb-24 ${COLUMN}`}>
+        <PageTitle title={brand.name} back />
+        {/* The page reads in one column, from the same left edge as every title. */}
+        <div className="flex w-full max-w-[760px] flex-col">
+          <p className="max-w-[560px] pb-8 text-[15px] text-ink-3 max-md:pb-6">{brand.line}</p>
+          <VoiceSection />
+          <ColoursEditable />
+          <LogoSection />
+          <Files />
         </div>
-
-        <VoiceSection />
-        <ColoursEditable />
-        <LogoSection />
-        <Files />
       </main>
     </div>
   )

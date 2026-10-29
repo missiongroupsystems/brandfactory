@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
+import { PAGE, PageTitle } from '@/components/page-title'
 import { CheckIcon, ChevronIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
@@ -136,17 +137,13 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   )
 
   return (
-    <main className="bb-swap mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
+    <main className={`bb-swap flex flex-col pb-24 ${PAGE}`}>
       {/* The count is on the Inbox tab already, and the brand in the switcher. */}
-      <div className="flex flex-col pt-6 pb-8 max-md:pt-2 max-md:pb-6">
-        <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-          Inbox
-        </h1>
-        {/* The count is not shown, but a screen reader still hears it change after a reply. */}
-        <p className="sr-only" aria-live="polite">
-          {waiting.length === 0 ? 'Nothing to reply to.' : `${waiting.length} to reply to`}
-        </p>
-      </div>
+      <PageTitle title="Inbox" />
+      {/* The count is not shown, but a screen reader still hears it change after a reply. */}
+      <p className="sr-only" aria-live="polite">
+        {waiting.length === 0 ? 'Nothing to reply to.' : `${waiting.length} to reply to`}
+      </p>
 
       {caughtUp ? (
         <div className="flex flex-col">
@@ -186,7 +183,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
         <div className="grid grid-cols-[360px_minmax(0,1fr)] gap-12 max-lg:grid-cols-[320px_minmax(0,1fr)] max-lg:gap-8 max-md:grid-cols-1">
           <div className="flex flex-col">
             {tabs}
-            {/* Complaints first, marked by a dot: no headings to read. */}
+            {/* Complaints first, each marked by the word: no headings to read. */}
             {complaints.map(row)}
             {rest.map(row)}
             {noise.length > 0 && <Noise brandId={brand.id} noise={noise} />}
@@ -339,7 +336,10 @@ function Row({
   )
 }
 
-/** A complaint is a small dot by the name; once it has gone to someone, a quiet tick. */
+/**
+ * A complaint says so by the name, in a word, not a dot a reader would take for "unread"; once
+ * it has gone to someone, a quiet tick.
+ */
 function ComplaintMark({ sentTo }: { sentTo?: string[] }) {
   return sentTo ? (
     <span
@@ -350,11 +350,7 @@ function ComplaintMark({ sentTo }: { sentTo?: string[] }) {
       <CheckIcon size={10} />
     </span>
   ) : (
-    <span
-      title="Complaint"
-      aria-label="Complaint"
-      className="size-1.5 shrink-0 rounded-full bg-fail"
-    />
+    <span className="shrink-0 text-[12px] text-fail-ink">Complaint</span>
   )
 }
 
