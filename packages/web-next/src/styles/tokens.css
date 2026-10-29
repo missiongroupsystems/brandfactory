@@ -105,7 +105,14 @@
   animation-duration: 240ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-/* Removing a moodboard board (ideate-page.tsx): its pins shrink away, the rest glide into place. */
+/*
+ * Adding or removing a moodboard board (`moveBoards` in ideate-page.tsx): new pins grow in, leaving
+ * ones shrink away, the rest glide into place. Named only during that change.
+ */
+[data-moving-boards] .bb-pin {
+  view-transition-name: var(--pin);
+  view-transition-class: pin;
+}
 ::view-transition-group(.pin) {
   animation-duration: 340ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -117,6 +124,15 @@
   to {
     opacity: 0;
     transform: scale(0.88);
+  }
+}
+::view-transition-new(.pin):only-child {
+  animation: pin-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both;
+}
+@keyframes pin-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
   }
 }
 @media (prefers-reduced-motion: reduce) {

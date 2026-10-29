@@ -34,8 +34,28 @@ interface Pin {
   height: number
 }
 
-export const pinterestSetup = (brandId: BrandId) =>
-  request<PinterestSetup>('GET', `/brands/${brandId}/pinterest`)
+/** The setup read last this page load, per brand, so the picker opens on it at once. */
+const setups = new Map<BrandId, PinterestSetup>()
+const asking = new Map<BrandId, Promise<PinterestSetup>>()
+
+/** The brand's account and boards; one read at a time per brand. */
+export function pinterestSetup(brandId: BrandId) {
+  const already = asking.get(brandId)
+  if (already) return already
+  // A read a change of boards overtook (`pickBoards`) neither keeps its answer nor ends a newer one.
+  const read = request<PinterestSetup>('GET', `/brands/${brandId}/pinterest`)
+    .then((s) => {
+      if (asking.get(brandId) === read) setups.set(brandId, s)
+      return s
+    })
+    .finally(() => {
+      if (asking.get(brandId) === read) asking.delete(brandId)
+    })
+  asking.set(brandId, read)
+  return read
+}
+
+export const knownSetup = (brandId: BrandId) => setups.get(brandId)
 
 /** Sends the browser to Pinterest; it comes back to `/connect/pinterest`. */
 export async function startPinterest(brandId: BrandId) {
@@ -51,8 +71,11 @@ export const finishPinterest = (code: string, state: string) =>
  * This brand reads these boards from now on, in this order; none turns Pinterest off and keeps the
  * account. `saveBoards` in the ideas store also reads them afresh.
  */
-export const pickBoards = (brandId: BrandId, boardIds: string[]) =>
-  request('PUT', `/brands/${brandId}/pinterest`, { boardIds })
+export function pickBoards(brandId: BrandId, boardIds: string[]) {
+  // A read already on its way answers with the old boards: the next open reads afresh.
+  asking.delete(brandId)
+  return request('PUT', `/brands/${brandId}/pinterest`, { boardIds })
+}
 
 /** The Pinterest id of a board the moodboard shows (`board-<id>`). */
 export const pinterestIdOf = (board: Pick<Board, 'id'>) => board.id.replace(/^board-/, '')

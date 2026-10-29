@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.4** — 2026-10-29 — `fix/pinterest-board-picker`: saving the board picker no longer reloads the moodboard. The pins on screen stay until the new list arrives (one Pinterest read), then new pins grow in, leaving ones shrink away and the rest glide into place, as a removal does. The picker opens on the boards it read last, refreshing them behind; the first read starts when the pointer reaches the "+", and rows the shape of the boards stand in for "Loading…". Only connecting Pinterest or turning it off loads the brand again. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.3** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip at rest is centred again. 2.43.2's `overflow-clip` on the hidden × kept its grid column at the ×'s width (about 30 px), since `overflow-clip`, unlike a scroll container, does not let a `0fr` column shrink below its content; `min-w-0` lets it close. Measured in a browser: each chip as wide as its label at rest. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.2** — 2026-10-29 — `fix/pinterest-board-picker`: removing a board no longer reloads the moodboard. Its pins leave at once and the other boards keep theirs, with no new read from Pinterest; where the browser has view transitions, the board's pins shrink away and the rest glide into place. A removal the core refuses puts the board back. A board chip is centred at rest and widens to show its × on hover. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.1** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip's × removes the board in one click, with no "Remove {board}?" step; the "+" picker adds it back. The board picker lists the boards on the moodboard first, under "On the moodboard", then "Other boards", and gets a search field once an account has more than six boards (Escape clears it first). The list is shorter (about four rows) and scrolls. The Drive picker's search icon moves to the shared icons. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
@@ -91,6 +92,30 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.43.4 — 2026-10-29
+
+- **Why.** After 2.43.2 a removal animated, but Save in the board picker still emptied the
+  moodboard and read every board again. The picker also opened on "Loading…" each time.
+- **web-next.** `saveBoards` keeps the pins on screen, reads the new list once, and hands it to
+  `moveBoards`, the view transition `removeBoard` now uses too. `moveBoards` sets
+  `data-moving-boards` on the page while it runs; `tokens.css` names the pins (`--pin`) only then,
+  so a brand switch keeps its cross-fade. New pins grow in (`pin-in`). A refused removal puts the
+  board back through the same step, so it lands after the removal. Connecting Pinterest or turning
+  it off still loads the brand, whose state says which. `pinterest.ts` keeps the last setup per
+  brand (`knownSetup`, one read at a time). The picker opens on it, ticked by the boards the
+  moodboard shows now (so a board removed by × since is not ticked), and the read on opening sets
+  the ticks from the server until the person ticks one. Pointing at or focusing the "+" reads it
+  ahead once per page load; until a setup is known the picker shows three placeholder rows. Moves
+  that overlap clear `data-moving-boards` only at the last one. A change of boards drops a
+  setup read already on its way, so a late answer cannot tick a removed board again.
+- **Tests.** `pinterest-boards-remote.test.tsx`: the placeholder rows on the first open; a saved
+  board's pins join the ones on screen with no brand load (fails with the old reload); the picker
+  opens again at once with the saved board ticked; a board removed by × then opens unticked (fails
+  with the kept ticks).
+- **Checked in a browser.** The stand-in core at 1280 × 860: the picker opened on its boards after
+  a hover, a save with one pin read and new pins growing in, a reopen with no placeholder rows.
+- 1343 tests (237 skipped without a Postgres server).
 
 ## 2.43.3 — 2026-10-29
 

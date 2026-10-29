@@ -22,6 +22,8 @@ const answers = vi.hoisted(() => ({}) as Record<string, unknown>)
 // Requests the core refuses, as "METHOD path".
 const refused = vi.hoisted(() => new Set<string>())
 afterEach(() => refused.clear())
+// How often the brand's whole state was loaded again.
+const loads = vi.hoisted(() => ({ n: 0 }))
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
   remote: true,
@@ -34,7 +36,10 @@ vi.mock('@/lib/remote', async (original) => ({
   },
   onAccount: () => () => undefined,
   // The brand reloads after a change: the state the test set last comes back.
-  loadBrand: async (id: string) => hydrate.fn(id, current),
+  loadBrand: async (id: string) => {
+    loads.n += 1
+    hydrate.fn(id, current)
+  },
   push: (_brandId: string, send: () => Promise<unknown>) => void send(),
   report: () => undefined,
   request: async (method: string, path: string, body?: unknown) => {
@@ -138,6 +143,8 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     }
     openMoodboard()
     fireEvent.click(await screen.findByRole('button', { name: 'Pinterest boards' }))
+    // Rows the shape of the boards stand in until the first read answers.
+    expect(screen.getByLabelText('Loading boards')).toBeVisible()
     const boards = await screen.findByRole('group', { name: 'Boards' })
     const salsa = within(boards).getByRole('checkbox', { name: /Salsa/ })
     const tacos = within(boards).getByRole('checkbox', { name: /Tacos/ })
@@ -163,6 +170,7 @@ describe('the moodboard’s Pinterest boards on the core', () => {
 
     fireEvent.click(tacos)
     answers['/brands/casa-vostra/pinterest/pins'] = { boards: [TACOS, SALSA] }
+    const loadsBefore = loads.n
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     // Saved in the account's order.
     await waitFor(() =>
@@ -172,9 +180,54 @@ describe('the moodboard’s Pinterest boards on the core', () => {
         { boardIds: ['111', '222'] },
       ]),
     )
-    // The picker closes, and both boards show.
+    // The picker closes, and both boards show: the new board's pins join the ones on screen, with
+    // no reload of the brand.
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Boards' })).toBeNull())
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
+    expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
+    expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
+    expect(loads.n).toBe(loadsBefore)
+
+    // Opened again, the picker shows the boards at once, the saved one ticked.
+    answers['/brands/casa-vostra/pinterest'] = {
+      account: { username: 'brand.pins' },
+      boards: [
+        { id: '111', name: 'Tacos', pinCount: 1, cover: null, url: TACOS.url, picked: true },
+        { id: '222', name: 'Salsa', pinCount: 1, cover: null, url: SALSA.url, picked: true },
+      ],
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Pinterest boards' }))
+    const again = screen.getByRole('group', { name: 'Boards' })
+    expect(within(again).getByRole('checkbox', { name: /Tacos/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+
+    // A board removed by its chip's × since then opens unticked, so a Save cannot bring it back.
+    // The read on that open has kept Tacos ticked by then.
+    await waitFor(() =>
+      expect(sends.filter(([, p]) => p === '/brands/casa-vostra/pinterest').length).toBeGreaterThan(
+        2,
+      ),
+    )
+    fireEvent.keyDown(document, { key: 'Escape' })
+    answers['/brands/casa-vostra/pinterest'] = {
+      account: { username: 'brand.pins' },
+      boards: [
+        { id: '111', name: 'Tacos', pinCount: 1, cover: null, url: TACOS.url, picked: false },
+        { id: '222', name: 'Salsa', pinCount: 1, cover: null, url: SALSA.url, picked: true },
+      ],
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    await waitFor(() =>
+      expect(sends).toContainEqual(['PUT', '/brands/casa-vostra/pinterest', { boardIds: ['222'] }]),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Pinterest boards' }))
+    const after = screen.getByRole('group', { name: 'Boards' })
+    expect(within(after).getByRole('checkbox', { name: /Tacos/ })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
   })
 
   it('searches an account with many boards by name', async () => {
@@ -193,8 +246,9 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     }
     openMoodboard()
     fireEvent.click(await screen.findByRole('button', { name: 'Pinterest boards' }))
-    const boards = await screen.findByRole('group', { name: 'Boards' })
-    const search = screen.getByRole('searchbox', { name: 'Search boards' })
+    // The setup kept from before opens first; the search comes with this account's read.
+    const search = await screen.findByRole('searchbox', { name: 'Search boards' })
+    const boards = screen.getByRole('group', { name: 'Boards' })
 
     fireEvent.change(search, { target: { value: 'sa' } })
     expect(

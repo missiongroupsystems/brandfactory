@@ -232,14 +232,39 @@ export function forgetLiveBoard(brandId: BrandId) {
   showBoards(brandId, null)
 }
 
+/** Puts a change of the boards on screen: at once, or inside the page's animation. */
+type Show = (apply: () => void) => void
+const atOnce: Show = (apply) => apply()
+
 /**
- * Keeps the boards the brand's moodboard reads, then reads them afresh: the old pins leave only
- * once the server took the change, so a refused change keeps the moodboard as it was.
+ * Keeps the boards the brand's moodboard reads, then reads them afresh: the old pins stay on
+ * screen until the new ones arrive, and leave only once the server took the change, so a refused
+ * change keeps the moodboard as it was. Connecting Pinterest or turning it off loads the brand,
+ * whose state says which.
  */
-export async function saveBoards(brandId: BrandId, boardIds: string[]) {
+export async function saveBoards(brandId: BrandId, boardIds: string[], show: Show = atOnce) {
   await pickBoards(brandId, boardIds)
-  forgetLiveBoard(brandId)
-  await loadBrand(brandId)
+  const name = wantedBoards.get(brandId)
+  if (name === undefined || boardIds.length === 0) {
+    forgetLiveBoard(brandId)
+    await loadBrand(brandId)
+    return
+  }
+  const round = boardRounds.get(brandId) ?? 0
+  let live: Board[]
+  try {
+    live = await loadBoards(brandId, name)
+  } catch {
+    // The usual read reports the failure, and a dead sign-in turns Pinterest off.
+    forgetLiveBoard(brandId)
+    await loadBrand(brandId)
+    return
+  }
+  if ((boardRounds.get(brandId) ?? 0) !== round) return
+  show(() => {
+    showBoards(brandId, live)
+    update(brandId, (b) => ({ ...b }))
+  })
 }
 
 /**
@@ -247,16 +272,21 @@ export async function saveBoards(brandId: BrandId, boardIds: string[]) {
  * is read from Pinterest again. A refused change puts the board back. The last board turns
  * Pinterest off, which only the brand's state says, so that one loads the brand.
  */
-export async function removeBoard(brandId: BrandId, boardId: string) {
+export async function removeBoard(brandId: BrandId, boardId: string, show: Show = atOnce) {
   const before = boardsOf(brandId)
   const rest = before.filter((b) => b.id !== boardId)
-  showBoards(brandId, rest)
-  update(brandId, (b) => ({ ...b }))
+  show(() => {
+    showBoards(brandId, rest)
+    update(brandId, (b) => ({ ...b }))
+  })
   try {
     await pickBoards(brandId, rest.map(pinterestIdOf))
   } catch (err) {
-    showBoards(brandId, before)
-    update(brandId, (b) => ({ ...b }))
+    // Through `show` too, so it lands after the removal even when that is still to be drawn.
+    show(() => {
+      showBoards(brandId, before)
+      update(brandId, (b) => ({ ...b }))
+    })
     throw err
   }
   if (rest.length === 0) {

@@ -17,6 +17,7 @@ import {
   SparkIcon,
 } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
+import type { BrandId } from '@/data/brands'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
   boardsOf,
@@ -51,7 +52,14 @@ import {
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
-import { MAX_BOARDS, pinterestSetup, startPinterest, type PinterestSetup } from './pinterest'
+import {
+  knownSetup,
+  MAX_BOARDS,
+  pinterestIdOf,
+  pinterestSetup,
+  startPinterest,
+  type PinterestSetup,
+} from './pinterest'
 
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
@@ -654,6 +662,47 @@ function BoardChip({
   )
 }
 
+/**
+ * Shows a change of the moodboard's boards in a view transition, as the brand switch does: new
+ * pins grow in, leaving ones shrink away and the rest glide into place (CSS in tokens.css, which
+ * names the pins only while `data-moving-boards` is on, so a brand switch keeps its cross-fade).
+ * Where the browser has no view transitions, the change shows at once.
+ */
+function moveBoards(change: () => void) {
+  if (!('startViewTransition' in document)) return change()
+  const root = document.documentElement
+  const move = ++moves
+  root.dataset.movingBoards = ''
+  const transition = document.startViewTransition(() => flushSync(change))
+  // A move started meanwhile skips this one, whose `ready` then rejects; the last clears the flag.
+  transition.ready.catch(() => undefined)
+  const done = () => {
+    if (move === moves) delete root.dataset.movingBoards
+  }
+  transition.finished.then(done, done)
+}
+let moves = 0
+
+/** Reads the board picker's setup ahead, unless one is known; the picker reports a failure. */
+function prefetchSetup(brandId: BrandId) {
+  if (knownSetup(brandId) || prefetched.has(brandId)) return
+  prefetched.add(brandId)
+  pinterestSetup(brandId).catch(() => undefined)
+}
+/** Read ahead once per page load: a failing account is not read again on every hover. */
+const prefetched = new Set<BrandId>()
+
+/**
+ * The setup read last, ticked by the boards the moodboard shows now, so a board removed by its
+ * chip's × since then is not ticked; null when none was read yet.
+ */
+function openingSetup(brandId: BrandId): PinterestSetup | null {
+  const known = knownSetup(brandId)
+  if (!known) return null
+  const live = boardsOf(brandId).map(pinterestIdOf)
+  return { ...known, boards: known.boards.map((b) => ({ ...b, picked: live.includes(b.id) })) }
+}
+
 /** Instagram DMs carry Instagram's logo. */
 const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
   pinterest: 'pinterest',
@@ -797,23 +846,19 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   }
 
   /**
-   * Takes a board off the moodboard at once; the last one turns Pinterest off. The account stays.
-   * Where the browser has view transitions, its pins shrink away and the rest glide into place
-   * (CSS in tokens.css).
+   * Takes a board off the moodboard at once, its pins shrinking away (`moveBoards`); the last one
+   * turns Pinterest off. The account stays.
    */
   async function remove(id: string) {
     if (removing) return
-    // Committed before the transition starts, so the old snapshot already names the pins.
-    flushSync(() => setRemoving(true))
+    setRemoving(true)
     try {
-      await new Promise<void>((resolve, reject) => {
-        const drop = () => {
+      await removeBoard(brand.id, id, (apply) =>
+        moveBoards(() => {
           if (filter === id) setFilter('all')
-          removeBoard(brand.id, id).then(resolve, reject)
-        }
-        if ('startViewTransition' in document) document.startViewTransition(() => flushSync(drop))
-        else drop()
-      })
+          apply()
+        }),
+      )
     } catch (err) {
       report(message(err))
     } finally {
@@ -884,6 +929,9 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                 type="button"
                 aria-label={livePinterest ? 'Pinterest boards' : 'Add a source'}
                 aria-expanded={adding}
+                // The boards start loading on the way to a click, once per page load.
+                onPointerEnter={() => livePinterest && prefetchSetup(brand.id)}
+                onFocus={() => livePinterest && prefetchSetup(brand.id)}
                 onClick={(e) => {
                   // Kept on screen: a chip near the right edge opens the setup leftwards.
                   anchorAt(e.currentTarget, 360)
@@ -915,7 +963,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
           <DmHint />
         </div>
       )}
-      <Masonry key={filter} pins={shown} selected={selected} named={removing} onToggle={toggle} />
+      <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
     </div>
   )
 }
@@ -1096,9 +1144,17 @@ function DemoSetup({ source }: { source: MoodSource }) {
  */
 function PinterestSetup({ onDone }: { onDone?: () => void }) {
   const { brand } = useBrand()
-  const [setup, setSetup] = React.useState<PinterestSetup | null>(null)
+  // The setup read last opens at once; the read below refreshes it.
+  const [setup, setSetup] = React.useState<PinterestSetup | null>(() => openingSetup(brand.id))
   const [error, setError] = React.useState<string | null>(null)
-  const [picked, setPicked] = React.useState<string[]>([])
+  const [picked, setPicked] = React.useState<string[]>(
+    () =>
+      openingSetup(brand.id)
+        ?.boards.filter((b) => b.picked)
+        .map((b) => b.id) ?? [],
+  )
+  // Once the person ticks a board, the read below keeps their ticks; until then it sets them.
+  const touched = React.useRef(false)
   const [busy, setBusy] = React.useState(false)
   // Bumped by "Check again", which reads the boards once more; `checking` until it answers.
   const [reads, setReads] = React.useState(0)
@@ -1112,6 +1168,10 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
         if (!live) return
         setChecking(false)
         setSetup(s)
+        if (touched.current) {
+          setPicked((p) => p.filter((id) => s.boards.some((b) => b.id === id)))
+          return
+        }
         // The boards it reads now; else the likely one, the first with pins, so one click links it.
         const now = s.boards.filter((b) => b.picked).map((b) => b.id)
         const likely = s.boards.find((b) => b.pinCount > 0) ?? s.boards[0]
@@ -1168,7 +1228,20 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
     return (
       <div className="flex flex-col gap-4 text-left">
         <span className={EYEBROW}>Pinterest</span>
-        {problem ?? <p className="text-[13.5px] text-ink-4">Loading…</p>}
+        {problem ?? (
+          // Rows the shape of the boards, so the card keeps its size when they come.
+          <div aria-label="Loading boards" className="flex flex-col">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex animate-pulse items-center gap-3 py-2">
+                <span className="size-7 shrink-0 rounded-[8px] bg-tile" />
+                <span className="flex flex-col gap-1.5">
+                  <span className="h-2.5 w-28 rounded-full bg-tile" />
+                  <span className="h-2 w-14 rounded-full bg-tile" />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -1253,7 +1326,10 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
           role="checkbox"
           aria-checked={on}
           disabled={!on && full}
-          onClick={() => setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))}
+          onClick={() => {
+            touched.current = true
+            setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))
+          }}
           className="flex flex-1 items-center gap-3 py-2 text-left disabled:opacity-40"
         >
           <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
@@ -1327,7 +1403,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
           : `Connect ${chosen.length > 1 ? `${chosen.length} boards` : `${brand.name}’s board`}`,
         () =>
           void run(async () => {
-            await saveBoards(brand.id, chosen)
+            await saveBoards(brand.id, chosen, moveBoards)
             setBusy(false)
             onDone?.()
           }),
@@ -1441,13 +1517,10 @@ function toColumns(pins: Reference[], count: number) {
 function Masonry({
   pins,
   selected,
-  named,
   onToggle,
 }: {
   pins: Reference[]
   selected: string[]
-  /** Each pin named for the view transition of a board's removal, and only then. */
-  named: boolean
   onToggle: (id: string) => void
 }) {
   const { brand, weeks, byId } = useBrand()
@@ -1489,15 +1562,12 @@ function Masonry({
             return (
               <div
                 key={ref.id}
-                className="bb-deal flex flex-col gap-2"
+                className="bb-deal bb-pin flex flex-col gap-2"
                 style={
                   {
                     animationDelay: `${Math.min(i, 12) * 45}ms`,
-                    // Not on a brand switch, whose own transition fades the whole page.
-                    ...(named && {
-                      viewTransitionName: `pin-${ref.id.replace(/[^\w-]/g, '_')}`,
-                      viewTransitionClass: 'pin',
-                    }),
+                    // The pin's name in `moveBoards`' view transition (tokens.css).
+                    '--pin': `pin-${ref.id.replace(/[^\w-]/g, '_')}`,
                   } as React.CSSProperties
                 }
               >
