@@ -183,15 +183,20 @@ answer. Instagram may have posted it. Check the account before you retry."
 
 ## Setup in production
 
-The core goes first: it keeps the `simulated` connector for the old pack, and the new pack's jobs
-need its `social` connector.
+Released with Pinterest boards (2.42.0) on `release/pinterest-make`: 1.11.0 is never promoted on
+its own, so production goes from 1.10.0 to 1.12.0 in one migrate (0019, then 0020). Set up Make
+first. Do steps 3 to 6 back to back, and ask the team not to change Pinterest boards meanwhile.
 
 1. `fly secrets set --stage MAKE_WEBHOOK_URL=<url> MAKE_WEBHOOK_SECRET=<key>`.
-2. Deploy the core. `GET /platforms` then answers `"instagram":true,"facebook":true`.
-3. Publish, test, migrate (0020) and promote brandbase 1.12.0; then `core loadout <uid> brandbase
-   all` for every person in Mission Group. 0020 puts Mission Group on `make_orgs`; another company
-   goes on it only by the operator's hand.
-4. Deploy the web app from this branch.
-5. On Connections, an owner or admin of Mission Group enters each brand's Instagram account id and
-   Page id.
-6. Check with one test post on a test Page: Schedule a photo for two minutes ahead, then a reel.
+2. `core publish packs/brandbase`, `core test brandbase 1.12.0` (202/202), `core migrate brandbase
+   1.12.0` (0019 and 0020; 1.10.0 still works on them). 0020 puts Mission Group on `make_orgs`.
+3. Deploy the core (`fly deploy`). `GET /platforms` then answers `"instagram":true,"facebook":true`.
+   Until the promote, a board pick fails (the new server sends `boards` to 1.10.0's move).
+4. `core promote brandbase 1.12.0`. No move is new, so the loadouts stay; `core loadout <uid>
+   brandbase all` is harmless if in doubt.
+5. Deploy the web app from this branch (Vercel). Until then the old web app cannot read the new
+   pins answer and still plans Instagram and Facebook only.
+6. An owner or admin of Mission Group enters each brand's Instagram account id and Page id on
+   Connections.
+7. Check: tick a second Pinterest board; schedule a test photo two minutes ahead on a test Page,
+   then a reel.

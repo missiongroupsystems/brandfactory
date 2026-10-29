@@ -151,11 +151,83 @@ describe('migration 0015 on a 1.6.0 database', () => {
 })
 
 /**
- * Migration 0020 on a 1.10.0 database: an Instagram or Facebook connection the pretend sign-in
- * stored has no account behind it, so it goes off; Mission Group goes on the operator's list for
- * Make, and no other company does.
+ * Migrations 0019 and 0020 on a 1.10.0 database, in one migrate (1.11.0 is never promoted on its
+ * own): the one board a brand picked becomes its list of boards, Pinterest stays connected, a brand
+ * with an account but no board stays off, and a pretend Instagram connection goes off.
  */
-describe('migration 0020 on a 1.10.0 database', () => {
+describe('migrations 0019 and 0020 on a 1.10.0 database', () => {
+  it('moves the picked board into the list and keeps each connection as it was', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0019'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co');
+        insert into brandbase.brands (id, name, handle, org_id) values
+          ('one', 'One', '@one', 'co'), ('two', 'Two', '@two', 'co');
+        insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values
+          ('one', 'pinterest', 'p1', 'one.pins', 'sealed', '{"board": "b1"}', 'u'),
+          ('two', 'pinterest', 'p2', 'two.pins', 'sealed', '{}', 'u');
+        insert into brandbase.connections (brand_id, key, status) values
+          ('one', 'pinterest', 'connected'), ('two', 'pinterest', 'off'), ('one', 'ig', 'connected');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+      expect(
+        await db.query('select brand_id, details from brandbase.accounts order by brand_id'),
+      ).toEqual([
+        { brand_id: 'one', details: { board: 'b1', boards: ['b1'] } },
+        { brand_id: 'two', details: {} },
+      ])
+      // 0020's wrapper keeps 0019's rule for Pinterest's boards.
+      for (const fn of ['account_keys', 'account_connections']) {
+        expect(
+          await db.query(
+            `select a.brand_id, x.linked from brandbase.accounts a,
+               brandbase.${fn}(a.platform, a.details) x order by a.brand_id`,
+          ),
+        ).toEqual([
+          { brand_id: 'one', linked: true },
+          { brand_id: 'two', linked: false },
+        ])
+      }
+      expect(
+        await db.query(
+          `select linked from brandbase.account_connections('pinterest', '{"boards": ["b3"]}'::jsonb)`,
+        ),
+      ).toEqual([{ linked: true }])
+      // Between this migration and the promote, 1.10.0's account.board writes only the old key:
+      // that board still turns Pinterest on.
+      expect(
+        await db.query(
+          `select linked from brandbase.account_keys('pinterest', '{"board": "b2"}'::jsonb)`,
+        ),
+      ).toEqual([{ linked: true }])
+      expect(
+        await db.query(
+          'select brand_id, key, status from brandbase.connections order by brand_id, key',
+        ),
+      ).toEqual([
+        { brand_id: 'one', key: 'ig', status: 'off' },
+        { brand_id: 'one', key: 'pinterest', status: 'connected' },
+        { brand_id: 'two', key: 'pinterest', status: 'off' },
+      ])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+})
+
+/**
+ * Migration 0020 after 0019: an Instagram or Facebook connection the pretend sign-in stored has no
+ * account behind it, so it goes off; Mission Group goes on the operator's list for Make, and no
+ * other company does.
+ */
+describe('migration 0020 after 0019', () => {
   it('turns off ig and fb with no account, and lists Mission Group alone for Make', async () => {
     const db = openPglite()
     try {

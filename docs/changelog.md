@@ -6,7 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.43.0** — 2026-10-29 — `feat/make-publishing`: Instagram and Facebook post through Make (make.com) until our own Meta app passes review (brandbase 1.12.0, migration 0020, not applied to production). An owner or admin of a company on the operator's list (Mission Group) enters the brand's Instagram account id and Page id on Connections; at a post's time the scheduler sends the job to a Make custom webhook (`MAKE_WEBHOOK_URL`, key in `x-make-apikey`), the scenario posts with Make's modules and answers in the same request. Photo, carousel and reel; Stories stay planned only, TikTok stays planned only beside them. The core runs up to ten sends at once and keeps a connector's own words. 1328 tests, all run on a throwaway Postgres 18.
+- **2.43.0** — 2026-10-29 — `feat/make-publishing`: Instagram and Facebook post through Make (make.com) until our own Meta app passes review (brandbase 1.12.0, migration 0020, not applied to production; released together with 2.42.0 on `release/pinterest-make`: 1.11.0 is never promoted on its own, so production goes from 1.10.0 to 1.12.0 in one migrate, 0019 then 0020). An owner or admin of a company on the operator's list (Mission Group) enters the brand's Instagram account id and Page id on Connections; at a post's time the scheduler sends the job to a Make custom webhook (`MAKE_WEBHOOK_URL`, key in `x-make-apikey`), the scenario posts with Make's modules and answers in the same request. Photo, carousel and reel; Stories stay planned only, TikTok stays planned only beside them. The core runs up to ten sends at once and keeps a connector's own words. 1328 tests, all run on a throwaway Postgres 18.
+- **2.42.0** — 2026-10-29 — `feat/pinterest-boards`: a moodboard reads several Pinterest boards (brandbase 1.11.0, migration 0019, not applied to production). Each board is a chip: a × on hover asks "Remove {board}?" and a ✓ removes it. The "+" opens the board picker with the boards read now ticked, to add or change them, and a ↗ on each row opens the board on Pinterest (its pinterest.com address). The chip row scrolls sideways and never wraps. Removing the last board turns Pinterest off and keeps the account. An existing board carries over. The core needs a deploy. 1305 tests, all run on a throwaway Postgres; `core test brandbase 1.11.0` 197/197.
 - **2.41.0** — 2026-10-23 — `feat/tiktok-upload`: TikTok, upload only (brandbase 1.10.0, migration 0018, not applied to production). A brand connects its own TikTok account on Connections (Login Kit, scopes `user.info.basic` and `video.upload` only), which then shows the account's name and picture; a planned TikTok video post has a "Send to TikTok inbox" card: the video goes to the account's TikTok inbox as a draft, and the team finishes the post in the TikTok app. Nothing is posted from Brand Base; Instagram and Facebook stay "Unavailable" and the composer still plans only. The core needs a deploy and the `TIKTOK_*` settings. 1288 tests, all run on a throwaway Postgres; `core test brandbase 1.10.0` 193/193.
 - **2.40.3** — 2026-10-23 — `fix/counts-as-of`: on a posted post's page the real counts end with "as of 22 Oct", the day the core read them (the post's `measuredAt`, from migration 0014's `measured_at`, in Singapore; the year only when it is not this one). The counts are a snapshot from the import, not live. Nothing shows without counts or without a date, so the static demo is unchanged. The core's `measuredAt` now reaches the web app. No pack change, no migration. 1247 tests (220 skipped without a Postgres server).
 - **2.40.2** — 2026-10-23 — `fix/profile-photo-edit`: on `/profile` the zoomed crop pans again. The browser's own image drag took the press and cancelled the pan; no image in the app is a drag source of its own now (a CSS rule, and one `dragstart` handler for Firefox), while a calendar tile, an idea's reference or a storyboard shot still drags by its photo. The photo controls are a small pencil on the photo: View photo (a lightbox, also on a click on the photo), Change photo and Remove photo. No pack change, no migration. 1244 tests (220 skipped without a Postgres server).
@@ -139,6 +140,31 @@ One line each — full write-ups are under the matching `##` heading further dow
   minutes for sends under way; `ok: false` relies on the scenario's error handlers (the setup says
   how).
 - **Gate:** typecheck, lint, format, build; tests 1328, all run on a throwaway Postgres 18.
+
+## 2.42.0 — 2026-10-29
+
+- **Why.** David (29 Oct) could not see which Pinterest board was connected or its address, could
+  not connect a second board, and could not change the board. He needs it today to test Ideas.
+- **Pack 1.11.0.** Migration `0019_pinterest_boards.sql`: `accounts.details.boards`, a list of
+  board ids, in place of `details.board`; Pinterest is connected while the list is not empty. An
+  existing board becomes a list of one (the old key stays until the next change, for the old
+  server). `account.board` takes `boards` (up to 5, no repeats). Walls unchanged.
+- **Server.** `packages/connect`: `PUT /brands/:brand/pinterest` takes `{ boardIds }`, each on the
+  account; an empty list turns Pinterest off. The pins route reads every picked board in order
+  (one boards read, then one per board, `max(50, 250 / boards)` pins each; at most six reads) and answers
+  `{ boards: [{ id, name, url, pins }] }`. Each board's `url` is built from its owner and name,
+  since the API gives none.
+- **web-next.** A chip per board. On hover or focus (on touch, on the chosen chip) a small ×
+  fades in; it turns the chip into a quiet red "Remove {board}?" with a ✓. Leaving the chip,
+  Escape or a press elsewhere keeps the board. On the core with Pinterest connected, the "+" opens
+  the board picker with checkboxes, Save, and a ↗ per row to open the board on Pinterest. The chip
+  row never wraps: it scrolls, with a fade at an edge that has more. The static demo is unchanged.
+- **Docs.** `docs/completions/pinterest-boards-phases-1-to-1.md`, with the production steps.
+- **Checked** in a browser (Playwright, a local core with a stand-in Pinterest): connect, tick two
+  boards, a chip's ×, its confirm state, the "+" picker with ↗, an overflowing row, remove a
+  board; desktop and phone.
+- **Gate:** typecheck, lint, format, build; tests 1305, all run on a throwaway Postgres 18;
+  `core test brandbase 1.11.0` 197/197.
 
 ## 2.41.0 — 2026-10-23
 

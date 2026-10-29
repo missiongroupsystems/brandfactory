@@ -709,7 +709,7 @@
           "call": "account.board",
           "input": {
             "brand": "temper",
-            "board": "b1"
+            "boards": ["b1"]
           },
           "expect": {
             "status": 404,

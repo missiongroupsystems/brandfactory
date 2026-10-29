@@ -107,6 +107,8 @@ export interface IdeaCard {
 export interface Board {
   id: string
   name: string
+  /** A live Pinterest board's address on pinterest.com; the demo's boards have none. */
+  url?: string
   pinCount: number
   covers: string[]
   pins: Reference[]

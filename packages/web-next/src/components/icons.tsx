@@ -1,8 +1,8 @@
 /** Stroke icons drawn for this demo. Decorative unless a caller labels the control. */
 
-export function CloseIcon() {
+export function CloseIcon({ size = 11 }: { size?: number }) {
   return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
       <path
         d="M2 2L10 10M10 2L2 10"
         stroke="currentColor"
@@ -34,6 +34,21 @@ export function PencilIcon({ size = 12 }: { size?: number }) {
         d="M8 1.75L10.25 4L4 10.25H1.75V8L8 1.75Z"
         stroke="currentColor"
         strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** Opens elsewhere, in a new tab. */
+export function ArrowUpRightIcon({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 8.5L8.5 3.5M4.5 3.5H8.5V7.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>

@@ -1,6 +1,6 @@
 {
   "name": "account.link",
-  "description": "Links a brand's account: after the platform's sign-in with its sealed tokens (Pinterest, TikTok), or, for Instagram and Facebook through Make, the id an owner or admin of the brand's company typed, with the word make for tokens (Make holds them). One per platform per brand, and an account another brand holds is refused. Linking the same account again keeps its Pinterest board; another account starts clean. Internal: packages/connect calls it as the person.",
+  "description": "Links a brand's account: after the platform's sign-in with its sealed tokens (Pinterest, TikTok), or, for Instagram and Facebook through Make, the id an owner or admin of the brand's company typed, with the word make for tokens (Make holds them). One per platform per brand, and an account another brand holds is refused. Linking the same account again keeps its Pinterest boards; another account starts clean. Internal: packages/connect calls it as the person.",
   "input": {
     "type": "object",
     "additionalProperties": false,

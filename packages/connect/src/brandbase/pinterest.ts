@@ -30,6 +30,8 @@ export interface PinterestBoard {
   name: string
   pinCount: number
   cover: string | null
+  /** The board on pinterest.com. */
+  url: string
 }
 
 export interface PinterestPin {
@@ -55,6 +57,22 @@ interface ImageSize {
   url: string
   width: number
   height: number
+}
+
+/**
+ * A board's address on pinterest.com. The API gives no URL: a board lives at
+ * `/{owner}/{slug}/`, the slug its name in lower case with each run of other characters a hyphen
+ * ("Summer recipes!" is `summer-recipes`). A name with no letter or digit opens the owner's
+ * profile, where the board is listed.
+ */
+export function boardUrl(owner: string, name: string) {
+  const slug = name
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+  const base = `https://www.pinterest.com/${encodeURIComponent(owner)}/`
+  return slug ? `${base}${encodeURIComponent(slug)}/` : base
 }
 
 /**
@@ -140,13 +158,15 @@ export function pinterestApp(config: PinterestConfig) {
       return token(params, now, tokens.refresh)
     },
 
-    async boards(access: string): Promise<PinterestBoard[]> {
+    /** The account's boards (one page of 250), each with its address on pinterest.com. */
+    async boards(access: string, username: string): Promise<PinterestBoard[]> {
       const body = await get<{
         items: {
           id: string
           name: string
           pin_count?: number
           media?: { image_cover_url?: string | null }
+          owner?: { username?: string }
         }[]
       }>(access, '/boards?page_size=250')
       return body.items.map((b) => ({
@@ -154,25 +174,24 @@ export function pinterestApp(config: PinterestConfig) {
         name: b.name,
         pinCount: b.pin_count ?? 0,
         cover: b.media?.image_cover_url ?? null,
+        // A group board's owner may be another account.
+        url: boardUrl(b.owner?.username ?? username, b.name),
       }))
     },
 
-    /** The board's name and its newest pins (one page of 250). Pins with no picture are left out. */
-    async pins(access: string, boardId: string) {
+    /** A board's newest pins, one page of `size`. Pins with no picture are left out. */
+    async pins(access: string, boardId: string, size: number) {
       const id = encodeURIComponent(boardId)
-      const [board, body] = await Promise.all([
-        get<{ id: string; name: string }>(access, `/boards/${id}`),
-        get<{
-          items: {
-            id: string
-            title?: string | null
-            description?: string | null
-            link?: string | null
-            media?: { images?: Record<string, ImageSize> }
-          }[]
-        }>(access, `/boards/${id}/pins?page_size=250`),
-      ])
-      const pins = body.items.flatMap((p): PinterestPin[] => {
+      const body = await get<{
+        items: {
+          id: string
+          title?: string | null
+          description?: string | null
+          link?: string | null
+          media?: { images?: Record<string, ImageSize> }
+        }[]
+      }>(access, `/boards/${id}/pins?page_size=${size}`)
+      return body.items.flatMap((p): PinterestPin[] => {
         const images = p.media?.images ?? {}
         const image = images['600x'] ?? images['1200x'] ?? images['400x300']
         if (!image) return []
@@ -187,7 +206,6 @@ export function pinterestApp(config: PinterestConfig) {
           },
         ]
       })
-      return { board: { id: board.id, name: board.name }, pins }
     },
   }
 }

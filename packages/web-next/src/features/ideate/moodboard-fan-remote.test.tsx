@@ -98,15 +98,21 @@ describe('the moodboard’s empty state on the core', () => {
 
   it('shows the linked board’s own pins and no fan', async () => {
     answers['/brands/casa-vostra/pinterest/pins'] = {
-      board: { id: '1', name: 'Tacos' },
-      pins: [
+      boards: [
         {
-          id: 'p1',
-          title: 'Tacos at dusk',
-          link: null,
-          image: 'https://i.pinimg.com/600x/p1.jpg',
-          width: 600,
-          height: 900,
+          id: '1',
+          name: 'Tacos',
+          url: 'https://www.pinterest.com/brand.pins/tacos/',
+          pins: [
+            {
+              id: 'p1',
+              title: 'Tacos at dusk',
+              link: null,
+              image: 'https://i.pinimg.com/600x/p1.jpg',
+              width: 600,
+              height: 900,
+            },
+          ],
         },
       ],
     }
