@@ -70,9 +70,18 @@ export function slotOf(date: string | null, time: string | null) {
 /** The demo's today. */
 export const DEMO_TODAY = '2026-10-06'
 
-/** The device's date in Singapore, where the brands are: `en-CA` prints `YYYY-MM-DD`. */
-export const clockToday = (now = new Date()) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore' }).format(now)
+/** The device's date in a brand's timezone, Singapore by default: `en-CA` prints `YYYY-MM-DD`. */
+export const clockToday = (now = new Date(), timeZone = 'Asia/Singapore') =>
+  new Intl.DateTimeFormat('en-CA', { timeZone }).format(now)
+
+/** The time now in a brand's timezone, "HH:MM"; `en-GB` prints the 24-hour clock. */
+export const clockTime = (timeZone = 'Asia/Singapore', now = new Date()) =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(now)
 
 // `remote` in lib/remote.ts, read here without it: remote.ts imports this file.
 const onCore = (process.env.NEXT_PUBLIC_CORE_URL ?? '') !== ''

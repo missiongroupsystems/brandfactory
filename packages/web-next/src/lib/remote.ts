@@ -497,6 +497,10 @@ interface Account {
 let account: Account | null = null
 const accountListeners = new Set<(account: Account) => void>()
 
+/** A brand's own timezone, as the core keeps it; Singapore until the account has loaded. */
+export const timezoneOf = (brandId: string) =>
+  account?.brands.find((b) => b.id === brandId)?.timezone ?? 'Asia/Singapore'
+
 /** The brands and companies the caller reaches: called on each load, and at once if loaded. */
 export function onAccount(listener: (account: Account) => void) {
   accountListeners.add(listener)

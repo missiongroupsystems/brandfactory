@@ -142,6 +142,69 @@ describe('the composer on the API', () => {
     }
   })
 
+  it('schedules later today, and asks for a time ahead once that time has gone', () => {
+    const draft = POSTS.find((p) => p.id === 'five-pastas')!
+    // The five-pastas carousel sits on Fri 30 Oct at 18:00; that day is today.
+    setToday('2026-10-30')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      // 17:00 in Singapore: 18:00 is still ahead, and nothing else holds the post back.
+      vi.setSystemTime(new Date('2026-10-30T09:00:00Z'))
+      const { unmount } = render(
+        <BrandProvider>
+          <Loaded>
+            <Composer post={draft} />
+          </Loaded>
+        </BrandProvider>,
+      )
+      expect(schedule()).not.toBeDisabled()
+      expect(screen.queryByText('Pick a time ahead.')).toBeNull()
+      unmount()
+
+      // 19:00: 18:00 has gone, so nothing is sent.
+      vi.setSystemTime(new Date('2026-10-30T11:00:00Z'))
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer post={draft} />
+          </Loaded>
+        </BrandProvider>,
+      )
+      expect(screen.getAllByText('Pick a time ahead.').length).toBeGreaterThan(0)
+      fireEvent.click(schedule())
+      expect(sent).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+      setToday(DEMO_TODAY)
+    }
+  })
+
+  it('does not send a time that went by while the composer stayed open', () => {
+    const draft = POSTS.find((p) => p.id === 'five-pastas')!
+    setToday('2026-10-30')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      // Opened at 17:50 for 18:00: ready to schedule.
+      vi.setSystemTime(new Date('2026-10-30T09:50:00Z'))
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer post={draft} />
+          </Loaded>
+        </BrandProvider>,
+      )
+      expect(screen.queryByText('Pick a time ahead.')).toBeNull()
+      // Left open past 18:00, with no redraw: the press itself checks the clock.
+      vi.setSystemTime(new Date('2026-10-30T10:05:00Z'))
+      fireEvent.click(schedule())
+      expect(sent).not.toHaveBeenCalled()
+      expect(screen.getAllByText('Pick a time ahead.').length).toBeGreaterThan(0)
+    } finally {
+      vi.useRealTimers()
+      setToday(DEMO_TODAY)
+    }
+  })
+
   it('makes a new post again under the same id when its first save was refused', async () => {
     render(
       <BrandProvider>

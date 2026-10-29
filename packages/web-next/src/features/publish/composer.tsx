@@ -33,8 +33,16 @@ import { NotAvailable, notAvailable } from '@/features/connections/not-available
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
-import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
-import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
+import { demoOf, newId, quietly, remote, request, sent, timezoneOf } from '@/lib/remote'
+import {
+  addDays,
+  clockTime,
+  clockToday,
+  dayNumber,
+  monthOf,
+  todayDate,
+  weekdayOf,
+} from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
@@ -173,6 +181,12 @@ export function Composer({
     saved: savedOf,
     times,
   } = useBrand()
+  // Redrawn every 30 seconds, so a time picked for later today says when it has gone.
+  const [, tick] = React.useReducer((n: number) => n + 1, 0)
+  React.useEffect(() => {
+    const t = window.setInterval(tick, 30_000)
+    return () => window.clearInterval(t)
+  }, [])
   // What the composer kept with this post on the server: its caption and the rest of the draft.
   const kept = post ? savedOf(post.id) : undefined
   const keptDraft = (kept?.draft ?? {}) as KeptDraft
@@ -339,6 +353,8 @@ export function Composer({
     ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
     // A draft can sit on a day that has since passed: a schedule needs a day ahead.
     ...(when === 'schedule' && date && date < todayDate() ? ['Pick a day ahead.'] : []),
+    // Later today is fine; a time already gone would go out at once.
+    ...(when === 'schedule' && tooSoon(brand.id, date, time) ? ['Pick a time ahead.'] : []),
     // What Make's Instagram and Facebook modules cannot post, before the server says so at its time.
     ...(remote && !planned
       ? makeBlockers(
@@ -501,6 +517,8 @@ export function Composer({
 
   async function primary() {
     if (stuck || waiting) return
+    // The clock moved on since the page last drew: check the time again before it goes out.
+    if (when === 'schedule' && tooSoon(brand.id, date, time)) return tick()
     const how = when === 'now' ? 'now' : 'slot'
     update({ when: how })
     if (remote) {
@@ -2554,7 +2572,8 @@ function WhenCard({
                 </span>
               ))}
               {pages.days.map((d) => {
-                const disabled = d.past || d.today
+                // Today is open for a time later today; the chart greys the hours gone.
+                const disabled = d.past
                 const on = d.date === date
                 const busy = feedsOf(d).some((m) => m.kind === 'post')
                 return (
@@ -2621,6 +2640,20 @@ function namesOf(keys: readonly ChannelKey[]): string {
   return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
 
+/**
+ * On the core, whether `time` on `date` has gone in the brand's own timezone, or comes within two
+ * minutes: it would go out at once. The demo's today is a fixed day, so it never says so.
+ */
+function tooSoon(brandId: string, date: string, time: string) {
+  if (!remote) return false
+  // The brand's own today: the app's today is the last brand loaded, which may sit elsewhere.
+  const zone = timezoneOf(brandId)
+  if (date !== clockToday(new Date(), zone)) return false
+  const soon = clockTime(zone, new Date(Date.now() + 2 * 60_000))
+  // Within two minutes of midnight the rest of today has gone.
+  return soon < clockTime(zone) || time <= soon
+}
+
 /** Each hour the chart draws, 8:00 to 22:00. */
 const HOURS = Array.from({ length: 15 }, (_, i) => 8 + i)
 
@@ -2651,7 +2684,7 @@ function DayChart({
   time: string
   setTime: (t: string) => void
 }) {
-  const { times } = useBrand()
+  const { brand, times } = useBrand()
   const [hover, setHover] = React.useState<number | null>(null)
   const weekday = weekdayOf(date)
   const weights = times?.days ?? [1, 1, 1, 1, 1, 1, 1]
@@ -2667,6 +2700,8 @@ function DayChart({
   const pad = (n: number) => String(n).padStart(2, '0')
   const at = (h: number) => `${pad(h)}:${minutes}`
   const shown = hover ?? HOURS.indexOf(hour)
+  // Today, an hour whose last quarter has gone cannot be picked.
+  const gone = (h: number) => tooSoon(brand.id, date, `${pad(h)}:45`)
 
   return (
     <div className="flex flex-col gap-3">
@@ -2693,6 +2728,7 @@ function DayChart({
               type="button"
               role="radio"
               aria-checked={on}
+              disabled={gone(h)}
               aria-label={`${at(h)}${i === peak ? ', best time' : ''}`}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
@@ -2703,10 +2739,10 @@ function DayChart({
                 setHover(null)
                 setTime(at(h))
               }}
-              className="group/bar flex h-full flex-1 items-end"
+              className="group/bar flex h-full flex-1 items-end disabled:cursor-not-allowed"
             >
               <span
-                className={`block w-full rounded-t-[4px] transition-opacity ${i === peak ? 'bg-(--insight-5)' : 'bg-ink-5'} ${on ? 'shadow-[0_0_0_1.5px_var(--page),0_0_0_3px_var(--ink)]' : ''} ${on || i === peak ? 'opacity-100' : hover === i ? 'opacity-90' : 'opacity-45'}`}
+                className={`block w-full rounded-t-[4px] transition-opacity ${i === peak ? 'bg-(--insight-5)' : 'bg-ink-5'} ${on ? 'shadow-[0_0_0_1.5px_var(--page),0_0_0_3px_var(--ink)]' : ''} ${gone(h) ? 'opacity-15' : on || i === peak ? 'opacity-100' : hover === i ? 'opacity-90' : 'opacity-45'}`}
                 style={{ height: `${Math.max(bars[i]! * 100, 4)}%` }}
               />
             </button>
