@@ -1,6 +1,6 @@
 import { fireEvent, render, renderHook, screen } from '@testing-library/react'
 import * as React from 'react'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { BrandId } from '@/data/brands'
 import { WEEKS } from '@/data/demo'
@@ -53,6 +53,8 @@ vi.stubGlobal('matchMedia', () => ({
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
 })
+// A brand picked in one case is kept in the browser (as a reload keeps it): the next starts clean.
+afterEach(() => localStorage.clear())
 
 /** Switches the provider to a brand the core listed. */
 function On({ id, children }: { id: string; children: React.ReactNode }) {

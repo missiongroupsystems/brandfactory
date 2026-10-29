@@ -201,8 +201,35 @@ const sendIdea = (
   if (id) push(brandId, () => request('POST', `/brands/${brandId}/ideas/${id}${path}`, body))
 }
 
+/** The brand last chosen in this browser. */
+const BRAND_KEY = 'brandbase.brand'
+
+function keptBrand(): string | null {
+  try {
+    return localStorage.getItem(BRAND_KEY)
+  } catch {
+    // No storage: the first brand opens.
+    return null
+  }
+}
+
+const noChange = () => () => {}
+
 export function BrandProvider({ children }: { children: React.ReactNode }) {
-  const [brandId, setBrandIdNow] = React.useState<BrandId>(DEFAULT_BRAND_ID)
+  // The brand picked on this page; before any pick, the one chosen last in this browser, once it
+  // is one the person reaches (on the core, once the account's brands arrive), else the first.
+  const [picked, setBrandIdNow] = React.useState<BrandId | null>(null)
+  // Read once per page load, not followed: a pick in another tab must not swap this tab's brand
+  // (and its open drafts) from under the person.
+  const [readKept] = React.useState(() => {
+    let read: string | null | undefined
+    return () => (read === undefined ? (read = keptBrand()) : read)
+  })
+  const kept = React.useSyncExternalStore(noChange, readKept, () => null)
+  // The brands the person reaches, from the core; the demo's own brands without it.
+  const [brands, setBrands] = React.useState<Brand[]>(BRANDS)
+  const brandId =
+    picked ?? (kept && brands.some((b) => b.id === kept) ? (kept as BrandId) : DEFAULT_BRAND_ID)
   const [postsByBrand, setPostsByBrand] = React.useState<PostsByBrand>(INITIAL_POSTS)
   const [weeksByBrand, setWeeksByBrand] = React.useState<WeeksByBrand>(INITIAL_WEEKS)
   const [timesByBrand, setTimesByBrand] = React.useState<
@@ -224,9 +251,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     setActiveBrand(brandId)
   }, [brandId])
 
-  // The brands the person reaches, and the companies they manage, from the core; the demo's own
-  // brands without it.
-  const [brands, setBrands] = React.useState<Brand[]>(BRANDS)
+  // The companies the person manages, from the core.
   const [companies, setCompanies] = React.useState<Company[]>([])
   React.useEffect(() => {
     if (!remote) return
@@ -271,6 +296,11 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   // The page cross-fades to the new brand where the browser has view transitions (CSS in
   // tokens.css, which also turns it off for reduced motion); elsewhere it switches at once.
   const setBrandId = React.useCallback((id: BrandId) => {
+    try {
+      localStorage.setItem(BRAND_KEY, id)
+    } catch {
+      // Private mode: the choice lasts as long as the page.
+    }
     if (typeof document !== 'undefined' && 'startViewTransition' in document) {
       document.startViewTransition(() => flushSync(() => setBrandIdNow(id)))
     } else {

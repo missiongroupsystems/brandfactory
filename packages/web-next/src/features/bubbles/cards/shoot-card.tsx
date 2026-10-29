@@ -58,9 +58,7 @@ export function ShootCard({ model, index }: { model: Model; index: number }) {
           >
             {date ? (
               <>
-                <span className="font-mono text-[12px] tracking-[0.08em] uppercase opacity-80">
-                  {WEEKDAY[weekdayOf(date)]}
-                </span>
+                <span className="text-[12px] opacity-80">{WEEKDAY[weekdayOf(date)]}</span>
                 <span className="font-display text-[22px] leading-none">{dayNumber(date)}</span>
                 <span className="text-[12px] opacity-80">{MONTH_SHORT[monthOf(date).month]}</span>
               </>

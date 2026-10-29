@@ -121,7 +121,13 @@ export function InsightsPage() {
   // The figures are the demo's, invented: on the core no brand has any until real counts come.
   const data = remote ? undefined : INSIGHTS_BY_BRAND[brand.id]
   const hub = remote ? undefined : HUB_BY_BRAND[brand.id]
-  const [tab, setTab] = React.useState<Tab>('overview')
+  const [tab, setTabNow] = React.useState<Tab>('overview')
+  // Posts lists the 30 days; opened from the week's card, only the week's posts.
+  const [weekOnly, setWeekOnly] = React.useState(false)
+  const setTab = (t: Tab) => {
+    setWeekOnly(false)
+    setTabNow(t)
+  }
 
   if (!data || !hub) {
     return (
@@ -151,11 +157,23 @@ export function InsightsPage() {
           </div>
           <div key={tab} className="bb-swap flex flex-col gap-4">
             {/* Posts and Creators count the same 30 days as the overview's second card. */}
-            {tab !== 'overview' && <p className="text-[13px] text-ink-3">{period}</p>}
-            {tab === 'overview' && (
-              <Overview data={data} hub={hub} period={period} onPosts={() => setTab('posts')} />
+            {tab !== 'overview' && (
+              <p className="text-[13px] text-ink-3">
+                {weekOnly && tab === 'posts' ? `This week · ${WEEK}` : period}
+              </p>
             )}
-            {tab === 'posts' && <Posts posts={data.posts} />}
+            {tab === 'overview' && (
+              <Overview
+                data={data}
+                hub={hub}
+                period={period}
+                onPosts={(week) => {
+                  setTabNow('posts')
+                  setWeekOnly(week)
+                }}
+              />
+            )}
+            {tab === 'posts' && <Posts posts={weekOnly ? weekOf(data.posts) : data.posts} />}
             {tab === 'creators' && <Creators creators={data.creators} />}
           </div>
         </div>
@@ -222,7 +240,7 @@ function Overview({
   data: BrandInsights
   hub: BrandHub
   period: string
-  onPosts: () => void
+  onPosts: (weekOnly: boolean) => void
 }) {
   const stories = data.stories.filter((s) => s.chart.kind !== 'days')
   const time = data.stories.find((s) => s.chart.kind === 'days')
@@ -291,15 +309,25 @@ function usePostLink() {
   }
 }
 
+/** The week's posts: the last seven days of the period. */
+const weekOf = (posts: PostStat[]) => posts.filter((p) => dayOf(p.date) >= PERIOD_DAYS - 7)
+
 /** The week's answer: its reach against last week's, and the post that reached furthest. */
-function ThisWeek({ data, onPosts }: { data: BrandInsights; onPosts: () => void }) {
+function ThisWeek({
+  data,
+  onPosts,
+}: {
+  data: BrandInsights
+  onPosts: (weekOnly: boolean) => void
+}) {
   const link = usePostLink()
   const reach = data.kpis.find((q) => q.label === 'Reach') ?? data.kpis[0]!
   const now = reach.points[reach.points.length - 1]!
   const before = reach.points[reach.points.length - 2] ?? now
   const delta = before === 0 ? 0 : Math.round(((now - before) / before) * 100)
-  // The week is the last seven days of the period.
-  const week = data.posts.filter((p) => dayOf(p.date) >= PERIOD_DAYS - 7)
+  const week = weekOf(data.posts)
+  // With more than one post this week, the link lists them; with one, the best post is all of it.
+  const many = week.length > 1
   const best = week.sort((a, b) => b.reach - a.reach)[0]
   const href = best && link(best)
   return (
@@ -346,11 +374,10 @@ function ThisWeek({ data, onPosts }: { data: BrandInsights; onPosts: () => void 
       )}
       <button
         type="button"
-        onClick={onPosts}
+        onClick={() => onPosts(many)}
         className="mt-4 w-fit text-[13px] text-ink-3 transition-colors hover:text-ink"
       >
-        {/* Posts lists the 30 days, and the link says so: the week's best post is above. */}
-        All posts, last 30 days
+        {many ? `All ${week.length} posts this week` : 'All posts, last 30 days'}
       </button>
     </section>
   )
@@ -472,11 +499,11 @@ function NumberCard({ kpis, period }: { kpis: Kpi[]; period: string }) {
           </button>
         ))}
       </div>
-      <span className="mt-5 flex items-baseline gap-2.5">
-        <span className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap tabular-nums">
-          {kpi.value}
+      {/* Quieter than the week's number: smaller, grey, and the unit in the same line of type. */}
+      <span className="mt-5 flex items-baseline gap-2.5 text-ink-3">
+        <span className="font-display text-[22px] leading-none font-medium tracking-[-0.02em] whitespace-nowrap tabular-nums">
+          {kpi.value} {UNIT[kpi.label] ?? kpi.label.toLowerCase()}
         </span>
-        <span className="text-[14px] text-ink-3">{UNIT[kpi.label] ?? kpi.label.toLowerCase()}</span>
         <span
           title={`${up ? 'Up' : 'Down'} ${Math.abs(kpi.delta)}% on the 30 days before`}
           className={`text-[13px] font-medium tabular-nums ${up ? 'text-(--insight-6)' : 'text-(--fail-ink)'}`}

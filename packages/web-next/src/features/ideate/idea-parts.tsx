@@ -88,18 +88,6 @@ export function FormatIcon({ format, size = 12 }: { format: IdeaFormat; size?: n
   return format === 'reel' ? <ReelIcon size={size} /> : <CarouselIcon size={size} />
 }
 
-export function StatusDot({ status }: { status: IdeaStatus }) {
-  return (
-    <span
-      className="flex items-center gap-1.5 font-mono text-[12px] tracking-[0.06em] uppercase"
-      style={{ color: status === 'suggested' ? 'var(--insight-6)' : 'var(--ink-4)' }}
-    >
-      <span className="size-1.5 rounded-full" style={{ background: statusColour(status) }} />
-      {STATUS_LABEL[status]}
-    </span>
-  )
-}
-
 /**
  * A new hook for a card, carried to the calendar: its post takes the words, or its idea tile does,
  * since an unplanned idea is found on the calendar by its hook.

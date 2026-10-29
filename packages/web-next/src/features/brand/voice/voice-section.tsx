@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { Fold } from '@/components/controls'
 import { ChevronIcon, CloseIcon } from '@/components/icons'
 import { useBrand } from '@/features/schedule/posts-store'
-import { demoOf } from '@/lib/remote'
+import { demoOf, report } from '@/lib/remote'
 
 import { useBrandKit } from '../brand-store'
 import { EYEBROW, QUIET, Section, type Voice } from '../kit-parts'
@@ -25,6 +25,15 @@ export function resetVoiceDrafts() {
 }
 
 const sameVoice = (a: Voice, b: Voice) => JSON.stringify(a) === JSON.stringify(b)
+
+/**
+ * The history's note: what changed, in the words of the review. A new summary is seen in the
+ * version itself, so it adds no words of its own.
+ */
+function noteOf(changes: string[]) {
+  const said = changes.filter((c) => c !== 'New summary')
+  return said.length > 1 ? `${said[0]}, and ${said.length - 1} more` : (said[0] ?? '')
+}
 
 /**
  * The voice, edited where it is read: the summary, the Say and Not words and the example lines
@@ -48,6 +57,11 @@ export function VoiceSection() {
   const [history, setHistory] = React.useState(false)
   const [landed, setLanded] = React.useState<number | null>(null)
   const [preview, setPreview] = React.useState(false)
+  // The preview opens under the last field, often below the screen: it comes into view.
+  const previewAt = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (preview) previewAt.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [preview])
   const [draft, setDraftState] = React.useState<Voice>(() => drafts.get(brand.id) ?? voice)
   // A new voice in use (the first one, or one saved elsewhere) fills fields with no draft.
   const [base, setBase] = React.useState(voice)
@@ -72,20 +86,18 @@ export function VoiceSection() {
 
   function save() {
     if (!changed) return
-    // The history says what changed, in the words of the review.
     const note =
       restoring && sameVoice(draft, restoring.voice)
         ? `Brought back v${restoring.n}`
-        : changes.length > 1
-          ? `${changes[0]}, and ${changes.length - 1} more`
-          : changes[0]
+        : noteOf(changes)
     const v = publishVoice(brand.id, draft, note)
     drafts.delete(brand.id)
     setDraftState(v.voice)
     setRestoring(null)
     setPreview(false)
     setLanded(v.n)
-    setHistory(true)
+    // Said once, where every other change is said; the history stays as the person left it.
+    report(`Saved · v${v.n}`)
   }
 
   function discard() {
@@ -219,24 +231,26 @@ export function VoiceSection() {
             </div>
           )}
           {changed && (
-            <Fold open={preview}>
-              <div className="flex flex-col">
-                {KINDS.map((k) => (
-                  <div
-                    key={k}
-                    className="flex flex-col gap-3 border-t border-line py-5 first:border-t-0 first:pt-0"
-                  >
-                    <span className={EYEBROW}>{k}</span>
-                    <SampleDiff
-                      draft={demoOf(SAMPLES, brand.id)?.[k] ?? ''}
-                      before={voice}
-                      after={result}
-                      labels={[`v${next - 1}`, `v${next}`]}
-                    />
-                  </div>
-                ))}
-              </div>
-            </Fold>
+            <div ref={previewAt} className="scroll-mt-24">
+              <Fold open={preview}>
+                <div className="flex flex-col">
+                  {KINDS.map((k) => (
+                    <div
+                      key={k}
+                      className="flex flex-col gap-3 border-t border-line py-5 first:border-t-0 first:pt-0"
+                    >
+                      <span className={EYEBROW}>{k}</span>
+                      <SampleDiff
+                        draft={demoOf(SAMPLES, brand.id)?.[k] ?? ''}
+                        before={voice}
+                        after={result}
+                        labels={[`v${next - 1}`, `v${next}`]}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Fold>
+            </div>
           )}
         </div>
       )}
@@ -248,7 +262,6 @@ export function VoiceSection() {
           onDone={(v) => {
             setFlow(false)
             setLanded(v)
-            setHistory(true)
           }}
         />
       )}
@@ -297,19 +310,19 @@ function History({
             {v.note && <span className="truncate text-[13px] text-ink-3">{v.note}</span>}
           </span>
           {i === 0 ? (
-            <span className="flex h-7 items-center gap-1.5 px-2.5 text-[12px] text-ink-3">
+            <span className="flex h-7 items-center gap-1.5 px-2.5 text-[13px] text-ink-3">
               <span className="size-1.5 rounded-full bg-live" />
               In use
             </span>
           ) : (
             <span className="relative flex h-7 items-center justify-end">
-              <span className="px-2.5 text-[12px] text-ink-4 transition-opacity duration-200 group-focus-within:opacity-0 group-hover:opacity-0 [@media(hover:none)]:hidden">
+              <span className="px-2.5 text-[13px] text-ink-4 transition-opacity duration-200 group-focus-within:opacity-0 group-hover:opacity-0 [@media(hover:none)]:hidden">
                 {v.when}
               </span>
               <button
                 type="button"
                 onClick={() => onRestore(v)}
-                className="absolute inset-y-0 right-0 flex items-center rounded-full px-2.5 text-[12px] whitespace-nowrap text-ink-2 opacity-0 transition duration-200 group-hover:opacity-100 hover:bg-surface hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:opacity-100"
+                className="absolute inset-y-0 right-0 flex items-center rounded-full px-2.5 text-[13px] whitespace-nowrap text-ink-2 opacity-0 transition duration-200 group-hover:opacity-100 hover:bg-surface hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:opacity-100"
               >
                 Bring back
               </button>
@@ -405,9 +418,7 @@ function Flow({
 
   function commit() {
     if (!proof || !changed || done || leaving) return
-    // The history says what changed, in the words of the review.
-    const note = changes.length > 1 ? `${changes[0]}, and ${changes.length - 1} more` : changes[0]
-    publishVoice(brand.id, draft, note)
+    publishVoice(brand.id, draft, noteOf(changes))
     setDone(true)
     later.after(HOLD, () => close(() => onDone(next)))
   }

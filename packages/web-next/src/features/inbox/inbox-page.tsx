@@ -69,6 +69,9 @@ export function InboxPage() {
   )
 }
 
+/** Marks the history entry of a message open on a phone. */
+const THREAD = 'inboxThread'
+
 function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   const phone = usePhone()
   const { done, sentTo: routed } = useInbox(brand.id)
@@ -99,10 +102,36 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
     return () => window.clearTimeout(t)
   }, [replied])
 
+  // On a phone an open message is a step in the browser's history: Back returns to the list.
+  function openThread(id: string) {
+    if (phone && !history.state?.[THREAD]) history.pushState({ [THREAD]: true }, '')
+    setSelected(id)
+  }
+  function closeThread() {
+    if (history.state?.[THREAD]) history.back()
+    else setSelected(null)
+  }
+  React.useEffect(() => {
+    if (!phone) return
+    const onPop = () => history.state?.[THREAD] || setSelected(null)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [phone])
+  // An entry left over from a thread that is no longer open (the page was left by the tab bar
+  // with it open, or reloaded on it) is stepped over, so one Back press always shows a change.
+  // Once only: a second Back (React's dev double mount) would leave the inbox altogether.
+  const stepped = React.useRef(false)
+  React.useEffect(() => {
+    if (stepped.current || !history.state?.[THREAD]) return
+    stepped.current = true
+    history.back()
+  }, [])
+
   function send(id: string, text: string) {
     setLeaving((s) => new Set(s).add(id))
     // On a phone the list comes back, so the reply is seen to leave it.
-    setSelected(phone ? null : nextAfter(staying, id))
+    if (phone) closeThread()
+    else setSelected(nextAfter(staying, id))
     window.setTimeout(() => {
       sendReply(brand.id, id, text)
       setReplied(id)
@@ -121,7 +150,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
       current={current?.id === m.id}
       leaving={leaving.has(m.id)}
       sentTo={routed[m.id]}
-      onOpen={() => setSelected(m.id)}
+      onOpen={() => openThread(m.id)}
     />
   )
 
@@ -203,7 +232,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
           {/* The open message: beside the list on a desktop, over it on a phone. */}
           {current &&
             (phone ? (
-              <FullScreen onBack={() => setSelected(null)}>
+              <FullScreen onBack={closeThread}>
                 <Thread
                   key={current.id}
                   m={current}
@@ -344,7 +373,7 @@ function Row({
             <span className="flex items-center gap-2">
               <span className="truncate text-[14px] font-medium">{m.from.name}</span>
               {m.tone === 'complaint' && <ComplaintMark sentTo={sentTo} />}
-              <span className="ml-auto shrink-0 text-[12px] text-ink-4 tabular-nums">
+              <span className="ml-auto shrink-0 text-[13px] text-ink-4 tabular-nums">
                 {ago(m.minutes)}
               </span>
             </span>
@@ -538,7 +567,7 @@ function Thread({
             >
               {marks[i] && (
                 <time
-                  className={`self-center pb-3 text-[12px] text-ink-4 ${i === 0 ? '' : 'pt-4'}`}
+                  className={`self-center pb-3 text-[13px] text-ink-4 ${i === 0 ? '' : 'pt-4'}`}
                 >
                   {marks[i]}
                 </time>
@@ -623,7 +652,7 @@ function Bubble({ item, tail }: { item: InboxEarlier; tail: boolean }) {
   if (item.from === 'note') {
     return (
       <div className="flex max-w-[82%] flex-col gap-0.5 self-center rounded-[14px] border border-dashed border-line-strong px-3.5 py-2.5 text-center">
-        <span className="text-[12px] text-ink-4">
+        <span className="text-[13px] text-ink-4">
           {firstName(item.by ?? '')} · only the team sees this
         </span>
         <p className="text-[13px] leading-[1.45] text-ink-2">{item.text}</p>
@@ -721,7 +750,7 @@ function SendTo({
           aria-label="Send to"
           className="bb-menu absolute top-10 right-0 z-20 flex w-[268px] origin-top-right flex-col rounded-[14px] bg-page p-1.5 shadow-pop"
         >
-          <span className="px-3 pt-1.5 pb-2 text-[12px] text-ink-4">Send this complaint to</span>
+          <span className="px-3 pt-1.5 pb-2 text-[13px] text-ink-4">Send this complaint to</span>
           {people.map((p) => {
             const on = picked.includes(p.name)
             return (
@@ -735,7 +764,7 @@ function SendTo({
               >
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="text-[13px] font-medium">{p.name}</span>
-                  <span className="text-[12px] text-ink-4">{p.role}</span>
+                  <span className="text-[13px] text-ink-4">{p.role}</span>
                 </span>
                 <span
                   aria-hidden="true"
@@ -791,7 +820,7 @@ function PostPeek({ m, post }: { m: InboxMessage; post: NonNullable<InboxMessage
       <span className="relative aspect-[4/5] max-h-[52svh] w-full overflow-hidden rounded-[12px] bg-tile">
         <Image src={post.image} alt="" fill sizes="320px" className="object-cover" />
       </span>
-      <span className="flex items-center gap-1.5 text-[12px] text-ink-4">
+      <span className="flex items-center gap-1.5 text-[13px] text-ink-4">
         <PlatformLogo platform={m.platform} size={10} />
         {whose} on {PLATFORM[m.platform]}
       </span>

@@ -1517,7 +1517,9 @@ function ConnectSources() {
           </span>
         ))}
       </span>
-      <span className="font-display text-[32px] leading-none">Bring in your moodboard</span>
+      <span className="font-display text-[28px] leading-none max-md:text-[22px]">
+        Bring in your moodboard
+      </span>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
         {(Object.keys(SOURCE_NAME) as MoodSource[]).map((source) => {
           const on = open === source

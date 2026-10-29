@@ -12,7 +12,7 @@ import { useReducedMotion } from '@/features/publish/preview-media'
  * fades in as it loads, and a value that slides from what it was to what it is now.
  */
 
-export const EYEBROW = 'font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase'
+export const EYEBROW = 'text-[13px] font-medium text-ink-3'
 
 /** The one-line title of a thing on a card: an idea's hook, a shoot's name. */
 export const TITLE = 'font-display text-[15px] leading-[1.2] tracking-[-0.01em] text-ink'

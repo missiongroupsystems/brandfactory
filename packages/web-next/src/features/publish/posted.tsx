@@ -208,8 +208,13 @@ function Switch({
   )
 }
 
-/** A post with no counts: one line. The ghost of a chart with no figures read as broken. */
-const NO_NUMBERS = <p className="text-[13px] text-ink-3">No numbers yet.</p>
+/**
+ * A post with no counts: one line that says why. The ghost of a chart with no figures read as
+ * broken, and "No numbers yet" alone left the person to guess when they come.
+ */
+const NO_NUMBERS = (
+  <p className="text-[13px] text-ink-3">Numbers arrive about a day after posting.</p>
+)
 
 /** "Open on Instagram ↗": a pill, so the way to the post is easy to find. */
 function OpenPill({ href, on }: { href: string; on: ChannelKey }) {
@@ -316,7 +321,7 @@ export function PostedPost({ v }: { v: PostedView }) {
   const quiet = v.went.every((c) => readingOn(v.post, c, v.went).counts.length === 0)
   return (
     <div
-      className={`grid items-start gap-14 max-lg:grid-cols-1 max-lg:gap-6 ${bare ? '' : quiet ? 'grid-cols-[200px_minmax(0,1fr)]' : 'grid-cols-[300px_minmax(0,1fr)]'}`}
+      className={`grid items-start gap-14 max-lg:grid-cols-1 max-lg:gap-6 ${bare ? '' : quiet ? 'grid-cols-[140px_minmax(0,1fr)]' : 'grid-cols-[300px_minmax(0,1fr)]'}`}
     >
       {!bare && (
         <aside className="sticky top-6 max-lg:hidden">

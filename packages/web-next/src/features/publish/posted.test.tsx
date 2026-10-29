@@ -134,7 +134,7 @@ describe('the cover', () => {
 
   it('names no account, and offers no counts or link, when none is recorded', () => {
     open({ went: [], post: { ...post, permalink: 'https://www.instagram.com/p/C1/' } })
-    expect(screen.getByText('No numbers yet.')).toBeInTheDocument()
+    expect(screen.getByText('Numbers arrive about a day after posting.')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /^Open on/ })).toBeNull()
     expect(screen.queryByText('22.1k')).toBeNull()
   })
@@ -215,7 +215,7 @@ describe('a post with no numbers', () => {
   // A chart of grey bars with an "Unavailable" pill read as a broken page: one line says it.
   it('says so in one line, with no empty chart and no Spend', () => {
     open({ post: { ...post, metrics: undefined } })
-    expect(screen.getByText('No numbers yet.')).toBeInTheDocument()
+    expect(screen.getByText('Numbers arrive about a day after posting.')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Analytics' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Unavailable' })).toBeNull()
     expect(screen.queryByText('Spend')).toBeNull()
@@ -224,7 +224,7 @@ describe('a post with no numbers', () => {
   it('has no such line when the counts are there', () => {
     open({})
     expect(screen.getByText('22.1k')).toBeInTheDocument()
-    expect(screen.queryByText('No numbers yet.')).toBeNull()
+    expect(screen.queryByText('Numbers arrive about a day after posting.')).toBeNull()
   })
 })
 
@@ -301,7 +301,7 @@ describe('a post on more than one account', () => {
     const width = () => aside().parentElement!.className
     const before = width()
     fireEvent.click(within(account()).getByRole('radio', { name: 'Instagram' }))
-    expect(screen.getByText('No numbers yet.')).toBeInTheDocument()
+    expect(screen.getByText('Numbers arrive about a day after posting.')).toBeInTheDocument()
     expect(width()).toBe(before)
   })
 

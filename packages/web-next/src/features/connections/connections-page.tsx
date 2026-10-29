@@ -62,7 +62,7 @@ export function ConnectionsPage() {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main key={brand.id} className={`bb-swap flex flex-col pb-24 ${PAGE}`}>
-        <PageTitle title="Connections" back />
+        <PageTitle title="Connections" />
         <div className="flex w-full max-w-[640px] flex-col gap-8 pt-2 max-md:pt-1">
           {GROUPS.map((g) => (
             // Each row says what it brings: the group is named for a screen reader only.
@@ -110,6 +110,17 @@ function Row({
         : 'off'
       : stored
   const name = tiktok ? (account?.name ?? null) : make ? (linked?.name ?? null) : linkedName
+  // What it brings while it is off (none where its name and Connect say it), else how it is linked.
+  const line =
+    status === 'off'
+      ? tiktok
+        ? 'Videos to the TikTok inbox'
+        : make
+          ? MAKE_BRINGS[source as MakeKey]
+          : info.brings
+      : status === 'attention'
+        ? 'Signed out · sign in again'
+        : (name ?? info.account(brand))
   return (
     <li className="flex items-center gap-3.5 border-t border-line px-4 py-3.5 first:border-t-0 max-md:gap-3 max-md:px-3.5">
       <span
@@ -122,26 +133,20 @@ function Row({
         )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[14.5px] font-medium">{info.name}</span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
-          {status !== 'off' && (
-            <span
-              aria-hidden="true"
-              className={`size-1.5 shrink-0 rounded-full ${status === 'connected' ? 'bg-(--live)' : 'bg-fail'}`}
-            />
-          )}
-          <span className={`truncate ${status === 'attention' ? 'text-fail-ink' : ''}`}>
-            {status === 'off'
-              ? tiktok
-                ? 'Videos to the TikTok inbox'
-                : make
-                  ? MAKE_BRINGS[source as MakeKey]
-                  : info.brings
-              : status === 'attention'
-                ? 'Signed out · sign in again'
-                : (name ?? info.account(brand))}
+        <span className="truncate text-[14px] font-medium">{info.name}</span>
+        {line && (
+          <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
+            {status !== 'off' && (
+              <span
+                aria-hidden="true"
+                className={`size-1.5 shrink-0 rounded-full ${status === 'connected' ? 'bg-(--live)' : 'bg-fail'}`}
+              />
+            )}
+            <span className={`truncate ${status === 'attention' ? 'text-fail-ink' : ''}`}>
+              {line}
+            </span>
           </span>
-        </span>
+        )}
       </span>
       {notAvailable(source) && !tiktok && !make ? (
         <NotAvailable reason={reasonOf(info.name)} />
@@ -227,7 +232,7 @@ function RowMenu({
         setOpen(false)
         act()
       }}
-      className={`rounded-[8px] px-2.5 py-[7px] text-left text-[13.5px] transition-colors hover:bg-surface-2 ${danger ? 'text-fail-ink' : 'text-ink'}`}
+      className={`rounded-[8px] px-2.5 py-[7px] text-left text-[13px] transition-colors hover:bg-surface-2 ${danger ? 'text-fail-ink' : 'text-ink'}`}
     >
       {label}
     </button>

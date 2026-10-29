@@ -4,6 +4,7 @@ import * as React from 'react'
 
 import { initials } from '@/components/account-menu'
 import { AppHeader } from '@/components/app-header'
+import { SECTION } from '@/components/page-title'
 import { onUser, removeAvatar, saveName, setPassword, uploadAvatar } from '@/lib/remote'
 
 import { AvatarCrop } from './avatar-crop'
@@ -218,7 +219,7 @@ export function ProfilePage() {
           </label>
           <div className="flex flex-col gap-1.5">
             <span className={LABEL}>Email</span>
-            <span className="text-[15px] text-ink-3">{email}</span>
+            <span className="text-[14px] text-ink-3">{email}</span>
           </div>
           {nameError && (
             <p role="alert" className="text-[13px] text-red-600">
@@ -240,7 +241,7 @@ export function ProfilePage() {
         </form>
 
         <form onSubmit={submitPassword} noValidate className="flex flex-col gap-3">
-          <h2 className="mb-1 text-[15px] font-semibold">Change password</h2>
+          <h2 className={`mb-1 ${SECTION}`}>Change password</h2>
           <label className="sr-only" htmlFor="password">
             New password
           </label>

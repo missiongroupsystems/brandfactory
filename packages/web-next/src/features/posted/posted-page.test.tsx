@@ -86,12 +86,12 @@ describe('Posted in the static demo', () => {
     ).toBeInTheDocument()
   })
 
-  it('gives every cover the same count, and a dash to one that has none yet', () => {
+  it('gives every cover the same count, and no mark to one that has none yet', () => {
     open()
-    // The margherita reel went out today: no reach yet, but its cover still carries the slot.
+    // The margherita reel went out today: no reach yet, so its cover carries no count at all.
     const margherita = tile('Margherita, oven to table')
     expect(counted(margherita)).toBe(false)
-    expect(margherita).toHaveTextContent('–')
+    expect(margherita).not.toHaveTextContent('–')
     expect(counted(tile('Ravioli, filled by hand.'))).toBe(true)
   })
 

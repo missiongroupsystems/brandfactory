@@ -30,7 +30,8 @@ describe('the static demo', () => {
     const month = within(screen.getByRole('region', { name: 'The month in numbers' }))
     expect(month.getByRole('heading', { name: 'Last 30 days' })).toBeInTheDocument()
     expect(month.getByText('7 Sep – 6 Oct')).toBeInTheDocument()
-    expect(month.getByText(demo.kpis[0]!.value)).toBeInTheDocument()
+    // Quieter than the week's: the unit sits in the same line of type, not as a label beside it.
+    expect(month.getByText(`${demo.kpis[0]!.value} reach`)).toBeInTheDocument()
     // The change says, to a screen reader too, what it is measured against.
     expect(month.getByTitle(/on the 30 days before$/)).toHaveTextContent(
       /^\+[\d.]+% on the 30 days before$/,
@@ -106,6 +107,29 @@ describe('this week', () => {
     expect(rows[0]).toHaveTextContent('Ravioli, filled by hand.')
     expect(rows[0]).toHaveTextContent('11.2k reach')
     for (const row of rows) expect(row).toHaveTextContent(/\d(k|\.\dk)? reach.*\d saves/)
+  })
+
+  // A week of several posts is listed on its own: the 30 days would bury it.
+  it('lists only the week’s posts when the week has more than one', () => {
+    const posts = INSIGHTS_BY_BRAND['casa-vostra'].posts
+    const extra = { ...posts.at(-1)!, hook: 'A second post this week', date: '5 OCT', reach: 900 }
+    posts.push(extra)
+    try {
+      open()
+      fireEvent.click(card().getByRole('button', { name: 'All 2 posts this week' }))
+      expect(screen.getByText('This week · 30 Sep – 6 Oct')).toBeInTheDocument()
+      const rows = within(screen.getByRole('region', { name: 'Posts' })).getAllByRole('link')
+      expect(rows.map((r) => r.textContent)).toEqual([
+        expect.stringContaining('Pasta by hand'),
+        expect.stringContaining('A second post this week'),
+      ])
+      // The View switch itself lists the whole 30 days again.
+      fireEvent.click(screen.getByRole('radio', { name: 'Overview' }))
+      fireEvent.click(screen.getByRole('radio', { name: 'Posts' }))
+      expect(screen.getByText('Last 30 days · 7 Sep – 6 Oct')).toBeInTheDocument()
+    } finally {
+      posts.pop()
+    }
   })
 })
 

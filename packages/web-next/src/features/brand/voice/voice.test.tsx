@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BRAND_KIT } from '@/data/brand-kit'
 import { BrandProvider } from '@/features/schedule/posts-store'
+import { onProblem } from '@/lib/remote'
 
 import { BrandPage } from '../brand-page'
 import { editKit, resetBrandKit, useBrandKit } from '../brand-store'
@@ -16,6 +17,9 @@ vi.mock('next/navigation', () => ({
 }))
 
 const casa = BRAND_KIT['casa-vostra'].voice
+
+// jsdom has no scrolling; the preview scrolls into view when it opens.
+Element.prototype.scrollIntoView = vi.fn()
 
 beforeEach(() => {
   resetBrandKit()
@@ -176,6 +180,36 @@ describe('editing the voice in place', () => {
     fireEvent.click(section().getByRole('button', { name: 'Save' }))
     expect(section().queryByText('Brought back v3')).not.toBeInTheDocument()
     expect(section().getByText(/“made this morning” → “rolled”/)).toBeInTheDocument()
+  })
+
+  // The judge saved and saw the history open and push the voice down, with no word of the save.
+  it('says the save in the app’s one toast, and leaves the history shut', () => {
+    const said = vi.fn()
+    const stop = onProblem(said)
+    open()
+    fireEvent.change(say1(), { target: { value: 'rolled' } })
+    fireEvent.click(save()!)
+    stop()
+    expect(said).toHaveBeenCalledWith('Saved · v5', undefined)
+    expect(history()).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('notes no "New summary" in the history: the version shows the summary itself', () => {
+    open()
+    fireEvent.change(screen.getByRole('textbox', { name: 'How the brand sounds' }), {
+      target: { value: 'Short and bright.' },
+    })
+    fireEvent.click(save()!)
+    expect(inUse()).toHaveTextContent(/v5/)
+    expect(section().queryByText('New summary')).toBeNull()
+  })
+
+  it('brings the preview into view when it opens', () => {
+    open()
+    fireEvent.change(say1(), { target: { value: 'rolled' } })
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
+    fireEvent.click(section().getByRole('button', { name: /^Preview/ }))
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })
 
   it('saves on ⌘Enter from any field', () => {

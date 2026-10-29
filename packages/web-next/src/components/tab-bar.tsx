@@ -46,7 +46,7 @@ export function TabBar() {
       key={t.href}
       href={t.href}
       aria-current={current(t.href) ? 'page' : undefined}
-      className={`flex flex-1 flex-col items-center gap-1 pt-2 text-[12px] font-medium transition-colors ${current(t.href) ? 'text-ink' : 'text-ink-4'}`}
+      className={`flex flex-1 flex-col items-center gap-1 pt-2 text-[13px] font-medium transition-colors ${current(t.href) ? 'text-ink' : 'text-ink-3'}`}
     >
       <span className="relative">
         {t.icon}

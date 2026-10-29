@@ -7,7 +7,7 @@ import { CloseIcon, PencilIcon } from '@/components/icons'
 import { ProfilePicture } from '@/components/profile-picture'
 
 const ITEM =
-  'rounded-[8px] px-2.5 py-[7px] text-left text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
+  'rounded-[8px] px-2.5 py-[7px] text-left text-[13px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
 const SIZE = 96
 
 /**

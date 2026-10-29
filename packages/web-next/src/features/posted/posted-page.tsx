@@ -343,18 +343,16 @@ function Tile({
           {mark}
         </span>
       )}
-      {headline && (
-        // The grid's one count on every cover; a quiet dash on one that has none yet.
+      {head && (
+        // The grid's one count, on every cover that has it; none on one with no count yet.
         <span
-          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[13px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[12px] ${ON_COVER} ${head ? '' : 'opacity-70'}`}
+          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[13px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 ${ON_COVER}`}
         >
-          {GLYPH[headline] ?? null}
-          {head ? k(head.value) : <span aria-hidden="true">–</span>}
-          {head && (
-            <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
-              {head.label.toLowerCase()}
-            </span>
-          )}
+          {GLYPH[head.key] ?? null}
+          {k(head.value)}
+          <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
+            {head.label.toLowerCase()}
+          </span>
         </span>
       )}
       {/* The post laid over its cover, on hover or focus; a phone opens the poster instead. */}

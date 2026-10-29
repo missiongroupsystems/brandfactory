@@ -19,7 +19,7 @@ interface SourceInfo {
   name: string
   /** The account or place it is linked as. */
   account: (brand: Brand) => string
-  /** What it brings, in a few words, shown while it is not linked. */
+  /** What it brings, in a few words, shown while it is not linked; empty when the name says it. */
   brings: string
   /** What the sign-in asks for, one plain line each. */
   asks: (brand: Brand) => string[]
@@ -47,7 +47,8 @@ export const SOURCES: Record<SourceKey, SourceInfo> = {
   pinterest: {
     name: 'Pinterest',
     account: (b) => `${b.name} board · ${PINTEREST_ACCOUNT}`,
-    brings: 'Pins for the moodboard',
+    // "Connect" beside its name says it: no line of its own.
+    brings: '',
     asks: (b) => [`Read the pins on ${b.name}’s board`],
   },
   drive: {
@@ -259,10 +260,10 @@ export function ConnectSheet({
                 : `Connect ${info.name}`}
           </h2>
           {!unset && (
-            <p className="text-[13.5px] text-ink-3">
+            <p className="text-[13px] text-ink-3">
               {step === 'done'
                 ? `${brand.name} is linked as ${info.account(brand)}.`
-                : `For ${brand.name}, brand base wants to:`}
+                : `${brand.name}’s ${info.name}:`}
             </p>
           )}
         </div>

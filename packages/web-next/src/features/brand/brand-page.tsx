@@ -78,7 +78,7 @@ export function BrandPage() {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main key={brand.id} className={`bb-swap flex flex-col pb-24 ${COLUMN}`}>
-        <PageTitle title="Brand kit" back />
+        <PageTitle title="Brand kit" />
         {/* The page reads in one column, from the same left edge as every title. */}
         <div className="flex w-full max-w-[760px] flex-col">
           <p className="max-w-[560px] pb-8 text-[16px] text-ink-3 max-md:pb-6">{brand.line}</p>
@@ -284,7 +284,7 @@ function FileRow({
         ) : (
           <span className="truncate text-[14px] font-medium">{file.title}</span>
         )}
-        <span className="truncate text-[12px] text-ink-4">
+        <span className="truncate text-[13px] text-ink-4">
           {file.updated} · {file.name}
         </span>
       </span>

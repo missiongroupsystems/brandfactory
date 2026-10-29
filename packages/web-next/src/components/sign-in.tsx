@@ -20,12 +20,19 @@ export function signInError(err: unknown): string {
       ? 'That email and password did not work.'
       : 'No account with that user id.'
   console.error('sign-in failed:', err instanceof Error ? err.message : err)
+  // What to fix, where the failure says it: the connection, or a server that is down.
+  if (!(err instanceof RemoteError)) return 'No connection. Check the internet and try again.'
+  if (err.status >= 500) return 'brand base is not answering. Try again in a minute.'
   return 'Sign-in did not work. Try again.'
 }
 
+/** The dev sign-in's hint shows only in a dev build. */
+const DEV = process.env.NODE_ENV === 'development'
+
 /**
  * One screen, one action: an email and a password, then the app. Each field says what it wants
- * above it; the core's dev sign-in (no Supabase) asks for a user id, and says where to find one.
+ * above it; the core's dev sign-in (no Supabase) asks for a user id, and a dev build says where to
+ * find one.
  */
 export function SignIn() {
   const [email, setEmail] = React.useState('')
@@ -63,14 +70,14 @@ export function SignIn() {
             id="email"
             type={passwordSignIn ? 'email' : 'text'}
             autoComplete="username"
-            aria-describedby={passwordSignIn ? undefined : 'email-hint'}
+            aria-describedby={!passwordSignIn && DEV ? 'email-hint' : undefined}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={field}
             required
           />
         </label>
-        {!passwordSignIn && (
+        {!passwordSignIn && DEV && (
           <p id="email-hint" className="-mt-1 text-[13px] text-ink-3">
             Dev sign-in: the id of a user in the core&apos;s database.
           </p>

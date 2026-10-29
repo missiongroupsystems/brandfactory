@@ -14,16 +14,19 @@ describe('a failed sign-in', () => {
   })
 
   // A 404 or 403 from the core is not a wrong id or password: saying so would mislead.
-  it('asks to try again for any other failure, and logs its words', () => {
+  it('says what to fix for any other failure, and logs its words', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(signInError(new RemoteError(404, 'ERROR', 'Not Found'))).toBe(
       'Sign-in did not work. Try again.',
     )
     expect(log).toHaveBeenCalledWith('sign-in failed:', 'Not Found')
+    // A server that is down, or no connection, is not fixed by typing again: it says so.
     expect(signInError(new RemoteError(500, 'ERROR', 'Internal Server Error'))).toBe(
-      'Sign-in did not work. Try again.',
+      'brand base is not answering. Try again in a minute.',
     )
-    expect(signInError(new TypeError('Failed to fetch'))).toBe('Sign-in did not work. Try again.')
+    expect(signInError(new TypeError('Failed to fetch'))).toBe(
+      'No connection. Check the internet and try again.',
+    )
     log.mockRestore()
   })
 })

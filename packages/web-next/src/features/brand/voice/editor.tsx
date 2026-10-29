@@ -16,6 +16,12 @@ import { EYEBROW, QUIET, type Voice } from '../kit-parts'
 const BARE =
   'min-w-0 rounded-[8px] bg-transparent outline-none transition-colors placeholder:text-ink-5 hover:bg-surface/70 focus:bg-surface'
 
+/**
+ * On a phone a fill would reach past the page's 16px margin: the text sits on the margin, with
+ * no fill, and the caret (and a row's darker rule) shows the field in use.
+ */
+const FLUSH = 'max-md:mx-0 max-md:px-0 max-md:focus:bg-transparent'
+
 /** The dot beside a field or a row that changes the voice in use; its words describe the field. */
 function Changed({
   id,
@@ -45,7 +51,7 @@ export function SummaryField({
 }) {
   const id = React.useId()
   return (
-    <div className="relative -mx-3 max-md:-mx-2">
+    <div className="relative -mx-3 max-md:mx-0">
       {changed && <Changed id={id} />}
       <textarea
         aria-label="How the brand sounds"
@@ -54,7 +60,7 @@ export function SummaryField({
         placeholder="How does the brand sound?"
         onChange={(e) => onChange(e.target.value)}
         rows={2}
-        className={`${BARE} w-full field-sizing-content resize-none px-3 py-2 font-display text-[24px] leading-[1.3] tracking-[-0.02em] caret-ink max-md:px-2 max-md:text-[20px]`}
+        className={`${BARE} w-full field-sizing-content resize-none px-3 py-2 font-display text-[24px] leading-[1.3] tracking-[-0.02em] caret-ink max-md:text-[20px] ${FLUSH}`}
       />
     </div>
   )
@@ -115,7 +121,7 @@ export function WordsField({
             autoComplete="off"
             placeholder="a word to use"
             onChange={(e) => set(i, 'use', e.target.value)}
-            className={`${BARE} -mx-2 px-2 py-1.5 text-[14px]`}
+            className={`${BARE} -mx-2 px-2 py-1.5 text-[14px] ${FLUSH}`}
           />
           <input
             aria-label={`Not ${i + 1}`}
@@ -125,7 +131,7 @@ export function WordsField({
             autoComplete="off"
             placeholder="instead of"
             onChange={(e) => set(i, 'avoid', e.target.value)}
-            className={`${BARE} -mx-2 px-2 py-1.5 text-[14px] text-ink-4 decoration-ink-5 not-focus:line-through`}
+            className={`${BARE} -mx-2 px-2 py-1.5 text-[14px] text-ink-4 decoration-ink-5 not-focus:line-through ${FLUSH}`}
           />
           <Remove
             label={`Remove ${w.use || 'pair'}`}

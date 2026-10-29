@@ -55,7 +55,7 @@ export function SavedWhisper({ at }: { at: number }) {
   return (
     <span
       aria-hidden={!visible}
-      className={`flex items-center gap-1.5 text-[12px] text-ink-4 transition-opacity duration-500 ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className={`flex items-center gap-1.5 text-[13px] text-ink-4 transition-opacity duration-500 ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
       <CheckIcon size={10} />
       Saved

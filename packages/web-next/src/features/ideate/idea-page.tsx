@@ -754,7 +754,9 @@ function References({
           sort.end(true)
           board.end()
         }}
-        className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-3 gap-y-4 max-md:grid-cols-2"
+        // On a phone one row of smaller tiles that scrolls sideways, so the ways to add one are
+        // on the first screen, not two screens down.
+        className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-3 gap-y-4 max-md:-mx-4 max-md:flex max-md:snap-x max-md:scroll-px-4 max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none]"
       >
         {refs.map((r) => (
           <RefTile
@@ -888,7 +890,7 @@ function RefTile({
       }}
       // The live order is drawn, not written to the DOM: a moved node would end a finger's drag.
       style={{ order: index }}
-      className="group/ref bb-touch-drag relative cursor-grab active:cursor-grabbing"
+      className="group/ref bb-touch-drag relative cursor-grab active:cursor-grabbing max-md:w-[128px] max-md:shrink-0 max-md:snap-start"
     >
       <Handle label={`Move reference ${index + 1}: ${r.note}`} hint={hint} onNudge={onNudge} />
       <div
