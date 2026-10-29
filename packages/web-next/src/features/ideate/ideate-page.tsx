@@ -7,6 +7,7 @@ import * as React from 'react'
 import { flushSync } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
+import { LoadingDots } from '@/components/loading-dots'
 import { Segmented } from '@/components/controls'
 import {
   ArrowUpRightIcon,
@@ -967,20 +968,8 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
       {shown.length === 0 &&
       (!current || current.source === 'pinterest') &&
       pinsLoading(brand.id) ? (
-        // Pinterest's pins take a few seconds: three dots, as the inbox shows while it writes.
-        <span
-          role="status"
-          aria-label="Loading the moodboard"
-          className="flex items-center justify-center gap-1.5 py-24"
-        >
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="bb-pulse size-2 rounded-full bg-ink-4"
-              style={{ animationDelay: `${i * 160}ms` }}
-            />
-          ))}
-        </span>
+        // Pinterest's pins take a few seconds.
+        <LoadingDots label="Loading the moodboard" className="py-24" />
       ) : (
         <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
       )}

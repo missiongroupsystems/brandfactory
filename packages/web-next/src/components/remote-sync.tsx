@@ -16,6 +16,7 @@ import {
 } from '@/lib/remote'
 
 import { PUBLIC_PATHS } from './legal'
+import { LoadingDots } from './loading-dots'
 import { NoCompany } from './no-company'
 import { SetPassword } from './set-password'
 
@@ -96,20 +97,8 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
       ) : state === 'waiting' ? (
         <NoCompany onSignOut={leave} />
       ) : (
-        // The account is loading: three dots, as the inbox shows while it writes, not a blank page.
-        <div
-          role="status"
-          aria-label="Loading"
-          className="flex min-h-dvh items-center justify-center gap-1.5 bg-page"
-        >
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="bb-pulse size-2 rounded-full bg-ink-4"
-              style={{ animationDelay: `${i * 160}ms` }}
-            />
-          ))}
-        </div>
+        // The account is loading: dots that rise in turn, not a blank page.
+        <LoadingDots label="Loading" className="min-h-dvh bg-page" />
       )}
       {problem && (
         <div

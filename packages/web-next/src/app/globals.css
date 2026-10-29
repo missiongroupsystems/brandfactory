@@ -117,6 +117,19 @@
     opacity: 0.35;
   }
 }
+/* Loading: a dot rises a little and brightens, then settles; three in turn (LoadingDots). */
+@keyframes bb-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
 @keyframes bb-deal {
   from {
     opacity: 0;
@@ -187,6 +200,9 @@
 @utility bb-fade-out {
   animation: bb-fade-out 240ms ease both;
 }
+@utility bb-bounce {
+  animation: bb-bounce 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
 @utility bb-deal {
   animation: bb-deal 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -244,6 +260,11 @@
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
     transition-duration: 1ms !important;
+  }
+  /* A looping animation at 1ms would flicker: the loading dots rest instead. */
+  .bb-bounce {
+    animation: none !important;
+    opacity: 0.6;
   }
 }
 
