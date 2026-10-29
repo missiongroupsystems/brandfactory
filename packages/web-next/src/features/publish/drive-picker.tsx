@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
-import { CheckIcon, ChevronIcon, CloseIcon } from '@/components/icons'
+import { CheckIcon, ChevronIcon, CloseIcon, SearchIcon } from '@/components/icons'
 import { isVideo, Media } from '@/components/media'
 import { DRIVE, folderAt, searchDrive, type DriveFolder, type DriveHit } from '@/data/publish'
 import { useBrand } from '@/features/schedule/posts-store'
@@ -117,7 +117,7 @@ export function DrivePicker({
   const field = (
     <label className="relative flex h-9 items-center max-md:h-10">
       <span className="pointer-events-none absolute left-3 text-ink-4">
-        <SearchGlyph />
+        <SearchIcon />
       </span>
       <input
         type="search"
@@ -584,15 +584,6 @@ function FolderGlyph({ size = 15 }: { size?: number }) {
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
-    </svg>
-  )
-}
-
-function SearchGlyph() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <circle cx="6" cy="6" r="4.4" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M9.4 9.4L12.6 12.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }

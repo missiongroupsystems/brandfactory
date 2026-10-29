@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.1** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip's × removes the board in one click, with no "Remove {board}?" step; the "+" picker adds it back. The board picker lists the boards on the moodboard first, under "On the moodboard", then "Other boards", and gets a search field once an account has more than six boards (Escape clears it first). The list is shorter (about four rows) and scrolls. The Drive picker's search icon moves to the shared icons. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.0** — 2026-10-29 — `feat/make-publishing`: Instagram and Facebook post through Make (make.com) until our own Meta app passes review (brandbase 1.12.0, migration 0020, not applied to production; released together with 2.42.0 on `release/pinterest-make`: 1.11.0 is never promoted on its own, so production goes from 1.10.0 to 1.12.0 in one migrate, 0019 then 0020). An owner or admin of a company on the operator's list (Mission Group) enters the brand's Instagram account id and Page id on Connections; at a post's time the scheduler sends the job to a Make custom webhook (`MAKE_WEBHOOK_URL`, key in `x-make-apikey`), the scenario posts with Make's modules and answers in the same request. Photo, carousel and reel; Stories stay planned only, TikTok stays planned only beside them. The core runs up to ten sends at once and keeps a connector's own words. 1328 tests, all run on a throwaway Postgres 18.
 - **2.42.0** — 2026-10-29 — `feat/pinterest-boards`: a moodboard reads several Pinterest boards (brandbase 1.11.0, migration 0019, not applied to production). Each board is a chip: a × on hover asks "Remove {board}?" and a ✓ removes it. The "+" opens the board picker with the boards read now ticked, to add or change them, and a ↗ on each row opens the board on Pinterest (its pinterest.com address). The chip row scrolls sideways and never wraps. Removing the last board turns Pinterest off and keeps the account. An existing board carries over. The core needs a deploy. 1305 tests, all run on a throwaway Postgres; `core test brandbase 1.11.0` 197/197.
 - **2.41.0** — 2026-10-23 — `feat/tiktok-upload`: TikTok, upload only (brandbase 1.10.0, migration 0018, not applied to production). A brand connects its own TikTok account on Connections (Login Kit, scopes `user.info.basic` and `video.upload` only), which then shows the account's name and picture; a planned TikTok video post has a "Send to TikTok inbox" card: the video goes to the account's TikTok inbox as a draft, and the team finishes the post in the TikTok app. Nothing is posted from Brand Base; Instagram and Facebook stay "Unavailable" and the composer still plans only. The core needs a deploy and the `TIKTOK_*` settings. 1288 tests, all run on a throwaway Postgres; `core test brandbase 1.10.0` 193/193.
@@ -89,6 +90,24 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.43.1 — 2026-10-29
+
+- **Why.** After the 1.12.0 release the owner found the confirm step on a board chip slow for an
+  action that is easy to undo, and the board picker too tall for an account with many boards.
+- **web-next.** `BoardChip` loses its confirm state: the × calls the remove at once. The board
+  picker (`PinterestSetup`) puts the boards read when it opened first, so a row never jumps when
+  it is ticked; the two group headings show only when the list splits in two. A search field
+  (`SEARCH_FROM`, more than six boards) filters by name; "No boards match" when nothing does. The
+  list is 264 px high. `SearchIcon` joins `components/icons.tsx`, and the Drive picker uses it.
+- **Tests.** `pinterest-boards-remote.test.tsx`: the × sends the list without the board in one
+  click; the picker lists the moodboard's board first under its heading and shows no search for
+  two boards; a seven-board account filters by name, says when nothing matches, and Escape clears
+  the search.
+- **Checked in a browser.** The web app against a stand-in core answered by Playwright, at
+  1280 × 860 and 390 × 844 (viewport only): a chip removed in one click, the picker with twelve
+  boards, and a search.
+- 1343 tests (237 skipped without a Postgres server).
+
 ## 2.43.0 — 2026-10-29
 
 - **Why.** No Meta developer account yet. Make has its own approved Meta app; Brand Base calls a
@@ -159,7 +178,7 @@ One line each — full write-ups are under the matching `##` heading further dow
   Escape or a press elsewhere keeps the board. On the core with Pinterest connected, the "+" opens
   the board picker with checkboxes, Save, and a ↗ per row to open the board on Pinterest. The chip
   row never wraps: it scrolls, with a fade at an edge that has more. The static demo is unchanged.
-- **Docs.** `docs/completions/pinterest-boards-phases-1-to-1.md`, with the production steps.
+- **Docs.** `docs/completions/pinterest-boards-phases-1-to-2.md`, with the production steps.
 - **Checked** in a browser (Playwright, a local core with a stand-in Pinterest): connect, tick two
   boards, a chip's ×, its confirm state, the "+" picker with ↗, an overflowing row, remove a
   board; desktop and phone.

@@ -8,8 +8,8 @@ import type * as Remote from '@/lib/remote'
 import { IdeatePage } from './ideate-page'
 
 // On the core, with Pinterest set up: the moodboard reads every board the brand picked. Each board
-// is a chip with a × that asks before it removes the board, and the "+" opens the board picker with
-// the boards read now ticked, each with a link to open it on Pinterest.
+// is a chip with a × that removes the board in one click, and the "+" opens the board picker with
+// the boards read now ticked and listed first, each with a link to open it on Pinterest.
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_CORE_URL = 'https://core.test'
 })
@@ -92,7 +92,7 @@ function openMoodboard() {
 const folders = () => screen.getByRole('tablist', { name: 'Folders' })
 
 describe('the moodboard’s Pinterest boards on the core', () => {
-  it('shows each board as a chip that removes it only once confirmed', async () => {
+  it('shows each board as a chip that its × removes in one click', async () => {
     answers['/brands/casa-vostra/pinterest/pins'] = { boards: [TACOS, SALSA] }
     openMoodboard()
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
@@ -101,35 +101,9 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
     expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
 
-    // The × asks first: the chip reads "Remove Tacos?" and nothing is sent. Escape keeps the board.
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
-    expect(within(folders()).getByRole('tab', { name: 'Remove Tacos?' })).toBeVisible()
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(within(folders()).getByRole('tab', { name: /^Tacos$/ })).toBeVisible()
-    // A press elsewhere keeps it too.
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
-    fireEvent.pointerDown(document.body)
-    expect(screen.queryByRole('button', { name: 'Yes, remove Tacos' })).toBeNull()
-    // A mouse leaving the chip keeps the board; a finger lifting off it does not cancel.
-    const chip = () => within(folders()).getByRole('tab', { name: /Tacos/ }).parentElement!
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
-    fireEvent.pointerLeave(chip(), { pointerType: 'touch' })
-    expect(screen.getByRole('button', { name: 'Yes, remove Tacos' })).toBeVisible()
-    fireEvent.pointerLeave(chip(), { pointerType: 'mouse' })
-    expect(screen.queryByRole('button', { name: 'Yes, remove Tacos' })).toBeNull()
-    // Pressing the chip's label while it asks keeps the board and does not open it.
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
-    fireEvent.click(within(folders()).getByRole('tab', { name: 'Remove Tacos?' }))
-    expect(within(folders()).getByRole('tab', { name: /^Tacos$/ })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    )
-    expect(sends.some(([method]) => method === 'PUT')).toBe(false)
-
-    // The ✓ sends the list without the board; the moodboard reads the rest afresh.
+    // The × sends the list without the board at once; the moodboard reads the rest afresh.
     answers['/brands/casa-vostra/pinterest/pins'] = { boards: [SALSA] }
     fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove Tacos' }))
     await waitFor(() =>
       expect(sends).toContainEqual(['PUT', '/brands/casa-vostra/pinterest', { boardIds: ['222'] }]),
     )
@@ -153,6 +127,16 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     const tacos = within(boards).getByRole('checkbox', { name: /Tacos/ })
     expect(salsa).toHaveAttribute('aria-checked', 'true')
     expect(tacos).toHaveAttribute('aria-checked', 'false')
+    // The board on the moodboard comes first, under its own heading, though the account lists
+    // Tacos first.
+    const order = within(boards)
+      .getAllByRole('checkbox')
+      .map((c) => c.textContent)
+    expect(order[0]).toMatch(/Salsa/)
+    expect(within(boards).getByText('On the moodboard')).toBeVisible()
+    expect(within(boards).getByText('Other boards')).toBeVisible()
+    // Two boards need no search.
+    expect(screen.queryByRole('searchbox', { name: 'Search boards' })).toBeNull()
     // Each row opens its board on Pinterest, beside the checkbox: opening it ticks nothing.
     const open = within(boards).getByRole('link', { name: 'Open Tacos on Pinterest' })
     expect(open).toHaveAttribute('href', TACOS.url)
@@ -175,5 +159,45 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     // The picker closes, and both boards show.
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Boards' })).toBeNull())
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
+  })
+
+  it('searches an account with many boards by name', async () => {
+    const names = ['Tacos', 'Salsa', 'Margaritas', 'Patio', 'Staff', 'Desserts', 'Brunch']
+    answers['/brands/casa-vostra/pinterest/pins'] = { boards: [SALSA] }
+    answers['/brands/casa-vostra/pinterest'] = {
+      account: { username: 'brand.pins' },
+      boards: names.map((name, i) => ({
+        id: String(i),
+        name,
+        pinCount: 3,
+        cover: null,
+        url: `https://www.pinterest.com/brand.pins/${name.toLowerCase()}/`,
+        picked: name === 'Salsa',
+      })),
+    }
+    openMoodboard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Pinterest boards' }))
+    const boards = await screen.findByRole('group', { name: 'Boards' })
+    const search = screen.getByRole('searchbox', { name: 'Search boards' })
+
+    fireEvent.change(search, { target: { value: 'sa' } })
+    expect(
+      within(boards)
+        .getAllByRole('checkbox')
+        .map((c) => c.textContent),
+    ).toEqual([expect.stringMatching(/Salsa/)])
+    fireEvent.change(search, { target: { value: 'bru' } })
+    expect(within(boards).getByRole('checkbox', { name: /Brunch/ })).toBeVisible()
+    expect(within(boards).queryByRole('checkbox', { name: /Salsa/ })).toBeNull()
+    fireEvent.change(search, { target: { value: 'zzz' } })
+    expect(within(boards).getByText('No boards match “zzz”.')).toBeVisible()
+
+    // Escape clears the search first and keeps the picker open; a second Escape closes it.
+    fireEvent.keyDown(search, { key: 'Escape' })
+    expect(search).toHaveValue('')
+    const open = screen.getByRole('group', { name: 'Boards' })
+    expect(within(open).getAllByRole('checkbox')).toHaveLength(names.length)
+    fireEvent.keyDown(search, { key: 'Escape' })
+    expect(screen.queryByRole('group', { name: 'Boards' })).toBeNull()
   })
 })

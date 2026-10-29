@@ -1,4 +1,4 @@
-# Pinterest boards on the moodboard: phase 1
+# Pinterest boards on the moodboard: phases 1 and 2
 
 Branch `feat/pinterest-boards`, 2.42.0, brandbase 1.11.0. From David's feedback of 29 Oct: he
 could not see which board was connected or its address, could not connect a second board, and
@@ -39,7 +39,21 @@ could not change the board. No plan document: a one-day change on 2.37.0's desig
   state, the "+" picker with ↗ (`https://www.pinterest.com/casavostra/kitchen-crew/`), add a
   board, remove one, a row of five boards that scrolls.
 
-## Not checked
+## Phase 2: one-click remove and a picker that scales
+
+Branch `fix/pinterest-board-picker`, 2.43.1, from `release/pinterest-make`. The owner's feedback
+after the release: a confirm step is too slow for a board that two clicks add back, and the
+picker grows too tall with many boards.
+
+- **web-next.** A chip's × removes the board at once. The picker lists the boards on the
+  moodboard first ("On the moodboard"), then "Other boards", in the order of when it opened; the
+  headings show only when both groups have boards. More than six boards add a search field that
+  filters by name; Escape clears it before it closes the picker. The list is 264 px and scrolls.
+- **Tests.** `pinterest-boards-remote.test.tsx`: one-click remove, the order and headings, the
+  search on a seven-board account.
+- **Checked in a browser.** A stand-in core answered by Playwright, desktop and phone: one-click
+  remove, twelve boards, a search.
+
 
 The slug rule against a real Pinterest account with unusual board names (accents, emoji). A
 board renamed on Pinterest gets a new address; the link follows the current name.
@@ -58,4 +72,4 @@ code reads only the old key.
 3. Deploy the core (`fly deploy`, app `brandfactory`): `packages/connect` changed.
 4. The web app from this branch (Vercel).
 5. Check on Casa Vostra or David's brand: the "+" shows the board ticked, and its ↗ opens it on
-   Pinterest; tick a second board, Save, both chips show; remove one with × then ✓.
+   Pinterest; tick a second board, Save, both chips show; remove one with ×.

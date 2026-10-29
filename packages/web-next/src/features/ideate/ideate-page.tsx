@@ -7,7 +7,14 @@ import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
-import { ArrowUpRightIcon, CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import {
+  ArrowUpRightIcon,
+  CheckIcon,
+  CloseIcon,
+  PlusIcon,
+  SearchIcon,
+  SparkIcon,
+} from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
@@ -544,6 +551,8 @@ const CHIP_ON = 'bg-ink text-page'
 const CHIP_OFF = 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'
 /** On a screen with no hover (touch): shown always, since nothing would reveal it. */
 const NO_HOVER_SHOWN = '[@media(hover:none)]:opacity-100'
+/** The board picker gets a search field once an account has more boards than this. */
+const SEARCH_FROM = 6
 
 /**
  * The folder chips in one line that never wraps: it scrolls sideways, and an edge with more
@@ -592,8 +601,7 @@ function ChipRow({ children }: { children: React.ReactNode }) {
 
 /**
  * A live Pinterest board's chip. A small × fades in on hover or focus (on a touch screen, on the
- * chosen chip only); it turns the chip into "Remove {board}?" with a ✓ that removes it. Leaving
- * the chip, Escape or a press elsewhere keeps the board.
+ * chosen chip only) and removes the board at once: the "+" picker adds it back in two clicks.
  */
 function BoardChip({
   label,
@@ -608,61 +616,30 @@ function BoardChip({
   onSelect: () => void
   onRemove: () => void
 }) {
-  const [confirming, setConfirming] = React.useState(false)
-  // A remove that ends (a refused one too) leaves the chip as it was, not asking again.
-  const [wasBusy, setWasBusy] = React.useState(busy)
-  if (wasBusy !== busy) {
-    setWasBusy(busy)
-    if (!busy) setConfirming(false)
-  }
-  const root = React.useRef<HTMLSpanElement>(null)
-
-  React.useEffect(() => {
-    if (!confirming) return
-    const away = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setConfirming(false)
-    }
-    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setConfirming(false)
-    document.addEventListener('pointerdown', away)
-    document.addEventListener('keydown', escape)
-    return () => {
-      document.removeEventListener('pointerdown', away)
-      document.removeEventListener('keydown', escape)
-    }
-  }, [confirming])
-
-  const shell = confirming ? 'bg-fail/10 text-fail-ink' : on ? CHIP_ON : CHIP_OFF
-  const shown = confirming
-    ? 'opacity-100'
-    : `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ${on ? NO_HOVER_SHOWN : '[@media(hover:none)]:pointer-events-none'}`
+  const shown = `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ${on ? NO_HOVER_SHOWN : '[@media(hover:none)]:pointer-events-none'}`
 
   return (
     <span
-      ref={root}
-      onPointerLeave={(e) => e.pointerType === 'mouse' && setConfirming(false)}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setConfirming(false)
-      }}
-      className={`group relative flex h-9 shrink-0 items-center rounded-full transition-colors ${shell} ${busy ? 'opacity-50' : ''}`}
+      className={`group relative flex h-9 shrink-0 items-center rounded-full transition-colors ${on ? CHIP_ON : CHIP_OFF} ${busy ? 'opacity-50' : ''}`}
     >
       <button
         type="button"
         role="tab"
         aria-selected={on}
-        onClick={() => (confirming ? setConfirming(false) : onSelect())}
+        onClick={onSelect}
         className="flex h-9 items-center gap-2 rounded-full pr-8 pl-4 text-[13px] font-medium"
       >
-        {!confirming && <PlatformLogo platform="pinterest" size={11} />}
-        {confirming ? `Remove ${label}?` : label}
+        <PlatformLogo platform="pinterest" size={11} />
+        {label}
       </button>
       <button
         type="button"
-        aria-label={confirming ? `Yes, remove ${label}` : `Remove ${label}`}
+        aria-label={`Remove ${label}`}
         disabled={busy}
-        onClick={() => (confirming ? onRemove() : setConfirming(true))}
+        onClick={onRemove}
         className={`absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-full transition-opacity duration-150 hover:bg-current/10 ${shown}`}
       >
-        {confirming ? <CheckIcon size={11} /> : <CloseIcon size={8} />}
+        <CloseIcon size={8} />
       </button>
     </span>
   )
@@ -1106,6 +1083,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
   // Bumped by "Check again", which reads the boards once more; `checking` until it answers.
   const [reads, setReads] = React.useState(0)
   const [checking, setChecking] = React.useState(false)
+  const [query, setQuery] = React.useState('')
 
   React.useEffect(() => {
     let live = true
@@ -1237,52 +1215,91 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
   const chosen = setup.boards.filter((b) => picked.includes(b.id)).map((b) => b.id)
   const changed = chosen.join() !== reading.join()
   const full = chosen.length >= MAX_BOARDS
+  // The boards read when the picker opened come first, so a row never jumps when it is ticked.
+  const match = (b: PinterestSetup['boards'][number]) =>
+    b.name.toLowerCase().includes(query.trim().toLowerCase())
+  const groups = [
+    { label: 'On the moodboard', boards: setup.boards.filter((b) => b.picked && match(b)) },
+    { label: 'Other boards', boards: setup.boards.filter((b) => !b.picked && match(b)) },
+  ].filter((g) => g.boards.length > 0)
+
+  const row = (b: PinterestSetup['boards'][number]) => {
+    const on = picked.includes(b.id)
+    // The ↗ sits beside the row's checkbox, not in it: opening the board never ticks it.
+    return (
+      <div key={b.id} className="group flex items-center gap-1">
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={on}
+          disabled={!on && full}
+          onClick={() => setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))}
+          className="flex flex-1 items-center gap-3 py-2 text-left disabled:opacity-40"
+        >
+          <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
+            {b.cover && <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-[13.5px] font-medium">{b.name}</span>
+            <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
+          </span>
+          {on && <CheckIcon size={13} />}
+        </button>
+        <a
+          href={b.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${b.name} on Pinterest`}
+          className={`flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-surface hover:text-ink ${NO_HOVER_SHOWN}`}
+        >
+          <ArrowUpRightIcon size={12} />
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4 text-left">
       <span className={EYEBROW}>{handle}</span>
-      <div role="group" aria-label="Boards" className="flex max-h-[320px] flex-col overflow-y-auto">
-        {setup.boards.map((b) => {
-          const on = picked.includes(b.id)
-          // The ↗ sits beside the row's checkbox, not in it: opening the board never ticks it.
-          return (
-            <div
-              key={b.id}
-              className="group flex items-center gap-1 border-t border-line first:border-t-0"
-            >
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={on}
-                disabled={!on && full}
-                onClick={() =>
-                  setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))
-                }
-                className="flex flex-1 items-center gap-3 py-2.5 text-left disabled:opacity-40"
-              >
-                <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
-                  {b.cover && (
-                    <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />
-                  )}
-                </span>
-                <span className="flex flex-1 flex-col">
-                  <span className="text-[13.5px] font-medium">{b.name}</span>
-                  <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
-                </span>
-                {on && <CheckIcon size={13} />}
-              </button>
-              <a
-                href={b.url}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Open ${b.name} on Pinterest`}
-                className={`flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-surface hover:text-ink ${NO_HOVER_SHOWN}`}
-              >
-                <ArrowUpRightIcon size={12} />
-              </a>
-            </div>
-          )
-        })}
+      {setup.boards.length > SEARCH_FROM && (
+        <label className="relative flex h-9 items-center max-md:h-10">
+          <span className="pointer-events-none absolute left-3 text-ink-4">
+            <SearchIcon />
+          </span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Escape clears a search first; empty, it closes the picker.
+              if (e.key === 'Escape' && query !== '') {
+                e.stopPropagation()
+                setQuery('')
+              }
+            }}
+            placeholder="Search boards"
+            aria-label="Search boards"
+            className="h-full w-full rounded-full bg-surface-2 pr-4 pl-9 text-[13px] outline-none placeholder:text-ink-5 focus:bg-surface [&::-webkit-search-cancel-button]:appearance-none max-md:text-[15px]"
+          />
+        </label>
+      )}
+      <div
+        role="group"
+        aria-label="Boards"
+        className="-my-1 flex max-h-[264px] flex-col gap-3 overflow-y-auto"
+      >
+        {groups.length === 0 && (
+          <p className="py-2 text-[13px] text-ink-4">No boards match “{query.trim()}”.</p>
+        )}
+        {groups.map((g) => (
+          <div key={g.label} className="flex flex-col">
+            {/* Headings only when the boards split in two: one list needs no title. */}
+            {reading.length > 0 && reading.length < setup.boards.length && (
+              <span className="pb-0.5 text-[11.5px] text-ink-4">{g.label}</span>
+            )}
+            {g.boards.map(row)}
+          </div>
+        ))}
       </div>
       {button(
         reading.length > 0

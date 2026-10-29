@@ -55,6 +55,15 @@ export function ArrowUpRightIcon({ size = 10 }: { size?: number }) {
   )
 }
 
+export function SearchIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="4.4" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M9.4 9.4L12.6 12.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function PlusIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
