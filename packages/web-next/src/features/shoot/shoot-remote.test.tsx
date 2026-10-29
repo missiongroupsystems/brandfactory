@@ -103,7 +103,9 @@ describe('a call sheet on the core with no place and nobody yet', () => {
         <ShootPage id={id} />
       </BrandProvider>,
     )
-    expect(screen.getByText('12:00–17:00').parentElement!.textContent).toBe('12:00–17:00')
+    expect(screen.getByText('12:00–17:00').parentElement!.textContent).toBe(
+      'Wed 7 Oct · 12:00–17:00',
+    )
     expect(screen.queryByText('Invites sent')).toBeNull()
   })
 })

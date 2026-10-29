@@ -62,7 +62,9 @@ describe('a shared shoot', () => {
         <ShootPage id="cv-shoot-raffles" />
       </BrandProvider>,
     )
+    // Folded under one line on the team's page, open in one click.
     const thread = screen.getByRole('region', { name: 'Comments' })
+    fireEvent.click(within(thread).getByRole('button', { name: /2 notes from the link/ }))
     expect(within(thread).getByText('Shoot the bowl first?')).toBeInTheDocument()
     expect(within(thread).getByText('Chef Marco')).toBeInTheDocument()
   })
@@ -76,6 +78,7 @@ describe('acting on a comment', () => {
       </BrandProvider>,
     )
     const thread = screen.getByRole('region', { name: 'Comments' })
+    fireEvent.click(within(thread).getByRole('button', { name: /1 note from the link/ }))
     expect(within(thread).getByRole('link', { name: 'Storyboard' })).toHaveAttribute(
       'href',
       '#shots',
@@ -91,7 +94,7 @@ describe('acting on a comment', () => {
     // Done takes it out of the way; it is one click from being read again, or reopened.
     fireEvent.click(within(thread).getByRole('button', { name: 'Done' }))
     expect(within(thread).queryByText(/dough first/)).not.toBeInTheDocument()
-    expect(thread).toHaveTextContent('From the link · 0')
+    expect(thread).toHaveTextContent('1 note done')
     fireEvent.click(within(thread).getByRole('button', { name: 'Done · 1' }))
     expect(within(thread).getByText(/dough first/)).toBeInTheDocument()
     fireEvent.click(within(thread).getByRole('button', { name: 'Reopen' }))

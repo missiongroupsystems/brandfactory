@@ -20,6 +20,8 @@ import {
   IDEAS_BY_BRAND,
   boardsOf,
   boardsShown,
+  editPasted,
+  pastedReferences,
   pasteReference,
   showBoards,
   showMoodboard,
@@ -532,10 +534,38 @@ export function pasteLink(brandId: BrandId, ref: Reference) {
   pasteReference(brandId, ref)
   // The board reads the links on render: a new state tells it to.
   update(brandId, (s) => ({ ...s }))
-  const { id, platform, account, image, borrow, seed } = ref
+  keepPasted(brandId, ref.id)
+}
+
+/** The links the server has: an id joins once its send is answered, so a refused one goes again. */
+const kept = new Set<string>()
+const sending = new Set<string>()
+
+/** Whether the server has this link. Off the core, never: the words stay open. */
+export const pastedKept = (id: string) => kept.has(id)
+
+/**
+ * Makes sure the server has a pasted link: sent once, again only if the last send failed. The
+ * server keeps a link as first sent and never takes an edit (`pasted.add`), so what it holds is
+ * the paste, not words typed after it.
+ */
+export function keepPasted(brandId: BrandId, id: string) {
+  if (!remote || kept.has(id) || sending.has(id)) return
+  const ref = pastedReferences(brandId).find((r) => r.id === id)
+  if (!ref) return
+  sending.add(id)
+  const { platform, account, image, borrow, seed } = ref
   push(brandId, () =>
-    request('POST', `/brands/${brandId}/pasted`, { id, platform, account, image, borrow, seed }),
+    request('POST', `/brands/${brandId}/pasted`, { id, platform, account, image, borrow, seed })
+      .then(() => kept.add(id))
+      .finally(() => sending.delete(id)),
   )
+}
+
+/** The team's words on a pasted link, kept on this device: the server takes no edit (above). */
+export function wordsOnPasted(brandId: BrandId, id: string, borrow: string) {
+  editPasted(brandId, id, borrow)
+  update(brandId, (s) => ({ ...s }))
 }
 
 /** A suggestion becomes one of the team's ideas. */

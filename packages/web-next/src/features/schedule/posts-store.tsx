@@ -29,6 +29,7 @@ import {
   push,
   remote,
   request,
+  sent,
   setActiveBrand,
 } from '@/lib/remote'
 import { mediaItem } from '@/lib/remote-days'
@@ -105,6 +106,12 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   times: PostingTimes | undefined
   /** The composer picked the accounts a post goes to. */
   setChannels: (id: string, channels: NonNullable<Post['channels']>) => void
+  /**
+   * Whether the core took the last plan or move of a post: its refusal in words, or null once it
+   * is stored (at once off the core). A page that goes on to the post waits for this, since a
+   * refused plan reloads the brand without it.
+   */
+  settled: (id: string) => Promise<string | null>
   /** The brief renamed the idea behind a post; the post says the same words. */
   renamePost: (id: string, hook: string) => void
   /** The idea's final edit landed; the post carries it. */
@@ -172,6 +179,16 @@ const INITIAL_WEEKS = Object.fromEntries(
 /** A change to one of a brand's posts, sent after every change before it. */
 const sendPost = (brandId: BrandId, method: string, path: string, body?: unknown) =>
   push(brandId, () => request(method, `/brands/${brandId}/posts${path}`, body))
+
+/** The plan or move still on its way for each post, for `settled`; gone once it lands. */
+const settling = new Map<string, Promise<string | null>>()
+
+const settle = (id: string, p: Promise<string | null>) => {
+  settling.set(id, p)
+  void p.then(() => {
+    if (settling.get(id) === p) settling.delete(id)
+  })
+}
 
 const sendIdea = (
   brandId: BrandId,
@@ -342,15 +359,28 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       }
       const handStage = stage === 'failed' ? 'draft' : stage
       if (ideaId) {
-        push(brandId, () =>
-          request('POST', `/brands/${brandId}/ideas/${ideaId}/plan`, {
-            postId: id,
-            stage: handStage,
-            ...fields,
-          }),
+        settle(
+          id,
+          sent(brandId, () =>
+            request('POST', `/brands/${brandId}/ideas/${ideaId}/plan`, {
+              postId: id,
+              stage: handStage,
+              ...fields,
+            }),
+          ),
         )
       } else {
-        sendPost(brandId, 'POST', '', { id, format: idea.format, hook: idea.hook, ...fields })
+        settle(
+          id,
+          sent(brandId, () =>
+            request('POST', `/brands/${brandId}/posts`, {
+              id,
+              format: idea.format,
+              hook: idea.hook,
+              ...fields,
+            }),
+          ),
+        )
         if (handStage !== 'draft') sendPost(brandId, 'POST', `/${id}/mark`, { stage: handStage })
       }
       // The tile the post replaces: its reason comes back if the post is taken back to an idea.
@@ -405,7 +435,12 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       // Same day, same time: nothing to change. Publish calls this from an effect, so a new
       // array here on every call would loop, as setStage once did.
       if (refusal === 'same-day' && moved.slot === post.slot) return true
-      sendPost(brandId, 'POST', `/${id}/move`, { day: date, time })
+      settle(
+        id,
+        sent(brandId, () =>
+          request('POST', `/brands/${brandId}/posts/${id}/move`, { day: date, time }),
+        ),
+      )
       const posts = postsByBrand[brandId].map((p) => (p.id === id ? moved : p))
       if (!refusal) {
         const next =
@@ -590,6 +625,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       placeIdea,
       unplanPost,
       setChannels,
+      settled: (id) => settling.get(id) ?? Promise.resolve(null),
       saved: (id) => savedRef.current[id],
       times: remote ? timesByBrand[brandId] : demoTimes(brandId),
       brands,

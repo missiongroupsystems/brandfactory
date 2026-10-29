@@ -37,6 +37,16 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/ideate',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
+// jsdom has no media queries; the board asks whether it is on a phone.
+if (!window.matchMedia) {
+  window.matchMedia = () =>
+    ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {},
+    }) as unknown as MediaQueryList
+}
+
 vi.stubGlobal(
   'ResizeObserver',
   class {
@@ -117,9 +127,7 @@ describe('the moodboard’s empty state on the core', () => {
       ],
     }
     const { container } = openMoodboard(true)
-    await waitFor(() =>
-      expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible(),
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: /Tacos at dusk/ })).toBeVisible())
     expect(screen.queryByText('Bring in your moodboard')).toBeNull()
     expect(photos(container).filter(Boolean)).toEqual([])
   })

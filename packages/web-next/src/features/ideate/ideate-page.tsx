@@ -19,6 +19,8 @@ import {
   SparkIcon,
 } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
+import { Sheet } from '@/components/sheet'
+import { usePhone } from '@/components/use-phone'
 import type { BrandId } from '@/data/brands'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
@@ -45,6 +47,8 @@ import {
   addIdea,
   addIdeaFromPosts,
   connectSource,
+  keepPasted,
+  pastedKept,
   pinsLoading,
   removeBoard,
   saveBoards,
@@ -52,6 +56,7 @@ import {
   skipSuggestion,
   suggest,
   useIdeas,
+  wordsOnPasted,
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
@@ -740,6 +745,11 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
   const [anchor, setAnchor] = React.useState(0)
   const [removing, setRemoving] = React.useState(false)
+  // A tap opens a pin; Select (or a long press) makes taps pick instead, for an idea from several.
+  const [selecting, setSelecting] = React.useState(false)
+  // The pin open in the preview, by id, and the link whose words are being typed.
+  const [opened, setOpened] = React.useState<string | null>(null)
+  const [fresh, setFresh] = React.useState<string | null>(null)
 
   // The setup floats over the board like a menu: a tap outside or Escape closes it.
   React.useEffect(() => {
@@ -784,15 +794,14 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
           url: b.url,
         }))
       : []),
-    ...(sources.dm
+    // Pasted links live here too, with or without the DM source; a TikTok among them widens the name.
+    ...(sources.dm || pasted.length > 0
       ? [
           {
             id: 'dm',
-            label: 'Instagram',
+            label: pasted.some((r) => r.platform === 'tt') ? 'Links' : 'Instagram',
             source: 'dm' as const,
-            pins: [...pasted, ...references.filter((r) => r.platform === 'ig')].filter(
-              (r) => r.platform !== 'pinterest',
-            ),
+            pins: [...pasted, ...(sources.dm ? references.filter((r) => r.platform === 'ig') : [])],
           },
         ]
       : []),
@@ -831,12 +840,16 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
 
   function clear() {
     setSelected([])
+    setSelecting(false)
   }
 
   /** The picked posts become an idea at once, worded from the first; its page does the rest. */
-  function plan() {
-    const id = addIdeaFromPosts(brand.id, picked)
+  function plan(from = picked) {
+    // A pasted link the idea names must be on the server: a paste whose send failed goes again.
+    for (const r of from) if (isPasted(r)) keepPasted(brand.id, r.id)
+    const id = addIdeaFromPosts(brand.id, from)
     clear()
+    setOpened(null)
     onPlanned(id)
   }
 
@@ -875,27 +888,8 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
         ref={top}
         className="sticky top-0 z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4"
       >
-        {picked.length > 0 ? (
-          <div role="region" aria-label="Selection" className="flex h-9 items-center gap-3">
-            <button
-              type="button"
-              aria-label="Clear the selection"
-              onClick={clear}
-              className="-ml-2 flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
-            >
-              <CloseIcon />
-            </button>
-            <span className="text-[13px] font-medium tabular-nums">{picked.length} selected</span>
-            <button
-              type="button"
-              onClick={plan}
-              className="bb-press ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
-            >
-              Plan idea from this
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-2">
+          <div className="relative flex items-center gap-1.5">
             <ChipRow>
               {chips.map((c) => {
                 const on = c.id === filter
@@ -926,6 +920,13 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                 )
               })}
             </ChipRow>
+            <PasteLink
+              onPaste={(r) => {
+                pasteLink(brand.id, r)
+                setFilter('all')
+                setFresh(r.id)
+              }}
+            />
             {choices.length > 0 && (
               <button
                 type="button"
@@ -944,8 +945,40 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                 <PlusIcon size={12} />
               </button>
             )}
+            {shown.length > 0 && !selecting && (
+              <button
+                type="button"
+                onClick={() => setSelecting(true)}
+                className="flex h-9 shrink-0 items-center rounded-full px-3 text-[13px] font-medium text-ink-3 transition-colors hover:bg-surface hover:text-ink"
+              >
+                Select
+              </button>
+            )}
           </div>
-        )}
+          {selecting && (
+            <div role="region" aria-label="Selection" className="flex h-9 items-center gap-3">
+              <button
+                type="button"
+                aria-label="Cancel the selection"
+                onClick={clear}
+                className="-ml-2 flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
+              >
+                <CloseIcon />
+              </button>
+              <span className="text-[13px] font-medium tabular-nums">
+                {picked.length ? `${picked.length} selected` : 'Tap the posts to plan from'}
+              </span>
+              <button
+                type="button"
+                onClick={() => plan()}
+                disabled={picked.length === 0}
+                className="bb-press ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page transition-opacity hover:opacity-85 disabled:opacity-30"
+              >
+                Plan idea
+              </button>
+            </div>
+          )}
+        </div>
         {adding && choices.length > 0 && (
           <div
             style={{ '--x': `${anchor}px` } as React.CSSProperties}
@@ -955,23 +988,39 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
           </div>
         )}
       </div>
-      {filter === 'dm' && (
-        <div className="flex max-w-[420px] flex-col gap-2">
-          <PasteLink
-            onPaste={(r) => {
-              pasteLink(brand.id, r)
-            }}
-          />
-          <DmHint />
-        </div>
-      )}
       {shown.length === 0 &&
       (!current || current.source === 'pinterest') &&
       pinsLoading(brand.id) ? (
         // Pinterest's pins take a few seconds.
         <LoadingDots label="Loading the moodboard" className="py-24" />
       ) : (
-        <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
+        <Masonry
+          key={filter}
+          pins={shown}
+          selected={selecting ? selected : null}
+          fresh={fresh}
+          onToggle={toggle}
+          onOpen={(id) => setOpened(id)}
+          onHold={(id) => {
+            setSelecting(true)
+            setSelected((s) => (s.includes(id) ? s : [...s, id]))
+          }}
+          onWords={(id, borrow) => {
+            wordsOnPasted(brand.id, id, borrow)
+            if (fresh === id) setFresh(null)
+          }}
+        />
+      )}
+      {opened && (
+        <Preview
+          pins={shown}
+          id={opened}
+          // A pin's own link, or its board's.
+          urlOf={(r) => r.url ?? folders.find((f) => f.pins.some((p) => p.id === r.id))?.url}
+          onMove={setOpened}
+          onClose={() => setOpened(null)}
+          onPlan={(r) => plan([r])}
+        />
       )}
     </div>
   )
@@ -1022,18 +1071,6 @@ function AddSource({
         </button>
       ))}
     </div>
-  )
-}
-
-/** How a post reaches this brand's board by DM, in one line, with the tag to type. */
-function DmHint() {
-  const { brand } = useBrand()
-  return (
-    <p className="px-4 text-[12px] text-ink-4">
-      Or share any post or reel by DM to{' '}
-      <span className="font-medium text-ink-2">{MOODBOARD_ACCOUNT}</span> with{' '}
-      <span className="font-medium text-ink-2">{moodboardTag(brand)}</span>.
-    </p>
   )
 }
 
@@ -1523,20 +1560,45 @@ function toColumns(pins: Reference[], count: number) {
   return columns
 }
 
-/** Pins at their own shape in columns, the way Pinterest lays out a board. A tap picks one. */
+/** A link pasted onto the board, whose words the team types in place. */
+const isPasted = (ref: Reference) => ref.id.startsWith('pasted-')
+
+/** How long a finger rests on a pin before taps start picking, in milliseconds. */
+const HOLD_MS = 500
+
+/**
+ * Pins at their own shape in columns, the way Pinterest lays out a board. A tap opens one;
+ * while selecting (`selected` is a list), a tap picks one instead. A finger held on a pin starts
+ * selecting with it.
+ */
 function Masonry({
   pins,
   selected,
+  fresh,
   onToggle,
+  onOpen,
+  onHold,
+  onWords,
 }: {
   pins: Reference[]
-  selected: string[]
+  /** The pins picked, in order, while selecting; null while a tap opens a pin. */
+  selected: string[] | null
+  /** The link just pasted: its words field takes the cursor. */
+  fresh: string | null
   onToggle: (id: string) => void
+  onOpen: (id: string) => void
+  onHold: (id: string) => void
+  /** The words typed on a pasted link. */
+  onWords: (id: string, borrow: string) => void
 }) {
   const { brand, weeks, byId } = useBrand()
   const { ideas } = useIdeas(brand.id)
   const box = React.useRef<HTMLDivElement>(null)
   const [count, setCount] = React.useState(5)
+  const selecting = selected !== null
+  // The press in progress: its timer, where it began, and whether it became a hold, so the tap
+  // after a hold does nothing.
+  const hold = React.useRef<{ timer: number; held: boolean; x: number; y: number } | null>(null)
 
   // As many columns as the width holds, the way the CSS breakpoints did.
   React.useEffect(() => {
@@ -1561,14 +1623,22 @@ function Masonry({
     return label ? `In plan · ${label.slice(4)}` : 'In plan'
   }
 
+  /** The finger lifted or left: no hold comes of it now; a hold already made still eats the tap. */
+  const endHold = () => {
+    if (!hold.current) return
+    window.clearTimeout(hold.current.timer)
+    if (!hold.current.held) hold.current = null
+  }
+
   return (
     <div ref={box} className="flex items-start gap-4 max-sm:gap-3">
       {toColumns(pins, count).map((column, c) => (
         <div key={c} className="flex min-w-0 flex-1 flex-col gap-6">
           {column.map(({ ref, i }) => {
-            const order = selected.indexOf(ref.id)
+            const order = selected?.indexOf(ref.id) ?? -1
             const on = order >= 0
             const used = usedOn(ref)
+            const pasted = isPasted(ref)
             return (
               <div
                 key={ref.id}
@@ -1583,14 +1653,42 @@ function Masonry({
               >
                 <button
                   type="button"
-                  role="checkbox"
-                  aria-checked={on}
-                  onClick={() => onToggle(ref.id)}
-                  aria-label={`${ref.account}: ${ref.borrow}${on ? ` (picked ${order + 1})` : ''}`}
+                  data-pin={ref.id}
+                  role={selecting ? 'checkbox' : undefined}
+                  aria-checked={selecting ? on : undefined}
+                  onPointerDown={(e) => {
+                    if (e.pointerType !== 'touch' || selecting) return
+                    hold.current = null
+                    const press = { held: false, timer: 0, x: e.clientX, y: e.clientY }
+                    press.timer = window.setTimeout(() => {
+                      press.held = true
+                      onHold(ref.id)
+                    }, HOLD_MS)
+                    hold.current = press
+                  }}
+                  onPointerMove={(e) => {
+                    // A finger that drifts a little is still a press; a scroll is not.
+                    const p = hold.current
+                    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) endHold()
+                  }}
+                  onPointerUp={endHold}
+                  onPointerCancel={() => {
+                    if (hold.current) window.clearTimeout(hold.current.timer)
+                    hold.current = null
+                  }}
+                  onContextMenu={(e) => hold.current?.held && e.preventDefault()}
+                  onClick={() => {
+                    const held = hold.current?.held
+                    hold.current = null
+                    if (held) return
+                    if (selecting) onToggle(ref.id)
+                    else onOpen(ref.id)
+                  }}
+                  aria-label={`${ref.account}: ${ref.borrow || 'pasted link'}${on ? ` (picked ${order + 1})` : ''}`}
                   className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left transition-shadow duration-200 ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
-                  style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
+                  style={{ aspectRatio: `1 / ${ref.ratio ?? (ref.image ? 1.25 : 0.72)}` }}
                 >
-                  {ref.image && (
+                  {ref.image ? (
                     <Image
                       src={ref.image}
                       alt=""
@@ -1598,17 +1696,35 @@ function Masonry({
                       sizes="(max-width: 640px) 50vw, 280px"
                       className={`object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
                     />
+                  ) : (
+                    // A link with no picture yet: the platform's mark stands in.
+                    <span className="absolute inset-0 flex items-center justify-center text-ink-4">
+                      <PlatformLogo platform={ref.platform} size={24} />
+                    </span>
                   )}
-                  {/* The pick mark: a number once picked, an empty ring on hover or while picking. */}
-                  <span
-                    aria-hidden="true"
-                    className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[12px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : `bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md group-hover/pin:opacity-100 ${selected.length > 0 ? 'opacity-100' : 'opacity-0'}`}`}
-                  >
-                    {on ? order + 1 : ''}
-                  </span>
+                  {/* The pick mark, while selecting: a number once picked, an empty ring until then. */}
+                  {selecting && (
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[12px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : 'bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md'}`}
+                    >
+                      {on ? order + 1 : ''}
+                    </span>
+                  )}
                 </button>
                 <span className="flex flex-col gap-1.5 px-1">
-                  <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
+                  {pasted ? (
+                    <Words
+                      id={ref.id}
+                      value={ref.borrow}
+                      focus={fresh === ref.id}
+                      // The core keeps a link as first sent, without words: none can be added there.
+                      locked={remote && pastedKept(ref.id)}
+                      onDone={(words) => onWords(ref.id, words)}
+                    />
+                  ) : (
+                    <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
+                  )}
                   <span className="flex min-w-0 items-center gap-2">
                     <span
                       title={PLATFORM_NAME[ref.platform]}
@@ -1631,25 +1747,252 @@ function Masonry({
   )
 }
 
+/** What to borrow from a pasted link, typed in place: Enter or leaving the field keeps it. */
+function Words({
+  id,
+  value,
+  focus,
+  locked,
+  onDone,
+}: {
+  id: string
+  value: string
+  focus: boolean
+  /** The words cannot be kept: the card says so and takes none. */
+  locked: boolean
+  onDone: (words: string) => void
+}) {
+  const field = React.useRef<HTMLInputElement>(null)
+  React.useEffect(() => {
+    if (focus && !locked) field.current?.focus()
+  }, [focus, locked])
+  if (locked) {
+    return (
+      <span className="text-[13px] leading-[1.3] text-ink-4">
+        {value || 'Say what to borrow on the idea.'}
+      </span>
+    )
+  }
+  return (
+    <input
+      key={id}
+      ref={field}
+      defaultValue={value}
+      placeholder="What to borrow?"
+      aria-label="What to borrow"
+      maxLength={120}
+      onBlur={(e) => e.target.value.trim() !== value && onDone(e.target.value.trim())}
+      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      className="h-7 w-full min-w-0 rounded-[8px] bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-4 focus:bg-surface focus:px-1.5"
+    />
+  )
+}
+
+/**
+ * One pin, bigger: its picture, its words and whose it is, a link to it on its platform, and
+ * the one thing to do with it. A centred dialog on a computer, a sheet on a phone. The arrow keys
+ * (or a swipe) move to the next pin; Escape or a tap outside closes it, and the focus goes back
+ * to the pin.
+ */
+function Preview({
+  pins,
+  id,
+  urlOf,
+  onMove,
+  onClose,
+  onPlan,
+}: {
+  pins: Reference[]
+  id: string
+  urlOf: (ref: Reference) => string | undefined
+  onMove: (id: string) => void
+  onClose: () => void
+  onPlan: (ref: Reference) => void
+}) {
+  const phone = usePhone()
+  const at = pins.findIndex((p) => p.id === id)
+  const ref = pins[at]
+  const main = React.useRef<HTMLButtonElement>(null)
+  const box = React.useRef<HTMLDivElement>(null)
+  const touch = React.useRef<{ x: number; y: number } | null>(null)
+  const move = React.useCallback(
+    (by: -1 | 1) => {
+      const next = pins[at + by]
+      if (next) onMove(next.id)
+    },
+    [pins, at, onMove],
+  )
+
+  // The focus goes to the one button, and back to the pin on show on close: the one open then,
+  // since the arrow keys may have moved on from the pin that was tapped.
+  const current = React.useRef(id)
+  React.useEffect(() => {
+    current.current = id
+  }, [id])
+  React.useEffect(() => {
+    if (!phone) main.current?.focus()
+    return () => {
+      const pin = document.querySelector<HTMLElement>(
+        `[data-pin="${current.current.replace(/"/g, '')}"]`,
+      )
+      pin?.focus()
+    }
+  }, [phone])
+
+  React.useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return onClose()
+      if (e.key === 'Tab' && box.current) return trap(e, box.current)
+      // A plain arrow walks the row; one with a modifier, or inside a field, is the browser's.
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea')) return
+      if (e.key === 'ArrowLeft') move(-1)
+      if (e.key === 'ArrowRight') move(1)
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [move, onClose])
+
+  if (!ref) return null
+  const url = urlOf(ref)
+  const body = (
+    <div
+      className={`flex flex-col gap-4 ${phone ? 'px-5 pb-5' : ''}`}
+      onTouchStart={(e) => {
+        const t = e.touches[0]
+        touch.current = t ? { x: t.clientX, y: t.clientY } : null
+      }}
+      onTouchEnd={(e) => {
+        // A swipe is sideways: a scroll that drifts a little is not one.
+        const from = touch.current
+        const t = e.changedTouches[0]
+        touch.current = null
+        if (!from || !t) return
+        const dx = t.clientX - from.x
+        const dy = t.clientY - from.y
+        if (Math.abs(dx) < 40 || Math.abs(dx) <= 2 * Math.abs(dy)) return
+        move(dx < 0 ? 1 : -1)
+      }}
+    >
+      <span
+        key={ref.id}
+        className="bb-land relative block w-full overflow-hidden rounded-[14px] bg-tile"
+        style={{
+          aspectRatio: `1 / ${ref.ratio ?? (ref.image ? 1.25 : 0.72)}`,
+          maxHeight: phone ? '58svh' : '70vh',
+        }}
+      >
+        {ref.image ? (
+          <Image src={ref.image} alt="" fill sizes="520px" className="object-cover" />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-ink-4">
+            <PlatformLogo platform={ref.platform} size={32} />
+          </span>
+        )}
+      </span>
+      <div className="flex flex-col gap-1">
+        {ref.borrow && <span className="text-[15px] leading-[1.35] text-ink">{ref.borrow}</span>}
+        <span className="flex min-w-0 items-center gap-2 text-[13px] text-ink-3">
+          <PlatformLogo platform={ref.platform} size={11} brand />
+          <span className="truncate">{ref.account}</span>
+          {url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto flex shrink-0 items-center gap-1 text-ink-3 transition-colors hover:text-ink"
+            >
+              Open on {PLATFORM_NAME[ref.platform]}
+              <ArrowUpRightIcon size={10} />
+            </a>
+          )}
+        </span>
+      </div>
+      <button
+        ref={main}
+        type="button"
+        onClick={() => onPlan(ref)}
+        className="bb-press flex h-10 items-center justify-center rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
+      >
+        Plan idea from this
+      </button>
+    </div>
+  )
+  if (phone) {
+    return (
+      <Sheet title={ref.account} onClose={onClose}>
+        {body}
+      </Sheet>
+    )
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="bb-fade absolute inset-0 bg-ink/30"
+      />
+      <div
+        ref={box}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ref.account}
+        className="bb-pop relative flex max-h-[calc(100vh-48px)] w-[440px] flex-col overflow-y-auto rounded-[22px] bg-page p-4 shadow-sheet"
+      >
+        {body}
+        {/* Where the pin stands in the row, and the way to the ones beside it. */}
+        <span className="pointer-events-none absolute top-6 right-6 rounded-full bg-page/85 px-2 py-0.5 text-[12px] text-ink-3 tabular-nums backdrop-blur-sm">
+          {at + 1} / {pins.length}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** Tab stays inside the preview: from its last control it goes to the first, and back. */
+function trap(e: KeyboardEvent, box: HTMLElement) {
+  const nodes = [...box.querySelectorAll<HTMLElement>('a[href], button, input, [tabindex="0"]')]
+  const first = nodes[0]
+  const last = nodes[nodes.length - 1]
+  if (!first || !last) return
+  const at = document.activeElement
+  if (e.shiftKey && (at === first || !box.contains(at))) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && (at === last || !box.contains(at))) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+/**
+ * A link into the chip row: paste it and it lands first on the board. On a phone the row has no
+ * room for a field beside the chips, so a small link mark opens one in their place.
+ */
 function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
   const { brand } = useBrand()
+  const phone = usePhone()
   const [link, setLink] = React.useState('')
+  const [open, setOpen] = React.useState(false)
+  const field = React.useRef<HTMLInputElement>(null)
+  React.useEffect(() => {
+    if (open) field.current?.focus()
+  }, [open])
 
-  function paste() {
-    const raw = link.trim()
+  function paste(raw = link.trim()) {
     if (!raw) return
-    let host = raw
-    try {
-      host = new URL(raw.includes('://') ? raw : `https://${raw}`).hostname.replace(/^www\./, '')
-    } catch {
-      /* keep the text as typed */
-    }
+    const url = raw.includes('://') ? raw : `https://${raw}`
+    const host = hostOf(url)
+    // Not a link: it stays in the field, so a slip can be fixed, and no pin lands.
+    if (!host) return setLink(raw)
     onPaste({
       id: `pasted-${newId()}`,
       platform: host.includes('tiktok') ? 'tt' : 'ig',
       account: host,
       image: '',
-      borrow: 'Say what to borrow.',
+      borrow: '',
+      url,
       seed: {
         format: 'reel',
         pillar: 'Craft',
@@ -1661,24 +2004,73 @@ function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
       },
     })
     setLink('')
+    setOpen(false)
   }
 
+  if (phone && !open) {
+    return (
+      <button
+        type="button"
+        aria-label="Paste a link"
+        onClick={() => setOpen(true)}
+        className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+      >
+        <LinkGlyph />
+      </button>
+    )
+  }
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
         paste()
       }}
-      className="max-w-[420px]"
+      // Open on a phone, the field lies over the chips, the width of the row.
+      className={`flex shrink-0 ${phone ? 'absolute inset-x-0 top-0 z-[1] h-9 bg-page' : ''}`}
     >
       <input
+        ref={field}
         value={link}
+        onBlur={() => link.trim() === '' && setOpen(false)}
+        onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
         onChange={(e) => setLink(e.target.value)}
+        onPaste={(e) => {
+          // A paste is the whole gesture: the link lands without an Enter.
+          const text = e.clipboardData.getData('text').trim()
+          if (!text) return
+          e.preventDefault()
+          paste(text)
+        }}
         maxLength={500}
-        placeholder="Paste an Instagram or TikTok link"
+        placeholder="Paste a link"
         aria-label="Paste an Instagram or TikTok link"
-        className="h-10 w-full rounded-full bg-surface px-4 text-[13px] outline-none placeholder:text-ink-5 focus:bg-paper"
+        className={`h-9 rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-4 focus:bg-paper focus:shadow-[0_0_0_1.5px_var(--ink)] ${phone ? 'w-full' : 'w-[180px]'}`}
       />
     </form>
+  )
+}
+
+/** The site a link points at ("instagram.com"), or null when the text is not a web address. */
+function hostOf(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null
+    const host = u.hostname.replace(/^www\./, '')
+    return host.includes('.') ? host : null
+  } catch {
+    return null
+  }
+}
+
+function LinkGlyph() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path
+        d="M5 7a2.1 2.1 0 0 0 3 0l1.8-1.8a2.1 2.1 0 0 0-3-3L6.3 2.7M7 5a2.1 2.1 0 0 0-3 0L2.2 6.8a2.1 2.1 0 0 0 3 3l.5-.5"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
   )
 }

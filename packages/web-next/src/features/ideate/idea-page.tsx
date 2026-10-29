@@ -18,7 +18,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
 import { usePhone } from '@/components/use-phone'
 import type { BrandId } from '@/data/brands'
-import type { Day, Stage, Week } from '@/data/demo'
+import type { Day, Format, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import {
   isMediaRef,
@@ -26,7 +26,6 @@ import {
   referenceById,
   referencesOf,
   type IdeaCard,
-  type IdeaStatus,
   type Reference,
   type Shot,
 } from '@/data/ideas'
@@ -46,16 +45,7 @@ import {
 import { dayLabel, landingDay } from './calendar-slot'
 import { DayPicker, type DayInfo } from './day-picker'
 import { accept, at, Handle, inside } from './drag-parts'
-import {
-  CHIPS,
-  EYEBROW,
-  FormatIcon,
-  STATUS_LABEL,
-  statusColour,
-  useSlots,
-  type Slot,
-  useRename,
-} from './idea-parts'
+import { FormatIcon, STATUS_LABEL, useSlots, type Slot, useRename } from './idea-parts'
 import { editIdea, keepSuggestion, setDay, skipSuggestion, type IdeaEdit } from './ideas-store'
 import { useSortable, type Sortable } from './sortable'
 
@@ -64,6 +54,18 @@ const TIMES = ['08:00', '09:00', '12:00', '15:00', '18:00', '19:30', '21:00']
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 /** A carousel takes ten slides at most, as the composer says. */
 const SLIDES_MAX = 10
+/** A section's name across the top of it. */
+const H2 = 'text-[17px] font-medium tracking-[-0.01em]'
+/** A label over a group of controls, in words, never a mono kicker. */
+const LABEL = 'text-[13px] font-medium text-ink-3'
+/** A quiet text action beside the main one. */
+const QUIET = 'text-[13px] text-ink-3 transition-colors hover:text-ink'
+/** What the final edit asks for, by format; the post goes out with it. */
+const ADD_FINAL: Record<Format, string> = {
+  reel: 'Add the final video',
+  story: 'Add the final photo or video',
+  carousel: 'Add the slides',
+}
 /** Where Back goes: the overview, not the moodboard the ideas page opens on. */
 export const IDEAS_HREF = '/ideate?view=ideas'
 /** The ring a tile or a card wears while something is held over it. */
@@ -78,7 +80,7 @@ const HOVER =
  * Reference, From the moodboard), or a slot the size of a thumbnail with the upload mark.
  */
 const CHIP =
-  'bb-press flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-page px-2.5 text-[12px] text-ink-2 ring-1 ring-(--cal-ghost) select-none hover:text-ink hover:ring-(--line-strong) has-[:focus-visible]:ring-ink focus-visible:ring-ink focus-visible:outline-none'
+  'bb-press flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-page px-3 text-[13px] text-ink-2 ring-1 ring-(--cal-ghost) select-none hover:text-ink hover:ring-(--line-strong) has-[:focus-visible]:ring-ink focus-visible:ring-ink focus-visible:outline-none'
 const SIZES = '(max-width: 768px) 50vw, 240px'
 /**
  * The lifted item: a touch lighter, a touch larger, with a shadow. It goes on a wrapper inside
@@ -88,21 +90,12 @@ const SIZES = '(max-width: 768px) 50vw, 240px'
 const LIFTED = 'scale-[1.03] opacity-60 shadow-pop'
 const LIFTABLE = 'transition-[transform,opacity,box-shadow] duration-200'
 
-type Step = (typeof CHIPS)[number]
-
-/** The step a card is at: an idea until it has a post, then the post's stage (a failed post was scheduled). */
-function stepOf(status: IdeaStatus): Step {
-  if (status === 'failed') return 'scheduled'
-  return status === 'suggested' ? 'idea' : status
-}
-
 /**
  * One idea's own page (`/ideate/<id>`): the production document for one reel, carousel or
- * story, from "we saw something we liked" to "it is live". The work runs in three stages, and the
- * page is built in that order: References (what it should look like), Storyboard (the shots and
- * the shoot day) and Post (the final edit, then status, date and time, which make it a post on
- * the calendar). A rail at the top shows where the idea stands; every stage is open at any time.
- * Back returns to Current ideas.
+ * story, from "we saw something we liked" to "it is live". The work runs in three sections, and
+ * the page is built in that order: References (what it should look like), Storyboard (the shots
+ * and the shoot day) and Post (the final edit, the day and the accounts, then one button that
+ * puts it on the calendar). Every section is open at any time. Back returns to Current ideas.
  *
  * The page belongs to the brand in the header. An idea of another brand, or one a reload lost,
  * is not shown.
@@ -114,11 +107,8 @@ export function IdeaPage({ id }: { id: string }) {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4 max-md:pt-2 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
-        <div className="flex items-center justify-between gap-3 pb-6 max-md:pb-5">
-          <Link
-            href={IDEAS_HREF}
-            className="inline-flex items-center gap-1.5 font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
-          >
+        <div className="flex items-center justify-between gap-3 pb-5 max-md:pb-4">
+          <Link href={IDEAS_HREF} className={`inline-flex items-center gap-1.5 ${QUIET}`}>
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path
                 d="M9.5 6h-7M5.5 3l-3 3 3 3"
@@ -170,7 +160,20 @@ interface Plan {
   infoOf: (day: Day) => DayInfo
   /** What the post carries, in order. */
   media: string[]
-  setStatus: (step: Step) => void
+  /** The post's stage, or null while the idea has no post. */
+  stage: Stage | null
+  /** Why Schedule cannot go yet, in one line; null when it can. */
+  blocker: string | null
+  /**
+   * Makes or moves the post as a draft on its day and opens it in the composer, the one place
+   * that sends: the caption and the accounts are checked there. Refused while `blocker` says why.
+   */
+  schedule: () => void
+  draft: () => void
+  /** A scheduled or failed post back to a draft: the core drops its waiting jobs, the post stays. */
+  unschedule: () => void
+  /** Takes the post off the calendar, back to an idea on its day. Nothing that went out is taken back. */
+  unplan: () => void
   setDate: (date: string) => void
   setTime: (time: string) => void
 }
@@ -182,14 +185,26 @@ const sameMedia = (a: string[], b: string[]) =>
 const handedBy = (card: IdeaCard): string[] | null => (card.cut?.length ? card.cut : null)
 
 /**
- * The card's plan. A date puts the idea's tile on that day; a status makes it a post there (or on
- * the first free day), and a new date or time moves the post.
+ * The card's plan. A date puts the idea's tile on that day; Schedule makes it a draft post there
+ * once it has its final edit and a day, and hands it to the composer to send; a new date or time
+ * moves the post.
  * The post carries the idea's own media only: a reference photo is somebody else's picture.
  * Once the final edit lands, the post carries that, and keeps up as it changes.
  */
 function usePlan(slot: Slot): Plan {
-  const { brand, weeks, byId, planPost, reschedule, setStage, setImages, placeIdea, unplanPost } =
-    useBrand()
+  const {
+    brand,
+    weeks,
+    byId,
+    planPost,
+    reschedule,
+    setStage,
+    setImages,
+    placeIdea,
+    unplanPost,
+    settled,
+  } = useBrand()
+  const router = useRouter()
   // The time picked before the idea has a date; the post holds it from then on.
   const [picked, setPicked] = React.useState('18:00')
   const { card, date } = slot
@@ -223,14 +238,16 @@ function usePlan(slot: Slot): Plan {
     if (card.format === 'story') return [...ahead].find(([, d]) => !d.taken)?.[0] ?? null
     return landingDay(weeks, card.date)
   }
-  const plan = (stage: Stage, day: string | null, t: string) => {
+  /** The post on its day at its time, at a stage; the id, or null when no day can take it. */
+  const plan = (stage: Stage, day: string | null, t: string): string | null => {
+    if (post?.stage === 'posted') return post.id
     if (post) {
       if (day && (day !== date || t !== time)) reschedule(post.id, day, t)
       if (stage !== post.stage) setStage(post.id, stage)
-      return
+      return post.id
     }
     const d = day ?? firstDay()
-    if (!d) return
+    if (!d) return null
     const id = planPost(
       { ideaId: card.id, format: card.format, hook: card.hook, images: media },
       d,
@@ -238,16 +255,47 @@ function usePlan(slot: Slot): Plan {
       stage,
     )
     editIdea(brand.id, card.id, { postId: id })
+    return id
   }
+  // What the composer needs from here before it can send: the final edit, and a day the picker
+  // would allow (ahead, and free for a story). Today is never offered, so a time that has gone
+  // cannot be picked. The caption and the accounts are the composer's own checks. A draft needs
+  // none of this: it is the plan, not the send.
+  const dayInfo = date ? ahead.get(date) : undefined
+  const blocker = !handed
+    ? `${ADD_FINAL[card.format]} first.`
+    : !date
+      ? 'Pick a day.'
+      : !dayInfo
+        ? 'Pick a day ahead.'
+        : dayInfo.taken
+          ? 'That day has a story already.'
+          : null
   return {
     time,
     infoOf,
     media,
-    // Idea takes a post back to a plan on its day. Posted is final: nothing changes it.
-    setStatus: (step) => {
-      if (post?.stage === 'posted') return
-      if (step !== 'idea') return plan(step, date, time)
-      if (!post) return
+    stage: post?.stage ?? null,
+    blocker,
+    schedule: () => {
+      if (blocker || post?.stage === 'posted') return
+      // A draft on its day, then the composer: the one place that sends, where the caption and
+      // the accounts are checked. Two reviews found a second send path here wrong; there is none.
+      const id = plan(post?.stage ?? 'draft', date, time)
+      if (!id) return
+      // On to the post only once the core has it: a refused plan reloads the brand without the
+      // post, and its page would say it is not here. The app's message line says why it failed.
+      void settled(id).then((refusal) => refusal === null && router.push(`/post/${id}`))
+    },
+    draft: () => {
+      plan('draft', date, time)
+    },
+    unschedule: () => {
+      if (post && post.stage !== 'posted') setStage(post.id, 'draft')
+    },
+    // The post leaves the calendar and the idea's tile returns. Posted is final: nothing changes it.
+    unplan: () => {
+      if (!post || post.stage === 'posted') return
       const why =
         card.source.kind === 'moment'
           ? card.source.title
@@ -280,18 +328,7 @@ function usePlan(slot: Slot): Plan {
   }
 }
 
-// ── The stages ───────────────────────────────────────────────────────────────────────────────
-
-type StageKey = 'references' | 'shots' | 'post'
-
-interface StageState {
-  key: StageKey
-  label: string
-  done: boolean
-  /** Where it stands, in a few words: "3 shots · Wed 7 Oct". */
-  note: string
-  current: boolean
-}
+// ── The sections ─────────────────────────────────────────────────────────────────────────────
 
 /** A reference on the page: a saved post, or a file the team added. */
 interface Ref {
@@ -314,45 +351,6 @@ function refsOf(brandId: BrandId, card: IdeaCard): Ref[] {
       ? [{ key, src: post.image, note: post.borrow, owner: post.account, post }]
       : []
   })
-}
-
-function stagesOf(
-  refs: Ref[],
-  card: IdeaCard,
-  slot: Slot,
-  weeks: Week[],
-  time: string,
-): StageState[] {
-  const shots = card.shots
-  const shootDay = card.shootDay ? dayLabel(card.shootDay) : null
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-  const stages = [
-    {
-      key: 'references' as const,
-      label: 'References',
-      done: refs.length > 0,
-      note: refs.length ? plural(refs.length, 'reference') : 'None yet',
-    },
-    {
-      key: 'shots' as const,
-      label: 'Storyboard',
-      done: shots.length > 0 && !!shootDay,
-      note: shots.length
-        ? `${plural(shots.length, 'shot')} · ${shootDay ?? 'no shoot day'}`
-        : 'None yet',
-    },
-    {
-      key: 'post' as const,
-      label: 'Post',
-      done: slot.status === 'posted',
-      note: slot.date
-        ? `${STATUS_LABEL[slot.status]} · ${dayLabel(slot.date)}${card.postId ? `, ${time}` : ''}`
-        : STATUS_LABEL[slot.status],
-    },
-  ]
-  // The idea stands at its first unfinished stage; once everything is done, at the last.
-  const current = stages.find((s) => !s.done)?.key ?? 'post'
-  return stages.map((s) => ({ ...s, current: s.key === current }))
 }
 
 /** What is being dragged across the page: a reference by its key, or a shot by its id. */
@@ -472,12 +470,12 @@ function UploadChip({
 // ── The page ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The idea: its words across the top, then the rail, then the three stages down the page, each
- * with its name and question in a column on the left and its work on the right. One drag state
- * serves the whole page, since a reference can be dragged from its stage onto a shot.
+ * The idea: its words across the top, then the three sections down the page, each with its
+ * name across the top and its work under it at the full width. One drag state serves the whole
+ * page, since a reference can be dragged from its section onto a shot.
  */
 function Idea({ slot }: { slot: Slot }) {
-  const { brand, weeks } = useBrand()
+  const { brand } = useBrand()
   const phone = usePhone()
   const plan = usePlan(slot)
   const board = useBoard()
@@ -490,8 +488,6 @@ function Idea({ slot }: { slot: Slot }) {
   )
   const rename = useRename(card)
   const refs = refsOf(brand.id, card)
-  const stages = stagesOf(refs, card, slot, weeks, plan.time)
-  const stage = (key: StageKey) => stages.find((s) => s.key === key)!
   // What a keyboard move did, read out once.
   const [said, say] = React.useState('')
   const hint = React.useId()
@@ -549,18 +545,18 @@ function Idea({ slot }: { slot: Slot }) {
   }
 
   return (
-    <article className="flex flex-col gap-10 max-md:gap-8">
-      <header className="flex max-w-[880px] flex-col gap-4">
-        <span className={`${EYEBROW} flex items-center gap-2`}>
+    <article className="flex flex-col gap-9 max-md:gap-7">
+      <header className="flex max-w-[880px] flex-col gap-3">
+        <span className="flex items-center gap-2 text-[13px] text-ink-3">
           <FormatIcon format={card.format} size={11} />
           {FORMAT_LABEL[card.format]} · {card.pillar}
         </span>
         <textarea
           value={card.hook}
-          rows={2}
+          rows={1}
           onChange={(e) => rename(e.target.value)}
           aria-label="Hook"
-          className="w-full resize-none bg-transparent font-display text-[48px] leading-[1.04] tracking-[-0.035em] [field-sizing:content] outline-none max-md:text-[32px]"
+          className="w-full resize-none bg-transparent font-display text-[34px] leading-[1.08] tracking-[-0.03em] [field-sizing:content] outline-none max-md:text-[28px]"
         />
         <textarea
           value={card.angle}
@@ -568,12 +564,11 @@ function Idea({ slot }: { slot: Slot }) {
           onChange={(e) => edit({ angle: e.target.value })}
           placeholder="What the shot is, in a sentence."
           aria-label="Note"
-          className="w-full max-w-[640px] resize-none bg-transparent text-[16px] leading-[1.5] text-ink-2 [field-sizing:content] outline-none placeholder:text-ink-5"
+          className="w-full max-w-[640px] resize-none bg-transparent text-[15px] leading-[1.5] text-ink-2 [field-sizing:content] outline-none placeholder:text-ink-5"
         />
         {status === 'suggested' && <Suggestion slot={slot} />}
       </header>
 
-      <Rail stages={stages} />
       <p aria-live="polite" className="sr-only">
         {said}
       </p>
@@ -581,8 +576,8 @@ function Idea({ slot }: { slot: Slot }) {
         Press Option with an arrow key to move it.
       </p>
 
-      <div className="flex flex-col gap-16 max-md:gap-12">
-        <StageSection stage={stage('references')}>
+      <div className="flex flex-col gap-9 max-md:gap-7">
+        <Section id="references" label="References">
           <References
             card={card}
             refs={refs}
@@ -600,9 +595,9 @@ function Idea({ slot }: { slot: Slot }) {
             more={more}
           />
           <Sharpen card={card} />
-        </StageSection>
+        </Section>
 
-        <StageSection stage={stage('shots')}>
+        <Section id="shots" label="Storyboard" aside={<ShootDay card={card} />}>
           <Storyboard
             card={card}
             shots={card.shots}
@@ -622,17 +617,17 @@ function Idea({ slot }: { slot: Slot }) {
               shotSort.nudge(id, by)
             }}
           />
-          <ShotDetails card={card} />
+          <InFrame card={card} />
           <ShootLine card={card} />
-        </StageSection>
+        </Section>
 
-        <StageSection stage={stage('post')}>
+        <Section id="post" label="Post">
           {status === 'suggested' ? (
             <p className="text-[14px] text-ink-4">Keep the idea first.</p>
           ) : (
             <PlanSection slot={slot} plan={plan} board={board} edit={edit} />
           )}
-        </StageSection>
+        </Section>
       </div>
       <Comments
         kind="idea"
@@ -644,77 +639,29 @@ function Idea({ slot }: { slot: Slot }) {
   )
 }
 
-/** The three stages in a row that stays at the top: a mark for each, the current one in ink. */
-function Rail({ stages }: { stages: StageState[] }) {
-  return (
-    <nav
-      aria-label="Stages"
-      className={`sticky top-0 z-10 -mx-10 border-b ${HAIR} bg-page/92 px-10 backdrop-blur-sm max-md:-mx-4 max-md:px-4`}
-    >
-      <ol className="flex h-12 items-center gap-7 overflow-x-auto max-md:gap-5">
-        {stages.map((s) => (
-          <li key={s.key} className="shrink-0">
-            <a
-              href={`#${s.key}`}
-              aria-current={s.current ? 'step' : undefined}
-              className="flex items-center gap-2 text-[13px] transition-colors hover:text-ink"
-            >
-              <StageMark done={s.done} current={s.current} />
-              <span
-                className={
-                  s.current ? 'font-medium text-ink' : s.done ? 'text-ink-3' : 'text-ink-4'
-                }
-              >
-                {s.label}
-              </span>
-            </a>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  )
-}
-
-/**
- * A stage's mark: filled once done, ringed with a dot while current, a faint ring ahead. The
- * tick pops in the moment the stage completes.
- */
-function StageMark({ done, current }: { done: boolean; current: boolean }) {
-  if (done) {
-    return (
-      <span
-        key="done"
-        className="bb-pop flex size-4 items-center justify-center rounded-full bg-ink text-page"
-      >
-        <CheckIcon size={8} strokeWidth={2.4} />
-      </span>
-    )
-  }
-  return (
-    <span
-      className={`flex size-4 items-center justify-center rounded-full border transition-colors ${current ? 'border-[1.5px] border-ink' : 'border-(--line-strong)'}`}
-    >
-      {current && <span className="size-1.5 rounded-full bg-ink" />}
-    </span>
-  )
-}
-
-/** A stage down the page: its name and standing on the left, its work on the right. */
-function StageSection({ stage, children }: { stage: StageState; children: React.ReactNode }) {
+/** A section down the page: its name across the top, a control beside it, its work under it. */
+function Section({
+  id,
+  label,
+  aside,
+  children,
+}: {
+  id: string
+  label: string
+  aside?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
     <section
-      id={stage.key}
-      aria-label={stage.label}
-      className={`grid scroll-mt-14 grid-cols-[200px_minmax(0,1fr)] gap-x-16 gap-y-6 border-t ${HAIR} pt-9 first:border-t-0 first:pt-2 max-lg:grid-cols-1 max-md:pt-7`}
+      id={id}
+      aria-label={label}
+      className={`flex scroll-mt-6 flex-col gap-5 border-t ${HAIR} pt-7 first:border-t-0 first:pt-0 max-md:gap-4 max-md:pt-6`}
     >
-      <div className="flex flex-col gap-2">
-        <h2 className="font-display text-[22px] leading-[1.1] tracking-[-0.02em]">{stage.label}</h2>
-        <p className="flex items-center gap-2 text-[13px] text-ink-4">
-          <StageMark done={stage.done} current={stage.current} />
-          {stage.note}
-        </p>
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h2 className={H2}>{label}</h2>
+        {aside}
       </div>
-      <div className="flex min-w-0 flex-col gap-10 max-md:gap-8">{children}</div>
+      <div className="flex min-w-0 flex-col gap-7 max-md:gap-6">{children}</div>
     </section>
   )
 }
@@ -786,7 +733,7 @@ function References({
           sort.end(true)
           board.end()
         }}
-        className="grid grid-cols-4 gap-x-3 gap-y-5 max-xl:grid-cols-3 max-md:grid-cols-2"
+        className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-3 gap-y-4 max-md:grid-cols-2"
       >
         {refs.map((r) => (
           <RefTile
@@ -814,7 +761,7 @@ function References({
           {picking ? 'Done' : 'From the moodboard'}
         </button>
         {board.files && (
-          <span className="pl-1.5 text-[12px] text-ink">
+          <span className="pl-1.5 text-[13px] text-ink">
             {over ? 'Drop to add' : 'Drop here to add'}
           </span>
         )}
@@ -932,7 +879,7 @@ function RefTile({
         >
           <Media src={r.src} sizes={SIZES} />
           {index === 0 && (
-            <span className="absolute top-2 left-2 rounded-full bg-page/90 px-2 py-1 font-mono text-[12px] tracking-[0.08em] text-ink uppercase">
+            <span className="absolute top-2 left-2 rounded-full bg-page/90 px-2 py-0.5 text-[12px] font-medium text-ink">
               Main look
             </span>
           )}
@@ -974,13 +921,9 @@ function Sharpen({ card }: { card: IdeaCard }) {
   return (
     <section aria-label="Sharpen the hook" className="flex max-w-[560px] flex-col gap-2">
       <span className="flex items-center justify-between">
-        <span className={EYEBROW}>Sharpen the hook</span>
+        <span className={LABEL}>Sharpen the hook</span>
         {card.hook !== mine && (
-          <button
-            type="button"
-            onClick={() => use(mine)}
-            className="text-[12px] text-ink-3 transition-colors hover:text-ink"
-          >
+          <button type="button" onClick={() => use(mine)} className={QUIET}>
             Back to mine
           </button>
         )}
@@ -1259,7 +1202,7 @@ function ShotCard({
       {/* One card, two layouts: the frame over the line, or on a phone the frame at the left,
           the line beside it and the ways to fill the frame under the line. */}
       <div
-        className={`bb-rise relative grid h-full grid-rows-[auto_1fr] gap-2.5 rounded-[14px] bg-surface p-2.5 [grid-template-areas:'frame'_'text'] max-md:grid-cols-[88px_minmax(0,1fr)] max-md:gap-x-3 max-md:[grid-template-areas:'frame_text'_'frame_fill'] ${LIFTABLE} ${held ? LIFTED : ''} ${over ? `bg-(--cal-drop) ${OVER}` : coming ? CAN_TAKE : ''}`}
+        className={`bb-rise relative grid h-full grid-rows-[auto_1fr] gap-2.5 rounded-[14px] bg-surface p-2.5 [grid-template-areas:'frame'_'text'] max-md:grid-cols-[88px_minmax(0,1fr)] max-md:gap-x-3 max-md:[grid-template-areas:'frame_text'] ${LIFTABLE} ${held ? LIFTED : ''} ${over ? `bg-(--cal-drop) ${OVER}` : coming ? CAN_TAKE : ''}`}
       >
         <span className="relative block aspect-[4/3] overflow-hidden rounded-[10px] bg-surface-2 [grid-area:frame] max-md:aspect-[4/5]">
           {like ? (
@@ -1274,29 +1217,28 @@ function ShotCard({
                 <Media src={like.src} sizes="(max-width: 768px) 88px, 220px" />
               </span>
             </button>
-          ) : null}
-        </span>
-        {!like && !choosing && (
-          // An empty frame says how to fill it, at rest and under a finger: pick a reference, or
-          // drop one. On a phone the pill sits under the line, where a thumb reaches.
-          <span className="z-[1] flex flex-col items-center gap-2 self-center justify-self-center [grid-area:frame] max-md:items-start max-md:self-end max-md:justify-self-start max-md:[grid-area:fill]">
+          ) : (
+            // An empty frame is the control that fills it: one round mark, named for a screen
+            // reader and on hover, at rest and under a finger. A reference can be dropped on it too.
             <button
               ref={frame}
               type="button"
               aria-label={`Pick a reference for ${n.toLowerCase()}`}
+              title="Reference"
               onClick={() => setChoosing(true)}
-              className={CHIP}
+              className="group/pick absolute inset-0 flex flex-col items-center justify-center gap-2 text-ink-3 transition-colors hover:text-ink focus-visible:text-ink focus-visible:outline-none"
             >
-              <PhotosIcon />
-              Reference
-            </button>
-            {(over || coming) && (
-              <span className="text-[12px] text-ink transition-colors">
-                {over ? 'Shoot it like this' : 'Drop it here'}
+              <span className="bb-press flex size-8 items-center justify-center rounded-full bg-page ring-1 ring-(--cal-ghost) group-hover/pick:ring-(--line-strong) group-focus-visible/pick:ring-ink">
+                <PhotosIcon />
               </span>
-            )}
-          </span>
-        )}
+              {(over || coming) && (
+                <span className="text-[13px] text-ink">
+                  {over ? 'Shoot it like this' : 'Drop it here'}
+                </span>
+              )}
+            </button>
+          )}
+        </span>
         {choosing && (
           // The picker covers the card while open: the idea's references, None, then the
           // moodboard's other posts, which join the references when picked.
@@ -1307,9 +1249,7 @@ function ShotCard({
             className="bb-menu absolute inset-0 z-[2] flex flex-col gap-1 overflow-y-auto rounded-[14px] bg-page p-1.5 shadow-pop [scrollbar-width:none]"
           >
             <span className="sticky top-0 z-[1] flex items-center justify-between px-1 pb-0.5">
-              <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
-                Shoot it like
-              </span>
+              <span className="text-[12px] font-medium text-ink-3">Shoot it like</span>
               <button
                 type="button"
                 aria-label="Close the picker"
@@ -1341,14 +1281,14 @@ function ShotCard({
                 aria-pressed={!shot.ref}
                 onKeyDown={escape}
                 onClick={() => choose(undefined)}
-                className={`flex items-center justify-center rounded-[6px] text-[12px] text-ink-4 hover:text-ink ${shot.ref ? 'bg-surface' : OVER}`}
+                className={`flex items-center justify-center rounded-[6px] text-[13px] text-ink-3 hover:text-ink ${shot.ref ? 'bg-surface' : OVER}`}
               >
                 None
               </button>
             </span>
             {more.length > 0 && (
               <>
-                <span className="px-1 pt-2 pb-0.5 font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
+                <span className="px-1 pt-2 pb-0.5 text-[12px] font-medium text-ink-3">
                   From the moodboard
                 </span>
                 <span className={picks}>
@@ -1371,13 +1311,9 @@ function ShotCard({
           </span>
         )}
         <span className="flex min-w-0 flex-col gap-1 px-0.5 [grid-area:text] max-md:pt-0.5 max-md:pr-9">
-          <span className={`${EYEBROW} flex items-center justify-between gap-2`}>
+          <span className="flex items-center justify-between gap-2 text-[13px] text-ink-4">
             <span className="shrink-0">{n}</span>
-            {like && (
-              <span className="truncate font-sans normal-case tracking-normal">
-                like {like.owner}
-              </span>
-            )}
+            {like && <span className="truncate">like {like.owner}</span>}
           </span>
           <textarea
             value={shot.title}
@@ -1405,11 +1341,28 @@ function ShotCard({
 /** The start times a shoot day offers on an idea's page; the call sheet has every half hour. */
 const SHOOT_STARTS = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00']
 
+/** Who or what is in frame: the dish, the chef, the room. */
+function InFrame({ card }: { card: IdeaCard }) {
+  const { brand } = useBrand()
+  return (
+    <label className="flex max-w-[560px] items-center gap-3 text-[13px]">
+      <span className="w-[80px] shrink-0 text-ink-4">In frame</span>
+      <input
+        value={card.feature}
+        onChange={(e) => editIdea(brand.id, card.id, { feature: e.target.value })}
+        aria-label="Subject"
+        placeholder="The dish, the chef, the room"
+        className="w-full bg-transparent text-[14px] outline-none placeholder:text-ink-5"
+      />
+    </label>
+  )
+}
+
 /**
- * Who or what is in frame, and the shoot day and time: one of the brand's shoots, or any day,
+ * The shoot day and time, beside the storyboard's name: one of the brand's shoots, or any day,
  * which starts a shoot there. The idea joins that shoot; its call sheet holds the rest.
  */
-function ShotDetails({ card }: { card: IdeaCard }) {
+function ShootDay({ card }: { card: IdeaCard }) {
   const { brand, weeks } = useBrand()
   const all = useShoots(brand.id)
   const shoot = all.find((s) => s.ideaIds.includes(card.id))
@@ -1434,31 +1387,18 @@ function ShotDetails({ card }: { card: IdeaCard }) {
     [shoots],
   )
   return (
-    <div className="grid max-w-[560px] grid-cols-[80px_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-[13px]">
-      <span className="text-ink-4">In frame</span>
-      <input
-        value={card.feature}
-        onChange={(e) => editIdea(brand.id, card.id, { feature: e.target.value })}
-        aria-label="Subject"
-        placeholder="The dish, the chef, the room"
-        className="w-full bg-transparent text-[14px] outline-none placeholder:text-ink-5"
-      />
-      <span className="text-ink-4">Shoot day</span>
-      <span className="flex">
-        <DayPicker
-          label="Shoot day"
-          value={shoot?.date ?? null}
-          placeholder="Pick a shoot day"
-          onChange={(date) => shootIdeaOn(brand.id, weeks, card.id, date, shoot?.start ?? start)}
-          onClear={() => leaveShoot(brand.id, card.id)}
-          infoOf={infoOf}
-          shortcuts={shoots}
-          time={shoot?.start ?? start}
-          times={SHOOT_STARTS}
-          onTime={(t) => (shoot ? editShoot(brand.id, shoot.id, moveStart(shoot, t)) : setStart(t))}
-        />
-      </span>
-    </div>
+    <DayPicker
+      label="Shoot day"
+      value={shoot?.date ?? null}
+      placeholder="Pick a shoot day"
+      onChange={(date) => shootIdeaOn(brand.id, weeks, card.id, date, shoot?.start ?? start)}
+      onClear={() => leaveShoot(brand.id, card.id)}
+      infoOf={infoOf}
+      shortcuts={shoots}
+      time={shoot?.start ?? start}
+      times={SHOOT_STARTS}
+      onTime={(t) => (shoot ? editShoot(brand.id, shoot.id, moveStart(shoot, t)) : setStart(t))}
+    />
   )
 }
 
@@ -1507,7 +1447,8 @@ function ShootLine({ card }: { card: IdeaCard }) {
 
 /**
  * A slot that takes a photo or a clip: the upload mark while empty, the thumbnail once it is
- * here, and a tap on either picks a file. Like the Upload pill, it is a label around the input.
+ * here, and a tap on either picks a file. Like the Upload pill, it is a label around the input,
+ * and the words beside an empty slot are part of that label: a tap on them picks a file too.
  */
 function MediaSlot({
   media,
@@ -1516,13 +1457,14 @@ function MediaSlot({
   accept = 'image/*,video/*',
   multiple,
   tall = false,
+  words = false,
   over,
   files,
   onMedia,
   onClear,
 }: {
   media: string | undefined
-  /** The input's name: "Add the final edit". */
+  /** The input's name, and the words beside an empty slot: "Add the final video". */
   label: string
   removeLabel: string
   accept?: string
@@ -1530,6 +1472,8 @@ function MediaSlot({
   multiple?: boolean
   /** A reel's final edit stands as the reel does. */
   tall?: boolean
+  /** Says what it takes, beside the slot, while empty. */
+  words?: boolean
   over: boolean
   files: boolean
   onMedia: (media: string[]) => void
@@ -1539,14 +1483,26 @@ function MediaSlot({
   return (
     <span className="group/media relative flex shrink-0">
       <label
-        className={`bb-press relative flex ${size} cursor-pointer items-center justify-center overflow-hidden rounded-[10px] has-[:focus-visible]:ring-[1.5px] has-[:focus-visible]:ring-ink ${media ? 'bg-tile' : `ring-1 ${over ? 'bg-(--cal-drop) text-ink ring-ink' : files ? 'bg-page text-ink-2 ring-ink-4' : 'bg-page text-ink-3 ring-(--cal-ghost) hover:text-ink hover:ring-(--line-strong)'}`}`}
+        className={`group/slot flex cursor-pointer items-center gap-3.5 ${words ? 'pr-2' : ''}`}
       >
-        {media ? (
-          <span key={media} className="bb-land absolute inset-0">
-            <Media src={media} sizes={tall ? '54px' : '48px'} />
+        <span
+          className={`bb-press relative flex ${size} items-center justify-center overflow-hidden rounded-[10px] group-has-[:focus-visible]/slot:ring-[1.5px] group-has-[:focus-visible]/slot:ring-ink ${media ? 'bg-tile' : `ring-1 ${over ? 'bg-(--cal-drop) text-ink ring-ink' : files ? 'bg-page text-ink-2 ring-ink-4' : 'bg-page text-ink-3 ring-(--cal-ghost) group-hover/slot:text-ink group-hover/slot:ring-(--line-strong)'}`}`}
+        >
+          {media ? (
+            <span key={media} className="bb-land absolute inset-0">
+              <Media src={media} sizes={tall ? '54px' : '48px'} />
+            </span>
+          ) : (
+            <UploadIcon size={15} />
+          )}
+        </span>
+        {words && !media && (
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-medium text-ink">{label}</span>
+            <span className="text-[13px] text-ink-3">
+              {over ? 'Drop it' : files ? 'Drop it here' : 'Drop a file, or tap to pick one.'}
+            </span>
           </span>
-        ) : (
-          <UploadIcon size={15} />
         )}
         <input
           type="file"
@@ -1577,8 +1533,10 @@ function MediaSlot({
 // ── 03 Post ──────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The final edit, then status, date and time, which put the post on the calendar: what the
- * videographer sends back lands first, and the controls that schedule it come right after.
+ * The final edit, then the day, then one button that puts the post on the calendar as a draft
+ * and opens it in the composer to send: what the videographer sends back lands first, and
+ * Schedule waits for it. Once the post is scheduled, its state stands where the button was, with
+ * the quiet way back to a draft.
  */
 function PlanSection({
   slot,
@@ -1592,48 +1550,94 @@ function PlanSection({
   edit: (fields: IdeaEdit | ((c: IdeaCard) => IdeaEdit)) => void
 }) {
   const { times } = useBrand()
-  const { card, status, date } = slot
-  const step = stepOf(status)
+  const { card, date } = slot
+  const { stage } = plan
+  const final = stage === 'posted'
+  const when = date ? `${dayLabel(date)}, ${plan.time}` : null
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-7 max-md:gap-6">
       <FinalEdit card={card} board={board} edit={edit} />
-      <section aria-label="Plan" className="flex flex-col gap-3">
-        <div className="grid grid-cols-[80px_minmax(0,1fr)] items-start gap-x-3 gap-y-3 text-[13px]">
-          <span className="pt-1.5 text-ink-4">Status</span>
-          <StatusPicker value={step} onChange={plan.setStatus} />
-          <span className="pt-1.5 text-ink-4">Post</span>
-          <span className="flex flex-wrap items-center gap-2">
-            <DayPicker
-              label="Post date"
-              value={date}
-              placeholder="Pick a day and a time"
-              disabled={step === 'posted'}
-              onChange={plan.setDate}
-              infoOf={plan.infoOf}
-              time={plan.time}
-              times={TIMES}
-              best={times?.best}
-              onTime={plan.setTime}
-            />
-          </span>
+      <section aria-label="Plan" className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <DayPicker
+            label="Post date"
+            value={date}
+            placeholder="Pick a day and a time"
+            disabled={final}
+            onChange={plan.setDate}
+            infoOf={plan.infoOf}
+            time={plan.time}
+            times={TIMES}
+            best={times?.best}
+            onTime={plan.setTime}
+          />
         </div>
-        {card.postId && date && (
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[92px] text-[12px] text-ink-4">
-            <Link href="/" className="text-(--insight-6) hover:underline">
-              On the calendar · {dayLabel(date)}, {plan.time}
-              {card.format === 'story' ? ' · story row' : ''}
-            </Link>
-            <Link
-              href={`/post/${card.postId}`}
-              className="font-medium text-ink underline-offset-2 hover:underline"
-            >
-              Open in scheduler →
-            </Link>
-          </span>
+        {stage === null || stage === 'draft' ? (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* The arrow says it goes on: to the composer, where the send is pressed. */}
+              <button
+                type="button"
+                disabled={plan.blocker !== null}
+                onClick={plan.schedule}
+                className="bb-press flex h-10 items-center gap-2 rounded-full bg-ink px-5 text-[13.5px] font-medium text-page transition-opacity hover:opacity-85 disabled:opacity-30"
+              >
+                {when ? `Schedule · ${when}` : 'Schedule'}
+                <span aria-hidden="true">→</span>
+              </button>
+              {stage === null ? (
+                <button type="button" onClick={plan.draft} className={QUIET}>
+                  Save as draft
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={plan.unplan}
+                  title="Removes the draft from the calendar; the idea keeps its day."
+                  className={QUIET}
+                >
+                  Remove the draft
+                </button>
+              )}
+            </div>
+            {plan.blocker && <p className="text-[13px] text-ink-3">{plan.blocker}</p>}
+            {stage === 'draft' && when && <PostLinks card={card} text={`Draft · ${when}`} />}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <PostLinks card={card} text={`${STATUS_LABEL[stage]} · ${when ?? ''}`} />
+            {(stage === 'scheduled' || stage === 'failed') && (
+              <button
+                type="button"
+                onClick={plan.unschedule}
+                title="Back to a draft: nothing goes out; the post and its caption stay."
+                className={QUIET}
+              >
+                Unschedule
+              </button>
+            )}
+          </div>
         )}
       </section>
     </div>
+  )
+}
+
+/** Where the post stands, as a link to the calendar, and its page in the scheduler. */
+function PostLinks({ card, text }: { card: IdeaCard; text: string }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+      <Link href="/" className="font-medium text-ink hover:underline">
+        {text}
+        {card.format === 'story' ? ' · story row' : ''}
+      </Link>
+      {card.postId && (
+        <Link href={`/post/${card.postId}`} className={QUIET}>
+          Open in scheduler →
+        </Link>
+      )}
+    </span>
   )
 }
 
@@ -1685,11 +1689,13 @@ function FinalEdit({
       }}
       className={`-m-3 flex flex-col gap-2.5 rounded-[14px] p-3 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
     >
-      <span className={`${EYEBROW} flex items-center gap-2`}>
-        Final edit
-        {slides && cut.length > 0 && <span className="text-ink-4 tabular-nums">{cut.length}</span>}
-      </span>
-      <span className="flex flex-wrap gap-2.5">
+      {cut.length > 0 && (
+        <span className={`${LABEL} flex items-center gap-2`}>
+          Final edit
+          {slides && <span className="font-normal text-ink-4 tabular-nums">{cut.length}</span>}
+        </span>
+      )}
+      <span className="flex flex-wrap items-center gap-2.5">
         {slides &&
           cut.map((m, i) => (
             <MediaSlot
@@ -1707,11 +1713,12 @@ function FinalEdit({
         {(slides ? cut.length < SLIDES_MAX : true) && (
           <MediaSlot
             media={slides ? undefined : cut[0]}
-            label="Add the final edit"
+            label={ADD_FINAL[card.format]}
             removeLabel="Remove the final edit"
             accept={kinds}
             multiple={slides}
             tall={!slides}
+            words={cut.length === 0}
             over={over}
             files={board.files}
             onMedia={add}
@@ -1720,102 +1727,6 @@ function FinalEdit({
         )}
       </span>
     </section>
-  )
-}
-
-/**
- * The four steps; the current one filled. Draft, Scheduled and Posted set the post's stage on the
- * calendar; Idea takes the post back to a plan. Posted is final, so picking it asks first, and once
- * a post is posted the other steps rest.
- */
-function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
-  const brandColour = useBrand().brand.colour
-  const [asking, setAsking] = React.useState(false)
-  const final = value === 'posted'
-  const root = React.useRef<HTMLSpanElement>(null)
-  const confirm = React.useRef<HTMLButtonElement>(null)
-
-  React.useEffect(() => {
-    if (!asking) return
-    // The question takes the focus, so Enter confirms and Escape backs out.
-    confirm.current?.focus()
-    const away = (e: PointerEvent) => root.current?.contains(e.target as Node) || setAsking(false)
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setAsking(false)
-    document.addEventListener('pointerdown', away)
-    window.addEventListener('keydown', key)
-    return () => {
-      document.removeEventListener('pointerdown', away)
-      window.removeEventListener('keydown', key)
-    }
-  }, [asking])
-
-  return (
-    <span ref={root} className="relative flex">
-      <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
-        {CHIPS.map((c) => {
-          const on = c === value
-          const locked = final && !on
-          return (
-            <button
-              key={c}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              disabled={locked}
-              title={locked ? 'Posted is final' : undefined}
-              onClick={() => (c === 'posted' && !on ? setAsking(true) : onChange(c))}
-              className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors disabled:opacity-40 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 enabled:hover:text-ink'}`}
-            >
-              {c === 'idea' ? (
-                // A plan's mark, the calendar's dashed square, so Idea never reads as a shade of Draft.
-                <span
-                  className="size-2 rounded-[2.5px] border border-dashed"
-                  style={{ borderColor: on ? 'var(--page)' : `var(${brandColour})` }}
-                />
-              ) : (
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: on ? 'var(--page)' : statusColour(c) }}
-                />
-              )}
-              {STATUS_LABEL[c]}
-            </button>
-          )
-        })}
-      </span>
-      {asking && (
-        <span
-          role="alertdialog"
-          aria-label="Mark as posted?"
-          className="bb-menu absolute top-full left-0 z-30 mt-2 flex w-[264px] origin-top-left flex-col gap-3 rounded-[14px] bg-page p-3.5 shadow-pop"
-        >
-          <span className="flex flex-col gap-1">
-            <span className="text-[13px] font-medium">Mark as posted?</span>
-            <span className="text-[12px] text-ink-3">It can’t be changed after.</span>
-          </span>
-          <span className="flex justify-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => setAsking(false)}
-              className="h-8 rounded-full px-3 text-[13px] text-ink-3 transition-colors hover:text-ink"
-            >
-              Cancel
-            </button>
-            <button
-              ref={confirm}
-              type="button"
-              onClick={() => {
-                setAsking(false)
-                onChange('posted')
-              }}
-              className="bb-press h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page hover:opacity-85"
-            >
-              Mark as posted
-            </button>
-          </span>
-        </span>
-      )}
-    </span>
   )
 }
 

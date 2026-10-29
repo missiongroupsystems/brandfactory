@@ -5,7 +5,15 @@ import { moodboardOf, pastedReferences, referencesOf, type Reference } from '@/d
 import type { BrandState } from '@/lib/remote'
 import type * as Remote from '@/lib/remote'
 
-import { connectSource, disconnectSource, pasteLink, useIdeas } from './ideas-store'
+import {
+  connectSource,
+  disconnectSource,
+  keepPasted,
+  pastedKept,
+  pasteLink,
+  useIdeas,
+  wordsOnPasted,
+} from './ideas-store'
 
 // The store on the API: the test hands it a brand's state and reads what it would send.
 const hydrate = vi.hoisted(() => ({ fn: (_id: string, _s: BrandState) => {} }))
@@ -41,7 +49,7 @@ const link = (id: string): Reference => ({
 })
 
 describe('the moodboard on the API', () => {
-  it("loads the server's pasted links and sources, and sends a new paste and a source change", () => {
+  it("loads the server's pasted links and sources, and sends a new paste and a source change", async () => {
     hydrate.fn('temper', {
       brand: { id: 'temper' },
       ideas: [],
@@ -56,10 +64,20 @@ describe('the moodboard on the API', () => {
     // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
     expect(result.current.sources).toMatchObject({ dm: false, tt: false })
 
+    // A paste shows at once and goes to the server at once; the server has it from then on, so
+    // a second ask sends nothing. The words typed after stay here: the server keeps a link as
+    // first sent and takes no edit.
+    const sentBefore = sends.length
     pasteLink('temper', link('p-new'))
     expect(pastedReferences('temper').map((r) => r.id)).toEqual(['p-new', 'p-old'])
     const { id: _id, ...fields } = link('p-new')
     expect(sends.at(-1)).toEqual(['POST', '/brands/temper/pasted', { id: 'p-new', ...fields }])
+    await Promise.resolve()
+    expect(pastedKept('p-new')).toBe(true)
+    keepPasted('temper', 'p-new')
+    wordsOnPasted('temper', 'p-new', 'The slow zoom')
+    expect(pastedReferences('temper')[0]?.borrow).toBe('The slow zoom')
+    expect(sends.length).toBe(sentBefore + 1)
 
     // No pretend sign-in: nothing is sent, and the source stays off.
     const sent = sends.length

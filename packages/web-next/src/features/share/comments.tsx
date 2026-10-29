@@ -27,6 +27,7 @@ export function Comments({
   write = guest,
   replyAs = 'The team',
   change,
+  fold = false,
 }: {
   kind: ShareKind
   id: string
@@ -37,20 +38,38 @@ export function Comments({
   replyAs?: string
   /** Where the team goes to act on a comment: the shot list or the storyboard. */
   change?: { href: string; label: string }
+  /** The thread folded under one line ("2 notes from the link") until it is opened. */
+  fold?: boolean
 }) {
   const comments = useComments(kind, id)
   const [showDone, setShowDone] = React.useState(false)
+  const [unfolded, setUnfolded] = React.useState(false)
   // Nothing to say until someone has written, unless this reader can be the first.
   if (!write && comments.length === 0) return null
   const open = guest ? comments : comments.filter((c) => !c.done)
   const done = guest ? [] : comments.filter((c) => c.done)
   const setDone = (c: GuestComment, to: boolean) => setCommentDone(kind, id, c.id, to)
+  const folded = fold && !unfolded
   return (
     <section aria-label="Comments" className="flex max-w-[640px] flex-col gap-5">
-      <span className={EYEBROW}>
-        {guest ? 'Comments' : 'From the link'} · {open.length}
-      </span>
-      {open.length > 0 && (
+      {fold ? (
+        <button
+          type="button"
+          aria-expanded={unfolded}
+          onClick={() => setUnfolded((u) => !u)}
+          className="flex items-center gap-1.5 self-start text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
+        >
+          {open.length === 0
+            ? `${done.length} ${done.length === 1 ? 'note' : 'notes'} done`
+            : `${open.length} ${open.length === 1 ? 'note' : 'notes'} from the link`}
+          <ChevronIcon open={unfolded} />
+        </button>
+      ) : (
+        <span className={EYEBROW}>
+          {guest ? 'Comments' : 'From the link'} · {open.length}
+        </span>
+      )}
+      {!folded && open.length > 0 && (
         <ul className="flex flex-col gap-6">
           {open.map((c) => (
             <Comment key={c.id} comment={c} guest={guest}>
@@ -68,7 +87,7 @@ export function Comments({
           ))}
         </ul>
       )}
-      {done.length > 0 && (
+      {!folded && done.length > 0 && (
         <div className="flex flex-col gap-5">
           <button
             type="button"
@@ -97,7 +116,7 @@ export function Comments({
           )}
         </div>
       )}
-      {write && <CommentForm kind={kind} id={id} />}
+      {!folded && write && <CommentForm kind={kind} id={id} />}
     </section>
   )
 }

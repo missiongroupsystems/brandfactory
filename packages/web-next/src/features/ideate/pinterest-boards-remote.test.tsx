@@ -52,6 +52,16 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/ideate',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
+// jsdom has no media queries; the board asks whether it is on a phone.
+if (!window.matchMedia) {
+  window.matchMedia = () =>
+    ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {},
+    }) as unknown as MediaQueryList
+}
+
 vi.stubGlobal(
   'ResizeObserver',
   class {
@@ -110,14 +120,14 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     expect(screen.queryByRole('status', { name: 'Loading the moodboard' })).toBeNull()
     expect(within(folders()).getByRole('tab', { name: /Salsa/ })).toBeVisible()
     // "All" holds the pins of both boards.
-    expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
-    expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Tacos at dusk/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Green salsa/ })).toBeVisible()
 
     // A removal the core refuses puts the board and its pins back.
     refused.add('PUT /brands/casa-vostra/pinterest')
     fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
-    expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Tacos at dusk/ })).toBeVisible()
     refused.clear()
 
     // The × takes the board and its pins off at once, then sends the list without it. The other
@@ -126,8 +136,8 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     const before = reads()
     fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
     expect(within(folders()).queryByRole('tab', { name: /Tacos/ })).toBeNull()
-    expect(screen.queryByRole('checkbox', { name: /Tacos at dusk/ })).toBeNull()
-    expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Tacos at dusk/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Green salsa/ })).toBeVisible()
     await waitFor(() =>
       expect(sends).toContainEqual(['PUT', '/brands/casa-vostra/pinterest', { boardIds: ['222'] }]),
     )
@@ -187,8 +197,8 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     // no reload of the brand.
     await waitFor(() => expect(screen.queryByRole('group', { name: 'Boards' })).toBeNull())
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
-    expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
-    expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Tacos at dusk/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: /Green salsa/ })).toBeVisible()
     expect(loads.n).toBe(loadsBefore)
 
     // Opened again, the picker shows the boards at once, the saved one ticked.

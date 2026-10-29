@@ -23,7 +23,16 @@ import { remote } from '@/lib/remote'
  * comment with only a name, or edit; or the link opens only for the team. A popover on a
  * computer, a sheet on a phone.
  */
-export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
+export function ShareButton({
+  kind,
+  id,
+  compact = false,
+}: {
+  kind: ShareKind
+  id: string
+  /** The link mark alone, for a page whose one main action is something else. */
+  compact?: boolean
+}) {
   const phone = usePhone()
   const [open, setOpen] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
@@ -117,11 +126,13 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={compact ? 'Share' : undefined}
+        title={compact ? 'Share' : undefined}
         onClick={() => setOpen((o) => !o)}
-        className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-surface px-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+        className={`bb-press flex h-9 items-center gap-1.5 rounded-full bg-surface text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink ${compact ? 'w-9 justify-center' : 'px-3.5'}`}
       >
         <LinkGlyph />
-        Share
+        {!compact && 'Share'}
       </button>
       {open &&
         (phone ? (

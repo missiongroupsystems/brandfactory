@@ -631,7 +631,7 @@ function Label({
       {grip}
       <span className="flex min-w-0 items-center gap-2 px-0.5">
         {hook}
-        <span className="flex shrink-0 items-center gap-1 font-mono text-[12px] tracking-[0.06em] text-ink-4 uppercase">
+        <span className="flex shrink-0 items-center gap-1 text-[12px] text-ink-4">
           <FormatIcon format={card.format} size={9} />
           {FORMAT_LABEL[card.format]}
         </span>

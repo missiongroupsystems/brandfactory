@@ -88,13 +88,38 @@ function dragTo(from: HTMLElement, to: HTMLElement, side: 'before' | 'after' = '
   fireEvent.dragEnd(from, { dataTransfer })
 }
 
-/** What the post behind an idea carries, read from the posts store rather than from the page. */
+/**
+ * What the post behind an idea carries and goes to, read from the posts store rather than from
+ * the page, and a way to mark it posted as only a publish job can.
+ */
 function PostImages({ id }: { id: string }) {
-  const { byId } = useBrand()
+  const { byId, setStage } = useBrand()
   const card = useIdeas('casa-vostra').ideas.find((i) => i.id === id)
   const post = card?.postId ? byId(card.postId) : undefined
-  return <output data-testid="post-images">{post?.images.join(',')}</output>
+  return (
+    <>
+      <output data-testid="post-images">{post?.images.join(',')}</output>
+      {post && (
+        <>
+          <button type="button" onClick={() => setStage(post.id, 'scheduled')}>
+            The composer scheduled it
+          </button>
+          <button type="button" onClick={() => setStage(post.id, 'posted')}>
+            The job went live
+          </button>
+          <button type="button" onClick={() => setStage(post.id, 'failed')}>
+            The job failed
+          </button>
+        </>
+      )}
+    </>
+  )
 }
+
+/** The final edit's file input, named for what the format takes. */
+const finalEdit = () => screen.getByLabelText(/^Add the (final|slides)/)
+const video = () => new File(['x'], 'cut.mp4', { type: 'video/mp4' })
+const schedule = () => screen.getByRole('button', { name: /^Schedule/ })
 
 const openWithPost = (id: string) =>
   render(
@@ -105,65 +130,83 @@ const openWithPost = (id: string) =>
   )
 
 describe('an idea page', () => {
-  it('shows the idea in three stages, with a rail, and a way back to Current ideas', () => {
+  it('shows the idea in three sections, no stepper, and a way back to Current ideas', () => {
     open('cv-blindfold')
     expect(screen.getByLabelText('Hook')).toHaveValue('Blindfold pizza: the rematch.')
     expect(screen.getByRole('link', { name: 'Current ideas' })).toHaveAttribute(
       'href',
       '/ideate?view=ideas',
     )
-    const rail = screen.getByRole('navigation', { name: 'Stages' })
-    expect(
-      within(rail)
-        .getAllByRole('link')
-        .map((l) => l.getAttribute('href')),
-    ).toEqual(['#references', '#shots', '#post'])
-    // References are there, so the idea stands at Storyboard, which has no shoot day yet.
-    expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Storyboard')
+    // The judge found the stepper repeated the three headings: the headings alone remain.
+    expect(screen.queryByRole('navigation', { name: 'Stages' })).not.toBeInTheDocument()
     for (const name of ['References', 'Storyboard', 'Post']) {
       expect(screen.getByRole('region', { name })).toBeInTheDocument()
     }
-    // A plan with no post is an idea, not a draft: "Draft" is a post's word.
-    expect(screen.getByRole('radio', { name: 'Idea' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Draft' })).not.toBeChecked()
-    fireEvent.click(screen.getByRole('radio', { name: 'Draft' }))
-    expect(screen.getByRole('radio', { name: 'Draft' })).toBeChecked()
-    expect(screen.getByRole('link', { name: /On the calendar/ })).toBeInTheDocument()
-    // Idea takes the post back to a plan: no post on the calendar, the idea checked again.
-    fireEvent.click(screen.getByRole('radio', { name: 'Idea' }))
-    expect(screen.getByRole('radio', { name: 'Idea' })).toBeChecked()
-    expect(screen.queryByRole('link', { name: /On the calendar/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('None yet')).not.toBeInTheDocument()
+    // A plan with no post is an idea: a draft is made on purpose, and taken back the same way.
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
+    expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open in scheduler →' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the draft' }))
+    expect(screen.queryByRole('link', { name: /Draft · / })).not.toBeInTheDocument()
     // The plan keeps its day.
     expect(screen.getByRole('button', { name: 'Post date' })).toHaveTextContent('Fri 23 Oct')
     expect(shotTitles()).toEqual(['Blindfold on', 'One bite, one guess', 'The onions'])
   })
 
-  it('makes the idea a post on the calendar when a status is picked', () => {
-    open('cv-blindfold')
-    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
-    expect(screen.getByRole('link', { name: /On the calendar · Fri 23 Oct/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open in scheduler →' })).toBeInTheDocument()
+  it('schedules only once the final edit is in, then hands the draft to the composer to send', async () => {
+    // The judge could schedule an empty idea in one tap: nothing half-done reaches the calendar.
+    // Two reviews found a send path of the page's own wrong twice: the composer is the one place
+    // that sends, so Schedule makes the draft on its day and opens it there.
+    openWithPost('cv-blindfold')
+    expect(schedule()).toHaveTextContent('Schedule · Fri 23 Oct, 18:00')
+    expect(schedule()).toBeDisabled()
+    expect(screen.getByText('Add the final video first.')).toBeInTheDocument()
+    fireEvent.change(finalEdit(), { target: { files: [video()] } })
+    await waitFor(() => expect(schedule()).toBeEnabled())
+    expect(screen.queryByText('Add the final video first.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Accounts' })).not.toBeInTheDocument()
+    fireEvent.click(schedule())
+    expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct, 18:00/ })).toBeInTheDocument()
+    expect(screen.getByTestId('post-images')).toHaveTextContent(/^blob:file-1#video$/)
+    const id = screen.getByRole('link', { name: 'Open in scheduler →' }).getAttribute('href')
+    expect(id).toMatch(/^\/post\//)
+    await waitFor(() => expect(push).toHaveBeenCalledWith(id))
+    // Scheduled in the composer: the state stands here, and Unschedule makes it a draft again,
+    // the post kept. Only "Remove the draft" takes it off the calendar.
+    fireEvent.click(screen.getByRole('button', { name: 'The composer scheduled it' }))
+    expect(screen.getByRole('link', { name: /Scheduled · Fri 23 Oct, 18:00/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Schedule/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Unschedule' }))
+    expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct/ })).toBeInTheDocument()
+    expect(schedule()).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the draft' }))
+    expect(screen.queryByRole('link', { name: /Draft · / })).not.toBeInTheDocument()
+    expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
   })
 
-  it('asks before it marks a post posted, and nothing changes a posted post after', () => {
-    open('cv-blindfold')
-    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
-    // Posted cannot be undone, so a stray click only asks; Cancel leaves the post as it was.
-    fireEvent.click(screen.getByRole('radio', { name: 'Posted' }))
-    expect(screen.getByRole('alertdialog', { name: 'Mark as posted?' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Scheduled' })).toBeChecked()
-    // Confirmed, it is posted, and the other steps rest.
-    fireEvent.click(screen.getByRole('radio', { name: 'Posted' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Mark as posted' }))
-    expect(screen.getByRole('radio', { name: 'Posted' })).toBeChecked()
-    for (const step of ['Idea', 'Draft', 'Scheduled']) {
-      expect(screen.getByRole('radio', { name: step })).toBeDisabled()
-    }
+  it('offers no way to mark a post posted by hand, and Unschedule on a failed one', async () => {
+    openWithPost('cv-blindfold')
+    fireEvent.change(finalEdit(), { target: { files: [video()] } })
+    await waitFor(() => expect(schedule()).toBeEnabled())
+    fireEvent.click(schedule())
+    fireEvent.click(screen.getByRole('button', { name: 'The composer scheduled it' }))
+    // A job failed: the post reads Failed, and Unschedule takes it back to a draft to fix.
+    fireEvent.click(screen.getByRole('button', { name: 'The job failed' }))
+    expect(screen.getByRole('link', { name: /Failed · Fri 23 Oct/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Unschedule' }))
+    expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct/ })).toBeInTheDocument()
+    // Only a publish job sets Posted; the page has no control for it, and Posted is final.
+    expect(screen.queryByText(/Mark as posted/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Posted' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'The job went live' }))
+    expect(screen.getByRole('link', { name: /Posted · Fri 23 Oct/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Unschedule' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Schedule/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Post date' })).toBeDisabled()
   })
 
-  it('moves the idea to the day picked, and a status then makes it a post at that day and time', () => {
+  it('moves the idea to the day picked, and Schedule then makes it a post at that day and time', async () => {
     open('cv-blindfold')
     fireEvent.click(screen.getByRole('button', { name: 'Post date' }))
     const picker = screen.getByRole('dialog', { name: 'Post date' })
@@ -184,13 +227,15 @@ describe('an idea page', () => {
     expect(screen.getByRole('button', { name: 'Post date' })).toHaveFocus()
     // A date alone moves the plan; it is still an idea, and no post exists yet.
     expect(screen.getByRole('button', { name: 'Post date' })).toHaveTextContent('Tue 27 Oct, 12:00')
-    expect(screen.getByRole('radio', { name: 'Idea' })).toBeChecked()
-    expect(screen.queryByRole('link', { name: /On the calendar/ })).not.toBeInTheDocument()
-    // A status makes it a post, on the day and at the time picked.
-    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
-    expect(
-      screen.getByRole('link', { name: /On the calendar · Tue 27 Oct, 12:00/ }),
-    ).toBeInTheDocument()
+    expect(schedule()).toHaveTextContent('Schedule · Tue 27 Oct, 12:00')
+    expect(screen.queryByRole('link', { name: /Open in scheduler/ })).not.toBeInTheDocument()
+    // With its final edit in, Schedule makes it a draft on the day and at the time picked, and
+    // opens the composer to send it.
+    fireEvent.change(finalEdit(), { target: { files: [video()] } })
+    await waitFor(() => expect(schedule()).toBeEnabled())
+    fireEvent.click(schedule())
+    expect(screen.getByRole('link', { name: /Draft · Tue 27 Oct, 12:00/ })).toBeInTheDocument()
+    await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/post\//)))
   })
 
   it('reorders the shots by a drag, and by Option with an arrow key on a shot', () => {
@@ -278,15 +323,13 @@ describe('an idea page', () => {
     expect(after[1]).toHaveTextContent('@dough.diaries')
   })
 
-  it('finishes the Storyboard stage with a shoot day, and links the call sheet from there', () => {
+  it('takes a shoot day beside the Storyboard heading, and links the call sheet from there', () => {
     open('cv-blindfold')
     const storyboard = screen.getByRole('region', { name: 'Storyboard' })
     expect(within(storyboard).queryByRole('link', { name: /Call sheet/ })).not.toBeInTheDocument()
-    // The shoot on Wed 7 Oct is on offer, with its start; picking it moves the idea on to Post.
-    fireEvent.click(screen.getByRole('button', { name: 'Shoot day' }))
+    // The shoot on Wed 7 Oct is on offer, with its start.
+    fireEvent.click(within(storyboard).getByRole('button', { name: 'Shoot day' }))
     fireEvent.click(screen.getByRole('button', { name: 'Raffles City · Wed 7 Oct, 12:00' }))
-    const rail = screen.getByRole('navigation', { name: 'Stages' })
-    expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Post')
     expect(screen.getByRole('button', { name: 'Shoot day' })).toHaveTextContent('Wed 7 Oct')
     expect(within(storyboard).getByRole('link', { name: /Call sheet/ })).toHaveAttribute(
       'href',
@@ -296,17 +339,15 @@ describe('an idea page', () => {
 
   it('hands a reel its final edit, one video, and takes it back when the edit is removed', async () => {
     openWithPost('cv-blindfold')
-    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
     expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
-    // The final edit comes before the status, so a file that lands is scheduled right after.
+    // The final edit comes before the button, so a file that lands is scheduled right after.
     const post = screen.getByRole('region', { name: 'Post' })
     const final = within(post).getByRole('region', { name: 'Final edit' })
-    expect(
-      final.compareDocumentPosition(within(post).getByRole('radiogroup', { name: 'Status' })),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(screen.getByLabelText('Add the final edit')).toHaveAttribute('accept', 'video/*')
+    expect(final.compareDocumentPosition(schedule())).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(finalEdit()).toHaveAttribute('accept', 'video/*')
     // A photo is no reel, even past the picker: of a photo and a video, the video goes in.
-    fireEvent.change(screen.getByLabelText('Add the final edit'), {
+    fireEvent.change(finalEdit(), {
       target: {
         files: [
           new File(['x'], 'still.png', { type: 'image/png' }),
@@ -326,7 +367,7 @@ describe('an idea page', () => {
     // Five pastas already is a post with three photos; the final edit takes their place.
     openWithPost('cv-five-pastas')
     expect(screen.getByTestId('post-images')).toHaveTextContent(/tagliatelle.*ravioli.*pasta/)
-    const input = screen.getByLabelText('Add the final edit')
+    const input = screen.getByLabelText('Add the slides')
     expect(input).toHaveAttribute('multiple')
     expect(input).toHaveAttribute('accept', 'image/*,video/*')
     fireEvent.change(input, {
@@ -353,8 +394,8 @@ describe('an idea page', () => {
 
   it('hands a story one file, a photo or a video, and a second file takes its place', async () => {
     openWithPost('cv-st-poll')
-    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
-    const input = screen.getByLabelText('Add the final edit')
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
+    const input = screen.getByLabelText('Add the final photo or video')
     expect(input).toHaveAttribute('accept', 'image/*,video/*')
     expect(input).not.toHaveAttribute('multiple')
     // Two files at once past the picker: the story takes the first.
@@ -369,7 +410,7 @@ describe('an idea page', () => {
     await waitFor(() =>
       expect(screen.getByTestId('post-images')).toHaveTextContent(/^blob:file-1#photo$/),
     )
-    fireEvent.change(screen.getByLabelText('Add the final edit'), {
+    fireEvent.change(finalEdit(), {
       target: { files: [new File(['x'], 'two.mp4', { type: 'video/mp4' })] },
     })
     await waitFor(() =>
@@ -383,14 +424,14 @@ describe('an idea page', () => {
       { length: 11 },
       (_, i) => new File(['x'], `${i}.png`, { type: 'image/png' }),
     )
-    fireEvent.change(screen.getByLabelText('Add the final edit'), { target: { files } })
+    fireEvent.change(finalEdit(), { target: { files } })
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'Remove slide 10 of the final edit' }),
       ).toBeInTheDocument(),
     )
     expect(screen.queryByRole('button', { name: 'Remove slide 11 of the final edit' })).toBeNull()
-    expect(screen.queryByLabelText('Add the final edit')).toBeNull()
+    expect(screen.queryByLabelText('Add the slides')).toBeNull()
   })
 
   it('closes the reference picker on Escape and hands the focus back to the frame', async () => {

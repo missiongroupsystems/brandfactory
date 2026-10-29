@@ -154,22 +154,25 @@ describe('first-time Lark calendar', () => {
   it('asks to connect Lark before the invites go out, then sends them', () => {
     show(<ShootPage id="ca-shoot-joo-chiat" />, 'carlitos')
     expect(screen.queryByText('Synced with Lark')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Connect Lark calendar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Connect Lark calendar first' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Send Lark invites' }))
     expect(screen.getByRole('dialog', { name: 'Connect Lark calendar' })).toBeInTheDocument()
     allow()
-    expect(screen.queryByRole('button', { name: 'Connect Lark calendar' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Invites sent' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /Connect Lark calendar/ })).toBeNull()
+    // Sent, the button becomes a line: there is no second send.
+    expect(screen.queryByRole('button', { name: /invites/i })).toBeNull()
+    expect(screen.getByText('Invites sent')).toBeInTheDocument()
   })
 
   it('keeps the shoot flow as it was where Lark is linked', () => {
     show(<ShootPage id="cv-shoot-raffles" />)
     // Linked is the normal state: no "Synced with Lark" line, and no way to connect it again.
     expect(screen.queryByText('Synced with Lark')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Connect Lark calendar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Connect Lark calendar/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Send Lark invites' }))
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Invites sent' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /invites/i })).toBeNull()
+    expect(screen.getByText('Invites sent')).toBeInTheDocument()
   })
 })

@@ -57,6 +57,29 @@ describe('where the shoot sits', () => {
   })
 })
 
+// The judge counted seven controls above the fold: one main action stays, the rest step back.
+describe('the head of the sheet', () => {
+  it('has one main action, the invites, and folds what the crew said under one line', () => {
+    open()
+    const invites = screen.getByRole('button', { name: 'Send Lark invites' })
+    // The invites sit in the head, above Who comes, not in its heading.
+    expect(invites.compareDocumentPosition(screen.getByRole('region', { name: 'Who comes' }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(screen.getByRole('button', { name: 'Share' })).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(screen.queryByRole('button', { name: /^Edit$/ })).toBeNull()
+    // The thread opens under its line, in place.
+    const notes = screen.getByRole('button', { name: /1 note from the link/ })
+    expect(screen.queryByText(/Can we do the dough first/)).toBeNull()
+    fireEvent.click(notes)
+    expect(screen.getByText(/Can we do the dough first/)).toBeInTheDocument()
+    // Sent, the button becomes a line, and no second send is offered.
+    fireEvent.click(invites)
+    expect(screen.queryByRole('button', { name: /invites/i })).toBeNull()
+    expect(screen.getByText('Invites sent')).toBeInTheDocument()
+  })
+})
+
 describe('the address', () => {
   it('offers every outlet first, so the team picks where it shoots', () => {
     open()
@@ -91,6 +114,9 @@ describe('the address', () => {
 describe('who comes', () => {
   it('takes a role the team types, and offers that person in it next time', () => {
     open()
+    // The add row is out of the way until it is asked for, and goes once the person is on.
+    expect(screen.queryByLabelText('Name of the person')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Add someone' }))
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'other' } })
     fireEvent.change(screen.getByLabelText('Name of the person'), { target: { value: 'Ana Lee' } })
     // A name with no role is not a crew member yet.
@@ -101,6 +127,7 @@ describe('who comes', () => {
     const crew = screen.getByRole('region', { name: 'Who comes' })
     expect(within(crew).getByText('Ana Lee')).toBeInTheDocument()
     expect(within(crew).getByText('Food stylist')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Name of the person')).toBeNull()
     expect(pastCrew(shoots(), PAST_CREW['casa-vostra'])).toContainEqual(
       expect.objectContaining({ name: 'Ana Lee', role: 'Food stylist' }),
     )

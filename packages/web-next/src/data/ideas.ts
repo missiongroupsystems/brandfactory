@@ -44,6 +44,8 @@ export interface Reference {
   borrow: string
   /** Height over width, for a pin on the board. */
   ratio?: number
+  /** Where it is on its platform: the link that was pasted. */
+  url?: string
   /** What an idea planned from this post starts with, when it is picked first. */
   seed: Omit<IdeaCard, 'id' | 'source' | 'status' | 'inspiration'>
 }
@@ -1816,6 +1818,11 @@ export function pastedReferences(brandId: BrandId): Reference[] {
 
 export function pasteReference(brandId: BrandId, ref: Reference) {
   pasted[brandId] = [ref, ...pastedReferences(brandId)]
+}
+
+/** The team's words on a pasted link. */
+export function editPasted(brandId: BrandId, id: string, borrow: string) {
+  pasted[brandId] = pastedReferences(brandId).map((r) => (r.id === id ? { ...r, borrow } : r))
 }
 
 /** The links the server holds for a brand, in place of this session's. */

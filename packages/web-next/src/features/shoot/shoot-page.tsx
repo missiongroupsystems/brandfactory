@@ -1,14 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon } from '@/components/icons'
 import { Media } from '@/components/media'
-import { cameFromApp } from '@/components/path-trail'
+import { cameFromApp, previousPath } from '@/components/path-trail'
 import { Sheet } from '@/components/sheet'
 import { Combobox } from '@/components/suggest'
 import { usePhone } from '@/components/use-phone'
@@ -18,7 +18,7 @@ import { OUTLETS, ROLES, type Reply, type Shoot } from '@/data/shoots'
 import { PAST_CREW, PAST_PLACES } from '@/data/suggestions'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { DayPicker, type DayInfo } from '@/features/ideate/day-picker'
-import { EYEBROW, FormatIcon } from '@/features/ideate/idea-parts'
+import { FormatIcon } from '@/features/ideate/idea-parts'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnected } from '@/features/connections/connections-store'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
@@ -78,11 +78,19 @@ export function ShootPage({ id }: { id: string }) {
 }
 
 /**
- * Back to where the shoot was opened from (Ideas or the calendar). Opened from outside the app,
- * Back would leave it: then the link goes to Ideas, the tab the page lights.
+ * Back to where the shoot was opened from, named for it: Ideas or Schedule. Opened from outside
+ * the app, Back would leave it: then the link goes to Ideas, the tab the page lights.
  */
 function BackLink() {
   const router = useRouter()
+  const pathname = usePathname()
+  // Read on the client only, so the server's page and the first client render agree.
+  const from = React.useSyncExternalStore(
+    () => () => undefined,
+    () => previousPath(pathname),
+    () => null,
+  )
+  const label = from?.startsWith('/ideate') ? 'Ideas' : from === '/' ? 'Schedule' : 'Back'
   return (
     <Link
       href="/ideate"
@@ -91,7 +99,7 @@ function BackLink() {
         e.preventDefault()
         router.back()
       }}
-      className="inline-flex items-center gap-1.5 font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
+      className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
     >
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path
@@ -102,8 +110,18 @@ function BackLink() {
           strokeLinejoin="round"
         />
       </svg>
-      Back
+      {label}
     </Link>
+  )
+}
+
+/** A section's name across the top of it, with its count beside it in a quieter word. */
+function Heading({ label, count }: { label: string; count?: string }) {
+  return (
+    <span className="flex items-baseline gap-2">
+      <h2 className="text-[17px] font-medium tracking-[-0.01em]">{label}</h2>
+      {count && <span className="text-[13px] text-ink-4">{count}</span>}
+    </span>
   )
 }
 
@@ -122,6 +140,10 @@ const COLUMN = 'max-w-[680px]'
 function CallSheet({ shoot }: { shoot: Shoot }) {
   const { brand } = useBrand()
   const { ideas } = useIdeas(brand.id)
+  const invited = useInvited(shoot.id)
+  const replies = useReplies(shoot.id)
+  const asked = shoot.crew.map((c) => c.name).filter((n) => invited.includes(n))
+  const waiting = shoot.crew.length - asked.length
   // A shoot just planned from Ideate opens with its details out: it still needs a name and a day.
   const [editing, setEditing] = React.useState(shoot.title === 'New shoot')
   const cards = shoot.ideaIds.flatMap((id) => ideas.find((i) => i.id === id) ?? [])
@@ -137,50 +159,78 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
       shots: ids.flatMap((id) => c.shots.filter((s) => s.id === id)),
     }))
 
+  const invite = () => {
+    const send = () => sendInvites(brand.id, shoot.id)
+    if (lark) send()
+    else setLinking({ then: send })
+  }
+
   return (
-    <article className="flex flex-col gap-12 max-md:gap-7">
+    <article className="flex flex-col gap-10 max-md:gap-7">
       <div className="flex items-center justify-between gap-3">
         <BackLink />
-        <ShareButton kind="shoot" id={shoot.id} />
+        <ShareButton kind="shoot" id={shoot.id} compact />
       </div>
 
-      <header className={`${COLUMN} flex flex-col gap-4 max-md:gap-3`}>
-        <span className={EYEBROW}>Shoot · {dayLabel(shoot.date)}</span>
-        <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[32px]">
+      <header className={`${COLUMN} flex flex-col gap-3`}>
+        <h1 className="font-display text-[34px] leading-[1.08] tracking-[-0.03em] max-md:text-[28px]">
           {shoot.title}
         </h1>
-        <p className="text-[16px] leading-[1.5] text-ink-2">
-          <span className="tabular-nums">
-            {shoot.start}–{shoot.end}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] leading-[1.5] text-ink-2">
+          <span>
+            {dayLabel(shoot.date)} ·{' '}
+            <span className="tabular-nums">
+              {shoot.start}–{shoot.end}
+            </span>
+            {/* A shoot with no place yet says only its day and hours. */}
+            {shoot.place && ` · ${shoot.place}`}
           </span>
-          {/* A shoot with no place yet says only its hours. */}
-          {shoot.place && ` · ${shoot.place}`}
-        </p>
-        {/* One quiet line under the facts: edit them, and where the Lark calendar stands. */}
-        <div className="flex items-center gap-4 pt-1 text-[13px]">
           <button
             type="button"
             aria-expanded={editing}
             onClick={() => setEditing((e) => !e)}
-            className="font-medium text-ink-3 transition-colors hover:text-ink"
+            className="text-[13px] text-ink-3 transition-colors hover:text-ink"
           >
             {editing ? 'Done' : 'Edit details'}
           </button>
-          {/* Linked is the normal state and says nothing; only a missing link asks for one. */}
-          {!lark && (
-            <button
-              type="button"
-              onClick={() => setLinking({})}
-              className="flex items-center gap-1.5 text-[12px] text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline"
-            >
-              <span className="size-1.5 rounded-full shadow-[inset_0_0_0_1px_var(--ink-4)]" />
-              Connect Lark calendar
-            </button>
-          )}
-        </div>
+        </p>
         <Fold open={editing}>
           <Details shoot={shoot} edit={edit} />
         </Fold>
+        {/* The one thing to do: send the invites. Sent, that stands as a line, with the answers. */}
+        {shoot.crew.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
+            {waiting > 0 ? (
+              <button
+                type="button"
+                onClick={invite}
+                className="bb-press flex h-10 items-center rounded-full bg-ink px-5 text-[13.5px] font-medium text-page transition-opacity hover:opacity-85"
+              >
+                {asked.length > 0 ? `Invite ${waiting} more` : 'Send Lark invites'}
+              </button>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[13px] text-ink-2">
+                <CheckIcon size={10} strokeWidth={2.2} />
+                Invites sent
+              </span>
+            )}
+            {asked.length > 0 && (
+              <span className="text-[13px] text-ink-3 tabular-nums">
+                {replySummary(asked, replies)}
+              </span>
+            )}
+            {/* Linked is the normal state and says nothing; only a missing link asks for one. */}
+            {!lark && (
+              <button
+                type="button"
+                onClick={() => setLinking({})}
+                className="text-[13px] text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline"
+              >
+                Connect Lark calendar first
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       {linking && (
@@ -194,32 +244,24 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
         />
       )}
 
-      {/* Who comes, with what the crew said on the link as a note in the margin beside it. */}
-      <div className="grid max-w-[1044px] grid-cols-[minmax(0,680px)_300px] items-start gap-x-16 max-lg:grid-cols-1 max-lg:gap-y-10 max-md:gap-y-7">
-        <Crew
-          shoot={shoot}
-          invite={() => {
-            const send = () => sendInvites(brand.id, shoot.id)
-            if (lark) send()
-            else setLinking({ then: send })
-          }}
-        />
-        <aside>
+      {/* Who comes, with what the crew said on the link folded in the margin beside it. */}
+      <div className="grid max-w-[1044px] grid-cols-[minmax(0,680px)_300px] items-start gap-x-16 max-lg:grid-cols-1 max-lg:gap-y-8 max-md:gap-y-6">
+        <Crew shoot={shoot} />
+        <aside className="max-lg:order-first">
           <Comments
             kind="shoot"
             id={shoot.id}
             replyAs={brand.name}
             change={{ href: '#shots', label: 'Storyboard' }}
+            fold
           />
         </aside>
       </div>
 
       {/* The heart of the sheet takes the whole width: each idea's shots as a filmstrip. */}
-      <section id="shots" aria-label="Storyboard" className="flex scroll-mt-6 flex-col gap-8">
+      <section id="shots" aria-label="Storyboard" className="flex scroll-mt-6 flex-col gap-6">
         <div className="flex items-center justify-between gap-3">
-          <span className={EYEBROW}>
-            Storyboard · {shots} {shots === 1 ? 'shot' : 'shots'}
-          </span>
+          <Heading label="Storyboard" count={`${shots} ${shots === 1 ? 'shot' : 'shots'}`} />
           <AddIdea shoot={shoot} ideas={ideas} />
         </div>
         {cards.length === 0 ? (
@@ -353,20 +395,19 @@ const STATUS: Record<Reply | 'waiting' | 'none', { text: string; className: stri
 const OTHER = 'other'
 
 /**
- * Who comes: each person with their role and their answer to the Lark invite, the answers
- * counted in the header beside the invite button, then one more person, in a listed role or one
- * the team types.
+ * Who comes: each person with their role and their answer to the Lark invite, then "+ Add",
+ * which opens one row for one more person, in a listed role or one the team types, and closes
+ * once they are on the sheet.
  */
-function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
+function Crew({ shoot }: { shoot: Shoot }) {
   const { brand } = useBrand()
   const invited = useInvited(shoot.id)
   const replies = useReplies(shoot.id)
-  const asked = shoot.crew.map((c) => c.name).filter((n) => invited.includes(n))
-  const waiting = shoot.crew.length - asked.length
   const [name, setName] = React.useState('')
   const [role, setRole] = React.useState<string>(ROLES[0])
   const [typed, setTyped] = React.useState('')
-  const [editingCrew, setEditingCrew] = React.useState(false)
+  // The add row is out until the team asks for it; a sheet with nobody on it opens with it out.
+  const [adding, setAdding] = React.useState(shoot.crew.length === 0)
   const typedField = React.useRef<HTMLInputElement>(null)
   const chosen = role === OTHER ? typed.trim() : role
   React.useEffect(() => {
@@ -387,41 +428,21 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
     if (!person.name || !person.role) return
     addCrew(brand.id, shoot.id, person)
     setName('')
+    setAdding(false)
   }
   return (
-    <section aria-label="Who comes" className={`${COLUMN} flex flex-col gap-4`}>
+    <section aria-label="Who comes" className={`${COLUMN} flex flex-col gap-3`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <span className={EYEBROW}>Who comes · {shoot.crew.length}</span>
-          {/* A finger has no hover: Edit shows the remove marks, Done hides them again. */}
+        <Heading label="Who comes" count={String(shoot.crew.length)} />
+        {!adding && (
           <button
             type="button"
-            aria-pressed={editingCrew}
-            onClick={() => setEditingCrew((e) => !e)}
-            className="text-[12px] font-medium text-ink-3 transition-colors hover:text-ink [@media(hover:hover)]:hidden"
+            aria-label="Add someone"
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
           >
-            {editingCrew ? 'Done' : 'Edit'}
-          </button>
-          {asked.length > 0 && (
-            <span className="text-[12px] text-ink-3 tabular-nums">
-              {replySummary(asked, replies)}
-            </span>
-          )}
-        </span>
-        {/* Nobody on the sheet: nobody to invite, and no "Invites sent" either. */}
-        {shoot.crew.length > 0 && (
-          <button
-            type="button"
-            disabled={waiting === 0}
-            onClick={invite}
-            className="bb-press flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-medium text-page transition-opacity hover:opacity-85 disabled:bg-surface disabled:text-ink-3 disabled:hover:opacity-100"
-          >
-            {waiting === 0 && <CheckIcon size={10} strokeWidth={2.2} />}
-            {waiting === 0
-              ? 'Invites sent'
-              : asked.length > 0
-                ? `Invite ${waiting} more`
-                : 'Send Lark invites'}
+            <PlusIcon size={10} />
+            Add
           </button>
         )}
       </div>
@@ -448,11 +469,12 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
                 {status.text && (
                   <span className={`text-[12px] ${status.className}`}>{status.text}</span>
                 )}
+                {/* On hover, or under a finger, which has none. */}
                 <button
                   type="button"
                   aria-label={`Remove ${c.name}`}
                   onClick={() => removeCrew(brand.id, shoot.id, i)}
-                  className={`flex size-6 items-center justify-center rounded-full text-ink-4 transition-opacity hover:text-ink ${editingCrew ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover/crew:pointer-events-auto group-hover/crew:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100'}`}
+                  className="flex size-6 items-center justify-center rounded-full text-ink-4 opacity-0 transition-opacity group-hover/crew:opacity-100 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                 >
                   <CloseIcon />
                 </button>
@@ -461,56 +483,60 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
           )
         })}
       </ul>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          add()
-        }}
-        /* One line: the name, the role, the button. On a phone a typed role takes a line of its own. */
-        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 md:flex"
-      >
-        <Combobox
-          value={name}
-          onChange={setName}
-          options={options}
-          create={(typed) => typed.trim()}
-          onPick={(picked) =>
-            add({ name: picked, role: known.find((c) => c.name === picked)?.role ?? chosen })
-          }
-          aria-label="Name of the person"
-          placeholder="Add someone"
-          className={`${INPUT} min-w-0 md:min-w-[200px] md:flex-1`}
-        />
-        <select
-          aria-label="Role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className={`${SELECT} max-md:max-w-[128px] max-md:truncate max-md:font-normal max-md:text-ink-2`}
+      {adding && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            add()
+          }}
+          /* One line: the name, the role, the button. On a phone a typed role takes a line of its own. */
+          className="bb-rise grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 pt-1 md:flex"
         >
-          {ROLES.map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-          <option value={OTHER}>Other…</option>
-        </select>
-        {role === OTHER && (
-          <input
-            ref={typedField}
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            aria-label="Their role"
-            placeholder="Food stylist"
-            className="h-8 rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_2px_var(--ink)] max-md:order-last max-md:col-span-3 md:w-[136px]"
+          <Combobox
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the row opens on a tap on Add
+            autoFocus={shoot.crew.length > 0}
+            value={name}
+            onChange={setName}
+            options={options}
+            create={(typed) => typed.trim()}
+            onPick={(picked) =>
+              add({ name: picked, role: known.find((c) => c.name === picked)?.role ?? chosen })
+            }
+            aria-label="Name of the person"
+            placeholder="Add someone"
+            className={`${INPUT} min-w-0 md:min-w-[200px] md:flex-1`}
           />
-        )}
-        <button
-          type="submit"
-          aria-label="Add"
-          disabled={!name.trim() || !chosen}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-page transition-opacity hover:opacity-85 disabled:opacity-25"
-        >
-          <PlusIcon size={11} />
-        </button>
-      </form>
+          <select
+            aria-label="Role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className={`${SELECT} max-md:max-w-[128px] max-md:truncate max-md:font-normal max-md:text-ink-2`}
+          >
+            {ROLES.map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+            <option value={OTHER}>Other…</option>
+          </select>
+          {role === OTHER && (
+            <input
+              ref={typedField}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              aria-label="Their role"
+              placeholder="Food stylist"
+              className="h-8 rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_2px_var(--ink)] max-md:order-last max-md:col-span-3 md:w-[136px]"
+            />
+          )}
+          <button
+            type="submit"
+            aria-label="Add"
+            disabled={!name.trim() || !chosen}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-page transition-opacity hover:opacity-85 disabled:opacity-25"
+          >
+            <PlusIcon size={11} />
+          </button>
+        </form>
+      )}
     </section>
   )
 }
