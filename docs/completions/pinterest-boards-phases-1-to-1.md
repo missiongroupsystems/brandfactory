@@ -21,19 +21,23 @@ could not change the board. No plan document: a one-day change on 2.37.0's desig
   and 250 pins). A board deleted on Pinterest, or one whose pins fail to load, is left out. The API gives no board URL: `boardUrl` builds
   `https://www.pinterest.com/{owner}/{slug}/` from the board's owner and name, and falls back to
   the owner's profile when the name has no letter or digit.
-- **web-next.** Each board is a chip; its chevron opens a menu with Open on Pinterest (new tab)
-  and Remove. On the core, once Pinterest is connected, the "+" opens the existing board picker,
-  now with checkboxes: the boards read now are ticked, and Save keeps the list. The old pins
+- **web-next.** Each board is a chip. A small × fades in on hover or focus (on a touch screen,
+  on the chosen chip only); it turns the chip into a quiet red "Remove {board}?" with a ✓ that
+  removes the board. Leaving the chip with the mouse, Escape, focus leaving or a press elsewhere
+  keeps it. The chip row never wraps: it scrolls sideways, with a fade at an edge that has more.
+  On the core, once Pinterest is connected, the "+" opens the existing board picker, now with
+  checkboxes: the boards read now are ticked, Save keeps the list, and a ↗ beside each row
+  (on hover or focus, always on touch) opens the board on Pinterest in a new tab. The old pins
   leave only after the server takes the change. The static demo is unchanged.
 - **Tests.** Pack: `accounts.json` (two boards, one removed, the last removed turns Pinterest
   off, the old key dropped, repeats and a 6-board list refused, another company's person
   refused) and `upgrade.test.ts` (0019 on a 1.10.0 database). Server: `pinterest.test.ts` (several
   boards, the page size, a deleted board, bad lists, `boardUrl`). Web:
-  `pinterest-boards-remote.test.tsx` (chips, the menu's link, Remove, the "+" picker and Save).
+  `pinterest-boards-remote.test.tsx` (chips, the × and its confirm and cancel paths, the "+" picker, its ↗ link and Save).
 - **Checked in a browser.** A local core with the pack and a stand-in Pinterest, Playwright at
-  1280 × 860 and 390 × 844 (viewport only): connect, tick two boards, the chips, a chip's menu
-  (`https://www.pinterest.com/casavostra/testing/`), the "+" picker with ticks, add a third,
-  remove one.
+  1280 × 860 and 390 × 844 (viewport only): connect, tick boards, the chips, a chip's × and its confirm
+  state, the "+" picker with ↗ (`https://www.pinterest.com/casavostra/kitchen-crew/`), add a
+  board, remove one, a row of five boards that scrolls.
 
 ## Not checked
 
@@ -53,5 +57,5 @@ code reads only the old key.
 2. `core promote brandbase 1.11.0`. No move is new, so no loadout changes.
 3. Deploy the core (`fly deploy`, app `brandfactory`): `packages/connect` changed.
 4. The web app from this branch (Vercel).
-5. Check on Casa Vostra or David's brand: the board chip's menu opens the board on Pinterest; the
-   "+" shows it ticked; tick a second board, Save, both chips show; Remove one.
+5. Check on Casa Vostra or David's brand: the "+" shows the board ticked, and its ↗ opens it on
+   Pinterest; tick a second board, Save, both chips show; remove one with × then ✓.

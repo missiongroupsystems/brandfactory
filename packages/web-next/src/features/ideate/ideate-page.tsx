@@ -7,7 +7,7 @@ import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
-import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import { ArrowUpRightIcon, CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
@@ -540,10 +540,133 @@ const PLATFORM_NAME: Record<Reference['platform'], string> = {
   tt: 'TikTok',
 }
 
-/** A Pinterest board's menu on the moodboard. */
-const MENU_WIDTH = 200
-const MENU_ITEM =
-  'rounded-[8px] px-2.5 py-[7px] text-left text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface disabled:opacity-40'
+const CHIP_ON = 'bg-ink text-page'
+const CHIP_OFF = 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'
+/** On a screen with no hover (touch): shown always, since nothing would reveal it. */
+const NO_HOVER_SHOWN = '[@media(hover:none)]:opacity-100'
+
+/**
+ * The folder chips in one line that never wraps: it scrolls sideways, and an edge with more
+ * chips past it fades out.
+ */
+function ChipRow({ children }: { children: React.ReactNode }) {
+  const row = React.useRef<HTMLDivElement>(null)
+  const [edges, setEdges] = React.useState({ start: false, end: false })
+  const measure = React.useCallback(() => {
+    const el = row.current
+    if (!el) return
+    const start = el.scrollLeft > 1
+    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+    setEdges((e) => (e.start === start && e.end === end ? e : { start, end }))
+  }, [])
+  React.useEffect(() => {
+    const el = row.current
+    if (!el) return
+    el.addEventListener('scroll', measure, { passive: true })
+    return () => el.removeEventListener('scroll', measure)
+  }, [measure])
+  // The row and each chip are watched, so a chip added, removed or grown (its confirm label)
+  // measures the row again. Watched afresh each render, since the chips may have changed.
+  React.useEffect(() => {
+    const el = row.current
+    if (!el) return
+    const resize = new ResizeObserver(measure)
+    resize.observe(el)
+    for (const chip of el.children) resize.observe(chip)
+    return () => resize.disconnect()
+  })
+  const fade = (on: boolean) => (on ? 'transparent' : '#000')
+  const mask = `linear-gradient(to right, ${fade(edges.start)}, #000 28px, #000 calc(100% - 28px), ${fade(edges.end)})`
+  return (
+    <div
+      ref={row}
+      role="tablist"
+      aria-label="Folders"
+      style={{ maskImage: mask, WebkitMaskImage: mask }}
+      className="-my-1 flex min-w-0 items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {children}
+    </div>
+  )
+}
+
+/**
+ * A live Pinterest board's chip. A small × fades in on hover or focus (on a touch screen, on the
+ * chosen chip only); it turns the chip into "Remove {board}?" with a ✓ that removes it. Leaving
+ * the chip, Escape or a press elsewhere keeps the board.
+ */
+function BoardChip({
+  label,
+  on,
+  busy,
+  onSelect,
+  onRemove,
+}: {
+  label: string
+  on: boolean
+  busy: boolean
+  onSelect: () => void
+  onRemove: () => void
+}) {
+  const [confirming, setConfirming] = React.useState(false)
+  // A remove that ends (a refused one too) leaves the chip as it was, not asking again.
+  const [wasBusy, setWasBusy] = React.useState(busy)
+  if (wasBusy !== busy) {
+    setWasBusy(busy)
+    if (!busy) setConfirming(false)
+  }
+  const root = React.useRef<HTMLSpanElement>(null)
+
+  React.useEffect(() => {
+    if (!confirming) return
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setConfirming(false)
+    }
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setConfirming(false)
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [confirming])
+
+  const shell = confirming ? 'bg-fail/10 text-fail-ink' : on ? CHIP_ON : CHIP_OFF
+  const shown = confirming
+    ? 'opacity-100'
+    : `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ${on ? NO_HOVER_SHOWN : '[@media(hover:none)]:pointer-events-none'}`
+
+  return (
+    <span
+      ref={root}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setConfirming(false)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setConfirming(false)
+      }}
+      className={`group relative flex h-9 shrink-0 items-center rounded-full transition-colors ${shell} ${busy ? 'opacity-50' : ''}`}
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={on}
+        onClick={() => (confirming ? setConfirming(false) : onSelect())}
+        className="flex h-9 items-center gap-2 rounded-full pr-8 pl-4 text-[13px] font-medium"
+      >
+        {!confirming && <PlatformLogo platform="pinterest" size={11} />}
+        {confirming ? `Remove ${label}?` : label}
+      </button>
+      <button
+        type="button"
+        aria-label={confirming ? `Yes, remove ${label}` : `Remove ${label}`}
+        disabled={busy}
+        onClick={() => (confirming ? onRemove() : setConfirming(true))}
+        className={`absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-full transition-opacity duration-150 hover:bg-current/10 ${shown}`}
+      >
+        {confirming ? <CheckIcon size={11} /> : <CloseIcon size={8} />}
+      </button>
+    </span>
+  )
+}
 
 /** Instagram DMs carry Instagram's logo. */
 const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
@@ -579,30 +702,22 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const top = React.useRef<HTMLDivElement>(null)
   // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
   const [anchor, setAnchor] = React.useState(0)
-  // The Pinterest board whose menu is open (Open on Pinterest, Remove), by its folder id.
-  const [menu, setMenu] = React.useState<string | null>(null)
   const [removing, setRemoving] = React.useState(false)
 
-  // The setup and a board's menu float over the board: a tap outside or Escape closes them.
+  // The setup floats over the board like a menu: a tap outside or Escape closes it.
   React.useEffect(() => {
-    if (!adding && !menu) return
+    if (!adding) return
     const close = (e: PointerEvent) => {
-      if (top.current?.contains(e.target as Node)) return
-      setAdding(false)
-      setMenu(null)
+      if (!top.current?.contains(e.target as Node)) setAdding(false)
     }
-    const escape = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setAdding(false)
-      setMenu(null)
-    }
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setAdding(false)
     document.addEventListener('pointerdown', close)
     document.addEventListener('keydown', escape)
     return () => {
       document.removeEventListener('pointerdown', close)
       document.removeEventListener('keydown', escape)
     }
-  }, [adding, menu])
+  }, [adding])
 
   // A source just connected: the popover closes, so it never jumps to a source nobody picked.
   const linked = Object.values(sources).filter(Boolean).length
@@ -671,7 +786,6 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
     { id: 'all', label: 'All', source: null, url: undefined },
     ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source, url: f.url })),
   ]
-  const menuBoard = menu ? folders.find((f) => f.id === menu && f.url) : undefined
   const picked = selected.flatMap((id) => all.find((p) => p.id === id) ?? [])
 
   function toggle(id: string) {
@@ -699,7 +813,6 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   /** Takes a board off the moodboard; the last one turns Pinterest off. The account stays. */
   async function remove(id: string) {
     if (removing) return
-    setMenu(null)
     setFilter('all')
     setRemoving(true)
     try {
@@ -738,58 +851,37 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
             </button>
           </div>
         ) : (
-          <div
-            role="tablist"
-            aria-label="Folders"
-            className="flex flex-wrap items-center gap-1.5 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none] max-md:[&>*]:shrink-0"
-          >
-            {chips.map((c) => {
-              const on = c.id === filter
-              const colours = on
-                ? 'bg-ink text-page'
-                : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'
-              const tab = (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  onClick={() => {
-                    setMenu(null)
-                    setFilter(c.id)
-                  }}
-                  className={`flex h-9 items-center gap-2 rounded-full text-[13px] font-medium transition-colors ${c.url ? 'pr-1.5 pl-4' : `px-4 ${colours}`}`}
-                >
-                  {c.source && <PlatformLogo platform={SOURCE_LOGO[c.source]} size={11} />}
-                  {c.label}
-                </button>
-              )
-              if (!c.url) return tab
-              // A live Pinterest board: its chip carries a small menu to open it on Pinterest or
-              // take it off the moodboard.
-              return (
-                <span
-                  key={c.id}
-                  className={`flex h-9 items-center rounded-full transition-colors ${colours} ${removing ? 'opacity-50' : ''}`}
-                >
-                  {tab}
+          <div className="flex items-center gap-1.5">
+            <ChipRow>
+              {chips.map((c) => {
+                const on = c.id === filter
+                if (c.url) {
+                  return (
+                    <BoardChip
+                      key={c.id}
+                      label={c.label}
+                      on={on}
+                      busy={removing}
+                      onSelect={() => setFilter(c.id)}
+                      onRemove={() => void remove(c.id)}
+                    />
+                  )
+                }
+                return (
                   <button
+                    key={c.id}
                     type="button"
-                    aria-label={`${c.label} board`}
-                    aria-haspopup="menu"
-                    aria-expanded={menu === c.id}
-                    onClick={(e) => {
-                      anchorAt(e.currentTarget, MENU_WIDTH)
-                      setAdding(false)
-                      setMenu(menu === c.id ? null : c.id)
-                    }}
-                    className="flex h-9 items-center rounded-full pr-3.5 pl-1.5 opacity-60 hover:opacity-100"
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setFilter(c.id)}
+                    className={`flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors ${on ? CHIP_ON : CHIP_OFF}`}
                   >
-                    <ChevronIcon open={menu === c.id} />
+                    {c.source && <PlatformLogo platform={SOURCE_LOGO[c.source]} size={11} />}
+                    {c.label}
                   </button>
-                </span>
-              )
-            })}
+                )
+              })}
+            </ChipRow>
             {choices.length > 0 && (
               <button
                 type="button"
@@ -798,10 +890,9 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                 onClick={(e) => {
                   // Kept on screen: a chip near the right edge opens the setup leftwards.
                   anchorAt(e.currentTarget, 360)
-                  setMenu(null)
                   setAdding(!adding)
                 }}
-                className="flex size-9 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
               >
                 <PlusIcon size={12} />
               </button>
@@ -814,34 +905,6 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
             className="bb-pop absolute top-full left-(--x) mt-1 w-[360px] rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line),0_16px_40px_-16px_rgba(0,0,0,0.22)] max-md:right-4 max-md:left-4 max-md:w-auto"
           >
             <AddSource missing={choices} initial={asked} onDone={() => setAdding(false)} />
-          </div>
-        )}
-        {menuBoard && (
-          <div
-            role="menu"
-            aria-label={`${menuBoard.label} board`}
-            style={{ '--x': `${anchor}px` } as React.CSSProperties}
-            className="bb-menu absolute top-full left-(--x) z-40 mt-1 flex w-[200px] origin-top-left flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
-          >
-            <a
-              role="menuitem"
-              href={menuBoard.url}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setMenu(null)}
-              className={MENU_ITEM}
-            >
-              Open on Pinterest
-            </a>
-            <button
-              type="button"
-              role="menuitem"
-              disabled={removing}
-              onClick={() => void remove(menuBoard.id)}
-              className={MENU_ITEM}
-            >
-              Remove
-            </button>
           </div>
         )}
       </div>
@@ -1181,27 +1244,43 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
       <div role="group" aria-label="Boards" className="flex max-h-[320px] flex-col overflow-y-auto">
         {setup.boards.map((b) => {
           const on = picked.includes(b.id)
+          // The ↗ sits beside the row's checkbox, not in it: opening the board never ticks it.
           return (
-            <button
+            <div
               key={b.id}
-              type="button"
-              role="checkbox"
-              aria-checked={on}
-              disabled={!on && full}
-              onClick={() => setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))}
-              className="flex items-center gap-3 border-t border-line py-2.5 text-left first:border-t-0 disabled:opacity-40"
+              className="group flex items-center gap-1 border-t border-line first:border-t-0"
             >
-              <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
-                {b.cover && (
-                  <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />
-                )}
-              </span>
-              <span className="flex flex-1 flex-col">
-                <span className="text-[13.5px] font-medium">{b.name}</span>
-                <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
-              </span>
-              {on && <CheckIcon size={13} />}
-            </button>
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                disabled={!on && full}
+                onClick={() =>
+                  setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))
+                }
+                className="flex flex-1 items-center gap-3 py-2.5 text-left disabled:opacity-40"
+              >
+                <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
+                  {b.cover && (
+                    <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />
+                  )}
+                </span>
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[13.5px] font-medium">{b.name}</span>
+                  <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
+                </span>
+                {on && <CheckIcon size={13} />}
+              </button>
+              <a
+                href={b.url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Open ${b.name} on Pinterest`}
+                className={`flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-surface hover:text-ink ${NO_HOVER_SHOWN}`}
+              >
+                <ArrowUpRightIcon size={12} />
+              </a>
+            </div>
           )
         })}
       </div>

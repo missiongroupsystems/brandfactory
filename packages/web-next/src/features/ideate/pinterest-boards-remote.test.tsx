@@ -8,8 +8,8 @@ import type * as Remote from '@/lib/remote'
 import { IdeatePage } from './ideate-page'
 
 // On the core, with Pinterest set up: the moodboard reads every board the brand picked. Each board
-// is a chip with a menu (Open on Pinterest, Remove), and the "+" opens the board picker with the
-// boards read now ticked.
+// is a chip with a × that asks before it removes the board, and the "+" opens the board picker with
+// the boards read now ticked, each with a link to open it on Pinterest.
 vi.hoisted(() => {
   process.env.NEXT_PUBLIC_CORE_URL = 'https://core.test'
 })
@@ -92,7 +92,7 @@ function openMoodboard() {
 const folders = () => screen.getByRole('tablist', { name: 'Folders' })
 
 describe('the moodboard’s Pinterest boards on the core', () => {
-  it('shows each board as a chip that opens it on Pinterest or removes it', async () => {
+  it('shows each board as a chip that removes it only once confirmed', async () => {
     answers['/brands/casa-vostra/pinterest/pins'] = { boards: [TACOS, SALSA] }
     openMoodboard()
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
@@ -101,15 +101,35 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
     expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tacos board' }))
-    const menu = screen.getByRole('menu', { name: 'Tacos board' })
-    const open = within(menu).getByRole('menuitem', { name: 'Open on Pinterest' })
-    expect(open).toHaveAttribute('href', TACOS.url)
-    expect(open).toHaveAttribute('target', '_blank')
+    // The × asks first: the chip reads "Remove Tacos?" and nothing is sent. Escape keeps the board.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    expect(within(folders()).getByRole('tab', { name: 'Remove Tacos?' })).toBeVisible()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(within(folders()).getByRole('tab', { name: /^Tacos$/ })).toBeVisible()
+    // A press elsewhere keeps it too.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('button', { name: 'Yes, remove Tacos' })).toBeNull()
+    // A mouse leaving the chip keeps the board; a finger lifting off it does not cancel.
+    const chip = () => within(folders()).getByRole('tab', { name: /Tacos/ }).parentElement!
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    fireEvent.pointerLeave(chip(), { pointerType: 'touch' })
+    expect(screen.getByRole('button', { name: 'Yes, remove Tacos' })).toBeVisible()
+    fireEvent.pointerLeave(chip(), { pointerType: 'mouse' })
+    expect(screen.queryByRole('button', { name: 'Yes, remove Tacos' })).toBeNull()
+    // Pressing the chip's label while it asks keeps the board and does not open it.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    fireEvent.click(within(folders()).getByRole('tab', { name: 'Remove Tacos?' }))
+    expect(within(folders()).getByRole('tab', { name: /^Tacos$/ })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    )
+    expect(sends.some(([method]) => method === 'PUT')).toBe(false)
 
-    // Remove sends the list without the board; the moodboard reads the rest afresh.
+    // The ✓ sends the list without the board; the moodboard reads the rest afresh.
     answers['/brands/casa-vostra/pinterest/pins'] = { boards: [SALSA] }
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Remove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove Tacos' }))
     await waitFor(() =>
       expect(sends).toContainEqual(['PUT', '/brands/casa-vostra/pinterest', { boardIds: ['222'] }]),
     )
@@ -133,6 +153,11 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     const tacos = within(boards).getByRole('checkbox', { name: /Tacos/ })
     expect(salsa).toHaveAttribute('aria-checked', 'true')
     expect(tacos).toHaveAttribute('aria-checked', 'false')
+    // Each row opens its board on Pinterest, beside the checkbox: opening it ticks nothing.
+    const open = within(boards).getByRole('link', { name: 'Open Tacos on Pinterest' })
+    expect(open).toHaveAttribute('href', TACOS.url)
+    expect(open).toHaveAttribute('target', '_blank')
+    expect(tacos).not.toContainElement(open)
     // Nothing changed yet: nothing to save.
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
 
