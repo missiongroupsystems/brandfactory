@@ -12,7 +12,7 @@ import { demoOf } from '@/lib/remote'
 /** How long the picker takes to leave, so the parent unmounts it after the animation. */
 export const LEAVE = 240
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+const EYEBROW = 'text-[13px] font-medium text-ink-3'
 const QUIET =
   'h-10 rounded-full px-4 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink'
 const ROUND_BUTTON =
@@ -149,7 +149,7 @@ export function DrivePicker({
 
   const crumbs = searching ? [] : [drive.root.name, ...path]
   const where = (
-    <div className="flex h-10 shrink-0 items-center gap-1.5 px-5 text-[12.5px] max-md:h-9 max-md:px-4">
+    <div className="flex h-10 shrink-0 items-center gap-1.5 px-5 text-[13px] max-md:h-9 max-md:px-4">
       {searching ? (
         <span className="text-ink-3">
           {hits.length === 0 ? 'Nothing matches' : `${hits.length} ${plural(hits.length, 'file')}`}
@@ -186,7 +186,7 @@ export function DrivePicker({
                 key={f.name}
                 type="button"
                 onClick={() => go([...path, f.name])}
-                className="flex h-11 items-center gap-3 border-b border-(--cal-line) text-left text-[13.5px] text-ink-2 transition-colors last:border-b-0 hover:text-ink max-md:h-12 max-md:text-[14.5px]"
+                className="flex h-11 items-center gap-3 border-b border-(--cal-line) text-left text-[14px] text-ink-2 transition-colors last:border-b-0 hover:text-ink max-md:h-12 max-md:text-[14px]"
               >
                 <span className="text-ink-4">
                   <FolderGlyph />
@@ -326,7 +326,7 @@ export function DrivePicker({
 }
 
 /** Tab stays inside the picker: from its last control it goes to the first, and back. */
-function trap(e: KeyboardEvent, box: HTMLElement) {
+export function trap(e: KeyboardEvent, box: HTMLElement) {
   const nodes = [...box.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]')]
   const first = nodes[0]
   const last = nodes[nodes.length - 1]
@@ -385,7 +385,7 @@ function Tree({
             </span>
             <span className="min-w-0 flex-1 truncate">{folder.name}</span>
             {!parent && folder.files.length > 0 && (
-              <span aria-hidden="true" className="font-mono text-[10.5px] text-ink-4 tabular-nums">
+              <span aria-hidden="true" className="text-[12px] text-ink-4 tabular-nums">
                 {folder.files.length}
               </span>
             )}
@@ -445,7 +445,7 @@ function Chips({
             type="button"
             aria-current={here ? 'true' : undefined}
             onClick={() => onGo(at)}
-            className={`h-8 shrink-0 rounded-full px-3 text-[12.5px] font-medium whitespace-nowrap transition-colors ${here ? 'bg-ink text-page' : 'bg-surface text-ink-2'}`}
+            className={`h-8 shrink-0 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors ${here ? 'bg-ink text-page' : 'bg-surface text-ink-2'}`}
           >
             {at[at.length - 1]}
           </button>
@@ -534,22 +534,22 @@ function Tiles({
             >
               <Media src={file.src} sizes="200px" />
               {on ? (
-                <span className="bb-pop absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-ink font-mono text-[10.5px] text-page tabular-nums">
+                <span className="bb-pop absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-ink text-[12px] text-page tabular-nums">
                   {room === 1 ? <CheckIcon size={8} strokeWidth={2.4} /> : order + 1}
                 </span>
               ) : (
                 <span className="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/20 opacity-0 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.9)] transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100" />
               )}
               {isVideo(file.src) && file.duration && (
-                <span className="absolute right-1.5 bottom-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page tabular-nums">
+                <span className="absolute right-1.5 bottom-1.5 rounded-full bg-black/50 px-1.5 text-[12px] text-page tabular-nums">
                   {file.duration}
                 </span>
               )}
             </span>
             <span className="flex min-w-0 flex-col">
-              <span className="truncate text-[11.5px] text-ink-3">{file.name}</span>
+              <span className="truncate text-[13px] text-ink-3">{file.name}</span>
               {showPath && (
-                <span className="truncate text-[11px] text-ink-4">{path.join(' › ')}</span>
+                <span className="truncate text-[12px] text-ink-4">{path.join(' › ')}</span>
               )}
             </span>
           </div>

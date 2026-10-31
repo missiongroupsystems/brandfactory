@@ -49,6 +49,30 @@ export function saveTikTokDefault(brand: string, settings: TikTokDefault) {
 }
 
 /**
+ * The accounts the brand's last new post went to, kept in this browser: a new post starts on
+ * them. A browser that keeps nothing (a private window) starts on the usual rule.
+ */
+const LAST_ACCOUNTS = (brand: string) => `bb.last-accounts.${brand}`
+
+export function lastAccounts(brand: string): ChannelKey[] | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_ACCOUNTS(brand))
+    const keys: unknown = raw ? JSON.parse(raw) : null
+    return Array.isArray(keys) ? (keys.filter((k) => typeof k === 'string') as ChannelKey[]) : null
+  } catch {
+    return null
+  }
+}
+
+export function saveLastAccounts(brand: string, keys: ChannelKey[]) {
+  try {
+    window.localStorage.setItem(LAST_ACCOUNTS(brand), JSON.stringify(keys))
+  } catch {
+    // Nothing kept: the next post starts on the usual rule.
+  }
+}
+
+/**
  * The draft and the simulated send, for any publish view.
  *
  * The demo has no server, so "Publish now" is a timer: each channel uploads at its own pace,

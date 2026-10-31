@@ -100,10 +100,10 @@ export function TikTokInbox({ post }: { post: Post }) {
         <TikTokPicture src={account?.avatar ?? null} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 max-md:basis-[calc(100%-56px)]">
-        <span className="text-[14.5px] font-medium">TikTok inbox</span>
+        <span className="text-[14px] font-medium">TikTok inbox</span>
         <span
           aria-live="polite"
-          className={`flex items-start gap-1.5 text-[12.5px] leading-[1.45] ${send?.status === 'failed' && !busy ? 'text-fail-ink' : 'text-ink-3'}`}
+          className={`flex items-start gap-1.5 text-[13px] leading-[1.45] ${send?.status === 'failed' && !busy ? 'text-fail-ink' : 'text-ink-3'}`}
         >
           {dot && (
             <span aria-hidden="true" className={`mt-[6px] size-1.5 shrink-0 rounded-full ${dot}`} />
@@ -115,14 +115,14 @@ export function TikTokInbox({ post }: { post: Post }) {
         <button
           type="button"
           onClick={onSend}
-          className="shrink-0 rounded-full px-2 text-[12.5px] font-medium text-ink-3 underline-offset-2 hover:text-ink hover:underline max-md:h-11 max-md:w-full"
+          className="shrink-0 rounded-full px-2 text-[13px] font-medium text-ink-3 underline-offset-2 hover:text-ink hover:underline max-md:h-11 max-md:w-full"
         >
           Send again
         </button>
       ) : !account ? (
         <Link
           href="/brand/connections"
-          className="bb-press flex h-8 shrink-0 items-center rounded-full bg-surface px-3.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-paper max-md:h-11 max-md:w-full max-md:justify-center"
+          className="bb-press flex h-8 shrink-0 items-center rounded-full bg-surface px-3.5 text-[13px] font-medium text-ink transition-colors hover:bg-paper max-md:h-11 max-md:w-full max-md:justify-center"
         >
           Connect TikTok
         </Link>
@@ -133,7 +133,7 @@ export function TikTokInbox({ post }: { post: Post }) {
           type="button"
           onClick={onSend}
           disabled={busy}
-          className={`bb-press h-8 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition-opacity max-md:h-11 max-md:w-full ${busy ? 'cursor-default bg-surface text-ink-4' : 'bg-ink text-page hover:opacity-85'}`}
+          className={`bb-press h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition-opacity max-md:h-11 max-md:w-full ${busy ? 'cursor-default bg-surface text-ink-4' : 'bg-ink text-page hover:opacity-85'}`}
         >
           {busy ? 'Sending…' : send?.status === 'failed' ? 'Try again' : 'Send to TikTok inbox'}
         </button>

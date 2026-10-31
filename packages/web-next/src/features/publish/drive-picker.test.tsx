@@ -150,7 +150,7 @@ describe('the selection', () => {
   })
 
   it('keeps one for a reel: a second tick replaces the first', () => {
-    open(<Composer />)
+    open(<Composer start={{ format: 'reel' }} />)
     fireEvent.click(tile('margherita-reel.mp4'))
     fireEvent.click(tile('wine-night.jpg'))
     expect(tile('margherita-reel.mp4')).toHaveAttribute('aria-checked', 'false')

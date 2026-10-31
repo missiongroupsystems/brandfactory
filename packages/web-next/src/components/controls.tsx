@@ -80,10 +80,18 @@ export function Switch({
 }
 
 /** Content that folds open and shut by animating its row height. */
-export function Fold({ open, children }: { open: boolean; children: React.ReactNode }) {
+export function Fold({
+  open,
+  children,
+  className = '',
+}: {
+  open: boolean
+  children: React.ReactNode
+  className?: string
+}) {
   return (
     <div
-      className="bb-fold"
+      className={`bb-fold ${className}`}
       style={{ gridTemplateRows: open ? '1fr' : '0fr', opacity: open ? 1 : 0 }}
       aria-hidden={!open}
       inert={!open}

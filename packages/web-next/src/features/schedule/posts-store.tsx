@@ -121,8 +121,9 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   /**
    * Takes a post back to an idea: the post leaves the calendar and the idea's tile returns to its
    * day (a story's slot in the story row opens again). Nothing that went out is taken back.
+   * With no idea it is a plain delete: the post leaves, and nothing takes its place.
    */
-  unplanPost: (id: string, idea: { format: Format; hook: string; why: string }) => void
+  unplanPost: (id: string, idea?: { format: Format; hook: string; why: string }) => void
   placeIdea: (
     idea: {
       format: Exclude<Format, 'story'>
@@ -539,7 +540,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
             if (!held && !story) return day
             const next = [
               ...marks.filter((m) => !(m.kind === 'post' && m.postId === id)),
-              ...(held && idea.format !== 'story'
+              ...(held && idea && idea.format !== 'story'
                 ? [
                     {
                       kind: 'idea' as const,

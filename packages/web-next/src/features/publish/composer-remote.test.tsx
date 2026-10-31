@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { POSTS } from '@/data/demo'
 import { resetConnections } from '@/features/connections/connections-store'
@@ -21,8 +21,12 @@ const sent = vi.fn(
 )
 // The requests a change would make, as the server would see them.
 const requests: string[] = []
+// The same requests with what they carried, for a test that reads a body.
+const bodies: Array<{ call: string; body: unknown }> = []
 // The brand's state, as the core sends it, once the test begins.
-const core = vi.hoisted(() => ({ loaded: false }))
+const core = vi.hoisted(() => ({ loaded: false, fbText: '' as string, storyToday: false }))
+// What the composer says on the app's message line, and where it goes after.
+const told = vi.hoisted(() => ({ report: vi.fn(), push: vi.fn() }))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   return {
@@ -31,13 +35,34 @@ vi.mock('@/lib/remote', async (original) => {
     sent: (brandId: string, send: () => Promise<unknown>) => sent(brandId, send),
     request: async (method: string, path: string, body?: { id?: string }) => {
       requests.push(`${method} ${path}${body?.id ? ` ${body.id}` : ''}`)
+      bodies.push({ call: `${method} ${path}`, body })
       return {}
     },
     push: vi.fn(),
+    report: told.report,
     // The demo brand's posts, as the core sends them: on the core no store starts with the demo's.
     onState: (hydrate: (id: string, state: unknown) => void) => {
       // Once the modules are in: the stores that listen from their first line hear nothing.
-      if (core.loaded) hydrate('casa-vostra', demoAsCore('casa-vostra'))
+      if (!core.loaded) return () => undefined
+      const state = demoAsCore('casa-vostra')
+      // The ravioli post saved with its own Facebook text, when a test asks for it.
+      if (core.fbText) {
+        const p = state.posts.find((x) => x.id === 'ravioli') as { draft: unknown }
+        p.draft = { overrides: { fb: core.fbText } }
+      }
+      // A story out on the demo's today, when a test asks for one.
+      if (core.storyToday) {
+        state.posts.push({
+          ...state.posts[0]!,
+          id: 'story-today',
+          format: 'story',
+          day: '2026-10-06',
+          time: '09:00',
+          stage: 'posted',
+          jobs: [],
+        })
+      }
+      hydrate('casa-vostra', state)
       return () => undefined
     },
   }
@@ -49,7 +74,7 @@ vi.mock('@/features/connections/not-available', async (original) => ({
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/post/crust',
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: told.push, replace: vi.fn(), back: vi.fn() }),
 }))
 vi.stubGlobal('matchMedia', () => ({
   matches: false,
@@ -63,12 +88,23 @@ beforeAll(() => {
   HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
   HTMLMediaElement.prototype.pause = vi.fn()
 })
+// On the core the composer reads the brand's own clock: the tests set it to the demo's today.
+const DEMO_CLOCK = new Date('2026-10-06T02:00:00Z')
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(DEMO_CLOCK)
   resetConnections()
   resetIdeas()
   sent.mockClear()
   requests.length = 0
+  bodies.length = 0
+  core.fbText = ''
+  core.storyToday = false
+  told.report.mockClear()
+  told.push.mockClear()
 })
+
+afterEach(() => vi.useRealTimers())
 
 /** Runs the change the composer last handed to the queue, and answers it. */
 async function land(refusal: string | null) {
@@ -83,7 +119,10 @@ function Loaded({ children }: { children: React.ReactNode }) {
 
 // A scheduled post of two photos: a reel needs its video for Instagram (`makeBlockers`).
 const crust = POSTS.find((p) => p.id === 'ravioli')!
-const schedule = () => screen.getAllByRole('button', { name: /^Schedule on/ })[0]!
+// The ravioli post is scheduled already: with its day and time unchanged, its one button saves it.
+const schedule = () => screen.getAllByRole('button', { name: 'Save' })[0]!
+/** The five-pastas draft's button: a draft is scheduled, not moved. */
+const send = () => screen.getAllByRole('button', { name: /^Schedule/ })[0]!
 
 describe('the composer on the API', () => {
   it('says done only once the server has stored the post', async () => {
@@ -97,12 +136,147 @@ describe('the composer on the API', () => {
     fireEvent.click(schedule())
     expect(sent).toHaveBeenCalledTimes(1)
     // Waiting: the button says so, and a second press sends nothing more.
-    expect(screen.getAllByText('Sending…').length).toBeGreaterThan(0)
-    fireEvent.click(screen.getAllByText('Sending…')[0]!)
+    expect(screen.getAllByText('Saving…').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getAllByText('Saving…')[0]!)
     expect(sent).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText(/It is on the calendar/)).toBeNull()
+    expect(told.push).not.toHaveBeenCalled()
     await act(async () => answer(null))
-    expect(screen.getByText(/It is on the calendar/)).toBeTruthy()
+    // Stored: back to the calendar, and the message line says when it goes. Nothing moved, so
+    // it is saved, not moved; and a press in the moment before the calendar sends nothing more.
+    expect(told.report).toHaveBeenCalledWith(
+      expect.stringMatching(/^Saved for \w{3} \d+ \w{3}, \d\d:\d\d$/),
+    )
+    expect(told.push).toHaveBeenCalledWith('/')
+    fireEvent.click(schedule())
+    expect(sent).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves a scheduled post as it is: its stage kept, a PATCH alone, nothing sent or moved', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(schedule())
+    await land(null)
+    expect(requests).toEqual(['PATCH /brands/casa-vostra/posts/ravioli'])
+    expect(told.report).toHaveBeenCalledWith('Saved for Thu 8 Oct, 12:00')
+  })
+
+  it('sends a scheduled post again when an account is added: a PATCH alone makes no job', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={{ ...crust, channels: ['ig'] }} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    expect(schedule()).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /Facebook/ })[0]!)
+    // The day is the same, the accounts are not: the one button sends, and says so.
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: /^Save and send/ })[0]!)
+    await land(null)
+    const send = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    expect((send?.body as { channels: string[] }).channels).toEqual(['ig', 'fb'])
+  })
+
+  it('keeps an existing carousel’s format and its TikTok on Save: no switch to lose them by', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={{ ...crust, channels: ['ig', 'tt'] }} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    // The format is said, not offered: a save would not change it.
+    expect(screen.queryByRole('radiogroup', { name: 'Format' })).toBeNull()
+    expect(screen.getAllByTitle('Make a new post to change the format').length).toBeGreaterThan(0)
+    fireEvent.click(schedule())
+    await land(null)
+    const patch = bodies.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/ravioli')
+    expect((patch?.body as { channels: string[] }).channels).toEqual(['ig', 'tt'])
+    expect(requests.some((r) => r.endsWith('/send'))).toBe(false)
+  })
+
+  it('saves a scheduled post whose time has passed: a save sends nothing out', async () => {
+    // 13:00 in Singapore on Thu 8 Oct: the ravioli post's 12:00 has gone.
+    setToday('2026-10-08')
+    vi.setSystemTime(new Date('2026-10-08T05:00:00Z'))
+    try {
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer post={crust} />
+          </Loaded>
+        </BrandProvider>,
+      )
+      expect(schedule()).not.toHaveAttribute('aria-disabled', 'true')
+      fireEvent.click(schedule())
+      await land(null)
+      expect(requests).toEqual(['PATCH /brands/casa-vostra/posts/ravioli'])
+      expect(told.push).toHaveBeenCalledWith('/')
+    } finally {
+      setToday(DEMO_TODAY)
+    }
+  })
+
+  it('deletes a post on the server first, then goes back to the calendar', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Post actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete…' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    // Asked, not yet answered: nothing is said and the page stays.
+    expect(told.report).not.toHaveBeenCalled()
+    expect(told.push).not.toHaveBeenCalled()
+    await land(null)
+    expect(requests).toEqual(['DELETE /brands/casa-vostra/posts/ravioli'])
+    expect(told.push).toHaveBeenCalledWith('/')
+    expect(told.report).toHaveBeenCalledWith('Deleted')
+  })
+
+  it('stays on the post when the server refuses the delete, and says nothing of its own', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Post actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete…' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    // A 409: the app's problem line says why; the composer adds nothing and stays.
+    await land('This post is going out now.')
+    expect(told.push).not.toHaveBeenCalled()
+    expect(told.report).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: crust.hook })).toBeTruthy()
+  })
+
+  it('unschedules on the server, then calls it a draft', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Post actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unschedule' }))
+    expect(told.report).not.toHaveBeenCalled()
+    expect(told.push).not.toHaveBeenCalled()
+    await land(null)
+    expect(requests).toEqual(['POST /brands/casa-vostra/posts/ravioli/mark'])
+    expect(told.report).toHaveBeenCalledWith('Unscheduled: it is a draft now')
+    expect(told.push).toHaveBeenCalledWith('/')
   })
 
   it('stays open with everything in it when the server refuses', async () => {
@@ -115,7 +289,8 @@ describe('the composer on the API', () => {
     )
     fireEvent.click(schedule())
     await act(async () => answer('A story is already on that day.'))
-    expect(screen.queryByText(/It is on the calendar/)).toBeNull()
+    expect(told.push).not.toHaveBeenCalled()
+    expect(told.report).not.toHaveBeenCalled()
     // The same post, ready to send again.
     expect(schedule()).toBeTruthy()
     fireEvent.click(schedule())
@@ -126,6 +301,7 @@ describe('the composer on the API', () => {
     const pasta = POSTS.find((p) => p.id === 'pasta')!
     // The pasta draft sits on Tue 13 Oct; a week later, that day has passed.
     setToday('2026-10-20')
+    vi.setSystemTime(new Date('2026-10-20T02:00:00Z'))
     try {
       render(
         <BrandProvider>
@@ -135,7 +311,7 @@ describe('the composer on the API', () => {
         </BrandProvider>,
       )
       expect(screen.getAllByText('Pick a day ahead.').length).toBeGreaterThan(0)
-      fireEvent.click(schedule())
+      fireEvent.click(send())
       expect(sent).not.toHaveBeenCalled()
     } finally {
       setToday(DEMO_TODAY)
@@ -157,7 +333,7 @@ describe('the composer on the API', () => {
           </Loaded>
         </BrandProvider>,
       )
-      expect(schedule()).not.toBeDisabled()
+      expect(send()).not.toBeDisabled()
       expect(screen.queryByText('Pick a time ahead.')).toBeNull()
       unmount()
 
@@ -171,7 +347,7 @@ describe('the composer on the API', () => {
         </BrandProvider>,
       )
       expect(screen.getAllByText('Pick a time ahead.').length).toBeGreaterThan(0)
-      fireEvent.click(schedule())
+      fireEvent.click(send())
       expect(sent).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
@@ -196,7 +372,7 @@ describe('the composer on the API', () => {
       expect(screen.queryByText('Pick a time ahead.')).toBeNull()
       // Left open past 18:00, with no redraw: the press itself checks the clock.
       vi.setSystemTime(new Date('2026-10-30T10:05:00Z'))
-      fireEvent.click(schedule())
+      fireEvent.click(send())
       expect(sent).not.toHaveBeenCalled()
       expect(screen.getAllByText('Pick a time ahead.').length).toBeGreaterThan(0)
     } finally {
@@ -214,6 +390,10 @@ describe('the composer on the API', () => {
       </BrandProvider>,
     )
     const save = () => screen.getAllByRole('button', { name: 'Save draft' })[0]!
+    // An empty draft is refused before it is sent: a caption gives it something to keep.
+    fireEvent.change(screen.getAllByRole('textbox', { name: 'Caption' })[0]!, {
+      target: { value: 'Pasta night.' },
+    })
     fireEvent.click(save())
     await land('The server is busy.')
     const first = requests.find((r) => r.startsWith('POST /brands/casa-vostra/posts '))!
@@ -222,7 +402,120 @@ describe('the composer on the API', () => {
     fireEvent.click(save())
     await land(null)
     expect(requests).toContain(first)
-    // Stored, so from now on a save moves it.
-    expect(screen.getByText('Saved as a draft on the calendar')).toBeTruthy()
+    // Stored: back to the calendar, with the day it sits on.
+    expect(told.report).toHaveBeenCalledWith(
+      expect.stringMatching(/^Draft saved for \w{3} \d+ \w{3}, \d\d:\d\d$/),
+    )
+    expect(told.push).toHaveBeenCalledWith('/')
+  })
+
+  it('opens a post saved with its own Facebook text on the tabs, that text in view', () => {
+    core.fbText = 'Facebook only: book on the page.'
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    // The tabs are there without asking, so the saved text cannot hide behind the shared box.
+    expect(screen.queryByText('Different caption per account')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /Facebook/ }))
+    expect(screen.getByRole('textbox', { name: 'Facebook text' })).toHaveValue(core.fbText)
+  })
+
+  it('says a scheduled post moved only when its day or time changed', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow 18:00' }))
+    expect(screen.queryByRole('dialog', { name: 'When' })).toBeNull()
+    // The day changed: the one button now reads Reschedule.
+    fireEvent.click(screen.getAllByRole('button', { name: /^Reschedule / })[0]!)
+    await land(null)
+    expect(told.report).toHaveBeenCalledWith('Moved to Wed 7 Oct, 18:00')
+  })
+
+  it('schedules a draft and says so on the way back to the calendar', async () => {
+    const draft = POSTS.find((p) => p.id === 'five-pastas')!
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={draft} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(send())
+    await land(null)
+    expect(told.report).toHaveBeenCalledWith(
+      expect.stringMatching(/^Scheduled for \w{3} \d+ \w{3}, \d\d:\d\d$/),
+    )
+    expect(told.push).toHaveBeenCalledWith('/')
+  })
+
+  it('offers only hours still ahead today, the running hour at its next quarter', () => {
+    // 18:10 in Singapore on the demo's today.
+    vi.setSystemTime(new Date('2026-10-06T10:10:00Z'))
+    const pasta = POSTS.find((p) => p.id === 'pasta')!
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={pasta} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
+    // Today's quick pick lands on what is left of today.
+    fireEvent.click(screen.getByRole('button', { name: 'Today 21:00' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Tue 6 Oct, 21:00/ }))
+    expect(screen.getByRole('radio', { name: '17:00' })).toBeDisabled()
+    const running = screen.getByRole('radio', { name: /^18:15/ })
+    expect(running).not.toBeDisabled()
+    fireEvent.click(running)
+    expect(screen.queryByRole('dialog', { name: 'When' })).toBeNull()
+    expect(screen.getByRole('button', { name: /^Tue 6 Oct, 18:15/ })).toBeInTheDocument()
+    expect(screen.queryByText('Pick a time ahead.')).toBeNull()
+  })
+
+  it('keeps the minutes when a bar picks an hour still ahead', () => {
+    const pasta = POSTS.find((p) => p.id === 'pasta')!
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={pasta} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
+    const field = screen.getByRole('textbox', { name: 'Post time' })
+    act(() => field.focus())
+    fireEvent.change(field, { target: { value: '18:30' } })
+    fireEvent.blur(field)
+    // Another day: the 14 bar applies 14:30, and says so.
+    fireEvent.click(screen.getByRole('radio', { name: '14:30' }))
+    expect(screen.getByRole('button', { name: /^Tue 13 Oct, 14:30/ })).toBeInTheDocument()
+  })
+
+  it('gives a Story stepped off today the best hour, not what was left of today', () => {
+    // 18:10: today's slot is 21:00. Tue 6 Oct has a story out, so the Story lands tomorrow.
+    core.storyToday = true
+    vi.setSystemTime(new Date('2026-10-06T10:10:00Z'))
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getAllByRole('radio', { name: 'Story' })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
+    expect(screen.queryByRole('button', { name: /^Today/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Tomorrow 18:00' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tomorrow 21:00' })).toBeNull()
   })
 })

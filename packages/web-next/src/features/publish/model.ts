@@ -197,7 +197,9 @@ export function blockers(draft: Draft): string[] {
       out.push('Say what it promotes on TikTok.')
     }
   }
-  if (draft.caption.trim() === '' && draft.format !== 'story') out.push('Write a caption.')
+  // A Story has no caption: its words are neither asked for nor counted.
+  if (draft.format === 'story') return out
+  if (draft.caption.trim() === '') out.push('Write a caption.')
   for (const c of active) {
     const { used, max } = lengthFor(draft, c.key)
     if (used > max)

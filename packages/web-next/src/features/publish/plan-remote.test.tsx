@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import * as React from 'react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Post } from '@/data/demo'
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
@@ -74,7 +74,11 @@ beforeAll(() => {
   HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
   HTMLMediaElement.prototype.pause = vi.fn()
 })
+// On the core the composer reads the brand's own clock: the tests set it to the demo's today.
+const DEMO_CLOCK = new Date('2026-10-06T02:00:00Z')
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(DEMO_CLOCK)
   requests.length = 0
   account.platforms = undefined
 })
@@ -90,6 +94,8 @@ const draft: Post = {
   slotShort: 'Thu, 18:00',
   channels: ['ig'],
 }
+
+afterEach(() => vi.useRealTimers())
 
 /** The composer once the brand is listed, as the app opens it only after the account loads. */
 function Listed({ children }: { children: React.ReactNode }) {
