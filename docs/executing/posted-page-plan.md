@@ -208,10 +208,19 @@ table's reach rule read the caller's company). Decided:
 Migration `0023_reading_links.sql`: each reading and each job keeps its address; `post_json` gives
 each post `readings`, the latest counts, read time and link per channel. A post on two accounts
 shows each one's own on its page, through a switch of platform marks, and on Posted's tabs. The
-publish scenario (8248176) should answer `permalink` so a sent post has its link before the first
-read-back (see the 2.46.0 changelog).
+publish scenario (8248176) answers `permalink` since 30 Oct (see make-publishing-plan.md), so a
+sent post has its link before the first read-back. Released to production by the owner (1.13.1
+migrated and promoted, web deployed on 30 Oct).
 
 ## Phase 3: a Make read-back scenario (about 1 day)
+
+**As built (29 Oct):** scenario 8254838 "Read back", every 6 hours (cadence A, about 2,400 to
+3,300 operations a month); posts are read once a day, on the run after 05:00 SGT; stories every
+run. It keeps what it has sent in data store 237986 (fields under `data`) and posts to
+`POST /brands/:brand/make/readings` with the key in the HTTP connection "Brand Base readings
+key" (12501030, restricted to brandfactory.fly.dev). Facebook gives likes, comments and shares,
+no reach. Checked live: one Instagram and one Facebook post read back with counts and a cover.
+The plan below is kept for its limits.
 
 One new scheduled scenario, "Read back", read-only on Meta. It does not edit scenario 8248176.
 
@@ -244,5 +253,5 @@ Limits:
 
 ## Later
 
-- The poster's Analytics preview becomes "Reach, by day" from the readings.
+- "Reach, by day" on the poster from the readings (the empty Analytics preview was removed in 2.47.0: it had no data source).
 - A story row opens its frames and counts (the design's phone sheet), once stories carry counts.

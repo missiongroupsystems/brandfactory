@@ -74,7 +74,11 @@ Response, from a Webhook response module at the end of each route (status 200,
 ```
 
 `id` is a **string** (quote it in the Webhook response's body): Meta's ids pass 2^53, and a bare
-number loses digits. `permalink` may be empty: the modules do not return one. On a module error, an
+number loses digits. `permalink` (since 30 Oct): an Instagram route reads it with a "Get post"
+step (`instagram-business:GetMedia`, field `permalink`) after the post is made, behind a Resume
+error handler, so a failed read answers `ok: true` with an empty link and never a resend; a
+Facebook route builds `https://www.facebook.com/<id>` (a reel: `/reel/<video_id>`), which Facebook
+redirects to the post. Checked live on 30 Oct (both links open). On a module error, an
 error handler on that module answers with a Webhook response (status 200):
 
 ```json
