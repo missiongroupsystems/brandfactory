@@ -45,6 +45,15 @@
     background: var(--page);
     color: var(--ink);
   }
+  /* The header's height where it stays at the top (a desktop): what sticks under it sits below. */
+  :root {
+    --header: 0px;
+  }
+  @media (width >= 48rem) {
+    :root {
+      --header: 80px;
+    }
+  }
   :focus-visible {
     outline: 2px solid var(--ink);
     outline-offset: 2px;

@@ -48,6 +48,47 @@ const when = () =>
   screen.getByRole('button', { name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+ \w+, \d\d:\d\d$/ })
 
 describe('a new post in the demo', () => {
+  it('starts in the format the New menu picked, and a file does not change it', async () => {
+    render(
+      <BrandProvider>
+        <Composer start={{ format: 'reel' }} />
+      </BrandProvider>,
+    )
+    expect(format('Reel')).toHaveAttribute('aria-checked', 'true')
+    upload('one.jpg')
+    await act(async () => undefined)
+    expect(format('Reel')).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('starts a Story from the New menu on the first day with no story out', () => {
+    render(
+      <BrandProvider>
+        <Composer start={{ format: 'story' }} />
+      </BrandProvider>,
+    )
+    // The demo's today, Tue 6 Oct, has its stories out already: Wednesday is the first free day.
+    expect(format('Story')).toHaveAttribute('aria-checked', 'true')
+    expect(when()).toHaveTextContent('Wed 7 Oct')
+    expect(screen.queryByText(/A story is already on that day/)).toBeNull()
+  })
+
+  it('offers only the accounts that take the format: a Story has no TikTok, and a switch back does not tick it', () => {
+    const chips = () =>
+      screen.getAllByRole('checkbox').map((c) => c.getAttribute('aria-label') ?? c.textContent)
+    show()
+    expect(chips()).toEqual(['Instagram', 'TikTok', 'Facebook'])
+    fireEvent.click(format('Story'))
+    expect(chips()).toEqual(['Instagram', 'Facebook'])
+    fireEvent.click(format('Post'))
+    // TikTok is offered again, unticked: a hidden account was dropped, not kept in secret.
+    const tiktok = screen.getAllByRole('checkbox', { name: /TikTok/ })[0]!
+    expect(tiktok).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getAllByRole('checkbox', { name: /Instagram/ })[0]).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+  })
+
   it('opens today at the best time, as a photo post, on the caption', () => {
     show()
     // The demo's today is Tue 6 Oct, and Casa Vostra posts best at 18:00.

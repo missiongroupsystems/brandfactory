@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import * as React from 'react'
 
-import { AppHeader } from '@/components/app-header'
-import { CarouselIcon, ClockIcon, EyeIcon, HeartIcon, PlayIcon, RankIcon } from '@/components/icons'
+import { CarouselIcon, CheckIcon, EyeIcon, HeartIcon, PlayIcon, SortIcon } from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
@@ -52,11 +51,12 @@ const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
 const ON_COVER = 'rounded-full bg-black/30 text-page backdrop-blur-md'
 
 /**
- * What went out, one platform at a time, as the account looks: the platforms in a quiet rail (tabs
- * on a phone), then the brand's profile with its last 30 days, its stories as rings and its posts
- * as a grid of covers. A cover shows one count; hover shows them all. A cover opens its poster.
+ * The feed, a view of Insights: what went out, one platform at a time, as the account looks. The
+ * platforms as pills, then the brand's profile with its last 30 days, its stories as rings and
+ * its posts as a grid of covers. A cover shows one count; hover shows them all. A cover opens its
+ * poster. The platform on show is kept in the address (`onPick`), so a post's way back lands on it.
  */
-export function PostedPage({ on }: { on?: Platform }) {
+export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => void }) {
   const { brand } = useBrand()
   // Now in the brand's own zone, read again each minute so a story's hours left stay true.
   const [at, setAt] = React.useState(() => new Date())
@@ -72,66 +72,43 @@ export function PostedPage({ on }: { on?: Platform }) {
   const [picked, setPicked] = React.useState<Platform | undefined>(on)
   const platform = platformOf(rail, items ?? [], picked)
   const ledger = ledgerOf(items ?? [], platform)
+  const pick = (p: Platform) => {
+    setPicked(p)
+    onPick?.(p)
+  }
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <AppHeader />
-      <main
-        key={brand.id}
-        className="bb-swap mx-auto grid w-full max-w-[1080px] grid-cols-[168px_minmax(0,1fr)] items-start gap-16 px-10 pt-10 pb-28 max-lg:grid-cols-[148px_minmax(0,1fr)] max-lg:gap-10 max-lg:px-6 max-md:grid-cols-1 max-md:gap-0 max-md:px-4 max-md:pt-2"
+    <section aria-label="Feed" className="flex min-w-0 flex-col">
+      <div
+        role="radiogroup"
+        aria-label="Platform"
+        className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-5"
       >
-        <nav aria-label="Platforms" className="sticky top-10 max-md:hidden">
-          <div role="radiogroup" aria-label="Platform" className="flex flex-col gap-1">
-            {rail.map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={p === platform}
-                onClick={() => setPicked(p)}
-                className={`bb-press flex h-10 items-center gap-3 rounded-[10px] px-3 text-left text-[14px] ${p === platform ? 'bg-surface font-medium text-ink' : linked(p) ? 'text-ink-3 hover:text-ink' : 'text-ink-4 hover:text-ink-3'}`}
-              >
-                <PlatformLogo platform={p} size={16} />
-                {PLATFORM_NAME[p]}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <section className="flex min-w-0 flex-col">
-          {/* On a phone the platforms are tabs above the profile. */}
-          <div
-            role="radiogroup"
-            aria-label="Platform"
-            className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-5 md:hidden"
+        {rail.map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="radio"
+            aria-checked={p === platform}
+            onClick={() => pick(p)}
+            className={`bb-press flex h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
           >
-            {rail.map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={p === platform}
-                onClick={() => setPicked(p)}
-                className={`bb-press flex h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
-              >
-                <PlatformLogo platform={p} size={13} />
-                {PLATFORM_NAME[p]}
-              </button>
-            ))}
-          </div>
+            <PlatformLogo platform={p} size={13} />
+            {PLATFORM_NAME[p]}
+          </button>
+        ))}
+      </div>
 
-          <div key={platform} className="bb-swap flex flex-col">
-            {!items ? (
-              <LoadingDots label="Loading posts" className="py-40" />
-            ) : ledger.length === 0 ? (
-              <Empty platform={platform} linked={linked(platform)} />
-            ) : (
-              <Profile ledger={ledger} platform={platform} now={now} />
-            )}
-          </div>
-        </section>
-      </main>
-    </div>
+      <div key={platform} className="bb-swap flex flex-col">
+        {!items ? (
+          <LoadingDots label="Loading posts" className="py-40" />
+        ) : ledger.length === 0 ? (
+          <Empty platform={platform} linked={linked(platform)} />
+        ) : (
+          <Profile ledger={ledger} platform={platform} now={now} />
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -140,9 +117,9 @@ function Empty({ platform, linked }: { platform: Platform; linked: boolean }) {
   return (
     <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-16 max-md:gap-3 max-md:pt-12">
       {!linked && <NotAvailable label="Not connected" reason={reasonOf(name)} align="left" />}
-      <h1 className="font-display text-[26px] leading-[1.15] tracking-[-0.025em] max-md:text-[24px]">
+      <h2 className="font-display text-[26px] leading-[1.15] tracking-[-0.025em] max-md:text-[24px]">
         Nothing on {name} yet.
-      </h1>
+      </h2>
       <span className="text-[15px] leading-normal text-ink-3 max-md:text-[14.5px]">
         {linked
           ? 'Posts show here once they go out.'
@@ -190,9 +167,9 @@ function Profile({
           <BrandLogo brandId={brand.id} sizes="176px" className="object-cover" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
-          <h1 className="truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
+          <h2 className="truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
             {profileName(platform, accounts, brand)}
-          </h1>
+          </h2>
           <p
             title={windowLine(sum)}
             className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[14px] text-ink-3 max-md:gap-x-4 max-md:text-[13px]"
@@ -210,7 +187,7 @@ function Profile({
             )}
           </p>
         </div>
-        {ranks && <OrderToggle order={order} onChange={setOrder} />}
+        {ranks && <SortMenu order={order} onChange={setOrder} />}
       </header>
 
       {rings.length > 0 && (
@@ -235,42 +212,79 @@ function Profile({
   )
 }
 
+const ORDERS: Array<[Order, string]> = [
+  ['newest', 'Newest'],
+  ['top', 'Most engaging'],
+]
+
+/** One sort icon; its menu names the two orders, a tick on the one in use. */
+function SortMenu({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
+  const [open, setOpen] = React.useState(false)
+  const root = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (!open) return
+    function onPointer(e: PointerEvent) {
+      if (!root.current?.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+  return (
+    <div ref={root} className="relative shrink-0 self-end max-md:self-center">
+      <button
+        type="button"
+        aria-label="Sort"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex size-9 items-center justify-center rounded-full transition-colors hover:bg-surface hover:text-ink ${open ? 'bg-surface text-ink' : 'text-ink-3'}`}
+      >
+        <SortIcon />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Sort"
+          className="bb-menu absolute top-11 right-0 z-30 flex w-[176px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
+        >
+          {ORDERS.map(([o, label]) => (
+            <button
+              key={o}
+              type="button"
+              role="menuitemradio"
+              aria-checked={order === o}
+              onClick={() => {
+                onChange(o)
+                setOpen(false)
+              }}
+              className="flex h-9 items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[13px] text-ink transition-colors hover:bg-surface"
+            >
+              <span className="flex-1">{label}</span>
+              <span
+                className={`text-ink-2 transition-opacity ${order === o ? 'opacity-100' : 'opacity-0'}`}
+              >
+                <CheckIcon size={13} />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** The counts a tile names by a glyph: views, reach and likes. The rest keep their word. */
 const GLYPH: Partial<Record<CountKey, React.ReactNode>> = {
   views: <PlayIcon />,
   reach: <EyeIcon />,
   likes: <HeartIcon />,
-}
-
-/** Newest or ranked, as two quiet icons; each names itself on hover. */
-function OrderToggle({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Order"
-      className="flex shrink-0 gap-0.5 self-end rounded-full bg-surface p-[3px] max-md:self-center"
-    >
-      {(
-        [
-          ['newest', 'Newest', <ClockIcon key="n" />],
-          ['top', 'Top', <RankIcon key="t" />],
-        ] as const
-      ).map(([o, label, icon]) => (
-        <button
-          key={o}
-          type="button"
-          role="radio"
-          aria-checked={order === o}
-          aria-label={label}
-          title={label}
-          onClick={() => onChange(o)}
-          className={`bb-press flex size-7 items-center justify-center rounded-full ${order === o ? 'bg-page text-ink shadow-soft' : 'text-ink-4 hover:text-ink'}`}
-        >
-          {icon}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 /**

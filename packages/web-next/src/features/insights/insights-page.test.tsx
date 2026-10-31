@@ -50,7 +50,7 @@ describe('planning an idea from a finding', () => {
 })
 
 describe('the views', () => {
-  it('keep the brand’s story and leave each post’s numbers to Posted', () => {
+  it('keep the brand’s story, with each post’s numbers in the feed', () => {
     render(
       <BrandProvider>
         <InsightsPage />
@@ -59,7 +59,31 @@ describe('the views', () => {
     const views = within(screen.getByRole('radiogroup', { name: 'View' }))
       .getAllByRole('radio')
       .map((r) => r.textContent)
-    expect(views).toEqual(['Overview', 'Sentiment', 'Creators'])
+    expect(views).toEqual(['Overview', 'Sentiment', 'Creators', 'Feed'])
+    expect(screen.queryByRole('region', { name: 'Feed' })).toBeNull()
+  })
+
+  it('open on the feed the address names, and keep the address as the view changes', () => {
+    render(
+      <BrandProvider>
+        <InsightsPage view="feed" on="fb" />
+      </BrandProvider>,
+    )
+    const feed = screen.getByRole('region', { name: 'Feed' })
+    expect(within(feed).getByRole('radio', { name: /Facebook/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    // Overview is the plain address; the feed carries its view and platform.
+    fireEvent.click(screen.getByRole('radio', { name: 'Overview' }))
+    expect(window.location.pathname + window.location.search).toBe('/insights')
+    expect(screen.getByRole('region', { name: 'The month in numbers' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'Feed' }))
+    expect(window.location.search).toBe('?view=feed&on=fb')
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Feed' })).getByRole('radio', { name: /TikTok/ }),
+    )
+    expect(window.location.search).toBe('?view=feed&on=tt')
   })
 })
 

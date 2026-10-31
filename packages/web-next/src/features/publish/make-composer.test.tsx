@@ -104,17 +104,18 @@ async function land() {
 }
 
 describe('the composer with Instagram through Make', () => {
-  it('sends only Instagram, keeps TikTok planned on the post, and never offers Publish now', async () => {
+  it('sends only Instagram, offers no TikTok beside it, and never offers Publish now', async () => {
     open()
     tick('Instagram')
-    tick('TikTok')
+    // TikTok is planned only beside Make: not offered next to accounts that post.
+    expect(screen.queryAllByRole('checkbox', { name: /TikTok/ })).toEqual([])
     tick('Facebook', false)
     expect(screen.queryByRole('radio', { name: 'Publish now' })).toBeNull()
     expect(screen.queryByText('Publish now')).toBeNull()
     reschedule()
     await land()
     const patch = requests.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/ravioli')
-    expect((patch!.body as { channels: string[] }).channels).toEqual(['ig', 'tt'])
+    expect((patch!.body as { channels: string[] }).channels).toEqual(['ig'])
     expect(requests.find((r) => r.call.endsWith('/send'))?.body).toEqual({
       when: 'slot',
       channels: ['ig'],
@@ -137,7 +138,8 @@ describe('the composer with Instagram through Make', () => {
     })
     await act(async () => undefined)
     tick('Instagram')
-    tick('TikTok', false)
+    // Nothing posts a Story: the post is planned on the accounts that take one. TikTok takes none.
+    expect(screen.queryAllByRole('checkbox', { name: /TikTok/ })).toEqual([])
     tick('Facebook', false)
     expect(screen.getAllByText('Not available yet').length).toBeGreaterThan(0)
     fireEvent.click(screen.getAllByRole('button', { name: /^Schedule/ })[0]!)
@@ -146,7 +148,9 @@ describe('the composer with Instagram through Make', () => {
     expect(requests.find((r) => r.call.endsWith('/mark'))?.body).toEqual({ stage: 'scheduled' })
   })
 
-  it('starts a new post on the accounts that post, with TikTok offered and no library', () => {
+  it('starts a new post on the accounts that post, TikTok not offered and never ticked, and no library', async () => {
+    // The last new post went to TikTok too, before it stopped being offered.
+    window.localStorage.setItem('bb.last-accounts.casa-vostra', JSON.stringify(['ig', 'tt']))
     render(
       <BrandProvider>
         <Loaded>
@@ -157,8 +161,26 @@ describe('the composer with Instagram through Make', () => {
     const on = (name: string) =>
       screen.getAllByRole('checkbox', { name: new RegExp(name) })[0]!.getAttribute('aria-checked')
     expect(on('Instagram')).toBe('true')
-    expect(on('Facebook')).toBe('true')
-    expect(on('TikTok')).toBe('false')
+    expect(on('Facebook')).toBe('false')
+    expect(screen.queryAllByRole('checkbox', { name: /TikTok/ })).toEqual([])
+    expect(screen.queryByText('Not available yet')).toBeNull()
+    // A hidden account is never kept ticked: the post goes to Instagram alone.
+    fireEvent.change(document.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['x'], 'crust.jpg', { type: 'image/jpeg' })] },
+    })
+    await act(async () => undefined)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Caption' }), {
+      target: { value: 'Crust.' },
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: /^Schedule/ })[0]!)
+    await land()
+    expect(requests.find((r) => r.call.endsWith('/send'))?.body).toEqual({
+      when: 'slot',
+      channels: ['ig'],
+    })
+    const patch = requests.find((r) => r.call.startsWith('PATCH /brands/casa-vostra/posts/'))
+    expect((patch!.body as { channels: string[] }).channels).toEqual(['ig'])
+    window.localStorage.removeItem('bb.last-accounts.casa-vostra')
     // A photo post, not a reel: nothing to fix before a photo goes in.
     expect(screen.getAllByRole('radio', { name: 'Post' })[0]).toHaveAttribute(
       'aria-checked',
@@ -199,17 +221,37 @@ describe('the composer with Instagram through Make', () => {
     }
   })
 
-  it('opens More options and the TikTok row when TikTok is ticked with no answer saved', () => {
+  it('keeps an account a saved post is already on in view, so it can be unticked', () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={POSTS.find((p) => p.id === 'crust')!} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    // TikTok cannot post beside Make, but the crust reel is planned on it: hiding the chip would
+    // keep it on every save with no way to take it off.
+    const tiktok = () => screen.getAllByRole('checkbox', { name: /TikTok/ })[0]!
+    expect(tiktok()).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(tiktok())
+    expect(tiktok()).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(tiktok())
+    expect(tiktok()).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('opens More options and the TikTok row on a post planned on TikTok with no answer saved', () => {
     saveTikTokDefault('casa-vostra', {
       privacy: null,
       interactions: { comments: true, duet: false, stitch: false },
       promo: { on: false, own: false, paid: false },
       sound: 'own',
     })
+    // The crust reel is scheduled on TikTok among its accounts: a save keeps that, as it keeps
+    // YouTube or LinkedIn, and TikTok still needs its answers.
     render(
       <BrandProvider>
         <Loaded>
-          <Composer />
+          <Composer post={POSTS.find((p) => p.id === 'crust')!} />
         </Loaded>
       </BrandProvider>,
     )
@@ -217,8 +259,6 @@ describe('the composer with Instagram through Make', () => {
       screen
         .getAllByRole('button', { name: /^More options/ })
         .find((b) => b.hasAttribute('aria-expanded'))!
-    expect(more()).toHaveAttribute('aria-expanded', 'false')
-    tick('TikTok')
     expect(more()).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('button', { name: /Who can watch\?/ })).toHaveAttribute(
       'aria-expanded',

@@ -38,6 +38,8 @@ export interface ServerPost {
   permalink?: string | null
   measuredAt?: string | null
   expiresAt?: string | null
+  /** When the read-back last synced an imported post (pack 1.13.0); never set on a post Brand Base made. */
+  syncedAt?: string | null
   /** Each account's latest reading (pack 1.13.1); absent from an older core. */
   readings?: Post['readings']
 }

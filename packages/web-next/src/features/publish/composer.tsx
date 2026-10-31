@@ -28,8 +28,7 @@ import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/c
 import { brandToday, dayOf, storyTaken, tooSoon } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
-import { makeOn } from '@/features/connections/make'
-import { NotAvailable, notAvailable } from '@/features/connections/not-available'
+import { NotAvailable } from '@/features/connections/not-available'
 import { editIdea, ideaIdOfHook, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
@@ -75,6 +74,7 @@ import {
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
 import { PostedPost } from './posted'
+import { postersOf, PUBLISHERS, sendsOf } from './publishers'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { TikTokInbox } from './tiktok-inbox'
@@ -112,8 +112,6 @@ const NAME: Record<ChannelKey, string> = {
 /** The parts of the day Insights scores, as the time each one posts at. */
 const DAYPART_TIME = ['09:00', '12:00', '15:00', '18:00', '21:00']
 const MEDIA_MAX: Record<Format, number> = { reel: 1, carousel: 10, story: 10 }
-/** The formats in the plural, for a chip that cannot take one: "No Stories". */
-const PLURAL: Record<Format, string> = { reel: 'Reels', carousel: 'Posts', story: 'Stories' }
 /** The format a set of media asks for: one video is a Reel, anything else a photo post. */
 const formatOf = (media: Shot[]): Format =>
   media.length === 1 && isVideo(media[0]!.src) ? 'reel' : 'carousel'
@@ -205,7 +203,7 @@ export function Composer({
   // the server posts to Instagram and Facebook through Make, those are sent at their time, and the
   // others (TikTok) stay planned only: always offered, never sent.
   // Through Make an account is sent only once the brand has linked it; until then it is planned.
-  const sends = PUBLISHERS.filter((k) => postsTo(k) && (!makeOn(k) || links[k] === 'connected'))
+  const sends = sendsOf(links)
   const planOnly = sends.length === 0
   const plans = planOnly
     ? []
@@ -245,8 +243,11 @@ export function Composer({
   // Read after the first paint: the server cannot see this browser's memory.
   React.useEffect(() => {
     if (post || planOnly) return
-    const usual = sends.filter((k) => publishing.includes(k))
-    const last = lastAccounts(brand.id)?.filter((k) => usual.includes(k as (typeof usual)[number]))
+    // Only the accounts that post this format: a hidden account is never ticked.
+    const usual = postersOf(sends, api.draft.format).filter((k) =>
+      (publishing as readonly ChannelKey[]).includes(k),
+    )
+    const last = lastAccounts(brand.id)?.filter((k) => usual.includes(k))
     if (last && last.length > 0) api.update({ selected: last })
     // Once, as a new post opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,9 +278,15 @@ export function Composer({
   )
   // Where a new post starts, worked out once: the day and the time belong together.
   const [slot] = React.useState(() => nextSlot(brand.id, times))
-  const [date, setDate] = React.useState<string>(
-    () => (post && dayOf(weeks, post.id)) || start?.day || slot.date,
-  )
+  const [date, setDate] = React.useState<string>(() => {
+    const day = (post && dayOf(weeks, post.id)) || start?.day || slot.date
+    // A Story from the New menu, with no day of its own, starts on the first day with no story
+    // out, as a Story picked in the composer moves to one.
+    if (post || start?.day || start?.format !== 'story') return day
+    let free = day
+    for (let i = 0; i < 60 && storyTaken(weeks, free); i++) free = addDays(free, 1)
+    return free
+  })
   const [time, setTime] = React.useState(() => {
     if (post?.slot.split(', ')[1]) return post.slot.split(', ')[1]!
     if (start?.time) return start.time
@@ -310,7 +317,8 @@ export function Composer({
     // An existing post keeps its format: a save does not change it, so the page never offers to.
     if (post) return
     setFormatChosen(true)
-    update({ format })
+    // An account that cannot take the format is not shown, so it is not kept ticked either.
+    update({ format, selected: draft.selected.filter((k) => kindOn(format, k) !== null) })
     // What the last add left out was said for the format of then.
     setStrip((st) => (st.note ? { ...st, note: null } : st))
     const moved = storyMove.current
@@ -936,7 +944,10 @@ export function Composer({
     />
   )
   const inSheet: Record<SheetKey, { title: string; body: React.ReactNode }> = {
-    accounts: { title: 'Post to', body: <Accounts api={api} sends={sends} /> },
+    accounts: {
+      title: 'Post to',
+      body: <Accounts api={api} sends={sends} saved={post ? channelsOf(post) : []} />,
+    },
     more: { title: 'More options', body: more },
     when: {
       title: 'When',
@@ -1114,7 +1125,7 @@ export function Composer({
               instead of a line drawn across it. */}
           <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 bg-surface-2 px-1 pt-3 pb-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-surface-2 before:to-transparent max-md:hidden">
             <div className="flex flex-wrap items-center gap-2 px-1">
-              <Accounts api={api} sends={sends} />
+              <Accounts api={api} sends={sends} saved={post ? channelsOf(post) : []} />
               <span className="ml-auto">
                 <WhenField when={when} date={date} time={time} setWhen={setWhen}>
                   {(close) => (
@@ -1142,7 +1153,7 @@ export function Composer({
             </div>
           </div>
         </div>
-        <div className="sticky top-6 max-lg:static max-md:hidden">
+        <div className="sticky top-[calc(var(--header)+24px)] max-lg:static max-md:hidden">
           <Preview
             api={api}
             media={media}
@@ -1163,12 +1174,6 @@ export function Composer({
 }
 
 type SheetKey = 'accounts' | 'more' | 'when' | 'preview'
-
-/** The accounts a post is published to. */
-const PUBLISHERS = ['ig', 'tt', 'fb'] as const satisfies readonly ChannelKey[]
-
-/** True when a post on this account is really sent: set up on our side, or through Make. */
-const postsTo = (key: ChannelKey) => !notAvailable(key) || makeOn(key)
 
 /** One line of the phone's list: what it is, its answer so far, and a chevron into its sheet. */
 function Row({
@@ -1269,19 +1274,33 @@ const STAGE_LABEL: Record<Stage, string> = {
 // ── Accounts and format ──────────────────────────────────────────────────────────────────────
 
 /**
- * The brand's accounts on the platforms it uses, ticked together. Chips on a desktop, on the
- * line that sends; on a phone a list in its own sheet, one account a row, the tick at the right.
+ * The brand's accounts that post this format, ticked together. Chips on a desktop, on the line
+ * that sends; on a phone a list in its own sheet, one account a row, the tick at the right.
  */
 function Accounts({
   api,
   sends,
+  saved,
 }: {
   api: PublishDraftApi
   /** The accounts a post is really sent to; the others are planned only. */
   sends: readonly ChannelKey[]
+  /** The accounts a saved post is on: each stays in view, so it can be unticked and ticked again. */
+  saved: readonly ChannelKey[]
 }) {
   const { brand } = useBrand()
   const { draft, toggleChannel, connect } = api
+  // With at least one account that posts this format, only those show: a planned-only account
+  // (TikTok beside Make) is not offered beside one that posts. With none (nothing set up, or a
+  // Story on the core, which Make cannot post), the post is planned on every account.
+  const posters = postersOf(sends, draft.format)
+  const planOnly = posters.length === 0
+  // An account that cannot take the format (TikTok takes no Story) is never shown.
+  const shown = linkedChannels(draft).filter((c) =>
+    planOnly
+      ? kindOn(draft.format, c.key) !== null
+      : posters.includes(c.key) || saved.includes(c.key),
+  )
   // On the core beside Instagram and Facebook through Make, a Story is planned, not posted. The
   // note depends on the format alone, so a tick never moves anything.
   const storyPlanned = remote && sends.length > 0 && draft.format === 'story'
@@ -1295,10 +1314,9 @@ function Accounts({
       aria-label="Accounts"
       className="flex flex-wrap items-center gap-2 max-md:flex-col max-md:items-stretch max-md:gap-0"
     >
-      {linkedChannels(draft).map((c) => {
+      {shown.map((c) => {
         const connected = draft.connected.includes(c.key)
-        const takes = kindOn(draft.format, c.key)
-        const on = connected && takes !== null && draft.selected.includes(c.key)
+        const on = connected && draft.selected.includes(c.key)
         const planned = plannedOnly(c.key)
         if (!connected) {
           return (
@@ -1322,19 +1340,12 @@ function Accounts({
             type="button"
             role="checkbox"
             aria-checked={on}
-            aria-disabled={takes === null}
-            title={
-              takes === null ? undefined : (planned ?? handleOn(brand.handle, brand.name, c.key))
-            }
-            onClick={() => takes !== null && toggleChannel(c.key)}
-            className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:bg-transparent max-md:px-0 max-md:text-[15px] ${takes === null ? 'cursor-not-allowed text-ink-5 shadow-[inset_0_0_0_1px_var(--cal-ghost)] max-md:shadow-none' : on ? 'bg-ink text-page max-md:text-ink' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--line-strong)] hover:text-ink max-md:text-ink max-md:shadow-none'}`}
+            title={planned ?? handleOn(brand.handle, brand.name, c.key)}
+            onClick={() => toggleChannel(c.key)}
+            className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:bg-transparent max-md:px-0 max-md:text-[15px] ${on ? 'bg-ink text-page max-md:text-ink' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--line-strong)] hover:text-ink max-md:text-ink max-md:shadow-none'}`}
           >
             <PlatformLogo platform={c.key} size={14} />
             {c.name}
-            {/* No Stories on TikTok: the chip says so in two words. */}
-            {takes === null && (
-              <span className="text-[13px] font-normal">No {PLURAL[draft.format]}</span>
-            )}
             {/* Planned only: an amber dot, ticked or not, so the chip never changes width. */}
             {planned && (
               <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-(--pending)" />

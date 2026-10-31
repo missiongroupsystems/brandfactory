@@ -51,15 +51,25 @@ export function nowIn(at: Date, zone: string, demoDay?: string): Moment {
 }
 
 /**
+ * An import the core has not read back from the platform: no job, an address from the import,
+ * and no sync. The feed shows only what the core can check, so it stays out until a reading
+ * finds it. A post marked posted by hand has no address and stays.
+ */
+export function unverified(p: ServerPost): boolean {
+  return p.jobs.length === 0 && !!p.permalink && !p.syncedAt
+}
+
+/**
  * What went out from the core's posts, on the accounts it went out on. A post with jobs went out
  * on the accounts whose job is live, in its own order: a planned-only account (TikTok beside
- * Instagram) stays on `channels` but never went. A post with no job that reads posted (imported,
- * or marked posted by hand) went out on all its accounts. The rest never went out.
+ * Instagram) stays on `channels` but never went. A post with no job that reads posted (synced,
+ * or marked posted by hand) went out on all its accounts. The rest never went out, and an import
+ * never read back is left out.
  */
 export function fromServer(posts: ServerPost[]): PostedItem[] {
   return posts.flatMap((p) => {
     const went = wentOf(p)
-    if (went.length === 0 || !p.day) return []
+    if (went.length === 0 || !p.day || unverified(p)) return []
     const details = (p.draft as { details?: { collab?: string[] } }).details
     return [
       {

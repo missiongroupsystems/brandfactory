@@ -4,6 +4,8 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
+import type { Format } from '@/data/demo'
+import { insightsUrl } from '@/features/insights/views'
 import type { Platform } from '@/features/posted/model'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -11,9 +13,9 @@ import { Composer, leaving } from './composer'
 
 /**
  * Scheduling on its own page, the core of the product: a post opened from the calendar, the shoot
- * brief or Ideate (`/post/<id>`), or a new one (`/post/new`, optionally with the day and hour of
- * the slot it came from). Back returns to the calendar where it was, or to Posted on the platform
- * it was opened from (`posted`).
+ * brief or Ideate (`/post/<id>`), or a new one (`/post/new`, optionally with the day, hour and
+ * format it came from). Back returns to the calendar where it was, or to the feed on the
+ * platform it was opened from (`posted`).
  *
  * The page belongs to the brand in the header. A post of another brand is not shown, and
  * switching brand starts the composer over, so nothing is ever saved into the wrong brand.
@@ -24,7 +26,7 @@ export function PostPage({
   posted,
 }: {
   id?: string
-  start?: { day?: string; time?: string; format?: 'story' }
+  start?: { day?: string; time?: string; format?: Format }
   posted?: Platform
 }) {
   const { brand, posts, byId } = useBrand()
@@ -42,13 +44,14 @@ export function PostPage({
   return (
     <div className="flex min-h-svh flex-col bg-surface-2 max-md:bg-page">
       {/* A post is a task: on a phone it is one white screen, with a back link and no header. */}
-      <div className="max-md:hidden">
-        <AppHeader section={posted ? '/posted' : undefined} />
+      {/* The wrapper is the header's height, so it is the one that stays at the top. */}
+      <div className="max-md:hidden md:sticky md:top-0 md:z-40">
+        <AppHeader section={posted ? '/insights' : undefined} />
       </div>
       <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(140px+env(safe-area-inset-bottom))]">
         <div className="pb-5 max-md:pb-4">
           <Link
-            href={posted ? `/posted?on=${posted}` : '/'}
+            href={posted ? insightsUrl('feed', posted) : '/'}
             className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
           >
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -60,7 +63,7 @@ export function PostPage({
                 strokeLinejoin="round"
               />
             </svg>
-            {posted ? 'Posted' : 'Schedule'}
+            {posted ? 'Feed' : 'Schedule'}
           </Link>
         </div>
         {id && !post && leaving.has(id) ? null : id && !post ? (

@@ -459,7 +459,7 @@ export function PostedPost({ v }: { v: PostedView }) {
       className={`grid items-start gap-14 max-lg:grid-cols-1 max-lg:gap-8 ${bare ? '' : 'grid-cols-[300px_minmax(0,1fr)]'}`}
     >
       {!bare && (
-        <aside className="sticky top-6 max-lg:hidden">
+        <aside className="sticky top-[calc(var(--header)+24px)] max-lg:hidden">
           <Cover v={v} strip />
         </aside>
       )}

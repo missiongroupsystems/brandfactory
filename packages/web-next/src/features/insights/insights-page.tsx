@@ -30,10 +30,13 @@ import {
   type Split,
 } from '@/data/insights-hub'
 import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
+import type { Platform } from '@/features/posted/model'
+import { Feed } from '@/features/posted/posted-page'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
 import { addSplits, bestOffSocial, bookingsByFormat, percents, sum } from './hub-model'
+import { insightsUrl, type InsightsView } from './views'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const HAIR = 'border-(--cal-line)'
@@ -94,41 +97,28 @@ function plain(s: string): string {
     .join(' ')
 }
 
-type Tab = 'overview' | 'sentiment' | 'creators'
-
 /**
- * The insights page, one calm column in three views, switched the way Ideate switches its two.
+ * The insights page, one calm column in four views, switched the way Ideate switches its two.
  * It reads five sources: Instagram, TikTok, the website, Google Business Profile and
  * reservations. Overview: the month in a sentence, one number at a time over its twelve weeks,
  * every source on one time axis beside the posts, what worked (each opens to its chart and its
- * idea) and the best time to post. Creators: each creator, ranked. Each post's own numbers are
- * on Posted, beside the post.
- * Sentiment: what people think of the brand, from comments and mentions. Every chart shows its
- * numbers on hover.
+ * idea) and the best time to post. Creators: each creator, ranked. Feed: what went out, one
+ * platform at a time, with each post's own numbers. Sentiment: what people think of the brand,
+ * from comments and mentions. Every chart shows its numbers on hover. The view and the feed's
+ * platform are kept in the address, so a reload or a post's way back lands on them.
  */
-export function InsightsPage() {
+export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform } = {}) {
   const { brand } = useBrand()
   // The figures are the demo's, invented: on the core no brand has any until real counts come.
   const data = remote ? undefined : INSIGHTS_BY_BRAND[brand.id]
   const hub = remote ? undefined : HUB_BY_BRAND[brand.id]
-  const [tab, setTab] = React.useState<Tab>('overview')
-
-  if (!data || !hub) {
-    return (
-      <div className="flex min-h-svh flex-col">
-        <AppHeader />
-        <main key={brand.id} className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4">
-          <div className="flex flex-col gap-4 pt-6 max-md:pt-2">
-            <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-              Insights
-            </h1>
-            <p className="text-[15px] text-ink-3">
-              Insights arrive once the brand&apos;s accounts are connected.
-            </p>
-          </div>
-        </main>
-      </div>
-    )
+  // With no figures (the core), the feed is the one view with something in it: it opens there.
+  const [tab, setTab] = React.useState<InsightsView>(view ?? (data && hub ? 'overview' : 'feed'))
+  const [platform, setPlatform] = React.useState<Platform | undefined>(on)
+  const go = (next: InsightsView, p = platform) => {
+    setTab(next)
+    setPlatform(p)
+    window.history.replaceState(null, '', insightsUrl(next, p))
   }
 
   return (
@@ -140,30 +130,41 @@ export function InsightsPage() {
       >
         <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
           <div className="flex flex-col gap-3">
-            <span className={EYEBROW}>{data.period}</span>
+            {data && <span className={EYEBROW}>{data.period}</span>}
             <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
               Insights
             </h1>
           </div>
-          <div className="w-[340px] max-sm:w-full">
+          <div className="w-[400px] max-sm:w-full">
             <Segmented
               label="View"
               pill
               value={tab}
-              onChange={setTab}
+              onChange={go}
               options={[
                 { value: 'overview', label: 'Overview' },
                 { value: 'sentiment', label: 'Sentiment' },
                 { value: 'creators', label: 'Creators' },
+                { value: 'feed', label: 'Feed' },
               ]}
             />
           </div>
         </div>
 
         <div key={tab} className="bb-swap">
-          {tab === 'overview' && <Overview data={data} hub={hub} />}
-          {tab === 'sentiment' && <SentimentView sentiment={hub.sentiment} />}
-          {tab === 'creators' && <Creators creators={data.creators} />}
+          {tab === 'feed' ? (
+            <Feed on={platform} onPick={(p) => go('feed', p)} />
+          ) : !data || !hub ? (
+            <p className="text-[15px] text-ink-3">
+              Insights arrive once the brand&apos;s accounts are connected.
+            </p>
+          ) : tab === 'overview' ? (
+            <Overview data={data} hub={hub} />
+          ) : tab === 'sentiment' ? (
+            <SentimentView sentiment={hub.sentiment} />
+          ) : (
+            <Creators creators={data.creators} />
+          )}
         </div>
       </main>
     </div>

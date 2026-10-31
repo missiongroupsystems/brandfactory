@@ -3,17 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
 
-import { PostedPage } from './posted-page'
+import { Feed } from './posted-page'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/posted',
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+const onPick = vi.fn()
 const open = (on?: 'ig' | 'fb' | 'tt') =>
   render(
     <BrandProvider>
-      <PostedPage on={on} />
+      <Feed on={on} onPick={onPick} />
     </BrandProvider>,
   )
 const tiles = () => within(screen.getByRole('list', { name: 'Posts' })).getAllByRole('listitem')
@@ -30,14 +31,16 @@ const platform = () =>
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(2026, 9, 29, 12, 0))
+  onPick.mockClear()
 })
 afterEach(() => vi.useRealTimers())
 
-describe('Posted in the static demo', () => {
+describe('the feed in the static demo', () => {
   it('opens on Instagram as the brand’s profile: its stories as rings, its posts newest first', () => {
     open()
     // Nothing is linked in the demo: the brand's name, never a handle it may not own there.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Casa Vostra$/)
+    // A heading under Insights' own title, never a second h1.
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(/^Casa Vostra$/)
     expect(platform()).toHaveTextContent('Instagram')
     // The morning's stories (from 09:00 on 6 Oct, the demo's today) are up; the 5th's have gone.
     expect(rings().map((r) => r.getAttribute('aria-label'))).toEqual([
@@ -89,24 +92,43 @@ describe('Posted in the static demo', () => {
     expect(tile('Guess the ingredient.')).not.toHaveTextContent('with @')
   })
 
-  it('ranks the posts by engagement on request, the ones without numbers last, and back to newest', () => {
+  it('ranks the posts by engagement from a sort menu that names its orders, the ones without numbers last, and back to newest', () => {
     open()
     const newest = tiles().map((t) => t.textContent)
-    fireEvent.click(screen.getByRole('radio', { name: 'Top' }))
+    // One sort icon, no words on it; the menu says what each order is.
+    const sort = screen.getByRole('button', { name: 'Sort' })
+    expect(sort).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(sort)
+    const menu = screen.getByRole('menu', { name: 'Sort' })
+    expect(
+      within(menu)
+        .getAllByRole('menuitemradio')
+        .map((m) => m.textContent),
+    ).toEqual(['Newest', 'Most engaging'])
+    expect(within(menu).getByRole('menuitemradio', { name: 'Newest' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Most engaging' }))
+    // Picked: the menu shuts.
+    expect(screen.queryByRole('menu', { name: 'Sort' })).toBeNull()
     const ranked = tiles().map(counted)
     const first = ranked.indexOf(false)
     expect(first).toBeGreaterThan(0)
     // Every post with numbers comes before every post without; none of those is ranked.
     expect(ranked.slice(first).every((c) => !c)).toBe(true)
     expect(tiles().map((t) => t.textContent)).not.toEqual(newest)
-    fireEvent.click(screen.getByRole('radio', { name: 'Newest' }))
+    fireEvent.click(sort)
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Newest' }))
     expect(tiles().map((t) => t.textContent)).toEqual(newest)
   })
 
-  it('switches platform from the rail, and shows no Instagram numbers on Facebook', () => {
+  it('switches platform from the pills, tells its page which, and shows no Instagram numbers on Facebook', () => {
     open()
     fireEvent.click(screen.getAllByRole('radio', { name: /Facebook/ })[0]!)
     expect(platform()).toHaveTextContent('Facebook')
+    // The page keeps the platform in the address, so a post's way back lands on it.
+    expect(onPick).toHaveBeenCalledWith('fb')
     // The archive's carousels also went to Facebook; their counts are Instagram's, so none show.
     expect(counted(tile('Ravioli, filled by hand.'))).toBe(false)
     // Nothing reads Facebook's stories.

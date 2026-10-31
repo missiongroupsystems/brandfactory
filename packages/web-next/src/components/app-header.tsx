@@ -14,7 +14,6 @@ import { LogoMark } from './icons'
 const NAV = [
   { href: '/', label: 'Schedule' },
   { href: '/ideate', label: 'Ideas' },
-  { href: '/posted', label: 'Posted' },
   { href: '/insights', label: 'Insights' },
   { href: '/inbox', label: 'Inbox' },
   { href: '/bubbles', label: 'Bubbles' },
@@ -23,15 +22,15 @@ const NAV = [
 const SHOWN = NAV.filter((n) => n.href !== '/bubbles' || BUBBLES_URL)
 
 /**
- * `section` names the page's section where its address alone does not: a post opened from Posted
- * belongs to Posted.
+ * `section` names the page's section where its address alone does not: a post opened from the
+ * feed belongs to Insights.
  */
 export function AppHeader({ section }: { section?: (typeof NAV)[number]['href'] } = {}) {
   const pathname = usePathname()
   const { brand } = useBrand()
   const waiting = useWaiting(brand.id)
   return (
-    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-10 py-[22px] max-md:px-4 max-md:py-3">
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-10 py-[22px] max-md:px-4 max-md:py-3 md:sticky md:top-0 md:z-40 md:bg-page/90 md:backdrop-blur-xl">
       <Link
         href="/"
         aria-label="brand base"

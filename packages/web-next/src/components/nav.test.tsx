@@ -42,11 +42,12 @@ describe('the Bubbles link', () => {
   })
 })
 
-describe('the Posted link', () => {
-  it('is current on Posted, where the tab bar stays: Posted is a page, not a post', async () => {
-    at.path = '/posted'
+describe('the feed', () => {
+  it('is a view of Insights, not a page of its own: no Posted link, and Insights is current there', async () => {
+    at.path = '/insights'
     await nav('')
-    const links = screen.getAllByRole('link', { name: 'Posted' })
+    expect(screen.queryAllByRole('link', { name: /Posted|Feed/ })).toEqual([])
+    const links = screen.getAllByRole('link', { name: 'Insights' })
     expect(links).toHaveLength(2)
     for (const l of links) expect(l).toHaveAttribute('aria-current', 'page')
     for (const l of screen.getAllByRole('link', { name: 'Schedule' }))
@@ -63,13 +64,13 @@ describe('a post’s own page', () => {
       // The header's links only: the tab bar is gone.
       expect(screen.getAllByRole('link', { name: 'Schedule' })).toHaveLength(1)
       expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute('aria-current', 'page')
-      expect(screen.getByRole('link', { name: 'Posted' })).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: 'Insights' })).not.toHaveAttribute('aria-current')
     },
   )
 })
 
-describe('a post opened from Posted', () => {
-  it('belongs to Posted, and back leads to Posted; opened from anywhere else it stays Schedule', async () => {
+describe('a post opened from the feed', () => {
+  it('belongs to Insights, and back leads to the feed on its platform; opened from anywhere else it stays Schedule', async () => {
     at.path = '/post/casa-vostra-archive-0'
     vi.resetModules()
     const { PostPage } = await import('@/features/publish/post-page')
@@ -80,14 +81,14 @@ describe('a post opened from Posted', () => {
       </BrandProvider>,
     )
     const main = screen.getByRole('navigation', { name: 'Main' })
-    expect(within(main).getByRole('link', { name: 'Posted' })).toHaveAttribute(
+    expect(within(main).getByRole('link', { name: 'Insights' })).toHaveAttribute(
       'aria-current',
       'page',
     )
     expect(within(main).getByRole('link', { name: 'Schedule' })).not.toHaveAttribute('aria-current')
-    expect(screen.getByRole('link', { name: 'Posted', current: false })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Feed' })).toHaveAttribute(
       'href',
-      '/posted?on=ig',
+      '/insights?view=feed&on=ig',
     )
     unmount()
     render(

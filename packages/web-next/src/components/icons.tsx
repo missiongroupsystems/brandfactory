@@ -252,7 +252,8 @@ export function LogoMark() {
 }
 
 /** Newest first: a clock. */
-export function ClockIcon({ size = 14 }: { size?: number }) {
+/** Sort: three bars, long to short. */
+export function SortIcon({ size = 14 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -264,26 +265,7 @@ export function ClockIcon({ size = 14 }: { size?: number }) {
       strokeLinecap="round"
       aria-hidden="true"
     >
-      <circle cx="8" cy="8" r="6" />
-      <path d="M8 4.8V8l2.2 1.4" />
-    </svg>
-  )
-}
-
-/** Ranked: bars rising. */
-export function RankIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M3.5 13V9.5M8 13V6M12.5 13V3" />
+      <path d="M2.5 4.5h11M2.5 8h7M2.5 11.5h3.5" />
     </svg>
   )
 }

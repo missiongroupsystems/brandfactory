@@ -209,7 +209,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
               // together on any size, and a long thread scrolls inside the panel. The column takes
               // its height from the list only (`contain: size`), so a long thread cannot stretch it.
               <div className="[contain:size]">
-                <div className="sticky top-6 flex h-full max-h-[max(440px,calc(100svh-280px))] min-h-[440px] flex-col rounded-[20px] border border-line bg-page">
+                <div className="sticky top-[calc(var(--header)+24px)] flex h-full max-h-[max(440px,calc(100svh-280px))] min-h-[440px] flex-col rounded-[20px] border border-line bg-page">
                   <Thread
                     key={current.id}
                     m={current}

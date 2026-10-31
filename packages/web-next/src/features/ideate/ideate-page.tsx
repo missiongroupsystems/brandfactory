@@ -245,7 +245,7 @@ function Ideas({
           <div
             role="region"
             aria-label="Selection"
-            className="sticky top-0 z-30 -mx-10 flex h-[52px] items-center gap-3 bg-page px-10 max-md:-mx-4 max-md:px-4"
+            className="sticky top-(--header) z-30 -mx-10 flex h-[52px] items-center gap-3 bg-page px-10 max-md:-mx-4 max-md:px-4"
           >
             <button
               type="button"
@@ -873,7 +873,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
       {/* The top row stays in view: the folders, or, once posts are picked, what to do with them. */}
       <div
         ref={top}
-        className="sticky top-0 z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4"
+        className="sticky top-(--header) z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4"
       >
         {picked.length > 0 ? (
           <div role="region" aria-label="Selection" className="flex h-9 items-center gap-3">

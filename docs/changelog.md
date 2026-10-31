@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.48.0** — 2026-10-31 — `fix/keep-new-post`: six review comments from the product lead, and nothing else. Posted becomes "Feed", a view of Insights (Overview, Sentiment, Creators, Feed; `/insights?view=feed&on=ig`, `/posted` redirects there; on the core Insights opens on Feed). The feed's sort is one icon with a menu, Newest or Most engaging. The feed on the core shows only what the core can check: a post with a live job, one the read-back synced (`syncedAt`), or one marked posted by hand; a scraped import never read back stays out. The header stays at the top on a desktop (`--header`, 80px; the sticky rails, the inbox thread and the composer preview sit under it; a phone keeps its tab bar). The composer offers only the accounts that post the format: a planned-only account (TikTok beside Make) and one that cannot take the format (TikTok for a Story) are not shown, and never ticked (a saved post's own accounts stay, so they can be unticked); with no account that posts, the row plans on every account as before. "New post" becomes "New", a menu of Post, Reel and Story with the accounts that post each; a format nothing posts (a Story on the core) is greyed "Plan only"; `/post/new?format=post|reel|story` starts the composer in that format. The phone's "+" offers Post, Reel, Story and Shoot. No pack change, no migration. 1250 tests (251 skipped without a Postgres server).
 - **2.47.0** — 2026-10-31 — `fix/keep-new-post`: the new post page from the 30 Oct rework, and nothing else from it (the owner kept this page and the week view's post times, and turned down the rest). One card holds the format, the photos and the caption; More options holds the rest; the account chips, the date chip and one main button stick to the foot of the window. New posts tick only accounts that post (the brand's last ones), take the brand's next best slot by its own clock, and follow the first file's format; the When dialog has Today, Tomorrow and best-day picks, a 24h time field and an hour chart. A scheduled post saves, saves and sends (an account added) or reschedules (moved); its "…" menu unschedules or deletes. A send goes back to the calendar with the date, once, after the core stored it. On the week view, post times are 13px. Every other page is as in 2.46.0 (checked pixel by pixel against it). No pack change, no migration. 1240 tests (251 skipped without a Postgres server).
 - **2.46.0** — 2026-10-29 — `fix/posted-handle`: every post has its own link and counts on each account it went to, and the post page is calmer (brandbase 1.13.1, migration 0023, not applied to production). Migration 0023 keeps the address on each reading and on each job (the link Make answers when it posts); a post's JSON carries `readings`, its latest counts, read time and link per channel; a link Make answers for a second account no longer becomes the post's own. The post page from Posted: the cover and its slides stay on the left; on the right one meta line (the account's mark when it went to one), a shorter title, the caption without its repeated first line, folded after three lines; one card for the account on show, with a switch of platform marks when the post went to more than one, an "Open on Instagram ↗" pill and the counts with one "as of"; the analytics card as before, its "Preview" tag and helper sentences gone. "Cover only" goes, and the back link says "Posted", and a post's meta line drops "Post ·". A post opened from Posted highlights Posted in the header. The Posted page's Facebook tab shows Facebook's own counts. The header shows the account linked on each platform (Instagram's handle, the Facebook Page's name, the TikTok account, else the brand's name or handle). 1449 tests, all run on a throwaway Postgres 18.
 - **2.45.1** — 2026-10-29 — `feat/posted-profile`: the Posted page reads as the account's profile (design option A, polished). The platforms stay a quiet rail on the left (glyph and name; pill tabs on a phone). On the right: the brand's avatar and handle, the last 30 days as inline totals with one small "as of" (the window and "x of y with numbers" on hover), the stories as rings (green while up, hours left on hover; grey for one gone in the last week), and the posts as a 3-column grid of 4:5 covers. A cover shows one count (views on a reel, likes on the rest, else the first count it has) and a reel's length or a carousel mark; hover or focus shows the hook, the kind and day, and every count. A cover opens its poster, which links back. Newest or Top is a two-icon toggle. Gone: the "Posted · brand" eyebrow, the platform title, the month headings, the "Last 30 days" sentence, "as of" on every row, the Newest and Top words and the "Most engaging" and "No numbers yet" headings, each row's caption line. No pack change, no migration. 1425 tests (249 skipped without a Postgres server).
@@ -101,6 +102,44 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.48.0 — 2026-10-31
+
+- **Why.** Six comments from the product lead on 2.47.0's preview: the feed's sort was a tab
+  named only by a tooltip; the navigation scrolled away; an account that cannot post (TikTok)
+  still showed as an option; Posted should be a subpage of Insights called Feed; "New post"
+  should ask what to make and offer only the accounts that take it; and the feed showed scraped
+  history nobody can check against the read-back.
+- **Feed in Insights.** `InsightsPage` takes `view` and `on` from the address and keeps them
+  there with `history.replaceState` (`insightsUrl`, in `insights/views.ts`: the routes read it
+  on the server, where a client module's exports are references). `Feed` (was `PostedPage`) renders inside
+  Insights' column with its phone layout at every width: platform pills above the profile, the
+  profile's name an h2. `/posted` redirects (`app/posted/page.tsx`); the header and the tab bar
+  lose Posted; a post opened from the feed marks Insights and its back link says "Feed".
+- **Sort.** `SortMenu`: one icon (`SortIcon`; `ClockIcon` and `RankIcon` go) with a
+  `menuitemradio` menu, Newest and Most engaging, shown only when ranking says something.
+- **Only what the core read back.** `unverified(p)` (posted model): no job, a `permalink`, no
+  `syncedAt`. `fromServer` leaves those out. `ServerPost.syncedAt` is read from the post JSON
+  migration 0022 already sends. Web filter only; the demo's feed is unchanged.
+- **Sticky header.** `AppHeader` is `md:sticky md:top-0 md:z-40` with the tab bar's frosted
+  background. `--header` (0 on a phone, 80px from `md`) in `globals.css`; the Ideas stage rail
+  and its anchors, Ideate's two sticky rows, the inbox thread, the poster's cover and the
+  composer's preview sit under it. The post page and Bubbles wrap the header in a box of its own
+  height, so the wrapper is what sticks there.
+- **Accounts that post the format.** `publish/publishers.ts`: `sendsOf(links)` (was the
+  composer's own `sends`) and `postersOf(sends, format)` (TikTok takes no Story; on the core Make
+  posts no Story). `Accounts` shows those alone when there is at least one; with none it plans on
+  every account that takes the format, as before. The last-used accounts are filtered by format,
+  and a format switch drops the accounts that cannot take the new one. A saved post's own accounts
+  stay in view (`saved`), so a planned-only account it is on can be unticked and ticked again.
+- **New menu.** `schedule/new-menu.tsx`, on the desktop ("New") and the phone (the "+", with
+  Shoot). Each format row lists the accounts that post it; `FORMAT_PARAM` names the format in
+  `/post/new?format=`, which `formatOfParam` reads back; `start.format` is any `Format`. A Story
+  from the menu starts on the first day with no story out, as one picked in the composer does.
+- **Tests.** The nav lists no Posted; `/posted` redirects; the sort menu; a never-synced import
+  is hidden; a hidden account is never ticked (the core, with TikTok among the last accounts);
+  `?format=reel` starts a reel and a file does not change it; the New menu in the demo and on the
+  core. 1250 tests (251 skipped without a Postgres server).
 
 ## 2.46.0 — 2026-10-29
 

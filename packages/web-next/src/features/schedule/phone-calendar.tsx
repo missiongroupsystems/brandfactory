@@ -3,14 +3,12 @@
 import Image from 'next/image'
 import * as React from 'react'
 
-import { CheckIcon, ChevronIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import { CheckIcon, ChevronIcon, SparkIcon } from '@/components/icons'
 import { isVideo, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
-import { Sheet } from '@/components/sheet'
 import { startTouchDrag } from '@/components/touch-drag'
-import type { Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
+import type { Day, FeedMark, Format, LayerKey, Post, Week } from '@/data/demo'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
-import { NewShootForm } from '@/features/shoot/new-shoot'
 import { dayNumber } from '@/lib/dates'
 
 import { EventChip } from './event-chip'
@@ -27,6 +25,7 @@ import {
 } from './calendar-items'
 import { onlyFailed } from './failed-menu'
 import { MonthPicker, type MonthPick } from './month-picker'
+import { NewMenu } from './new-menu'
 import { PhoneFilters } from './phone-filters'
 import { useBrand } from './posts-store'
 import { storiesOf, type Story } from './stories'
@@ -111,7 +110,7 @@ export function PhoneCalendar({
   onStep: (by: -1 | 1) => void
   onToday: () => void
   onOpenPost: (postId: string) => void
-  onNewPost: (date?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string, format?: Format) => void
   /** The day a new shoot takes: the day picked, if it is ahead on the brand's calendar. */
   shootDay?: string
   onOpenStories: (date: string) => void
@@ -309,7 +308,10 @@ export function PhoneCalendar({
             onLayers={onLayers}
           />
           <NewMenu
-            onPost={() => onNewPost(shownDay.past ? undefined : shownDay.date)}
+            compact
+            onPost={(format) =>
+              onNewPost(shownDay.past ? undefined : shownDay.date, undefined, format)
+            }
             shootDay={shootDay}
           />
         </span>
@@ -505,87 +507,6 @@ function ViewMenu({
             />
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-/**
- * The one plus: a small menu of what to add, a post or a shoot, as a phone calendar's add button
- * offers an event or a task. A shoot opens its form in a sheet.
- */
-function NewMenu({ onPost, shootDay }: { onPost: () => void; shootDay?: string }) {
-  const [open, setOpen] = React.useState(false)
-  const [shoot, setShoot] = React.useState(false)
-  const root = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (!open) return
-    function onPointer(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const item = 'flex h-10 items-center rounded-[8px] px-2.5 text-left text-[14px]'
-  return (
-    <div ref={root} className="relative">
-      <button
-        type="button"
-        aria-label="New"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="bb-press group/new flex size-9 items-center justify-center rounded-full bg-ink text-page"
-      >
-        <span
-          className={`flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${open ? 'rotate-45' : ''}`}
-        >
-          <PlusIcon size={13} />
-        </span>
-      </button>
-      {open && (
-        <div
-          role="menu"
-          aria-label="New"
-          className="bb-menu absolute top-11 right-0 z-30 flex w-[168px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              onPost()
-            }}
-            className={item}
-          >
-            New post
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              setShoot(true)
-            }}
-            className={item}
-          >
-            New shoot
-          </button>
-        </div>
-      )}
-      {shoot && (
-        <Sheet title="New shoot" onClose={() => setShoot(false)}>
-          <NewShootForm date={shootDay} />
-        </Sheet>
       )}
     </div>
   )

@@ -649,7 +649,7 @@ function Rail({ stages }: { stages: StageState[] }) {
   return (
     <nav
       aria-label="Stages"
-      className={`sticky top-0 z-10 -mx-10 border-b ${HAIR} bg-page/92 px-10 backdrop-blur-sm max-md:-mx-4 max-md:px-4`}
+      className={`sticky top-(--header) z-10 -mx-10 border-b ${HAIR} bg-page/92 px-10 backdrop-blur-sm max-md:-mx-4 max-md:px-4`}
     >
       <ol className="flex h-12 items-center gap-7 overflow-x-auto max-md:gap-5">
         {stages.map((s) => (
@@ -705,7 +705,7 @@ function StageSection({ stage, children }: { stage: StageState; children: React.
     <section
       id={stage.key}
       aria-label={stage.label}
-      className={`grid scroll-mt-14 grid-cols-[200px_minmax(0,1fr)] gap-x-16 gap-y-6 border-t ${HAIR} pt-9 first:border-t-0 first:pt-2 max-lg:grid-cols-1 max-md:pt-7`}
+      className={`grid scroll-mt-[calc(var(--header)+56px)] grid-cols-[200px_minmax(0,1fr)] gap-x-16 gap-y-6 border-t ${HAIR} pt-9 first:border-t-0 first:pt-2 max-lg:grid-cols-1 max-md:pt-7`}
     >
       <div className="flex flex-col gap-2">
         <h2 className="font-display text-[22px] leading-[1.1] tracking-[-0.02em]">{stage.label}</h2>

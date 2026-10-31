@@ -74,6 +74,7 @@ describe('what went out, from the core', () => {
       server('casa-ig-1', {
         media: [{ src: cover, kind: 'photo' }],
         permalink: 'https://www.instagram.com/p/D1/',
+        syncedAt: '2026-10-29T05:00:00.000Z',
         metrics: { reach: 900, likes: 40 },
         measuredAt: '2026-10-29T05:00:00.000Z',
         expiresAt: null,
@@ -143,6 +144,21 @@ describe('what went out, from the core', () => {
   it('keeps a story that went out, which the calendar keeps only as a count', () => {
     const items = fromServer([server('s', { format: 'story' })])
     expect(ledgerOf(items, 'ig').map((i) => i.post.id)).toEqual(['s'])
+  })
+
+  it('leaves out an import the read-back never found, so the feed shows only what the core can check', () => {
+    const link = 'https://www.instagram.com/p/D1/'
+    const items = fromServer([
+      // No job, an address from the import, no sync: nothing says it is really there.
+      server('scraped', { permalink: link, metrics: { likes: 5 } }),
+      // The read-back found it: kept, with the counts it read.
+      server('synced', { permalink: link, syncedAt: '2026-10-29T05:00:00Z' }),
+      // Sent from Brand Base, with the address Make answered: its live job vouches for it.
+      server('sent', { permalink: link, jobs: [{ channel: 'ig', status: 'live', error: null }] }),
+      // Marked posted by hand: no address to check, kept as the person said.
+      server('marked'),
+    ])
+    expect(items.map((i) => i.post.id)).toEqual(['synced', 'sent', 'marked'])
   })
 })
 

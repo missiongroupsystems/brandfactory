@@ -5,9 +5,9 @@ import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
-import { PlusIcon } from '@/components/icons'
-import { DEFAULT_LAYERS } from '@/data/demo'
+import { DEFAULT_LAYERS, type Format } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
+import { FORMAT_PARAM } from '@/features/publish/publishers'
 import { withShoots } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
 import { dayNumber, MONTH_SHORT, monthOf, todayDate, weekdayOf } from '@/lib/dates'
@@ -18,6 +18,7 @@ import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
 import { FailedPill } from './failed-menu'
 import { MoreMenu } from './filter-menu'
+import { NewMenu } from './new-menu'
 import {
   dateOf,
   firstPostYear,
@@ -135,12 +136,12 @@ export function SchedulePage() {
 
   const openPost = (id: string) => router.push(`/post/${id}`)
   // A slot's day and hour carry into the composer, if its day picker holds that day.
-  const newPost = (date?: string, time?: string, format?: 'story') => {
+  const newPost = (date?: string, time?: string, format?: Format) => {
     const q = new URLSearchParams()
     const known = date !== undefined && weeks.some((w) => w.days.some((d) => d.date === date))
     if (date && known) q.set('day', date)
     if (time && known) q.set('time', time)
-    if (format) q.set('format', format)
+    if (format) q.set('format', FORMAT_PARAM[format])
     router.push(q.size ? `/post/new?${q}` : '/post/new')
   }
   const closeStories = React.useCallback(() => setStoryDay(null), [])
@@ -263,17 +264,7 @@ export function SchedulePage() {
             onLayers={setLayers}
             shootDay={view === 'day' ? shootDay : undefined}
           />
-          <button
-            type="button"
-            onClick={() => newPost()}
-            className="bb-press group/new flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-[0_8px_18px_-8px_rgba(18,18,18,0.55)]"
-          >
-            {/* The one strong button: on hover it lifts a pixel and its plus turns a quarter. */}
-            <span className="flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/new:rotate-90">
-              <PlusIcon size={12} />
-            </span>
-            New post
-          </button>
+          <NewMenu onPost={(format) => newPost(undefined, undefined, format)} />
         </div>
       </div>
       {/* Keyed by what is shown, so each step settles in with a short rise. */}

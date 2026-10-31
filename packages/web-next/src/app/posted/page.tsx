@@ -1,11 +1,15 @@
-import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 
+import { insightsUrl } from '@/features/insights/views'
 import { PLATFORMS } from '@/features/posted/model'
-import { PostedPage } from '@/features/posted/posted-page'
 
-export const metadata: Metadata = { title: 'Posted · brand base' }
-
+/** Posted became the Feed view of Insights (2.48.0): an old link lands there, on its platform. */
 export default async function Page({ searchParams }: { searchParams: Promise<{ on?: string }> }) {
   const { on } = await searchParams
-  return <PostedPage on={PLATFORMS.find((p) => p === on)} />
+  redirect(
+    insightsUrl(
+      'feed',
+      PLATFORMS.find((p) => p === on),
+    ),
+  )
 }
