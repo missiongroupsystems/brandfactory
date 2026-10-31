@@ -220,6 +220,16 @@ const ROUTES: Route[] = [
   ],
   [
     'POST',
+    /^\/brands\/([^/]+)\/locations$/,
+    ([b], body) => ({ op: 'brand.location_add', input: { ...body, brand: b } }),
+  ],
+  [
+    'DELETE',
+    /^\/brands\/([^/]+)\/locations\/([^/]+)$/,
+    ([b, label]) => ({ op: 'brand.location_drop', input: { brand: b, label } }),
+  ],
+  [
+    'POST',
     /^\/brands\/([^/]+)\/pasted$/,
     ([b], body) => ({ op: 'pasted.add', input: { ...body, brand: b } }),
   ],

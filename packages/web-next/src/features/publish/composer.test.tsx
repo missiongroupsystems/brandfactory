@@ -182,9 +182,9 @@ describe('a new post in the demo', () => {
 
   it('keeps More options shut until they are wanted', () => {
     show()
-    expect(screen.queryByRole('combobox', { name: 'Location' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Location/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: false }))
-    expect(screen.getByRole('combobox', { name: 'Location' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Location/ })).toBeInTheDocument()
   })
 
   it('takes tomorrow in two clicks: the date chip, then the quick pick, which closes the dialog', () => {

@@ -397,3 +397,67 @@ describe('migration 0023 on a 1.13.0 database', () => {
     }
   })
 })
+
+/**
+ * Migration 0024 on a 1.13.1 database: the imported brands that are there start with the venues
+ * they are known to have, every other brand with none, and no brand is made for a seed whose
+ * brand is absent. The file runs again with nothing changed, and a member of another company sees
+ * none of a brand's locations.
+ */
+describe('migration 0024 on a 1.13.1 database', () => {
+  it('seeds only the brands that exist, once, under the row rules', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0024'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co'), ('other', 'Other');
+        insert into brandbase.brands (id, name, handle, org_id) values
+          ('casa-vostra', 'Casa Vostra', '@casavostrasg', 'co'), ('temper', 'Temper', '@temper.sg', 'co'),
+          ('carlitos', 'Carlitos', '@carlitos', 'other');
+        insert into brandbase.users (id, email, role) values
+          ('a', 'a@example.com', 'member'), ('b', 'b@example.com', 'member');
+        insert into brandbase.org_members (user_id, org_id, role) values ('a', 'co', 'member'), ('b', 'other', 'owner');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+
+      const all = 'select id, locations from brandbase.brands order by id'
+      const seeded = [
+        { id: 'carlitos', locations: [] },
+        {
+          id: 'casa-vostra',
+          locations: [
+            'Casa Vostra, Raffles City',
+            'Casa Vostra, JEM',
+            'Casa Vostra, Tampines Mall',
+          ],
+        },
+        { id: 'temper', locations: ['Temper, Duxton'] },
+      ]
+      expect(await db.query(all)).toEqual(seeded)
+      expect(await everyTableHasRowRules(db)).toEqual([])
+
+      // Again, after the team changed temper's list: nothing is added twice or put back.
+      await db.exec(
+        `update brandbase.brands set locations = '{"Temper, Neil Road"}' where id = 'temper'`,
+      )
+      await db.exec(content.migrations.find((m) => m.name.startsWith('0024'))!.sql)
+      expect(await db.query(all)).toEqual([
+        seeded[0],
+        seeded[1],
+        { id: 'temper', locations: ['Temper, Neil Road'] },
+      ])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+
+      expect(await as(db, 'b', 'select id, locations from brandbase.brands')).toEqual([
+        { id: 'carlitos', locations: [] },
+      ])
+    } finally {
+      await db.close()
+    }
+  })
+})

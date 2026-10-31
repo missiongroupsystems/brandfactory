@@ -1,0 +1,235 @@
+{
+  "name": "locations",
+  "now": "2026-10-31T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "saves a brand's locations in the order they come, each once, for every member of its company",
+      "steps": [
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "locations": []
+              }
+            }
+          }
+        },
+        {
+          "call": "brand.location_add",
+          "input": {
+            "brand": "casa",
+            "label": "  Casa Vostra, JEM "
+          },
+          "expect": {
+            "result": {
+              "locations": ["Casa Vostra, JEM"]
+            }
+          }
+        },
+        {
+          "call": "brand.location_add",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "label": "Casa Vostra, Raffles City"
+          },
+          "expect": {
+            "result": {
+              "locations": ["Casa Vostra, JEM", "Casa Vostra, Raffles City"]
+            }
+          }
+        },
+        {
+          "call": "brand.location_add",
+          "as": "both",
+          "input": {
+            "brand": "casa",
+            "label": "casa vostra, jem"
+          },
+          "expect": {
+            "result": {
+              "locations": ["Casa Vostra, JEM", "Casa Vostra, Raffles City"]
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "both",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "locations": ["Casa Vostra, JEM", "Casa Vostra, Raffles City"]
+              }
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "owner",
+          "input": {
+            "brand": "osteria"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "locations": []
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "removes a location whatever its case, keeps the others in order, and changes nothing for a label it does not have",
+      "steps": [
+        {
+          "sql": "update brandbase.brands set locations = '{\"Casa Vostra, Raffles City\",\"Casa Vostra, JEM\",\"Casa Vostra, Tampines Mall\"}' where id = 'casa'"
+        },
+        {
+          "call": "brand.location_drop",
+          "input": {
+            "brand": "casa",
+            "label": "casa vostra, jem"
+          },
+          "expect": {
+            "result": {
+              "locations": ["Casa Vostra, Raffles City", "Casa Vostra, Tampines Mall"]
+            }
+          }
+        },
+        {
+          "call": "brand.location_drop",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "label": "Casa Vostra, JEM"
+          },
+          "expect": {
+            "result": {
+              "locations": ["Casa Vostra, Raffles City", "Casa Vostra, Tampines Mall"]
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "locations": ["Casa Vostra, Raffles City", "Casa Vostra, Tampines Mall"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a blank or an overlong label",
+      "steps": [
+        {
+          "call": "brand.location_add",
+          "input": {
+            "brand": "casa",
+            "label": "   "
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.location_add",
+          "input": {
+            "brand": "casa",
+            "label": "Casa Vostra, xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "locations": []
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lets no one outside the brand's company add or remove its locations",
+      "steps": [
+        {
+          "sql": "update brandbase.brands set locations = '{\"Temper, Duxton\"}' where id = 'temper'"
+        },
+        {
+          "call": "brand.location_add",
+          "input": {
+            "brand": "temper",
+            "label": "Temper, Somewhere"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.location_drop",
+          "input": {
+            "brand": "temper",
+            "label": "Temper, Duxton"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.location_add",
+          "as": "loner",
+          "input": {
+            "brand": "casa",
+            "label": "Casa Vostra, JEM"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "do $$ declare n int; begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; update brandbase.brands set locations = '{}' where id = 'temper'; get diagnostics n = row_count; raise exception 'member changed %', n; end $$",
+          "expect": {
+            "error": "member changed 0"
+          }
+        },
+        {
+          "sql": "select locations from brandbase.brands where id = 'temper'",
+          "expect": {
+            "rows": [
+              {
+                "locations": ["Temper, Duxton"]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

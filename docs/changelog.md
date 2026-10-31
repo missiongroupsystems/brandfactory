@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.49.0** — 2026-10-31 — `feat/brand-locations`: a post's Location is a menu of the brand's saved locations, kept on the core for every member (pack 1.14.0, migration `0024_brand_locations.sql`, not applied to production). Add location saves one and picks it; a row's × asks once in its own row, then folds away. The six production brands start with their known venues. 1267 tests pass (255 skipped without a Postgres server).
 - **2.48.0** — 2026-10-31 — `fix/keep-new-post`: six review comments from the product lead, and nothing else. Posted becomes "Feed", a view of Insights (Overview, Sentiment, Creators, Feed; `/insights?view=feed&on=ig`, `/posted` redirects there; on the core Insights opens on Feed; the view follows the address). The feed's sort is one icon with a menu, Newest or Most engaging. The feed on the core shows only what the core can check: a post with a live job, one the read-back synced (`syncedAt`), or one marked posted by hand; a scraped import never read back stays out. The header stays at the top on a desktop (`--header`, 80px; the sticky rails, the inbox thread and the composer preview sit under it; a phone keeps its tab bar). The composer offers only the accounts that post the format: a planned-only account (TikTok beside Make) and one that cannot take the format (TikTok for a Story) are not shown, and never ticked (a saved post's own accounts stay, so they can be unticked); with no account that posts, the row plans on every account as before. "New post" becomes "New", a menu of Post, Reel and Story with the accounts that post each; a format nothing posts (a Story on the core) is greyed "Plan only"; `/post/new?format=post|reel|story` starts the composer in that format. The phone's "+" offers Post, Reel, Story and Shoot. No pack change, no migration. 1251 tests (251 skipped without a Postgres server).
 - **2.47.0** — 2026-10-31 — `fix/keep-new-post`: the new post page from the 30 Oct rework, and nothing else from it (the owner kept this page and the week view's post times, and turned down the rest). One card holds the format, the photos and the caption; More options holds the rest; the account chips, the date chip and one main button stick to the foot of the window. New posts tick only accounts that post (the brand's last ones), take the brand's next best slot by its own clock, and follow the first file's format; the When dialog has Today, Tomorrow and best-day picks, a 24h time field and an hour chart. A scheduled post saves, saves and sends (an account added) or reschedules (moved); its "…" menu unschedules or deletes. A send goes back to the calendar with the date, once, after the core stored it. On the week view, post times are 13px. Every other page is as in 2.46.0 (checked pixel by pixel against it). No pack change, no migration. 1240 tests (251 skipped without a Postgres server).
 - **2.46.0** — 2026-10-29 — `fix/posted-handle`: every post has its own link and counts on each account it went to, and the post page is calmer (brandbase 1.13.1, migration 0023, not applied to production). Migration 0023 keeps the address on each reading and on each job (the link Make answers when it posts); a post's JSON carries `readings`, its latest counts, read time and link per channel; a link Make answers for a second account no longer becomes the post's own. The post page from Posted: the cover and its slides stay on the left; on the right one meta line (the account's mark when it went to one), a shorter title, the caption without its repeated first line, folded after three lines; one card for the account on show, with a switch of platform marks when the post went to more than one, an "Open on Instagram ↗" pill and the counts with one "as of"; the analytics card as before, its "Preview" tag and helper sentences gone. "Cover only" goes, and the back link says "Posted", and a post's meta line drops "Post ·". A post opened from Posted highlights Posted in the header. The Posted page's Facebook tab shows Facebook's own counts. The header shows the account linked on each platform (Instagram's handle, the Facebook Page's name, the TikTok account, else the brand's name or handle). 1449 tests, all run on a throwaway Postgres 18.
@@ -102,6 +103,51 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.49.0 — 2026-10-31
+
+- **Why.** The owner asked for Location to be a menu of the places each brand has, with a way
+  to add one for the whole team and to remove one in two presses. Location was free text with
+  suggestions from the demo's data, so on the core it offered nothing.
+- **Pack 1.14.0, migration `0024_brand_locations.sql`.** `brands.locations text[] NOT NULL
+  DEFAULT '{}'`: labels only, in the order they were added, each once whatever its case. The
+  location stays in Brand Base: no sender passes it to Instagram or Facebook yet (the Graph API
+  takes a Page id for a place, not a name), as before this release. `GRANT UPDATE (locations)` to the runtime role,
+  so the brand's update rule (every member of its company) holds. Seed, only where the brand
+  exists and has no locations yet: casa-vostra (Raffles City, JEM, Tampines Mall), chin-mee-chin
+  (Katong, NEX), temper (Duxton), petra (Dempsey Hill), firebird (Duxton), willow (Hongkong
+  Street). The file can run again: `ADD COLUMN IF NOT EXISTS`, and the seed skips a brand with
+  locations. 1.13.1 runs on 0024 unchanged. `brand.state` and `brand.list` answer `locations`
+  with the brand.
+- **Moves.** `brand.location_add` (brand, label up to 120 characters, not blank, no control
+  characters): trims it, folds inner spaces to one, and appends it unless the brand has it in any case. `brand.location_drop` (brand, label): removes it
+  in any case; a label the brand does not have changes nothing. Both check `brand.reachable` and
+  answer `{ locations }`. Cases in `tests/locations.json`; `upgrade.test.ts` checks the seed on a
+  1.13.1 database, a second run of the file, and the row rules.
+- **web-next.** `publish/location-picker.tsx` replaces the Combobox: a field with the value or
+  "None", and a menu (`bb-menu`, portalled like the suggestion list, `usePlace` now exported from
+  `components/suggest.tsx`) of the saved locations with the post's ticked. A press on the ticked
+  row clears it. Add location turns into a field: Enter saves and picks, Escape goes back. A row's
+  × shows on hover or focus (always on a touch screen); it turns the row into Cancel and a red
+  Remove, and Remove folds the row away in 200 ms (at once with reduced motion). A post keeps a location the
+  brand removes, as its own row. A location the post has that the brand does not
+  save shows ticked at the top, with no ×. Up and Down move; Escape and Tab close back on the
+  field, and Escape does not close the phone's sheet. `publish/locations-store.ts` reads `brand.locations` from the
+  state on the core and writes through `POST /brands/:id/locations` and `DELETE
+  /brands/:id/locations/:label` (`core-routes.ts`); the demo starts on `placesOf` (the venue and
+  tagged places, now plain labels) and keeps changes until a reload.
+- **Production (outline).** Migration 0024 is not applied to production.
+  1. Check out the branch (not yet merged into `main`); `pnpm install`.
+  2. Open the `brandbase-db` tunnel.
+  3. `core publish ../../packs/brandbase`; `core test brandbase 1.14.0` (all cases pass).
+  4. `core migrate brandbase 1.14.0` (applies 0024 and seeds the six brands; 1.13.1 still runs
+     on it).
+  5. `core promote brandbase 1.14.0`.
+  6. Only now merge into `main`: Vercel deploys production from `main`. A web deploy before
+     step 5 shows an empty menu and refuses Add location. No server deploy, no new secret.
+  7. Open a new post on casa-vostra, More options, Location: three Casa Vostra rows. Add one,
+     reload on another account of the company: it is there. Remove it.
+- 1267 tests pass, 255 skipped without a Postgres server (1521 in all).
 
 ## 2.48.0 — 2026-10-31
 

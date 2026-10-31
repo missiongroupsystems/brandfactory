@@ -50,13 +50,13 @@ export function peopleOf(brandId: BrandId, field: 'collab' | 'tag' | 'caption'):
   return once([...ordered, ...creators])
 }
 
-/** The venue first, as the location defaults to it, then the places posts were tagged at. */
-export function placesOf(brandId: BrandId): Suggestion[] {
+/**
+ * The demo's saved locations for a brand: the venue first, as the location defaults to it, then
+ * the places posts were tagged at. The core keeps each brand's own (`locations-store.ts`).
+ */
+export function placesOf(brandId: string): string[] {
   const venue = demoOf(VENUE, brandId)
-  return [
-    ...(venue ? [{ value: venue, meta: 'Your venue' }] : []),
-    ...(demoOf(PLACES, brandId) ?? []).map((p) => ({ value: p.place, meta: postsMeta(p.posts) })),
-  ]
+  return [...(venue ? [venue] : []), ...(demoOf(PLACES, brandId) ?? []).map((p) => p.place)]
 }
 
 export function labelsOf(brandId: BrandId): Suggestion[] {

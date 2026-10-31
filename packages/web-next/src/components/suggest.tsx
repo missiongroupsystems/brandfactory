@@ -87,7 +87,7 @@ function useActive(rows: Row[], query: string, first: boolean) {
  * phone the keyboard takes the bottom of the screen (the visual viewport ends above it): the list
  * stops there, and turns above the field when there is more room on that side.
  */
-function usePlace(anchor: React.RefObject<HTMLElement | null>, open: boolean) {
+export function usePlace(anchor: React.RefObject<HTMLElement | null>, open: boolean) {
   const [place, setPlace] = React.useState<React.CSSProperties | null>(null)
   React.useLayoutEffect(() => {
     if (!open) return

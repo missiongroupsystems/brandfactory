@@ -105,7 +105,7 @@ describe('Collaborators', () => {
   })
 })
 
-describe('Labels and the location', () => {
+describe('Labels', () => {
   it('offers the labels the team used, and a pick adds one', () => {
     show()
     const labels = screen.getByRole('combobox', { name: /^e\.g\. TMP_Wine/ })
@@ -114,15 +114,6 @@ describe('Labels and the location', () => {
     expect(offered()[0]).toContain('CV_Pasta')
     fireEvent.keyDown(labels, { key: 'Enter' })
     expect(screen.getByRole('button', { name: 'Remove CV_Pasta' })).toBeInTheDocument()
-  })
-
-  it('shows every place on focus, though the field holds the venue, and a pick replaces it', () => {
-    show()
-    const location = screen.getByRole('combobox', { name: 'Location' })
-    fireEvent.focus(location)
-    expect(offered()[0]).toContain('Casa Vostra, Raffles City')
-    fireEvent.click(screen.getByRole('option', { name: /CHIJMES/ }))
-    expect(location).toHaveValue('CHIJMES')
   })
 })
 

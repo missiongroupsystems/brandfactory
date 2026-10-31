@@ -90,6 +90,18 @@ describe('the routes on the core', () => {
     expect(coreCall('POST', '/brands/casa/pasted', { id: 'p1' })?.op).toBe('pasted.add')
   })
 
+  it('sends a saved location to the brand, and takes one off by its label, comma and all', () => {
+    expect(coreCall('POST', '/brands/casa/locations', { label: 'Casa Vostra, JEM' })).toEqual({
+      op: 'brand.location_add',
+      input: { brand: 'casa', label: 'Casa Vostra, JEM' },
+    })
+    const label = encodeURIComponent('Casa Vostra, JEM / level 1')
+    expect(coreCall('DELETE', `/brands/casa/locations/${label}`, undefined)).toEqual({
+      op: 'brand.location_drop',
+      input: { brand: 'casa', label: 'Casa Vostra, JEM / level 1' },
+    })
+  })
+
   it('sends the share routes to their moves, and a guest page to guest moves with its token', () => {
     expect(coreCall('GET', '/brands/casa/share/idea/i1', undefined)).toEqual({
       op: 'share.link',

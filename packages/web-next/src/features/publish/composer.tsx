@@ -78,7 +78,8 @@ import { postersOf, PUBLISHERS, sendsOf } from './publishers'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { TikTokInbox } from './tiktok-inbox'
-import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
+import { LocationPicker } from './location-picker'
+import { hashtagsOf, labelsOf, peopleOf } from './suggestions'
 import {
   lastAccounts,
   saveLastAccounts,
@@ -2084,13 +2085,10 @@ function Details({
 
   const control: Record<keyof typeof DETAIL_ON, React.ReactNode> = {
     location: (
-      <Combobox
+      <LocationPicker
+        brandId={brand.id}
         value={details.location}
         onChange={(location) => setDetails({ ...details, location })}
-        options={placesOf(brand.id)}
-        onPick={(location) => setDetails({ ...details, location })}
-        aria-label="Location"
-        className="h-9 rounded-[10px] bg-surface-2 px-3 text-[14px] outline-none focus:bg-surface max-md:h-11"
       />
     ),
     comment: (
