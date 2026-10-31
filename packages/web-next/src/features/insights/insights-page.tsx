@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
@@ -36,7 +36,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
 import { addSplits, bestOffSocial, bookingsByFormat, percents, sum } from './hub-model'
-import { insightsUrl, type InsightsView } from './views'
+import { fromAddress, insightsUrl, type InsightsView } from './views'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const HAIR = 'border-(--cal-line)'
@@ -113,8 +113,19 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
   const data = remote ? undefined : INSIGHTS_BY_BRAND[brand.id]
   const hub = remote ? undefined : HUB_BY_BRAND[brand.id]
   // With no figures (the core), the feed is the one view with something in it: it opens there.
-  const [tab, setTab] = React.useState<InsightsView>(view ?? (data && hub ? 'overview' : 'feed'))
+  const first: InsightsView = data && hub ? 'overview' : 'feed'
+  const [tab, setTab] = React.useState<InsightsView>(view ?? first)
   const [platform, setPlatform] = React.useState<Platform | undefined>(on)
+  // A link to this page from this page (the nav's Insights) changes only the address: follow it.
+  const address = useSearchParams().toString()
+  const [seen, setSeen] = React.useState(address)
+  if (address !== seen) {
+    setSeen(address)
+    const named = fromAddress(new URLSearchParams(address))
+    setTab(named.view ?? first)
+    // The feed's platform stays picked while another view is open.
+    setPlatform((p) => named.on ?? p)
+  }
   const go = (next: InsightsView, p = platform) => {
     setTab(next)
     setPlatform(p)

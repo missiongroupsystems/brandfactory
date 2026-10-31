@@ -18,6 +18,7 @@ vi.mock('@/lib/remote', async (original) => ({
 vi.mock('next/navigation', () => ({
   usePathname: () => '/insights',
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }))
 
 describe('Insights on the core', () => {

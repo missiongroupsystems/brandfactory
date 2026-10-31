@@ -11,11 +11,13 @@ const push = vi.fn()
 vi.mock('next/navigation', () => ({
   usePathname: () => '/insights',
   useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }))
 
 beforeEach(() => {
   resetIdeas()
   push.mockClear()
+  window.history.replaceState(null, '', '/insights')
 })
 
 describe('the static demo', () => {
@@ -64,6 +66,7 @@ describe('the views', () => {
   })
 
   it('open on the feed the address names, and keep the address as the view changes', () => {
+    window.history.replaceState(null, '', '/insights?view=feed&on=fb')
     render(
       <BrandProvider>
         <InsightsPage view="feed" on="fb" />
@@ -84,6 +87,22 @@ describe('the views', () => {
       within(screen.getByRole('region', { name: 'Feed' })).getByRole('radio', { name: /TikTok/ }),
     )
     expect(window.location.search).toBe('?view=feed&on=tt')
+  })
+
+  it('go back to the overview when the nav links to /insights from the feed', () => {
+    const page = () => (
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>
+    )
+    const { rerender } = render(page())
+    fireEvent.click(screen.getByRole('radio', { name: 'Feed' }))
+    expect(screen.getByRole('region', { name: 'Feed' })).toBeInTheDocument()
+    // The nav's link changes only the address; Next renders the page again with the same props.
+    window.history.pushState(null, '', '/insights')
+    rerender(page())
+    expect(screen.getByRole('region', { name: 'The month in numbers' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Feed' })).toBeNull()
   })
 })
 

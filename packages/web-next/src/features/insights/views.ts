@@ -1,4 +1,4 @@
-import type { Platform } from '@/features/posted/model'
+import { type Platform, PLATFORMS } from '@/features/posted/model'
 
 /**
  * The Insights page's views and their addresses, with no `'use client'`: the routes read them on
@@ -13,4 +13,12 @@ export function insightsUrl(view: InsightsView, on?: Platform): string {
   if (view !== 'overview') q.set('view', view)
   if (view === 'feed' && on) q.set('on', on)
   return q.size ? `/insights?${q}` : '/insights'
+}
+
+/** The view and the feed's platform an address names; either is undefined where it names none. */
+export function fromAddress(q: URLSearchParams): { view?: InsightsView; on?: Platform } {
+  return {
+    view: INSIGHTS_VIEWS.find((v) => v === q.get('view')),
+    on: PLATFORMS.find((p) => p === q.get('on')),
+  }
 }
