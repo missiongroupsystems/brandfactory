@@ -142,6 +142,7 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
   const rows = React.useRef<Partial<Record<Section, HTMLElement | null>>>({})
   // An opened row rises to the top of the window once it has its height, so what unfolds under
   // it is in sight; before that the page is too short to scroll there.
+  // A person who scrolls in the meantime keeps their place.
   React.useEffect(() => {
     if (!open) return
     const t = window.setTimeout(() => {
@@ -149,7 +150,16 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
       const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
       el?.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' })
     }, 380)
-    return () => window.clearTimeout(t)
+    // Any scroll (wheel, touch, keys, the bar) moves the page from where it was: then stay.
+    const from = window.scrollY
+    const stay = () => {
+      if (window.scrollY !== from) window.clearTimeout(t)
+    }
+    window.addEventListener('scroll', stay, { passive: true })
+    return () => {
+      window.clearTimeout(t)
+      window.removeEventListener('scroll', stay)
+    }
   }, [open])
   const sums = summariesOf(data, hub)
 

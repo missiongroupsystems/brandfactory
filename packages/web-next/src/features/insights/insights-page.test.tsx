@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
@@ -9,7 +9,7 @@ import { InsightsPage } from './insights-page'
 
 const push = vi.fn()
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/insights',
+  usePathname: () => '/feed',
   useRouter: () => ({ push }),
   useSearchParams: () => new URLSearchParams(window.location.search),
 }))
@@ -17,7 +17,7 @@ vi.mock('next/navigation', () => ({
 beforeEach(() => {
   resetIdeas()
   push.mockClear()
-  window.history.replaceState(null, '', '/insights')
+  window.history.replaceState(null, '', '/feed')
 })
 
 describe('the static demo', () => {
@@ -93,7 +93,7 @@ describe('the feed and its rows', () => {
     )
     fireEvent.click(stack().getByRole('radio', { name: 'TikTok' }))
     expect(stack().getByRole('radio', { name: 'TikTok' })).toHaveAttribute('aria-checked', 'true')
-    expect(window.location.pathname + window.location.search).toBe('/insights?on=tt')
+    expect(window.location.pathname + window.location.search).toBe('/feed?on=tt')
     // The grid is TikTok's: a reel with its views, none of Instagram's stories.
     expect(screen.queryByRole('list', { name: 'Stories' })).toBeNull()
     fireEvent.click(stack().getByRole('radio', { name: 'Facebook' }))
@@ -102,7 +102,7 @@ describe('the feed and its rows', () => {
   })
 
   it('open on the platform the address names, old links included', () => {
-    window.history.replaceState(null, '', '/insights?on=fb')
+    window.history.replaceState(null, '', '/feed?on=fb')
     const { unmount } = render(
       <BrandProvider>
         <InsightsPage on="fb" />
@@ -111,7 +111,7 @@ describe('the feed and its rows', () => {
     expect(stack().getByRole('radio', { name: 'Facebook' })).toHaveAttribute('aria-checked', 'true')
     unmount()
     // Before 2.50.0 the feed was a view of its own: `?view=feed&on=fb` still lands on it.
-    window.history.replaceState(null, '', '/insights?view=feed&on=fb')
+    window.history.replaceState(null, '', '/feed?view=feed&on=fb')
     render(
       <BrandProvider>
         <InsightsPage view="feed" on="fb" />
@@ -123,7 +123,7 @@ describe('the feed and its rows', () => {
   })
 
   it('fold a row open in place, one at a time, and name it in the address with the platform', () => {
-    window.history.replaceState(null, '', '/insights?on=fb')
+    window.history.replaceState(null, '', '/feed?on=fb')
     render(
       <BrandProvider>
         <InsightsPage on="fb" />
@@ -155,7 +155,7 @@ describe('the feed and its rows', () => {
   })
 
   it('open the row the address names', () => {
-    window.history.replaceState(null, '', '/insights?view=creators')
+    window.history.replaceState(null, '', '/feed?view=creators')
     render(
       <BrandProvider>
         <InsightsPage view="creators" />
@@ -166,7 +166,7 @@ describe('the feed and its rows', () => {
     expect(row('Overview')).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('shut the rows when the nav links to /insights from an open one', () => {
+  it('shut the rows when the nav links to /feed from an open one', () => {
     const page = () => (
       <BrandProvider>
         <InsightsPage />
@@ -176,11 +176,63 @@ describe('the feed and its rows', () => {
     fireEvent.click(row('Overview'))
     expect(screen.getByRole('region', { name: 'The month in numbers' })).toBeInTheDocument()
     // The nav's link changes only the address; Next renders the page again with the same props.
-    window.history.pushState(null, '', '/insights')
+    window.history.pushState(null, '', '/feed')
     rerender(page())
     expect(row('Overview')).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('region', { name: 'The month in numbers' })).toBeNull()
     expect(screen.getByRole('region', { name: 'Feed' })).toBeInTheDocument()
+  })
+})
+
+describe('an opened row', () => {
+  it('rises to the top of the window, unless the reader scrolled in the meantime', () => {
+    vi.useFakeTimers()
+    const rise = vi.fn()
+    Element.prototype.scrollIntoView = rise
+    try {
+      render(
+        <BrandProvider>
+          <InsightsPage />
+        </BrandProvider>,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /^Overview/ }))
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(rise).toHaveBeenCalledTimes(1)
+
+      fireEvent.click(screen.getByRole('button', { name: /^Sentiment/ }))
+      window.scrollY = 300
+      fireEvent.scroll(window)
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(rise).toHaveBeenCalledTimes(1)
+    } finally {
+      window.scrollY = 0
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('the platform stack', () => {
+  it('is one Tab stop, and the arrows move the pick and the focus round the ends', () => {
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+    const group = screen.getByRole('radiogroup', { name: 'Platform' })
+    const radio = (name: string) => within(group).getByRole('radio', { name })
+    expect(radio('Instagram')).toHaveAttribute('tabindex', '0')
+    expect(radio('Facebook')).toHaveAttribute('tabindex', '-1')
+    radio('Instagram').focus()
+    fireEvent.keyDown(radio('Instagram'), { key: 'ArrowLeft' })
+    expect(radio('TikTok')).toHaveAttribute('aria-checked', 'true')
+    expect(radio('TikTok')).toHaveFocus()
+    expect(window.location.search).toBe('?on=tt')
+    fireEvent.keyDown(radio('TikTok'), { key: 'ArrowRight' })
+    expect(radio('Instagram')).toHaveFocus()
   })
 })
 

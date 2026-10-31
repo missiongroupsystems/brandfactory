@@ -8,14 +8,14 @@ export type InsightsView = 'overview' | 'sentiment' | 'creators' | 'feed'
 export const INSIGHTS_VIEWS: InsightsView[] = ['overview', 'sentiment', 'creators', 'feed']
 
 /**
- * The address of a view: the feed is the plain address, `/insights` or `/insights?on=fb`; a row
- * folded open names itself, `/insights?view=sentiment&on=fb`.
+ * The address of a view: the feed is the plain address, `/feed` or `/feed?on=fb`; a row
+ * folded open names itself, `/feed?view=sentiment&on=fb`.
  */
 export function insightsUrl(view: InsightsView, on?: Platform): string {
   const q = new URLSearchParams()
   if (view !== 'feed') q.set('view', view)
   if (on) q.set('on', on)
-  return q.size ? `/insights?${q}` : '/insights'
+  return q.size ? `/feed?${q}` : '/feed'
 }
 
 /** The view and the feed's platform an address names; either is undefined where it names none. */

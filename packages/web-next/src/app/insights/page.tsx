@@ -1,15 +1,14 @@
-import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 
-import { InsightsPage } from '@/features/insights/insights-page'
-import { fromAddress } from '@/features/insights/views'
+import { fromAddress, insightsUrl } from '@/features/insights/views'
 
-export const metadata: Metadata = { title: 'Feed · brand base' }
-
+/** Insights became Feed (2.50.0): an old link lands on the same view and platform, and no more. */
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string; on?: string }>
 }) {
   const { view, on } = await searchParams
-  return <InsightsPage {...fromAddress(new URLSearchParams({ view: view ?? '', on: on ?? '' }))} />
+  const named = fromAddress(new URLSearchParams({ view: view ?? '', on: on ?? '' }))
+  redirect(insightsUrl(named.view ?? 'feed', named.on))
 }

@@ -16,7 +16,7 @@ vi.mock('@/lib/remote', async (original) => ({
   onAccount: () => () => undefined,
 }))
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/insights',
+  usePathname: () => '/feed',
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(window.location.search),
 }))

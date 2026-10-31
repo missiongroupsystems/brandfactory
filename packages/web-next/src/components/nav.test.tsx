@@ -44,7 +44,7 @@ describe('the Bubbles link', () => {
 
 describe('the feed', () => {
   it('is the Feed section, not a page of its own: no Posted or Insights link, and Feed is current there', async () => {
-    at.path = '/insights'
+    at.path = '/feed'
     await nav('')
     expect(screen.queryAllByRole('link', { name: /Posted|Insights/ })).toEqual([])
     const links = screen.getAllByRole('link', { name: 'Feed' })
@@ -85,7 +85,7 @@ describe('a post opened from the feed', () => {
     expect(within(main).getByRole('link', { name: 'Schedule' })).not.toHaveAttribute('aria-current')
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Feed' })).toHaveAttribute(
       'href',
-      '/insights?on=ig',
+      '/feed?on=ig',
     )
     unmount()
     render(

@@ -12,7 +12,7 @@ import { PUBLIC_PATHS } from './legal'
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideas', icon: <IdeaGlyph /> },
-  { href: '/insights', label: 'Feed', icon: <ChartGlyph /> },
+  { href: '/feed', label: 'Feed', icon: <GridGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
   { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
 ] as const
@@ -104,14 +104,45 @@ function IdeaGlyph() {
   )
 }
 
-function ChartGlyph() {
+/** The feed: a grid of posts, as the page shows them. */
+function GridGlyph() {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path
-        d="M4.5 18.5v-5M9.5 18.5V8.5M14.5 18.5v-7M19 18.5V4.5"
+      <rect
+        x="3.5"
+        y="3.5"
+        width="6.25"
+        height="6.25"
+        rx="1.6"
         stroke="currentColor"
         strokeWidth="1.8"
-        strokeLinecap="round"
+      />
+      <rect
+        x="12.25"
+        y="3.5"
+        width="6.25"
+        height="6.25"
+        rx="1.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="3.5"
+        y="12.25"
+        width="6.25"
+        height="6.25"
+        rx="1.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="12.25"
+        y="12.25"
+        width="6.25"
+        height="6.25"
+        rx="1.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
       />
     </svg>
   )

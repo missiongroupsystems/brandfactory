@@ -274,6 +274,16 @@ function PlatformStack({
   onPick: (p: Platform) => void
 }) {
   const at = rail.indexOf(platform)
+  // A radio group is one Tab stop: the arrows move the pick, and the focus with it.
+  const onKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
+    // Alt and the others keep the browser's own shortcuts (Alt+Left is Back).
+    if (!step || e.altKey || e.metaKey || e.ctrlKey) return
+    e.preventDefault()
+    const next = rail[(at + step + rail.length) % rail.length]!
+    onPick(next)
+    e.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-platform="${next}"]`)?.focus()
+  }
   return (
     <div
       role="radiogroup"
@@ -290,6 +300,9 @@ function PlatformStack({
             aria-checked={on}
             aria-label={PLATFORM_NAME[p]}
             title={PLATFORM_NAME[p]}
+            tabIndex={on ? 0 : -1}
+            data-platform={p}
+            onKeyDown={onKey}
             onClick={() => onPick(p)}
             className={`bb-press relative flex size-8 items-center justify-center rounded-full ring-2 ring-page transition-[margin,transform,background-color,color] duration-[260ms] ease-[cubic-bezier(.2,.8,.2,1)] group-hover/stack:ml-1 ${i > 0 ? '-ml-2.5' : ''} ${on ? 'z-10 bg-ink text-page' : `scale-[0.92] bg-surface hover:scale-[1.08] hover:text-ink ${linked(p) ? 'text-ink-3' : 'text-ink-4'}`}`}
             style={{ zIndex: on ? 10 : rail.length - Math.abs(i - at) }}

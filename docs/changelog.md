@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.50.1** — 2026-10-31 — `fix/feed-url`: the Feed page lives at `/feed` (`/insights` and `/posted` redirect, keeping the view and platform); the phone tab bar's Feed icon is a grid; the platform stack is one Tab stop with arrow keys; an opened row no longer pulls back a reader who scrolls. 1259 tests (251 skipped without a Postgres server).
 - **2.50.0** — 2026-10-31 — `design/feed-options`: Insights becomes Feed, and the feed is the page. `/insights` opens the brand's grid; the platforms are a stack of round logos beside the profile's name (the one on show in ink; hover spreads the stack; on a phone one disc with a chevron opens a menu of them); Overview, Sentiment and Creators are three rows under the grid that fold open in place (`?view=sentiment&on=fb`; `?view=feed&on=fb` and `/posted` still land on the feed). The two bars above the profile (the view switch and the platform pills) go, and so do "as of" on the figures line (the hover keeps it) and the period above the title (it sits inside the open Overview row); on a phone the figures line is one line without the stories figure. Small motion: the stack spreads and the ink moves to the picked logo, the figures count from one platform's to the next, the covers rise in one after the other, a cover lifts on hover, the rows ease open with a chevron turn and rise to the top of the window; none of it when the system asks for less motion. 1256 tests (251 skipped without a Postgres server).
 - **2.48.1** — 2026-10-31 — `fix/menu-keys`: the New and sort menus take the keys (the focus on the first row, Up and Down round the ends, Escape back to the button), and the feed's sort sits beside the profile's name. 1252 tests (251 skipped without a Postgres server).
 - **2.48.0** — 2026-10-31 — `fix/keep-new-post`: six review comments from the product lead, and nothing else. Posted becomes "Feed", a view of Insights (Overview, Sentiment, Creators, Feed; `/insights?view=feed&on=ig`, `/posted` redirects there; on the core Insights opens on Feed; the view follows the address). The feed's sort is one icon with a menu, Newest or Most engaging. The feed on the core shows only what the core can check: a post with a live job, one the read-back synced (`syncedAt`), or one marked posted by hand; a scraped import never read back stays out. The header stays at the top on a desktop (`--header`, 80px; the sticky rails, the inbox thread and the composer preview sit under it; a phone keeps its tab bar). The composer offers only the accounts that post the format: a planned-only account (TikTok beside Make) and one that cannot take the format (TikTok for a Story) are not shown, and never ticked (a saved post's own accounts stay, so they can be unticked); with no account that posts, the row plans on every account as before. "New post" becomes "New", a menu of Post, Reel and Story with the accounts that post each; a format nothing posts (a Story on the core) is greyed "Plan only"; `/post/new?format=post|reel|story` starts the composer in that format. The phone's "+" offers Post, Reel, Story and Shoot. No pack change, no migration. 1251 tests (251 skipped without a Postgres server).
@@ -104,6 +105,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.50.1 — 2026-10-31
+
+- **Address.** The page moves from `app/insights` to `app/feed`; `insightsUrl` writes `/feed`, and
+  the nav, the tab bar and a post's way back follow. `app/insights/page.tsx` redirects to `/feed`
+  with the same `view` and `on` when it knows them, and nothing else, as `/posted` does.
+- **Small things from 2.50.0's review.** The tab bar's Feed icon is a grid of four (`GridGlyph`),
+  not a chart. The platform stack is a radio group with one Tab stop (`tabIndex` on the pick) and
+  the arrows move the pick and the focus round the ends. An opened row scrolls to the top only if
+  the page has not moved in the 380 ms before (any scroll: wheel, touch, keys or the bar); a
+  modifier with an arrow (Alt+Left is Back) is left to the browser.
+- **Tests.** `/insights` redirects with its view and platform and drops the rest; the stack's
+  arrows; an opened row stays put after a scroll. 1259 tests (251
+  skipped without a Postgres server).
 
 ## 2.50.0 — 2026-10-31
 
