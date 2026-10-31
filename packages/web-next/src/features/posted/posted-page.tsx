@@ -7,6 +7,7 @@ import { CarouselIcon, CheckIcon, EyeIcon, HeartIcon, PlayIcon, SortIcon } from 
 import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
+import { useMenu } from '@/components/use-menu'
 import { BrandLogo } from '@/features/brand/brand-logo'
 import { useConnections } from '@/features/connections/connections-store'
 import { useMakeAccount } from '@/features/connections/make'
@@ -167,9 +168,13 @@ function Profile({
           <BrandLogo brandId={brand.id} sizes="176px" className="object-cover" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
-          <h2 className="truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
-            {profileName(platform, accounts, brand)}
-          </h2>
+          {/* The sort sits by the name, so the figures below keep the column's whole width. */}
+          <div className="flex items-center gap-3">
+            <h2 className="min-w-0 flex-1 truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
+              {profileName(platform, accounts, brand)}
+            </h2>
+            {ranks && <SortMenu order={order} onChange={setOrder} />}
+          </div>
           <p
             title={windowLine(sum)}
             className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[14px] text-ink-3 max-md:gap-x-4 max-md:text-[13px]"
@@ -187,7 +192,6 @@ function Profile({
             )}
           </p>
         </div>
-        {ranks && <SortMenu order={order} onChange={setOrder} />}
       </header>
 
       {rings.length > 0 && (
@@ -221,23 +225,13 @@ const ORDERS: Array<[Order, string]> = [
 function SortMenu({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => {
-    if (!open) return
-    function onPointer(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  useMenu(
+    open,
+    React.useCallback(() => setOpen(false), []),
+    root,
+  )
   return (
-    <div ref={root} className="relative shrink-0 self-end max-md:self-center">
+    <div ref={root} className="relative -my-[5px] shrink-0">
       <button
         type="button"
         aria-label="Sort"
@@ -264,7 +258,7 @@ function SortMenu({ order, onChange }: { order: Order; onChange: (o: Order) => v
                 onChange(o)
                 setOpen(false)
               }}
-              className="flex h-9 items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[13px] text-ink transition-colors hover:bg-surface"
+              className="flex h-9 items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[13px] text-ink transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
             >
               <span className="flex-1">{label}</span>
               <span
