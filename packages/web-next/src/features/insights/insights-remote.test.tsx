@@ -21,7 +21,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
 }))
 
-describe('Insights on the core', () => {
+describe('The feed on the core', () => {
   it('opens on the feed, the one view with something in it, and shows none of the demo figures', () => {
     render(
       <BrandProvider>
@@ -34,9 +34,9 @@ describe('Insights on the core', () => {
     expect(screen.getByRole('status', { name: 'Loading posts' })).toBeInTheDocument()
     expect(screen.queryByText(demo.period)).toBeNull()
     expect(screen.queryByText(demo.kpis[0]!.value)).toBeNull()
-    // The other views say why they are empty.
-    fireEvent.click(screen.getByRole('radio', { name: 'Overview' }))
-    expect(screen.getByText(/^Insights arrive once/)).toBeInTheDocument()
+    // The rows under the grid say why they are empty.
+    fireEvent.click(screen.getByRole('button', { name: /^Overview/ }))
+    expect(screen.getByText(/^Numbers arrive once/)).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'The month in numbers' })).toBeNull()
   })
 })

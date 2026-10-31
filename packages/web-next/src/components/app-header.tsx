@@ -14,7 +14,7 @@ import { LogoMark } from './icons'
 const NAV = [
   { href: '/', label: 'Schedule' },
   { href: '/ideate', label: 'Ideas' },
-  { href: '/insights', label: 'Insights' },
+  { href: '/insights', label: 'Feed' },
   { href: '/inbox', label: 'Inbox' },
   { href: '/bubbles', label: 'Bubbles' },
 ] as const

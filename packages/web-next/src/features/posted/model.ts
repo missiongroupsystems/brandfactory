@@ -274,15 +274,17 @@ export function summaryOf(ledger: PostedItem[], platform: Platform, today: strin
 
 /**
  * The summary's figures: what went out (stories on Instagram only), then the totals. A figure that
- * is 0 says nothing ("0 stories") and is left out.
+ * is 0 says nothing ("0 stories") and is left out. `compact` (a phone) leaves the stories out,
+ * since the rings under the header show them, so the line stays one line.
  */
 export function figuresOf(
   sum: Summary,
   platform: Platform,
+  compact = false,
 ): Array<{ label: string; value: number }> {
   return [
     { label: sum.posts === 1 ? 'post' : 'posts', value: sum.posts },
-    ...(platform === 'ig'
+    ...(platform === 'ig' && !compact
       ? [{ label: sum.stories === 1 ? 'story' : 'stories', value: sum.stories }]
       : []),
     ...sum.totals,

@@ -6,7 +6,7 @@ import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Fold, Segmented } from '@/components/controls'
-import { SparkIcon } from '@/components/icons'
+import { ChevronIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { ProfilePicture } from '@/components/profile-picture'
 import {
@@ -38,7 +38,6 @@ import { remote } from '@/lib/remote'
 import { addSplits, bestOffSocial, bookingsByFormat, percents, sum } from './hub-model'
 import { fromAddress, insightsUrl, type InsightsView } from './views'
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const HAIR = 'border-(--cal-line)'
 const CARD = 'rounded-[18px] bg-surface-2'
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -97,33 +96,38 @@ function plain(s: string): string {
     .join(' ')
 }
 
+const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+type Section = Exclude<InsightsView, 'feed'>
+const SECTIONS: Section[] = ['overview', 'sentiment', 'creators']
+const SECTION_LABEL: Record<Section, string> = {
+  overview: 'Overview',
+  sentiment: 'Sentiment',
+  creators: 'Creators',
+}
+
 /**
- * The insights page, one calm column in four views, switched the way Ideate switches its two.
- * It reads five sources: Instagram, TikTok, the website, Google Business Profile and
- * reservations. Overview: the month in a sentence, one number at a time over its twelve weeks,
- * every source on one time axis beside the posts, what worked (each opens to its chart and its
- * idea) and the best time to post. Creators: each creator, ranked. Feed: what went out, one
- * platform at a time, with each post's own numbers. Sentiment: what people think of the brand,
- * from comments and mentions. Every chart shows its numbers on hover. The view and the feed's
- * platform are kept in the address, so a reload or a post's way back lands on them.
+ * The Feed page: the brand's posts, one platform at a time, with three rows under the grid that
+ * fold open in place. Overview: the month in a sentence, one number at a time over its twelve
+ * weeks, every source on one time axis beside the posts, what worked (each opens to its chart
+ * and its idea) and the best time to post. Sentiment: what people think of the brand, from
+ * comments and mentions. Creators: each creator, ranked. Every chart shows its numbers on hover.
+ * The open row and the feed's platform are kept in the address, so a reload or a post's way back
+ * lands on them.
  */
 export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform } = {}) {
   const { brand } = useBrand()
   // The figures are the demo's, invented: on the core no brand has any until real counts come.
   const data = remote ? undefined : INSIGHTS_BY_BRAND[brand.id]
   const hub = remote ? undefined : HUB_BY_BRAND[brand.id]
-  // With no figures (the core), the feed is the one view with something in it: it opens there.
-  const first: InsightsView = data && hub ? 'overview' : 'feed'
-  const [tab, setTab] = React.useState<InsightsView>(view ?? first)
+  const [tab, setTab] = React.useState<InsightsView>(view ?? 'feed')
   const [platform, setPlatform] = React.useState<Platform | undefined>(on)
-  // A link to this page from this page (the nav's Insights) changes only the address: follow it.
+  // A link to this page from this page (the nav's Feed) changes only the address: follow it.
   const address = useSearchParams().toString()
   const [seen, setSeen] = React.useState(address)
   if (address !== seen) {
     setSeen(address)
     const named = fromAddress(new URLSearchParams(address))
-    setTab(named.view ?? first)
-    // The feed's platform stays picked while another view is open.
+    setTab(named.view ?? 'feed')
     setPlatform((p) => named.on ?? p)
   }
   const go = (next: InsightsView, p = platform) => {
@@ -131,6 +135,23 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
     setPlatform(p)
     window.history.replaceState(null, '', insightsUrl(next, p))
   }
+  // The row last opened keeps its content while it folds shut, so the close is not a cut.
+  const open = tab === 'feed' ? undefined : tab
+  const [kept, setKept] = React.useState(open)
+  if (open && open !== kept) setKept(open)
+  const rows = React.useRef<Partial<Record<Section, HTMLElement | null>>>({})
+  // An opened row rises to the top of the window once it has its height, so what unfolds under
+  // it is in sight; before that the page is too short to scroll there.
+  React.useEffect(() => {
+    if (!open) return
+    const t = window.setTimeout(() => {
+      const el = rows.current[open]
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      el?.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' })
+    }, 380)
+    return () => window.clearTimeout(t)
+  }, [open])
+  const sums = summariesOf(data, hub)
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -139,47 +160,103 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
         key={brand.id}
         className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4 pb-24"
       >
-        <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
-          <div className="flex flex-col gap-3">
-            {data && <span className={EYEBROW}>{data.period}</span>}
-            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
-              Insights
-            </h1>
-          </div>
-          <div className="w-[400px] max-sm:w-full">
-            <Segmented
-              label="View"
-              pill
-              value={tab}
-              onChange={go}
-              options={[
-                { value: 'overview', label: 'Overview' },
-                { value: 'sentiment', label: 'Sentiment' },
-                { value: 'creators', label: 'Creators' },
-                { value: 'feed', label: 'Feed' },
-              ]}
-            />
-          </div>
-        </div>
+        <h1 className="pt-6 pb-10 font-display tracking-[-0.035em] text-[56px] leading-none max-md:pt-2 max-md:pb-6 max-md:text-[34px]">
+          Feed
+        </h1>
 
-        <div key={tab} className="bb-swap">
-          {tab === 'feed' ? (
-            <Feed on={platform} onPick={(p) => go('feed', p)} />
-          ) : !data || !hub ? (
-            <p className="text-[15px] text-ink-3">
-              Insights arrive once the brand&apos;s accounts are connected.
-            </p>
-          ) : tab === 'overview' ? (
-            <Overview data={data} hub={hub} />
-          ) : tab === 'sentiment' ? (
-            <SentimentView sentiment={hub.sentiment} />
-          ) : (
-            <Creators creators={data.creators} />
-          )}
+        <Feed on={platform} onPick={(p) => go(tab, p)} />
+
+        <div className="mt-16 flex flex-col border-b border-line max-md:mt-10">
+          {SECTIONS.map((v, i) => {
+            const on = open === v
+            const sum = sums?.[v]
+            return (
+              <section
+                key={v}
+                ref={(el) => {
+                  rows.current[v] = el
+                }}
+                className="bb-rise scroll-mt-24 border-t border-line"
+                style={{ animationDelay: `${200 + i * 60}ms` }}
+              >
+                <button
+                  type="button"
+                  aria-expanded={on}
+                  onClick={() => go(on ? 'feed' : v)}
+                  className="group flex h-[68px] w-full items-center gap-5 text-left max-md:h-16 max-md:gap-3"
+                >
+                  <span className="w-[112px] shrink-0 font-display text-[20px] tracking-[-0.02em] max-md:w-auto max-md:text-[18px]">
+                    {SECTION_LABEL[v]}
+                  </span>
+                  {sum ? (
+                    <span className="flex min-w-0 flex-1 items-baseline gap-2 text-[13.5px] text-ink-3">
+                      <span className="font-display text-[15px] font-semibold tracking-[-0.02em] text-ink tabular-nums max-md:text-[14px]">
+                        {sum.figure}
+                      </span>
+                      <span>{sum.unit}</span>
+                      <span className="text-ink-4 max-md:hidden">·</span>
+                      <span className="truncate max-md:hidden">{sum.note}</span>
+                    </span>
+                  ) : (
+                    <span className="flex-1" />
+                  )}
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors duration-200 group-hover:bg-surface group-hover:text-ink">
+                    <ChevronIcon open={on} size={11} />
+                  </span>
+                </button>
+                <Fold open={on}>
+                  <div className="pt-3 pb-14">
+                    {kept === v &&
+                      (!data || !hub ? (
+                        <p className="text-[15px] text-ink-3">
+                          Numbers arrive once the brand&apos;s accounts are connected.
+                        </p>
+                      ) : v === 'overview' ? (
+                        <div className="flex flex-col gap-5">
+                          {/* The month the figures cover, said once, where they are. */}
+                          <span className={EYEBROW}>{data.period}</span>
+                          <Overview data={data} hub={hub} />
+                        </div>
+                      ) : v === 'sentiment' ? (
+                        <SentimentView sentiment={hub.sentiment} />
+                      ) : (
+                        <Creators creators={data.creators} />
+                      ))}
+                  </div>
+                </Fold>
+              </section>
+            )
+          })}
         </div>
       </main>
     </div>
   )
+}
+
+/** One line on each row while it is shut: its figure, what it counts, a note. */
+function summariesOf(data?: BrandInsights, hub?: BrandHub) {
+  if (!data || !hub) return undefined
+  const kpi = data.kpis[0]!
+  const all = addSplits([addSplits(Object.values(hub.sentiment.posts)), hub.sentiment.mentions])
+  const views = data.creators.reduce((n, c) => n + c.views, 0)
+  const posts = data.creators.reduce((n, c) => n + c.posts, 0)
+  return {
+    overview: {
+      figure: kpi.value,
+      unit: 'reached',
+      note: `${kpi.delta >= 0 ? 'Up' : 'Down'} ${Math.abs(kpi.delta)}% on the month before`,
+    },
+    sentiment: {
+      figure: `${percents(all).pos}%`,
+      unit: 'positive',
+      note: `${sum(all)} comments and mentions`,
+    },
+    creators: {
+      figure: k(views),
+      unit: 'views',
+      note: `${data.creators.length} creators · ${posts} posts`,
+    },
+  }
 }
 
 // ── Hover ────────────────────────────────────────────────────────────────────────────────────

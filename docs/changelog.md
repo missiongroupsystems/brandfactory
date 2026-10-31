@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.50.0** — 2026-10-31 — `design/feed-options`: Insights becomes Feed, and the feed is the page. `/insights` opens the brand's grid; the platforms are a stack of round logos beside the profile's name (the one on show in ink; hover spreads the stack; on a phone one disc with a chevron opens a menu of them); Overview, Sentiment and Creators are three rows under the grid that fold open in place (`?view=sentiment&on=fb`; `?view=feed&on=fb` and `/posted` still land on the feed). The two bars above the profile (the view switch and the platform pills) go, and so do "as of" on the figures line (the hover keeps it) and the period above the title (it sits inside the open Overview row); on a phone the figures line is one line without the stories figure. Small motion: the stack spreads and the ink moves to the picked logo, the figures count from one platform's to the next, the covers rise in one after the other, a cover lifts on hover, the rows ease open with a chevron turn and rise to the top of the window; none of it when the system asks for less motion. 1256 tests (251 skipped without a Postgres server).
 - **2.48.1** — 2026-10-31 — `fix/menu-keys`: the New and sort menus take the keys (the focus on the first row, Up and Down round the ends, Escape back to the button), and the feed's sort sits beside the profile's name. 1252 tests (251 skipped without a Postgres server).
 - **2.48.0** — 2026-10-31 — `fix/keep-new-post`: six review comments from the product lead, and nothing else. Posted becomes "Feed", a view of Insights (Overview, Sentiment, Creators, Feed; `/insights?view=feed&on=ig`, `/posted` redirects there; on the core Insights opens on Feed; the view follows the address). The feed's sort is one icon with a menu, Newest or Most engaging. The feed on the core shows only what the core can check: a post with a live job, one the read-back synced (`syncedAt`), or one marked posted by hand; a scraped import never read back stays out. The header stays at the top on a desktop (`--header`, 80px; the sticky rails, the inbox thread and the composer preview sit under it; a phone keeps its tab bar). The composer offers only the accounts that post the format: a planned-only account (TikTok beside Make) and one that cannot take the format (TikTok for a Story) are not shown, and never ticked (a saved post's own accounts stay, so they can be unticked); with no account that posts, the row plans on every account as before. "New post" becomes "New", a menu of Post, Reel and Story with the accounts that post each; a format nothing posts (a Story on the core) is greyed "Plan only"; `/post/new?format=post|reel|story` starts the composer in that format. The phone's "+" offers Post, Reel, Story and Shoot. No pack change, no migration. 1251 tests (251 skipped without a Postgres server).
 - **2.47.0** — 2026-10-31 — `fix/keep-new-post`: the new post page from the 30 Oct rework, and nothing else from it (the owner kept this page and the week view's post times, and turned down the rest). One card holds the format, the photos and the caption; More options holds the rest; the account chips, the date chip and one main button stick to the foot of the window. New posts tick only accounts that post (the brand's last ones), take the brand's next best slot by its own clock, and follow the first file's format; the When dialog has Today, Tomorrow and best-day picks, a 24h time field and an hour chart. A scheduled post saves, saves and sends (an account added) or reschedules (moved); its "…" menu unschedules or deletes. A send goes back to the calendar with the date, once, after the core stored it. On the week view, post times are 13px. Every other page is as in 2.46.0 (checked pixel by pixel against it). No pack change, no migration. 1240 tests (251 skipped without a Postgres server).
@@ -103,6 +104,67 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.50.0 — 2026-10-31
+
+- **Why.** The owner on 2.48.1's preview: two bars above the profile (the view switch, then
+  the platform pills) made the hierarchy messy; the feed is what the brands come for, so the
+  rest should be built around it; and the section should be called Feed. Four layouts went up
+  as a prototype (a sidebar, the header as the switcher, two panes, one page with folding rows);
+  the owner took the folding rows with the logo stack from the header option.
+- **Feed.** "Insights" is "Feed" in the header, the tab bar and the page title (the route stays
+  `/insights`). `InsightsPage` renders the feed first, then three rows. `insightsUrl`: the feed
+  is the plain address, `/insights?on=fb`; an open row names itself, `?view=sentiment&on=fb`,
+  and keeps the platform. `?view=feed&on=fb` (2.48.0's address) and `/posted` still land on the
+  feed. The nav's Feed, clicked from an open row, shuts it.
+- **The stack.** `PlatformStack` (posted-page.tsx): the platforms as 32px round logos beside
+  the profile's name, a `radiogroup` named Platform with each logo a radio named by its
+  platform. The one on show is in ink and in front; the others sit in surface at 92%, overlapped.
+  The platform pills above the profile go. The profile's header now stays while the platform
+  changes under it (the name, the switcher and the figures update in place); only the stories
+  and the grid swap. A platform with nothing on it shows its "Nothing on … yet" under the header.
+- **On a phone.** Three logos would crowd the header beside the name and the sort, so below
+  768px `PlatformMenu` stands in for the stack: one light chip (surface, 32px) that
+  holds a small ink disc with the platform on show and the chevron, so they read as one control
+  ("Instagram. Switch platform"; a hit area around it makes the tap target 44px). Its menu lists
+  the platforms as the stack's discs (the one on show in ink) with their names and post counts,
+  anchored to the chip's right edge so it stays on the screen (the owner picked the chip over the
+  plain logo in the brand switcher's style). The figures line is one line on a phone: the stories figure
+  is left out there (`figuresOf(sum, platform, compact)`; the rings under the header show them),
+  the line never wraps, and posts, reach (or views) and likes fit at 390px on every platform. It takes the keys through `use-menu.ts` (the focus on the
+  item in use, Up and Down round the ends, Escape, the focus back to the button) and opens with
+  `bb-menu`. The phone and desktop switchers and the stories figure are split by CSS
+  (`md:hidden`, `max-md:hidden`), not a JS check, so a phone's first paint from the server is
+  already right. After review: a figure switched again mid-count starts from the value on screen,
+  not from the last target.
+- **The rows.** Overview, Sentiment and Creators are hairline rows under the grid, each with its
+  one figure while shut (49.1k reached · up 12.4%; 73% positive · 304 comments and mentions;
+  115.3k views · 5 creators). One opens at a time, in place (`Fold`); the open one shuts on a
+  second click. The row last opened keeps its content while it folds shut. On the core the open
+  row says "Numbers arrive once the brand's accounts are connected."
+- **Figures.** "as of 6 Oct" leaves the figures line; the hover on the line keeps it
+  (`windowLine`). `asOf` stays for the poster page. The "7 SEP – 6 OCT" eyebrow above the title
+  goes at every width: the period means nothing above the feed, so it sits inside the Overview
+  row, one quiet line above its figures, when that row is open.
+- **Motion.** All fast and eased out, and still at 1ms when the system asks for less motion
+  (the global rule in `globals.css`; the count-up checks the same query):
+  - the stack spreads on hover (margin, 260ms) and the logo under the pointer lifts (scale
+    1.08); on a pick the ink moves to the new logo and it grows from 92% to full (260ms);
+  - each figure counts from the old platform's value to the new one's (`Count`, 480ms, cubic
+    ease-out, `requestAnimationFrame`); the first value shows at once;
+  - the covers rise in one after the other on a platform change (`bb-rise`, 30ms apart, the
+    first nine) under the body's `bb-swap`;
+  - a cover lifts 2px on hover on a desktop, with its existing 3% zoom;
+  - a row eases open and shut by height and opacity (`bb-fold`, 360ms), its chevron turns
+    (260ms), the chevron's disc tints on hover; the three rows rise in on load (`bb-rise`,
+    60ms apart) and an opened row rises to the top of the window once it has its height.
+- **Tests.** The stack switches the platform and keeps it in the address; on a phone the menu
+  on the name does the same, by a tap and by the keys, and the stack is gone; the rows fold open one
+  at a time, name themselves in the address with the platform, open from `?view=`, and shut when
+  the nav links to `/insights`; a platform picked while a row is open keeps the row open; the
+  rename in the header, the tab bar and a post's way back; old links. The feed's tests look for
+  the platform by its name, and for "as of" on the hover only. 1256 tests (251 skipped without a
+  Postgres server).
 
 ## 2.48.1 — 2026-10-31
 

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { InsightsPage } from '@/features/insights/insights-page'
 import { fromAddress } from '@/features/insights/views'
 
-export const metadata: Metadata = { title: 'Insights · brand base' }
+export const metadata: Metadata = { title: 'Feed · brand base' }
 
 export default async function Page({
   searchParams,

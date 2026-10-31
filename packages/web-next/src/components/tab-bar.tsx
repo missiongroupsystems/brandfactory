@@ -12,7 +12,7 @@ import { PUBLIC_PATHS } from './legal'
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideas', icon: <IdeaGlyph /> },
-  { href: '/insights', label: 'Insights', icon: <ChartGlyph /> },
+  { href: '/insights', label: 'Feed', icon: <ChartGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
   { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
 ] as const

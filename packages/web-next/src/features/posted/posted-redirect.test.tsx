@@ -7,13 +7,13 @@ const redirect = vi.fn()
 vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }))
 
 describe('/posted', () => {
-  it('redirects to the feed view of Insights, on the platform it named', async () => {
+  it('redirects to the feed, on the platform it named', async () => {
     await Page({ searchParams: Promise.resolve({ on: 'fb' }) })
-    expect(redirect).toHaveBeenLastCalledWith('/insights?view=feed&on=fb')
+    expect(redirect).toHaveBeenLastCalledWith('/insights?on=fb')
     await Page({ searchParams: Promise.resolve({}) })
-    expect(redirect).toHaveBeenLastCalledWith('/insights?view=feed')
+    expect(redirect).toHaveBeenLastCalledWith('/insights')
     // A platform it does not know is dropped, not passed on.
     await Page({ searchParams: Promise.resolve({ on: 'yt' }) })
-    expect(redirect).toHaveBeenLastCalledWith('/insights?view=feed')
+    expect(redirect).toHaveBeenLastCalledWith('/insights')
   })
 })

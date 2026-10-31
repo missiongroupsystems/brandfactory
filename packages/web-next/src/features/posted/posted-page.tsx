@@ -3,7 +3,15 @@
 import Link from 'next/link'
 import * as React from 'react'
 
-import { CarouselIcon, CheckIcon, EyeIcon, HeartIcon, PlayIcon, SortIcon } from '@/components/icons'
+import {
+  CarouselIcon,
+  CheckIcon,
+  ChevronIcon,
+  EyeIcon,
+  HeartIcon,
+  PlayIcon,
+  SortIcon,
+} from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
@@ -18,7 +26,6 @@ import { todayDate } from '@/lib/dates'
 import { remote, timezoneOf } from '@/lib/remote'
 
 import {
-  asOf,
   canRank,
   figuresOf,
   gridOf,
@@ -51,28 +58,42 @@ const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
 /** A small frosted chip over a cover: white type that reads on a light photo as on a dark one. */
 const ON_COVER = 'rounded-full bg-black/30 text-page backdrop-blur-md'
 
-/**
- * The feed, a view of Insights: what went out, one platform at a time, as the account looks. The
- * platforms as pills, then the brand's profile with its last 30 days, its stories as rings and
- * its posts as a grid of covers. A cover shows one count; hover shows them all. A cover opens its
- * poster. The platform on show is kept in the address (`onPick`), so a post's way back lands on it.
- */
-export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => void }) {
+/** Now in the brand's own zone, read again each minute so a story's hours left stay true. */
+function useNow() {
   const { brand } = useBrand()
-  // Now in the brand's own zone, read again each minute so a story's hours left stay true.
   const [at, setAt] = React.useState(() => new Date())
   React.useEffect(() => {
     const t = window.setInterval(() => setAt(new Date()), 60_000)
     return () => window.clearInterval(t)
   }, [])
-  const now = nowIn(at, timezoneOf(brand.id), remote ? undefined : todayDate())
+  return nowIn(at, timezoneOf(brand.id), remote ? undefined : todayDate())
+}
+
+/**
+ * The feed, the heart of the Feed page: what went out, one platform at a time, as the account
+ * looks. The brand's profile with its last 30 days, the platforms as a stack of logos beside its
+ * name, its stories as rings and its posts as a grid of covers. A cover shows one count; hover
+ * shows them all. A cover opens its poster. The platform on show is kept in the address
+ * (`onPick`), so a post's way back lands on it.
+ */
+export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => void }) {
+  const { brand } = useBrand()
+  const [picked, setPicked] = React.useState<Platform | undefined>(on)
+  // The address may change the platform (a link to this page from this page): follow it.
+  const [seen, setSeen] = React.useState(on)
+  if (on !== seen) {
+    setSeen(on)
+    setPicked(on)
+  }
+  const now = useNow()
   const items = usePostedItems(now.day)
   const links = useConnections(brand.id)
   const linked = (p: Platform) => links[p] !== 'off'
   const rail = railOf(items ?? [], linked)
-  const [picked, setPicked] = React.useState<Platform | undefined>(on)
   const platform = platformOf(rail, items ?? [], picked)
   const ledger = ledgerOf(items ?? [], platform)
+  const count = (p: Platform) =>
+    ledgerOf(items ?? [], p).filter((i) => i.post.format !== 'story').length
   const pick = (p: Platform) => {
     setPicked(p)
     onPick?.(p)
@@ -80,35 +101,19 @@ export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => 
 
   return (
     <section aria-label="Feed" className="flex min-w-0 flex-col">
-      <div
-        role="radiogroup"
-        aria-label="Platform"
-        className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-5"
-      >
-        {rail.map((p) => (
-          <button
-            key={p}
-            type="button"
-            role="radio"
-            aria-checked={p === platform}
-            onClick={() => pick(p)}
-            className={`bb-press flex h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
-          >
-            <PlatformLogo platform={p} size={13} />
-            {PLATFORM_NAME[p]}
-          </button>
-        ))}
-      </div>
-
-      <div key={platform} className="bb-swap flex flex-col">
-        {!items ? (
-          <LoadingDots label="Loading posts" className="py-40" />
-        ) : ledger.length === 0 ? (
-          <Empty platform={platform} linked={linked(platform)} />
-        ) : (
-          <Profile ledger={ledger} platform={platform} now={now} />
-        )}
-      </div>
+      {!items ? (
+        <LoadingDots label="Loading posts" className="py-40" />
+      ) : (
+        <Profile
+          ledger={ledger}
+          platform={platform}
+          now={now}
+          rail={rail}
+          linked={linked}
+          count={count}
+          onPick={pick}
+        />
+      )}
     </section>
   )
 }
@@ -136,14 +141,28 @@ function Empty({ platform, linked }: { platform: Platform; linked: boolean }) {
   )
 }
 
+/**
+ * The profile's header stays while the platform changes under it: the name, the switcher and
+ * the figures update in place (each figure counts from the old platform's to the new one's), and
+ * only the stories and the grid swap. On a desktop the platforms are a stack of logos beside the
+ * name; on a phone one chip beside it opens a menu of them, which fits the width.
+ */
 function Profile({
   ledger,
   platform,
   now,
+  rail,
+  linked,
+  count,
+  onPick,
 }: {
   ledger: PostedItem[]
   platform: Platform
   now: Moment
+  rail: Platform[]
+  linked: (p: Platform) => boolean
+  count: (p: Platform) => number
+  onPick: (p: Platform) => void
 }) {
   const { brand } = useBrand()
   const accounts = {
@@ -154,6 +173,9 @@ function Profile({
   const [order, setOrder] = React.useState<Order>('newest')
   const sum = summaryOf(ledger, platform, now.day)
   const figures = figuresOf(sum, platform)
+  // A phone keeps the figures to one line: the ones it leaves out are hidden there by CSS, so
+  // the server's first paint is already right on either width.
+  const onPhone = new Set(figuresOf(sum, platform, true).map((f) => f.label))
   const grid = gridOf(ledger, platform, order)
   const ranks = canRank(gridOf(ledger, platform, 'newest'), platform)
   const rings = ringsOf(ledger, now)
@@ -170,50 +192,224 @@ function Profile({
         <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
           {/* The sort sits by the name, so the figures below keep the column's whole width. */}
           <div className="flex items-center gap-3">
-            <h2 className="min-w-0 flex-1 truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
-              {profileName(platform, accounts, brand)}
-            </h2>
+            <span className="flex min-w-0 flex-1 items-center gap-4 max-md:gap-2">
+              <h2 className="min-w-0 truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
+                {profileName(platform, accounts, brand)}
+              </h2>
+              {/* By CSS, not a JS check: a phone's first paint shows the menu, never the stack. */}
+              <span className="flex md:hidden">
+                <PlatformMenu platform={platform} rail={rail} count={count} onPick={onPick} />
+              </span>
+              <span className="flex max-md:hidden">
+                <PlatformStack platform={platform} rail={rail} linked={linked} onPick={onPick} />
+              </span>
+            </span>
             {ranks && <SortMenu order={order} onChange={setOrder} />}
           </div>
           <p
             title={windowLine(sum)}
-            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[14px] text-ink-3 max-md:gap-x-4 max-md:text-[13px]"
+            className="flex items-baseline gap-x-6 text-[14px] whitespace-nowrap text-ink-3 max-md:gap-x-3.5 max-md:text-[13px]"
           >
             {figures.map((f) => (
-              <span key={f.label}>
+              <span key={f.label} className={onPhone.has(f.label) ? undefined : 'max-md:hidden'}>
                 <b className={`${NUM} mr-1 text-[17px] text-ink max-md:text-[15px]`}>
-                  {k(f.value)}
+                  <Count value={f.value} />
                 </b>
                 {f.label}
               </span>
             ))}
-            {sum.measuredAt && (
-              <span className="text-[12px] text-ink-3">as of {asOf(sum.measuredAt)}</span>
-            )}
           </p>
         </div>
       </header>
 
-      {rings.length > 0 && (
-        <ul
-          aria-label="Stories"
-          className="-mx-1.5 -mt-1.5 flex gap-5 overflow-x-auto px-1.5 pt-1.5 pb-9 max-md:gap-4 max-md:pb-6"
-        >
-          {rings.map(({ item, left }) => (
-            <Ring key={item.post.id} item={item} left={left} today={now.day} />
-          ))}
-        </ul>
-      )}
+      <div key={platform} className="bb-swap flex flex-col">
+        {ledger.length === 0 ? (
+          <Empty platform={platform} linked={linked(platform)} />
+        ) : (
+          <>
+            {rings.length > 0 && (
+              <ul
+                aria-label="Stories"
+                className="-mx-1.5 -mt-1.5 flex gap-5 overflow-x-auto px-1.5 pt-1.5 pb-9 max-md:gap-4 max-md:pb-6"
+              >
+                {rings.map(({ item, left }) => (
+                  <Ring key={item.post.id} item={item} left={left} today={now.day} />
+                ))}
+              </ul>
+            )}
 
-      <ol aria-label="Posts" className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5">
-        {grid.map((item) => (
-          <li key={item.post.id}>
-            <Tile item={item} platform={platform} today={now.day} />
-          </li>
-        ))}
-      </ol>
+            {/* The covers settle in one after the other, the first rows first. */}
+            <ol aria-label="Posts" className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5">
+              {grid.map((item, i) => (
+                <li
+                  key={item.post.id}
+                  className="bb-rise"
+                  style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
+                >
+                  <Tile item={item} platform={platform} today={now.day} />
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+      </div>
     </>
   )
+}
+
+/**
+ * The platforms as a stack of small round logos beside the name, the one on show in ink and in
+ * front. Hover spreads the stack and lifts the logo under the pointer; a click switches the
+ * profile under it, and the ink moves to the new one.
+ */
+function PlatformStack({
+  platform,
+  rail,
+  linked,
+  onPick,
+}: {
+  platform: Platform
+  rail: Platform[]
+  linked: (p: Platform) => boolean
+  onPick: (p: Platform) => void
+}) {
+  const at = rail.indexOf(platform)
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Platform"
+      className="group/stack flex shrink-0 items-center pl-1"
+    >
+      {rail.map((p, i) => {
+        const on = p === platform
+        return (
+          <button
+            key={p}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={PLATFORM_NAME[p]}
+            title={PLATFORM_NAME[p]}
+            onClick={() => onPick(p)}
+            className={`bb-press relative flex size-8 items-center justify-center rounded-full ring-2 ring-page transition-[margin,transform,background-color,color] duration-[260ms] ease-[cubic-bezier(.2,.8,.2,1)] group-hover/stack:ml-1 ${i > 0 ? '-ml-2.5' : ''} ${on ? 'z-10 bg-ink text-page' : `scale-[0.92] bg-surface hover:scale-[1.08] hover:text-ink ${linked(p) ? 'text-ink-3' : 'text-ink-4'}`}`}
+            style={{ zIndex: on ? 10 : rail.length - Math.abs(i - at) }}
+          >
+            <PlatformLogo platform={p} size={13} />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** The stack's disc: the platform's logo in a 32px circle, ink when it is the one on show. */
+function Disc({ platform, on }: { platform: Platform; on: boolean }) {
+  return (
+    <span
+      className={`flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
+    >
+      <PlatformLogo platform={platform} size={13} />
+    </span>
+  )
+}
+
+/**
+ * The phone's switcher, so the header is not crowded with three logos: one disc, the platform
+ * on show, with a chevron. Its menu lists the platforms as the same discs with their names and
+ * post counts; it takes the keys (`useMenu`) and opens with `bb-menu`. A hit area around the
+ * button makes the tap target 44px.
+ */
+function PlatformMenu({
+  platform,
+  rail,
+  count,
+  onPick,
+}: {
+  platform: Platform
+  rail: Platform[]
+  count: (p: Platform) => number
+  onPick: (p: Platform) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const root = React.useRef<HTMLDivElement>(null)
+  useMenu(
+    open,
+    React.useCallback(() => setOpen(false), []),
+    root,
+  )
+  return (
+    <div ref={root} className="relative -my-1.5 shrink-0">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${PLATFORM_NAME[platform]}. Switch platform`}
+        onClick={() => setOpen((o) => !o)}
+        className={`bb-press relative flex h-8 items-center gap-1.5 rounded-full pr-2 pl-[5px] text-ink-4 after:absolute after:-inset-x-1 after:-inset-y-1.5 after:content-[''] ${open ? 'bg-paper' : 'bg-surface'}`}
+      >
+        {/* A light chip around a small ink disc and the chevron, read as one control. */}
+        <span className="flex size-[22px] items-center justify-center rounded-full bg-ink text-page">
+          <PlatformLogo platform={platform} size={11} />
+        </span>
+        <ChevronIcon open={open} size={10} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Platform"
+          className="bb-menu absolute top-full right-0 z-30 flex w-[220px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
+        >
+          {rail.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="menuitemradio"
+              aria-checked={p === platform}
+              onClick={() => {
+                onPick(p)
+                setOpen(false)
+              }}
+              className="flex h-11 items-center gap-3 rounded-[8px] px-1.5 text-left text-[13px] text-ink transition-colors outline-none hover:bg-surface focus-visible:bg-surface"
+            >
+              <Disc platform={p} on={p === platform} />
+              <span className="flex-1">{PLATFORM_NAME[p]}</span>
+              <span className="pr-1 font-mono text-[11px] text-ink-4 tabular-nums">
+                {count(p) || ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A figure that counts from its last value to its new one when it changes (a platform switch),
+ * in half a second, easing out. The first value shows at once, and so does every value when the
+ * system asks for less motion.
+ */
+function Count({ value }: { value: number }) {
+  const [shown, setShown] = React.useState(value)
+  // What is on screen now: a switch during a count starts from there, not from the last target.
+  const at = React.useRef(value)
+  React.useEffect(() => {
+    const from = at.current
+    if (from === value) return
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const t0 = performance.now()
+    let frame = 0
+    const step = (t: number) => {
+      const p = still ? 1 : Math.min(1, (t - t0) / 480)
+      const eased = 1 - (1 - p) ** 3
+      at.current = Math.round(from + (value - from) * eased)
+      setShown(at.current)
+      if (p < 1) frame = window.requestAnimationFrame(step)
+    }
+    frame = window.requestAnimationFrame(step)
+    return () => window.cancelAnimationFrame(frame)
+  }, [value])
+  return <>{k(shown)}</>
 }
 
 const ORDERS: Array<[Order, string]> = [
@@ -341,7 +537,7 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
     <Link
       href={`/post/${post.id}?posted=${platform}`}
       aria-label={tileLabel(item, platform, today)}
-      className="group relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none"
+      className="group relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none md:hover:-translate-y-0.5"
     >
       <Cover src={post.images[0]} />
       {mark && (
