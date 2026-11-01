@@ -127,7 +127,10 @@ One line each — full write-ups are under the matching `##` heading further dow
   instead of restarting it), with a 6ms vibration where the phone has one, a faint track behind
   the dots and one pill beside the finger that slides with it and names the day. A day the list
   cannot bring to the top (the week's last) stays read until the reader scrolls. A tablist, so a
-  screen reader reads the days.
+  screen reader reads the days. Nothing frames the dots at rest; under a finger the dots near it
+  swell (most at the finger, none two rows away) and the pill springs from day to day.
+- **The day read in ink.** The heading of the day being read is the one in ink and semibold;
+  every other day's name is quiet, empty or not, so the day picked shows even with nothing on it.
 - **Gone.** The old phone page (`phone-calendar.tsx`: the grid of small photos, the day list
   under it, the hours), the week strip, and the looks not taken (`look-b.tsx`, `look-c.tsx`,
   `look.ts`). `Photo` and the phone props move to `look-parts.tsx`.

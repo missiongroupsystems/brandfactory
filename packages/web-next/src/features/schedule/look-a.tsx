@@ -195,6 +195,8 @@ export function LookAgenda({
     const empty = it.posts.length === 0 && it.ideas.length === 0 && s.length === 0
     const target = move.over === d.date && move.canTake(d)
     const delay = Math.min(i++, 8) * 35
+    // The day being read is the one in ink; every other day's name is quiet, empty or not.
+    const picked = !whole && wi === week && di === reading
     return (
       <section
         key={d.date}
@@ -210,7 +212,7 @@ export function LookAgenda({
             type="button"
             onClick={() => onNewPost(d.date)}
             aria-label={`${WEEKDAY[di]} ${dayNumber(d.date)}, nothing planned. New post`}
-            className="bb-rise flex h-10 w-full items-center gap-2 text-[15px] font-medium text-ink-4"
+            className={`bb-rise flex h-10 w-full items-center gap-2 text-[17px] tracking-[-0.01em] transition-colors duration-200 ${picked ? 'font-semibold text-ink' : 'font-medium text-ink-4'}`}
             style={{ animationDelay: `${delay}ms` }}
           >
             {WEEKDAY[di]!.slice(0, 3)} {dayNumber(d.date)}
@@ -218,7 +220,7 @@ export function LookAgenda({
           </button>
         ) : (
           <h2
-            className={`bb-rise flex h-10 items-center gap-2 text-[17px] font-semibold tracking-[-0.01em] ${d.past ? 'text-ink-4' : ''} ${empty ? 'text-[15px] font-medium text-ink-4' : ''}`}
+            className={`bb-rise flex h-10 items-center gap-2 text-[17px] tracking-[-0.01em] transition-colors duration-200 ${picked ? 'font-semibold text-ink' : 'font-medium text-ink-4'}`}
             style={{ animationDelay: `${delay}ms` }}
           >
             {WEEKDAY[di]!.slice(0, 3)} {dayNumber(d.date)}

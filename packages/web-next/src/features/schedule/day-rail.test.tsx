@@ -10,7 +10,7 @@ const DAYS: RailDay[] = ['Mon 5', 'Tue 6', 'Wed 7', 'Thu 8', 'Fri 9', 'Sat 10', 
 /** jsdom lays nothing out: the rail's rows stand 7 × 28px tall from the top of the window. */
 function place() {
   const rail = screen.getByRole('tablist', { name: 'Days of the week' })
-  rail.getBoundingClientRect = () => ({ top: -8, height: 212, left: 0, width: 40 }) as DOMRect
+  rail.getBoundingClientRect = () => ({ top: 0, height: 212, left: 0, width: 40 }) as DOMRect
   rail.setPointerCapture = () => undefined
   return rail
 }
