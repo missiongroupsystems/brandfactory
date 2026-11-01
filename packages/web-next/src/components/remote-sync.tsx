@@ -37,13 +37,15 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
   // The sign-in page, the terms and the privacy policy open with no sign-in, as do share links.
   const open = !remote || pathname.startsWith('/share') || PUBLIC_PATHS.includes(pathname)
   const [state, setState] = React.useState<State>('loading')
-  // The session lives in the browser: the server renders the loading dots, the browser decides.
+  // The session lives in the browser. At the app's address the server sends the public home
+  // page, so a visitor and a checker that runs no script read it; the browser then keeps it only
+  // with no session. The layout's head script hides it before paint for one with a session.
   const inBrowser = React.useSyncExternalStore(
     noChange,
     () => true,
     () => false,
   )
-  const home = !open && pathname === '/' && inBrowser && !signedIn()
+  const home = !open && pathname === '/' && (!inBrowser || !signedIn())
   const [problem, setProblem] = React.useState<string | null>(null)
 
   // Back on sign-in (a link, the address bar), whoever signs in next loads afresh: nothing of the

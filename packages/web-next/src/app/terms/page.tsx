@@ -12,8 +12,7 @@ export default function Page() {
         <p>
           brand base is a social media workspace for brands and their marketing teams, operated by
           Mission Group. A team uses it to plan, prepare and publish its brands&rsquo; social media
-          posts. Mission Group&rsquo;s own restaurant brands use it today, and it is opening to
-          other brands and marketing teams, with a free plan.
+          posts.
         </p>
       </section>
       <section>

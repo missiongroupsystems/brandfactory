@@ -239,15 +239,15 @@ describe('the composer with Instagram through Make', () => {
     expect(tiktok()).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('opens More options and the TikTok row on a post planned on TikTok with no answer saved', () => {
+  it('asks nothing of TikTok on the core: it gets a draft, and a saved "no answer" stops nothing', () => {
     saveTikTokDefault('casa-vostra', {
       privacy: null,
       interactions: { comments: true, duet: false, stitch: false },
       promo: { on: false, own: false, paid: false },
       sound: 'own',
     })
-    // The crust reel is scheduled on TikTok among its accounts: a save keeps that, as it keeps
-    // YouTube or LinkedIn, and TikTok still needs its answers.
+    // The crust reel is scheduled on TikTok among its accounts. TikTok's inbox takes only the
+    // video, so who can watch, interactions and commercial content are TikTok's to ask.
     render(
       <BrandProvider>
         <Loaded>
@@ -255,14 +255,23 @@ describe('the composer with Instagram through Make', () => {
         </Loaded>
       </BrandProvider>,
     )
-    const more = () =>
-      screen
-        .getAllByRole('button', { name: /^More options/ })
-        .find((b) => b.hasAttribute('aria-expanded'))!
-    expect(more()).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('button', { name: /Who can watch\?/ })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    )
+    // Nothing needs an answer, so More options stays shut until asked.
+    const more = screen
+      .getAllByRole('button', { name: /^More options/ })
+      .find((b) => b.hasAttribute('aria-expanded'))!
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(more)
+    const row = screen.getByRole('button', { name: /TikTok.*Sent as a draft/ })
+    fireEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(/TikTok gets the video as a draft/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Who can watch/ })).toBeNull()
+    expect(screen.queryByText(/Choose who can watch/)).toBeNull()
+    // Nothing about TikTok stops it: moved to tomorrow, no hint asks who can watch (the photo
+    // in this reel still stops it, for Make's own reason).
+    fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Tomorrow / }))
+    expect(screen.getAllByText('A Reel takes one video.').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Choose who can watch/)).toBeNull()
   })
 })

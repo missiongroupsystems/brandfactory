@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Instrument_Sans } from 'next/font/google'
 
 import { NoImageDrag } from '@/components/no-image-drag'
 import { RemoteSync } from '@/components/remote-sync'
+import { SESSION_SCRIPT } from '@/components/session-class'
 import { TabBar } from '@/components/tab-bar'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
@@ -27,7 +28,8 @@ const mono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'brand base',
-  description: 'Plan, make and post social media for every restaurant brand, on one calendar.',
+  description:
+    'A social media workspace for brands and their marketing teams: plan, make and post on one calendar.',
 }
 
 // The page runs under a phone's home bar; the tab bar pads itself clear of it.
@@ -35,7 +37,15 @@ export const viewport: Viewport = { viewportFit: 'cover' }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} antialiased`}>
+    <html
+      lang="en"
+      className={`${sans.variable} ${display.variable} ${mono.variable} antialiased`}
+      // The head script may add the session class before React loads.
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SESSION_SCRIPT }} />
+      </head>
       <body className="min-h-svh font-sans text-sm leading-[1.45]">
         <NoImageDrag />
         <BrandProvider>

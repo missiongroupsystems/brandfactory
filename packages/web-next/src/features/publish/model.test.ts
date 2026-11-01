@@ -98,6 +98,10 @@ describe('TikTok', () => {
     expect(blockers(reel({ privacy: null }))).toEqual(['Choose who can watch on TikTok.'])
   })
 
+  it('asks none of it when TikTok gets only a draft in the inbox (the live app)', () => {
+    expect(blockers(reel({ privacy: null }), { tiktokDraft: true })).toEqual([])
+  })
+
   it('asks nothing when TikTok is not chosen', () => {
     expect(blockers(reel({ selected: ['ig', 'yt'] }))).toEqual([])
     expect(tiktokConsent(reel({ selected: ['ig'] }))).toBeNull()

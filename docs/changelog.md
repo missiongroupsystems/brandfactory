@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.54.2** — 2026-11-02 — `design/phone-calendar`: the server sends the public home page at `/` (TikTok's checker and readers with no script saw a loading spinner); on the live app TikTok's row on a post says it goes as a draft, with no posting controls that never reach TikTok; wording for TikTok's private-use rule; privacy says what disconnecting deletes. 1295 tests (259 skipped without a Postgres server).
 - **2.54.1** — 2026-11-01 — `design/phone-calendar`: Terms, Privacy and the home page describe brand base as a workspace for brands and their marketing teams, opening to more teams with a free plan (accounts by invitation for now), not an internal tool. 1294 tests (259 skipped without a Postgres server).
 - **2.54.0** — 2026-11-01 — `design/phone-calendar`: the app's address shows a public home page to a visitor with no sign-in (what brand base is, how it uses TikTok, Sign in, Terms and Privacy in the header), for TikTok's app review; TikTok shows again on the live Connections page. 1294 tests (259 skipped without a Postgres server).
 - **2.53.4** — 2026-11-01 — `design/phone-calendar`: a story's photo sits in the middle of its ring, on the phone calendar and on Posted. 1292 tests (259 skipped without a Postgres server).
@@ -114,6 +115,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.54.2 — 2026-11-02
+
+- **Why.** Three reviews of the TikTok resubmission against TikTok's guidelines (two models, and
+  one of the reviewer-account script).
+- **Home page in the server's HTML.** `RemoteSync` renders `Welcome` at `/` on the server and in
+  the hydration render, then keeps it only with no session. A head script in `app/layout.tsx`
+  sets `bb-session` on `<html>` before paint when the browser holds a session, and `globals.css`
+  hides `[data-welcome]` under it, so a signed-in person never sees it; `Welcome` removes the class
+  when it stays (a stored session the app rejects). Before, the HTML held only the loading dots.
+- **TikTok on a post, live app.** TikTok gets only a draft in the inbox (no caption, privacy,
+  interactions or commercial content reach it), so its row reads "Sent as a draft" with one note,
+  and `blockers(draft, { tiktokDraft })` asks none of TikTok's answers. The static demo keeps the
+  full TikTok rows.
+- **Wording.** Terms and the home page no longer say Mission Group's own brands use it today (the
+  guidelines refuse apps for private or internal use); the meta description says brands and their
+  marketing teams; Privacy says disconnecting deletes the account's id, name, picture and tokens,
+  and that the only content sent to TikTok is the video a person chooses; "brand base" in the
+  TikTok scope message.
+- **Tests.** The live app's TikTok row (no "Who can watch", no hint asking it; fails without the
+  fix); `blockers` with `tiktokDraft`. 1295 tests (259 skipped without a Postgres server).
 
 ## 2.54.1 — 2026-11-01
 

@@ -186,12 +186,16 @@ export function lengthFor(draft: Draft, channel: ChannelKey): { used: number; ma
   return { used: [...text].length, max: TEXT_LIMIT[channel] }
 }
 
-/** What stops the post from going out, in the order the composer asks. Empty when it can go. */
-export function blockers(draft: Draft): string[] {
+/**
+ * What stops the post from going out, in the order the composer asks. Empty when it can go.
+ * `tiktokDraft`: TikTok gets only a draft in the inbox (the live app), so its posting answers are
+ * TikTok's to ask and none of them stops the post.
+ */
+export function blockers(draft: Draft, { tiktokDraft = false } = {}): string[] {
   const active = activeChannels(draft)
   if (active.length === 0) return ['Pick a channel.']
   const out: string[] = []
-  if (active.some((c) => c.key === 'tt')) {
+  if (!tiktokDraft && active.some((c) => c.key === 'tt')) {
     if (draft.privacy === null) out.push('Choose who can watch on TikTok.')
     if (draft.promo.on && !draft.promo.own && !draft.promo.paid) {
       out.push('Say what it promotes on TikTok.')

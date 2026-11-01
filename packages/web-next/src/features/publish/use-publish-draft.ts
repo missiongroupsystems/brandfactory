@@ -136,7 +136,7 @@ export function usePublishDraft(input: {
   // `when` can be passed in, so a view that sets it and sends in one click does not wait a render.
   const send = React.useCallback(
     (when: When = draft.when) => {
-      if (rawPhase !== 'compose' || blockers(draft).length > 0) return
+      if (rawPhase !== 'compose' || blockers(draft, { tiktokDraft: remote }).length > 0) return
       const keys = activeChannels(draft).map((c) => c.key)
       if (when === 'slot') {
         setOutcomes(Object.fromEntries(keys.map((k) => [k, { state: 'scheduled' } as Outcome])))

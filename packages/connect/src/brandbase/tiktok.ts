@@ -180,7 +180,7 @@ export function tiktokApp(config: TikTokConfig) {
           console.error('tiktok revoke after a partial grant failed', err),
         )
         throw new TikTokRefused(
-          'Allow Brand Base to upload videos on TikTok’s screen, then connect again.',
+          'Allow brand base to upload videos on TikTok’s screen, then connect again.',
         )
       }
       const res = await doFetch(`${API}/user/info/?fields=open_id,display_name,avatar_url`, {

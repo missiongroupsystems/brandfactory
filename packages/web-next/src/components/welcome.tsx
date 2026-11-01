@@ -1,10 +1,14 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import * as React from 'react'
 
 import { FanArt } from '@/features/ideate/fan-art'
 
 import { LogoMark } from './icons'
 import { CONTACT } from './legal'
+import { SESSION_CLASS } from './session-class'
 
 const PARTS = [
   {
@@ -42,8 +46,10 @@ const TIKTOK_STEPS = [
  * asks for a public site here, not a sign-in form, with those two links in view.
  */
 export function Welcome() {
+  // Shown, so no session: the head script's guess (a stored session) was wrong; let it show.
+  React.useEffect(() => document.documentElement.classList.remove(SESSION_CLASS), [])
   return (
-    <div className="flex min-h-svh flex-col bg-page">
+    <div data-welcome className="flex min-h-svh flex-col bg-page">
       <header className="flex items-center justify-between px-10 py-[22px] max-md:px-4 max-md:py-3">
         <span className="flex items-center gap-2 text-ink">
           <LogoMark />
@@ -139,8 +145,8 @@ export function Welcome() {
             For your team
           </h2>
           <p className="text-[15px] leading-[1.55] text-ink-3">
-            Mission Group’s restaurant brands use brand base today. It is opening to more brands and
-            marketing teams, with a free plan. Accounts are by invitation for now.
+            brand base is for any brand and its marketing team. Accounts are by invitation for now:
+            ask for access, and we set up your team and its brands.
           </p>
           <a
             href={`mailto:${CONTACT}?subject=brand%20base%20access`}

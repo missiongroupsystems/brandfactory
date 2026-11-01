@@ -46,12 +46,14 @@ export default function Page() {
         <h2>Connected accounts</h2>
         <p>
           A connected account can be disconnected at any time in Connections. Disconnecting it
-          deletes its access tokens, so brand base can no longer use it.
+          deletes what brand base keeps for it (its id, display name, profile picture and access
+          tokens), so brand base can no longer use it.
         </p>
         <p>
           For TikTok, brand base keeps only the account&rsquo;s id, display name, profile picture
           and access tokens. It uses them to show which account is connected and to send a video to
-          the account&rsquo;s TikTok inbox as a draft. It does not post to TikTok and does not read
+          the account&rsquo;s TikTok inbox as a draft. The only content it sends to TikTok is the
+          video a person on the team chooses to send. It does not post to TikTok and does not read
           the account&rsquo;s videos.
         </p>
       </section>

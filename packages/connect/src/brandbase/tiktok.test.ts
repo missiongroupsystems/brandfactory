@@ -211,7 +211,7 @@ describe('TikTok', () => {
     t.tiktok.state.scope = 'user.info.basic'
     const { done } = await connect(t)
     expect(done).toMatchObject({ status: 502, data: { code: 'PLATFORM' } })
-    expect(done.data.message).toContain('Allow Brand Base to upload videos')
+    expect(done.data.message).toContain('Allow brand base to upload videos')
     expect(await t.accounts()).toEqual([])
     // The partial grant goes back: nothing is kept that could use it.
     expect(t.tiktok.state.revoked).toEqual(['access:open-casa:1'])

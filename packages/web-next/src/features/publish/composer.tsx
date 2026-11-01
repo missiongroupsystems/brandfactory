@@ -490,7 +490,7 @@ export function Composer({
     ...(draft.format === 'story' && storyTaken(weeks, storyDay, targetId ?? undefined)
       ? ['A story is already on that day: pick another.']
       : []),
-    ...blockers(draft),
+    ...blockers(draft, { tiktokDraft: remote }),
     ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
     // A draft can sit on a day that has since passed: a schedule needs a day ahead.
     ...(when === 'schedule' && date && date < brandToday(brand.id) ? ['Pick a day ahead.'] : []),
@@ -2668,14 +2668,18 @@ function summaryOf(
   extra: Extra,
 ): Record<ChannelKey, { text: string; needs: boolean }> {
   return {
-    tt: {
-      text: !draft.privacy
-        ? 'Who can watch?'
-        : extra.ttSound === 'library'
-          ? `${draft.privacy} · sound added in TikTok`
-          : `${draft.privacy} · interactions ${Object.values(draft.interactions).some(Boolean) ? 'on' : 'off'}`,
-      needs: draft.privacy === null || (draft.promo.on && !draft.promo.own && !draft.promo.paid),
-    },
+    // On the core TikTok gets only a draft in the inbox: nothing below reaches it.
+    tt: remote
+      ? { text: 'Sent as a draft', needs: false }
+      : {
+          text: !draft.privacy
+            ? 'Who can watch?'
+            : extra.ttSound === 'library'
+              ? `${draft.privacy} · sound added in TikTok`
+              : `${draft.privacy} · interactions ${Object.values(draft.interactions).some(Boolean) ? 'on' : 'off'}`,
+          needs:
+            draft.privacy === null || (draft.promo.on && !draft.promo.own && !draft.promo.paid),
+        },
     yt: {
       text: `${extra.ytVisibility} · ${draft.madeForKids ? 'Made for kids' : 'Not for kids'}`,
       needs: false,
@@ -2744,7 +2748,12 @@ function PerAccount({
               </button>
               <Fold className="grid-cols-[minmax(0,1fr)]" open={on}>
                 <div className="pb-4 pl-[26px]">
-                  {c.key === 'tt' ? (
+                  {c.key === 'tt' && remote ? (
+                    <p className="text-[13px] leading-[1.45] text-ink-3 max-md:text-[14px]">
+                      TikTok gets the video as a draft in the account’s inbox. The caption, sound
+                      and who can watch are set in the TikTok app.
+                    </p>
+                  ) : c.key === 'tt' ? (
                     <TikTokRows api={api} extra={extra} setExtra={setExtra} />
                   ) : c.key === 'yt' ? (
                     <Rows
