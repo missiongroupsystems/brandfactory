@@ -10,16 +10,18 @@ export default function Page() {
       <section>
         <h2>What brand base is</h2>
         <p>
-          brand base is an internal tool operated by Mission Group. Mission Group&rsquo;s staff use
-          it to plan, prepare and publish social media posts for Mission Group&rsquo;s own brands.
-          It is not offered to the public.
+          brand base is a social media workspace for brands and their marketing teams, operated by
+          Mission Group. A team uses it to plan, prepare and publish its brands&rsquo; social media
+          posts. Mission Group&rsquo;s own restaurant brands use it today, and it is opening to
+          other brands and marketing teams, with a free plan.
         </p>
       </section>
       <section>
         <h2>Who may use it</h2>
         <p>
-          Only people Mission Group has given an account. Keep your password to yourself, and tell
-          us if you think someone else has used your account.
+          People with an account. For now, accounts are given by invitation; to ask for one, write
+          to <Mail />. Keep your password to yourself, and tell us if you think someone else has
+          used your account.
         </p>
       </section>
       <section>
@@ -41,7 +43,7 @@ export default function Page() {
       <section>
         <h2>Your content</h2>
         <p>
-          Posts, pictures, videos and notes belong to Mission Group and its brands. You are
+          Posts, pictures, videos and notes belong to the brand they are made for. You are
           responsible for what you publish, and for following each platform&rsquo;s own rules.
         </p>
       </section>

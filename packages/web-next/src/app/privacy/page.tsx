@@ -9,15 +9,15 @@ export default function Page() {
     <LegalPage title="Privacy Policy">
       <section>
         <p>
-          brand base is an internal tool operated by Mission Group for its own staff, to plan and
-          publish social media posts for Mission Group&rsquo;s brands. This page says what it keeps,
-          why, and where.
+          brand base is a social media workspace for brands and their marketing teams, operated by
+          Mission Group, to plan and publish each brand&rsquo;s social media posts. This page says
+          what it keeps, why, and where.
         </p>
       </section>
       <section>
         <h2>What we keep</h2>
         <ul>
-          <li>For each member of staff: their email address and name, to sign them in.</li>
+          <li>For each person with an account: their email address and name, to sign them in.</li>
           <li>
             For each brand: its content, such as posts, captions, pictures and videos, ideas, shoots
             and the brand kit.
@@ -58,9 +58,9 @@ export default function Page() {
       <section>
         <h2>How long</h2>
         <p>
-          We keep a brand&rsquo;s content while Mission Group uses brand base for that brand, and a
-          staff account while the person works with it. When either ends, we delete it on request,
-          or when it is no longer needed.
+          We keep a brand&rsquo;s content while its team uses brand base for that brand, and a
+          person&rsquo;s account while they use it. When either ends, we delete it on request, or
+          when it is no longer needed.
         </p>
       </section>
       <section>

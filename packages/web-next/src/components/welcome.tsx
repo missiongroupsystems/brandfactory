@@ -79,8 +79,8 @@ export function Welcome() {
             Plan, make and post for every brand
           </h1>
           <p className="text-[17px] leading-[1.55] text-ink-3 max-md:text-[16px]">
-            brand base is Mission Group’s social media workspace for its restaurants. The team plans
-            each brand’s posts on one calendar and gets them ready for Instagram, Facebook and
+            brand base is a social media workspace for brands and their marketing teams. A team
+            plans each brand’s posts on one calendar and gets them ready for Instagram, Facebook and
             TikTok.
           </p>
           <Link
@@ -129,6 +129,25 @@ export function Welcome() {
             A connected account can be disconnected at any time in Connections. Disconnecting it
             deletes its access tokens.
           </p>
+        </section>
+
+        <section aria-labelledby="teams" className="flex max-w-[560px] flex-col items-center gap-3">
+          <h2
+            id="teams"
+            className="font-display text-[28px] leading-[1.1] tracking-[-0.02em] max-md:text-[24px]"
+          >
+            For your team
+          </h2>
+          <p className="text-[15px] leading-[1.55] text-ink-3">
+            Mission Group’s restaurant brands use brand base today. It is opening to more brands and
+            marketing teams, with a free plan. Accounts are by invitation for now.
+          </p>
+          <a
+            href={`mailto:${CONTACT}?subject=brand%20base%20access`}
+            className="text-[15px] font-medium text-ink underline decoration-ink-5 underline-offset-4 hover:decoration-ink"
+          >
+            Ask for access
+          </a>
         </section>
       </main>
 

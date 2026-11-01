@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.54.1** — 2026-11-01 — `design/phone-calendar`: Terms, Privacy and the home page describe brand base as a workspace for brands and their marketing teams, opening to more teams with a free plan (accounts by invitation for now), not an internal tool. 1294 tests (259 skipped without a Postgres server).
 - **2.54.0** — 2026-11-01 — `design/phone-calendar`: the app's address shows a public home page to a visitor with no sign-in (what brand base is, how it uses TikTok, Sign in, Terms and Privacy in the header), for TikTok's app review; TikTok shows again on the live Connections page. 1294 tests (259 skipped without a Postgres server).
 - **2.53.4** — 2026-11-01 — `design/phone-calendar`: a story's photo sits in the middle of its ring, on the phone calendar and on Posted. 1292 tests (259 skipped without a Postgres server).
 - **2.53.3** — 2026-11-01 — `design/phone-calendar`: a reload keeps the brand that was open (kept in the browser; the account's first brand when it no longer reaches it). The live app hides what is not ready: Connections lists Instagram, Facebook and Pinterest only, and the moodboard offers Pinterest only (TikTok, Instagram DMs, Google Drive, Lark and the Insights sources stay in the code, listed in the handoff doc's "Hidden until ready"). The moodboard's source buttons lift on hover. The brand menu's logos are one size, cropped inside their rim, each with a fine ring. No pack change, no migration. 1292 tests (259 skipped without a Postgres server).
@@ -113,6 +114,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.54.1 — 2026-11-01
+
+- **Why.** TikTok's guidelines refuse apps "for private or personal use", and the Terms and
+  Privacy called brand base "an internal tool… not offered to the public". The owner: brand base
+  will run on a freemium model and open to other marketing teams.
+- **What.** Terms: what brand base is (a social media workspace for brands and their marketing
+  teams, operated by Mission Group, used today by its restaurant brands, opening to others with a
+  free plan); who may use it (people with an account, by invitation for now, with the contact
+  address); content belongs to the brand it is made for. Privacy: the same opening line, "each
+  person with an account", and how long a brand's content is kept. Home page: the same opening
+  line, and "For your team" with "Ask for access" (an email to the contact address). No sign-up
+  page: accounts stay by invitation, and the pages say so.
+- **Checked** in a browser, signed out, desktop and phone. 1294 tests (259 skipped without a Postgres server).
 
 ## 2.54.0 — 2026-11-01
 
