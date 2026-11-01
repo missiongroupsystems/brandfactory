@@ -183,16 +183,16 @@ describe('a new post in the demo', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('keeps every photo when a video joins them, and the video when a photo joins it', async () => {
+  it('keeps every photo when a video joins them', async () => {
     show()
     await add('a.jpg', 'b.jpg', 'c.jpg')
     await add('clip.mp4')
     expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(4)
     expect(format('Post')).toHaveAttribute('aria-checked', 'true')
-    // A lone video is a Reel; a photo after it makes a photo post of both, nothing dropped.
-    while (screen.queryAllByRole('button', { name: 'Remove' }).length > 0) {
-      fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]!)
-    }
+  })
+
+  it('keeps a lone video when a photo joins it, as a photo post of both', async () => {
+    show()
     await add('clip.mp4')
     expect(format('Reel')).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(format('Post'))

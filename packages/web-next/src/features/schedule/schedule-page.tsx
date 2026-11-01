@@ -12,12 +12,12 @@ import { withShoots } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
 import { dayNumber, MONTH_SHORT, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 
-import { PhoneCalendar } from './phone-calendar'
 import { setCalendarPlace, useCalendarPlace, type CalendarMode } from './calendar-view'
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
 import { FailedPill } from './failed-menu'
 import { MoreMenu } from './filter-menu'
+import { LookAgenda } from './look-a'
 import { NewMenu } from './new-menu'
 import {
   dateOf,
@@ -183,7 +183,7 @@ export function SchedulePage() {
       <AppHeader />
       {/* A phone gets its own layout of the same three views: a grid of photos. */}
       <div className="md:hidden">
-        <PhoneCalendar
+        <LookAgenda
           weeks={shown.weeks}
           month={rows}
           onOpenLead={openLead}

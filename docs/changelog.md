@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.53.0** — 2026-11-01 — `design/phone-calendar`: the Schedule on a phone is an agenda. The week is one list, a day after a day, each post a row with its photo, its words, its time, stage and accounts; a day's events, stories and ideas sit with it. The week strip and the grid of small photos go: seven dots down the right edge are the week, the day being read is a short bar, and a finger drawn along them runs through the days with a tick on a phone that has one (Android; iOS has none) and the day's name beside the finger. A swipe on the list steps the week; the title switches to the whole month. The desktop is unchanged. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.52.0** — 2026-11-01 — `feat/brand-collaborators`: a post's Location and Collaborators are menus of what the brand keeps on the core for every member (pack 1.14.0, migrations `0024_brand_locations.sql` and `0025_brand_collaborators.sql`, not applied to production). Location: the brand's saved places, one picked. Collaborators: the Instagram accounts the brand works with, up to three ticked, the menu open while they are picked. Each menu adds one for the whole brand and removes one in two presses, asked in its own row. The six production brands start with their known venues and with the accounts seen working with them, per platform (Instagram, TikTok, Facebook). 1286 tests (259 skipped without a Postgres server).
 - **2.51.0** — 2026-11-01 — `design/post-page-polish`: the new post page, calmer. The accounts sit above the card again and the send under the preview (2.46.0's places), so the sticky bar that cut off More options is gone. Under the preview: the coming week as days, the time to type over and the brand's hours as bars, always in view (the calendar icon opens any other day). Location and Collaborators sit in their own card under the caption; More options keeps the rest. No media yet: one soft panel to drop on, with Upload and Google Drive as links, and the preview is a dashed place to drop a file, with no phone or accounts until there is something to show. The phone has a bezel and a status bar, and each app's screen is drawn as the app draws it (Instagram's and Facebook's bars, tab bars and counts; the reels above their tab bars). The idea chips and the demo's photo library go. No pack change, no migration. 1260 tests (251 skipped without a Postgres server).
 - **2.50.1** — 2026-10-31 — `fix/feed-url`: the Feed page lives at `/feed` (`/insights` and `/posted` redirect, keeping the view and platform); the phone tab bar's Feed icon is a grid; the platform stack is one Tab stop with arrow keys; an opened row no longer pulls back a reader who scrolls. 1259 tests (251 skipped without a Postgres server).
@@ -107,6 +108,34 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.53.0 — 2026-11-01
+
+- **Why.** The owner: the phone calendar was cluttered. Three looks went up behind `?look=`
+  (an agenda, one day, a week of hours); the owner took the agenda, with the week as seven dots
+  on the right that a finger runs through.
+- **Agenda.** `look-a.tsx` (`LookAgenda`) is the phone's Schedule: a section per day (its
+  heading, its event chips, a `PostRow` per post, a `StoriesRow`, an `IdeaRow` per idea); an
+  empty day ahead is one quiet line that starts a post; a long press carries a post to another
+  day, as before. The title opens "This week" or "Whole month" and the month picker; the bar
+  keeps Today (when away), the filters and "+" (a new post takes the day being read). A swipe
+  steps the week; Today from another week comes back to today's section.
+- **Day rail.** `day-rail.tsx` (`DayRail`): seven dots fixed to the right edge, darker on a day
+  with something on it, today's green; the day being read (the last heading to reach the top)
+  is a 20px bar that grows from its dot. A press or a finger drawn along the rail glides the list
+  to the day (`useGlide`: each frame eases part of the way, so a new day mid-way bends the motion
+  instead of restarting it), with a 6ms vibration where the phone has one, a faint track behind
+  the dots and one pill beside the finger that slides with it and names the day. A day the list
+  cannot bring to the top (the week's last) stays read until the reader scrolls. A tablist, so a
+  screen reader reads the days.
+- **Gone.** The old phone page (`phone-calendar.tsx`: the grid of small photos, the day list
+  under it, the hours), the week strip, and the looks not taken (`look-b.tsx`, `look-c.tsx`,
+  `look.ts`). `Photo` and the phone props move to `look-parts.tsx`.
+- **Tests.** The rail: the day read is the one picked, a press goes to a day, a finger runs
+  through the days once each and settles on the last; the title tests follow the new button
+  name. Review (Sonnet, on a phone with touch): "+" dated a new post for the page's day, not the
+  day being read; Today did not go back to today; a long blank under Sunday; leftovers of the
+  looks not taken. All fixed. 1289 tests (259 skipped without a Postgres server).
 
 ## 2.52.0 — 2026-11-01
 

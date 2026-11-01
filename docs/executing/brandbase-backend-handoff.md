@@ -115,7 +115,7 @@ A server must either accept client-made UUIDs or have each caller await the crea
 
 **Phone and desktop.** I found no data difference.
 - The inbox selection differs: a phone returns to the list after a send, and a desktop opens the next message (`inbox-page.tsx:81`).
-- Touch drag on the phone calendar uses the same `movePost` (`phone-calendar.tsx:136`).
+- Touch drag on the phone calendar uses the same `movePost` (`useMovePost`, `look-parts.tsx:92`).
 - Reduced motion changes only playback (test "waits for a tap under reduced motion"), confetti (`components/confetti.tsx:73`) and the brand switch transition.
 
 ---
@@ -175,7 +175,7 @@ A server must either accept client-made UUIDs or have each caller await the crea
 - **Idea tiles open the idea page, never the composer.** A tile with no idea makes one once, from its moment or from the tile's own words with `pillar: 'Occasion'` (`ideas-store.ts:138-164`). Tests: "makes the idea for a tile that has none, from its moment, exactly once", "resolves every seeded tile of every brand to a card or a moment, never a bare idea".
 
 ### Edge cases for the backend
-- A drag is optimistic and returns a boolean at once (`week-grid.tsx:147`, `phone-calendar.tsx:136`). Under latency, the server must enforce the same refusals (posted, past, story taken). The UI needs a rollback path, which it does not have.
+- A drag is optimistic and returns a boolean at once (`week-grid.tsx:147`, `look-parts.tsx:92`). Under latency, the server must enforce the same refusals (posted, past, story taken). The UI needs a rollback path, which it does not have.
 - Two users can drag one post at the same time. There is no version check. [Inference: use `updated_at` or an ETag.]
 - `ideaOfTile` creates an idea as a side effect of a click, during navigation. Two clicks could make two ideas unless the create is idempotent, keyed by the tile.
 - `addIdeaToCalendar` and `landingDay` read "today" and "this week". The server must apply the brand's timezone.
