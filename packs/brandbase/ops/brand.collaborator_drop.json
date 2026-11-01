@@ -22,5 +22,5 @@
   },
   "before": ["brand.reachable"],
   "returns": "one",
-  "sql": "update brandbase.brands b set collaborators = jsonb_set(b.collaborators, array[:platform::text], coalesce((select jsonb_agg(e order by n) from jsonb_array_elements_text(coalesce(b.collaborators -> :platform::text, '[]'::jsonb)) with ordinality t (e, n) where lower(e) <> lower(h.v)), '[]'::jsonb)) from (select case when :platform::text in ('ig', 'tt') then '@' || lower(regexp_replace(btrim(:handle::text), '^@+', '')) else regexp_replace(btrim(:handle::text), '\\s+', ' ', 'g') end as v) h where b.id = :brand returning jsonb_build_object('collaborators', b.collaborators) as result"
+  "sql": "update brandbase.brands b set collaborators = case when not b.collaborators ? :platform::text then b.collaborators else jsonb_set(b.collaborators, array[:platform::text], coalesce((select jsonb_agg(e order by n) from jsonb_array_elements_text(coalesce(b.collaborators -> :platform::text, '[]'::jsonb)) with ordinality t (e, n) where lower(e) <> lower(h.v)), '[]'::jsonb)) end from (select case when :platform::text in ('ig', 'tt') then '@' || lower(regexp_replace(btrim(:handle::text), '^@+', '')) else regexp_replace(btrim(:handle::text), '\\s+', ' ', 'g') end as v) h where b.id = :brand returning jsonb_build_object('collaborators', b.collaborators) as result"
 }

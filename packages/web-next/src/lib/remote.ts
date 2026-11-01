@@ -433,8 +433,14 @@ export function newId(): string {
 /** What `GET /brands/:id/state` answers; each store reads its own part. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type BrandState = Record<string, any> & {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  brand: { id: string; name?: string; tiktokDefaults?: any; locations?: string[] }
+  brand: {
+    id: string
+    name?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tiktokDefaults?: any
+    locations?: string[]
+    collaborators?: Partial<Record<'ig' | 'tt' | 'fb', string[]>>
+  }
 }
 
 const states = new Map<string, BrandState>()

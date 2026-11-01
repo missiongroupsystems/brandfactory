@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.52.0** — 2026-11-01 — `feat/brand-collaborators`: a post's Location is a menu of the brand's saved locations, kept on the core for every member (pack 1.14.0, migration `0024_brand_locations.sql`, not applied to production). Add location saves one and picks it; a row's × asks once in its own row, then folds away. The six production brands start with their known venues. 1267 tests pass (255 skipped without a Postgres server).
+- **2.52.0** — 2026-11-01 — `feat/brand-collaborators`: a post's Location and Collaborators are menus of what the brand keeps on the core for every member (pack 1.14.0, migrations `0024_brand_locations.sql` and `0025_brand_collaborators.sql`, not applied to production). Location: the brand's saved places, one picked. Collaborators: the Instagram accounts the brand works with, up to three ticked, the menu open while they are picked. Each menu adds one for the whole brand and removes one in two presses, asked in its own row. The six production brands start with their known venues and with the accounts seen working with them, per platform (Instagram, TikTok, Facebook). 1286 tests (259 skipped without a Postgres server).
 - **2.51.0** — 2026-11-01 — `design/post-page-polish`: the new post page, calmer. The accounts sit above the card again and the send under the preview (2.46.0's places), so the sticky bar that cut off More options is gone. Under the preview: the coming week as days, the time to type over and the brand's hours as bars, always in view (the calendar icon opens any other day). Location and Collaborators sit in their own card under the caption; More options keeps the rest. No media yet: Upload and Google Drive in one line, and the preview is a dashed place to drop a file, with no phone or accounts until there is something to show. The phone has a bezel and a status bar, and each app's screen is drawn as the app draws it (Instagram's and Facebook's bars, tab bars and counts; the reels above their tab bars). The idea chips and the demo's photo library go. No pack change, no migration. 1260 tests (251 skipped without a Postgres server).
 - **2.50.1** — 2026-10-31 — `fix/feed-url`: the Feed page lives at `/feed` (`/insights` and `/posted` redirect, keeping the view and platform); the phone tab bar's Feed icon is a grid; the platform stack is one Tab stop with arrow keys; an opened row no longer pulls back a reader who scrolls. 1259 tests (251 skipped without a Postgres server).
 - **2.50.0** — 2026-10-31 — `design/feed-options`: Insights becomes Feed, and the feed is the page. `/insights` opens the brand's grid; the platforms are a stack of round logos beside the profile's name (the one on show in ink; hover spreads the stack; on a phone one disc with a chevron opens a menu of them); Overview, Sentiment and Creators are three rows under the grid that fold open in place (`?view=sentiment&on=fb`; `?view=feed&on=fb` and `/posted` still land on the feed). The two bars above the profile (the view switch and the platform pills) go, and so do "as of" on the figures line (the hover keeps it) and the period above the title (it sits inside the open Overview row); on a phone the figures line is one line without the stories figure. Small motion: the stack spreads and the ink moves to the picked logo, the figures count from one platform's to the next, the covers rise in one after the other, a cover lifts on hover, the rows ease open with a chevron turn and rise to the top of the window; none of it when the system asks for less motion. 1256 tests (251 skipped without a Postgres server).
@@ -111,8 +111,9 @@ One line each — full write-ups are under the matching `##` heading further dow
 ## 2.52.0 — 2026-11-01
 
 - **Why.** The owner asked for Location to be a menu of the places each brand has, with a way
-  to add one for the whole team and to remove one in two presses. Location was free text with
-  suggestions from the demo's data, so on the core it offered nothing.
+  to add one for the whole team and to remove one in two presses; then for Collaborators to be
+  the same, from the accounts each brand has worked with, per brand and per platform. Both were
+  free text with suggestions from the demo's data, so on the core they offered nothing.
 - **Pack 1.14.0, migration `0024_brand_locations.sql`.** `brands.locations text[] NOT NULL
   DEFAULT '{}'`: labels only, in the order they were added, each once whatever its case. The
   location stays in Brand Base: no sender passes it to Instagram or Facebook yet (the Graph API
@@ -140,18 +141,45 @@ One line each — full write-ups are under the matching `##` heading further dow
   state on the core and writes through `POST /brands/:id/locations` and `DELETE
   /brands/:id/locations/:label` (`core-routes.ts`); the demo starts on `placesOf` (the venue and
   tagged places, now plain labels) and keeps changes until a reload.
-- **Production (outline).** Migration 0024 is not applied to production.
+- **Migration `0025_brand_collaborators.sql`.** `brands.collaborators jsonb NOT NULL DEFAULT
+  '{}'`: lists by platform (`ig`, `tt`, `fb`), handles ("@name", lower case) on Instagram and
+  TikTok and Page names on Facebook, in the order they were added, each once whatever its case.
+  `GRANT UPDATE (collaborators)` to the runtime role. Seed, only where the brand exists and has
+  none yet: the six brands' accounts from a web search of their public posts (Instagram Collab
+  post headers first, then the group and its chefs, then creators and pages that featured them;
+  a source for each kept outside the repo). Handles only: the names the search found were not
+  reliable. The file can run again. `brand.collaborator_add` (brand, platform, handle up to 80
+  characters with a letter or digit) tidies the handle for its platform and appends it unless
+  the brand has it; `brand.collaborator_drop` removes it in any case. Both check
+  `brand.reachable` and answer `{ collaborators }`. Cases in `tests/collaborators.json`;
+  `upgrade.test.ts` checks the seed, a second run and the row rules.
+- **Collaborators in the composer.** `publish/collaborator-picker.tsx`, built as the location
+  menu: the field shows the picks or "None, up to 3"; the menu lists the brand's Instagram
+  accounts (a post takes collaborators on Instagram only; the TikTok and Facebook lists are kept
+  for when a sender takes them), `menuitemcheckbox` rows that tick and untick and stay open, the
+  rest resting at three. Add account takes a handle as Instagram spells it (`handleOf`), saves it
+  for the brand and ticks it when there is room. `publish/collaborators-store.ts` reads
+  `brand.collaborators` and writes through `POST /brands/:id/collaborators` and `DELETE
+  /brands/:id/collaborators/:platform/:handle`; the demo starts on its collaboration accounts.
+  Both menus sit in the details card under the caption (2.51.0).
+- **Production (outline).** Migrations 0024 and 0025 are not applied to production.
   1. Check out the branch (not yet merged into `main`); `pnpm install`.
   2. Open the `brandbase-db` tunnel.
   3. `core publish ../../packs/brandbase`; `core test brandbase 1.14.0` (all cases pass).
-  4. `core migrate brandbase 1.14.0` (applies 0024 and seeds the six brands; 1.13.1 still runs
-     on it).
+  4. `core migrate brandbase 1.14.0` (applies 0024 and 0025 and seeds the six brands; 1.13.1
+     still runs on it).
   5. `core promote brandbase 1.14.0`.
   6. Only now merge into `main`: Vercel deploys production from `main`. A web deploy before
-     step 5 shows an empty menu and refuses Add location. No server deploy, no new secret.
-  7. Open a new post on casa-vostra, More options, Location: three Casa Vostra rows. Add one,
-     reload on another account of the company: it is there. Remove it.
-- 1267 tests pass, 255 skipped without a Postgres server (1521 in all).
+     step 5 shows empty menus and refuses Add location and Add account. No server deploy, no new secret.
+  7. Open a new post on casa-vostra: Location has three Casa Vostra rows and Collaborators the
+     brand's Instagram accounts. Add one, reload on another account of the company: it is
+     there. Remove it.
+- Review (Opus on the pack, Sonnet with screenshots on a desktop and a phone): unticking a
+  pick the brand no longer saves lost the focus (the next row takes it); an Instagram or TikTok
+  handle the server took is now letters, digits, dots and underscores alone; a drop on a
+  platform the brand has no list for writes nothing; a store test on the core; four seed
+  accounts that looked like personal profiles, not partners, are left out. 1286 tests (259
+  skipped without a Postgres server); the pack's cases pass on PGlite.
 
 ## 2.51.0 — 2026-11-01
 

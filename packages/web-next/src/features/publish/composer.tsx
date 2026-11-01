@@ -80,6 +80,7 @@ import { postersOf, PUBLISHERS, sendsOf } from './publishers'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { TikTokInbox } from './tiktok-inbox'
+import { CollaboratorPicker } from './collaborator-picker'
 import { LocationPicker } from './location-picker'
 import { hashtagsOf, labelsOf, peopleOf } from './suggestions'
 import {
@@ -2212,13 +2213,13 @@ function Details({
       </span>
     ),
     collab: (
-      <Chips
-        values={details.collab}
+      // Instagram's Collab posts are the only collaborators a post takes, so its list is offered.
+      <CollaboratorPicker
+        brandId={brand.id}
+        platform="ig"
+        value={details.collab}
         onChange={(collab) => setDetails({ ...details, collab })}
-        placeholder={`@account, up to ${COLLAB_MAX}`}
         max={COLLAB_MAX}
-        normalize={handleOf}
-        options={peopleOf(brand.id, 'collab')}
       />
     ),
   }

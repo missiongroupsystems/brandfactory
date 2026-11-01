@@ -16,9 +16,9 @@ UPDATE brandbase.brands b SET collaborators = s.collaborators
   FROM (VALUES
     ('casa-vostra', '{"ig": ["@thisismissiongroup", "@casanostrasg", "@lifestyleasiasg", "@labottegasg", "@petra.singapore", "@sgnomster", "@365days2play", "@sgcafehopping"], "tt": ["@sarxh.lim", "@oooduties", "@raea.jpg", "@its_emmagracex"], "fb": ["Burpple", "8DAYSSG"]}'::jsonb),
     ('chin-mee-chin', '{"ig": ["@woodsinthebooks", "@beechenghiangsg", "@cafequenino", "@hungrygowhere", "@nex.singapore", "@singapore.foodie", "@blocpaper"], "tt": ["@eatbooksg", "@8dayseat", "@deeniseglitz", "@abcfoodies", "@esyfilms"], "fb": ["Bee Cheng Hiang", "BYKidO"]}'::jsonb),
-    ('temper', '{"ig": ["@joshua_raaj", "@sklo_sg", "@whatisdieting", "@mackabuang", "@roberto_duran_ms", "@mondriansingapore", "@eshton", "@groovetop", "@taylahelaine"], "tt": ["@eshtonc", "@annivrse", "@sippin_n_munchin", "@oooduties"], "fb": ["qinlovesmacaronsss"]}'::jsonb),
+    ('temper', '{"ig": ["@joshua_raaj", "@sklo_sg", "@whatisdieting", "@mackabuang", "@roberto_duran_ms", "@mondriansingapore", "@eshton", "@groovetop", "@taylahelaine"], "tt": ["@eshtonc", "@annivrse", "@sippin_n_munchin", "@oooduties"]}'::jsonb),
     ('petra', '{"ig": ["@chef_anasss", "@middleclasssg", "@dawidchef", "@casanostrasg", "@thisismissiongroup", "@yourtrustfunddaughter", "@brandcellar", "@urbanlistsingapore"], "tt": ["@onericeplease"], "fb": ["MiddleClassSG", "greatnewplaces", "HungryGoWhere", "LifestyleAsiaSingapore"]}'::jsonb),
-    ('firebird', '{"ig": ["@makotosuetomi", "@thisismissiongroup", "@middleclasssg", "@mondriansingapore", "@aplussingapore", "@larvitar", "@singaporefoodbutler", "@portfoliomagsg", "@swiddlydink", "@yoooshiki222"], "tt": ["@eshtonc", "@aplussingapore"], "fb": ["exploregowhere", "sgfoodonfoot"]}'::jsonb),
+    ('firebird', '{"ig": ["@makotosuetomi", "@thisismissiongroup", "@middleclasssg", "@mondriansingapore", "@aplussingapore", "@singaporefoodbutler", "@portfoliomagsg"], "tt": ["@eshtonc", "@aplussingapore"], "fb": ["exploregowhere", "sgfoodonfoot"]}'::jsonb),
     ('willow', '{"ig": ["@nictkc", "@thisismissiongroup", "@entierfrenchdining", "@akar_kl", "@aidanlowyx", "@hk_datfoodlife", "@han_lg"], "fb": ["Entier French Dining", "TatlerDiningSG"]}'::jsonb)
   ) AS s (id, collaborators)
   WHERE b.id = s.id AND b.collaborators = '{}';

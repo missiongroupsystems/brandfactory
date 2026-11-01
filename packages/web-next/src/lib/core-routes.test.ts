@@ -102,6 +102,20 @@ describe('the routes on the core', () => {
     })
   })
 
+  it('sends a collaborator to the brand by platform, and takes one off by platform and handle', () => {
+    expect(
+      coreCall('POST', '/brands/casa/collaborators', { platform: 'ig', handle: '@chefantonio' }),
+    ).toEqual({
+      op: 'brand.collaborator_add',
+      input: { brand: 'casa', platform: 'ig', handle: '@chefantonio' },
+    })
+    const page = encodeURIComponent('Eatbook / SG')
+    expect(coreCall('DELETE', `/brands/casa/collaborators/fb/${page}`, undefined)).toEqual({
+      op: 'brand.collaborator_drop',
+      input: { brand: 'casa', platform: 'fb', handle: 'Eatbook / SG' },
+    })
+  })
+
   it('sends the share routes to their moves, and a guest page to guest moves with its token', () => {
     expect(coreCall('GET', '/brands/casa/share/idea/i1', undefined)).toEqual({
       op: 'share.link',

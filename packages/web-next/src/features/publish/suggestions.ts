@@ -35,7 +35,7 @@ const tagMeta = (a: Account) => `Tagged ${a.tagged}×`
  * posted about the brand (Insights) come last: known, never worked with. A caption reaches TikTok
  * too, so it offers that platform's creators; a tag or an invite is Instagram's alone.
  */
-export function peopleOf(brandId: BrandId, field: 'collab' | 'tag' | 'caption'): Suggestion[] {
+export function peopleOf(brandId: string, field: 'collab' | 'tag' | 'caption'): Suggestion[] {
   // A brand outside the demo's data has no accounts, places, labels or hashtags to suggest yet.
   const accounts = demoOf(ACCOUNTS, brandId) ?? []
   const collabs = accounts.filter((a) => a.collab).map((a) => person(a, collabMeta(a)))

@@ -56,7 +56,7 @@
           "input": {
             "brand": "casa",
             "platform": "ig",
-            "handle": "@@danielfooddiary"
+            "handle": "DANIELFOODDIARY"
           },
           "expect": {
             "result": {
@@ -200,8 +200,7 @@
             "result": {
               "collaborators": {
                 "ig": ["@a", "@c"],
-                "tt": ["@b"],
-                "fb": []
+                "tt": ["@b"]
               }
             }
           }
@@ -209,7 +208,7 @@
       ]
     },
     {
-      "name": "refuses a blank, an overlong handle or a platform it does not know",
+      "name": "refuses a blank or overlong handle, an Instagram or TikTok handle with other characters, and a platform it does not know",
       "steps": [
         {
           "call": "brand.collaborator_add",
@@ -229,6 +228,30 @@
             "brand": "casa",
             "platform": "ig",
             "handle": "@xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.collaborator_add",
+          "input": {
+            "brand": "casa",
+            "platform": "ig",
+            "handle": "@foo bar"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.collaborator_add",
+          "input": {
+            "brand": "casa",
+            "platform": "tt",
+            "handle": "@a/b"
           },
           "expect": {
             "status": 400,
