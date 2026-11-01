@@ -71,19 +71,15 @@ const photos = (root: HTMLElement) =>
   )
 
 describe('the moodboard’s empty state on the core', () => {
-  it('fans out the same four photos as before, as decoration only', () => {
+  it('fans out the drawn set, no one’s food, as decoration only', () => {
     openMoodboard(false)
     const empty = screen.getByRole('region', { name: 'Connect your accounts' })
     expect(within(empty).getByText('Bring in your moodboard')).toBeVisible()
-    // The four photos the fan showed before 2.35.2, whatever the brand.
-    expect(photos(empty)).toEqual([
-      '/demo/pins/cv-p-1.jpg',
-      '/demo/pins/cv-p-2.jpg',
-      '/demo/pins/cv-p-4.jpg',
-      '/demo/pins/cv-p-5.jpg',
-    ])
+    // A brand with no boards yet shows four drawn cards, never another brand's photos.
+    expect(photos(empty)).toEqual([])
+    expect(empty.querySelectorAll('svg[viewBox="0 0 100 132"]')).toHaveLength(4)
     // Hidden from screen readers and nothing to press: the only buttons are the three sources.
-    const fan = empty.querySelector('img')!.closest('[aria-hidden="true"]')
+    const fan = empty.querySelector('svg[viewBox="0 0 100 132"]')!.closest('[aria-hidden="true"]')
     expect(fan).not.toBeNull()
     expect(within(empty).queryAllByRole('img')).toHaveLength(0)
     expect(
@@ -91,7 +87,7 @@ describe('the moodboard’s empty state on the core', () => {
         .getAllByRole('button')
         .map((b) => b.textContent),
     ).toEqual(['Pinterest', 'Instagram DMs', 'TikTok'])
-    // Nothing of the demo's moodboard comes with the photos: no board names, captions or handles.
+    // Nothing of the demo's moodboard comes with the cards: no board names, captions or handles.
     expect(screen.queryByText('Pasta shots')).toBeNull()
     expect(screen.queryByText('Pizza close-ups')).toBeNull()
   })

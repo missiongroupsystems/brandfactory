@@ -54,6 +54,7 @@ import {
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
+import { FanArt } from './fan-art'
 import {
   knownSetup,
   MAX_BOARDS,
@@ -1434,13 +1435,6 @@ const message = (err: unknown) => {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`
 }
 
-/**
- * The fan above "Bring in your moodboard" when the brand has no board covers, as every brand on the
- * core has before it links a source: the same four photos for every brand, the ones the first demo
- * brand's fan shows. Unsplash photos (`public/demo/CREDITS.md`), not anyone's posts.
- */
-const FAN = ['cv-p-1', 'cv-p-2', 'cv-p-4', 'cv-p-5'].map((id) => `/demo/pins/${id}.jpg`)
-
 function ConnectSources() {
   const { brand } = useBrand()
   const covers = boardsOf(brand.id)
@@ -1461,9 +1455,10 @@ function ConnectSources() {
       aria-label="Connect your accounts"
       className="mx-auto flex max-w-[620px] flex-col items-center gap-6 py-16 text-center"
     >
-      {/* Decoration only: four photos fanned out above the title. */}
+      {/* Decoration only: the brand's board covers fanned out above the title, or, before it has
+          any, the drawn set every brand starts with. */}
       <span aria-hidden="true" className="flex -space-x-6 max-[360px]:-space-x-10">
-        {(covers.length > 0 ? covers : FAN).map((src, i) => (
+        {(covers.length > 0 ? covers : [0, 1, 2, 3]).map((src, i) => (
           <span
             key={src}
             className="relative block h-[132px] w-[100px] overflow-hidden rounded-[14px] bg-tile shadow-[0_0_0_3px_var(--page)]"
@@ -1471,7 +1466,11 @@ function ConnectSources() {
               transform: `rotate(${[-8, -3, 3, 8][i]}deg) translateY(${[8, 0, 0, 8][i]}px)`,
             }}
           >
-            <Image src={src} alt="" fill sizes="250px" className="object-cover" />
+            {typeof src === 'number' ? (
+              <FanArt index={src} />
+            ) : (
+              <Image src={src} alt="" fill sizes="250px" className="object-cover" />
+            )}
           </span>
         ))}
       </span>

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.53.1** — 2026-11-01 — `design/phone-calendar`: the moodboard's empty state fans out four drawn cards, not four photos of one brand's food: the logo's ring and dot played four ways in the calendar's colours (terracotta and ochre, green arches, a blue orbit, a lavender horizon). Every brand without boards, and every new brand, has them; a brand's own board covers still take their place. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.53.0** — 2026-11-01 — `design/phone-calendar`: the Schedule on a phone is an agenda. The week is one list, a day after a day, each post a row with its photo, its words, its time, stage and accounts; a day's events, stories and ideas sit with it. The week strip and the grid of small photos go: seven dots down the right edge are the week, the day being read is a short bar, and a finger drawn along them runs through the days with a tick on a phone that has one (Android; iOS has none) and the day's name beside the finger. A swipe on the list steps the week; the title switches to the whole month. The desktop is unchanged. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.52.0** — 2026-11-01 — `feat/brand-collaborators`: a post's Location and Collaborators are menus of what the brand keeps on the core for every member (pack 1.14.0, migrations `0024_brand_locations.sql` and `0025_brand_collaborators.sql`, not applied to production). Location: the brand's saved places, one picked. Collaborators: the Instagram accounts the brand works with, up to three ticked, the menu open while they are picked. Each menu adds one for the whole brand and removes one in two presses, asked in its own row. The six production brands start with their known venues and with the accounts seen working with them, per platform (Instagram, TikTok, Facebook). 1286 tests (259 skipped without a Postgres server).
 - **2.51.0** — 2026-11-01 — `design/post-page-polish`: the new post page, calmer. The accounts sit above the card again and the send under the preview (2.46.0's places), so the sticky bar that cut off More options is gone. Under the preview: the coming week as days, the time to type over and the brand's hours as bars, always in view (the calendar icon opens any other day). Location and Collaborators sit in their own card under the caption; More options keeps the rest. No media yet: one soft panel to drop on, with Upload and Google Drive as links, and the preview is a dashed place to drop a file, with no phone or accounts until there is something to show. The phone has a bezel and a status bar, and each app's screen is drawn as the app draws it (Instagram's and Facebook's bars, tab bars and counts; the reels above their tab bars). The idea chips and the demo's photo library go. No pack change, no migration. 1260 tests (251 skipped without a Postgres server).
@@ -108,6 +109,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.53.1 — 2026-11-01
+
+- **Why.** The owner: the fan above "Bring in your moodboard" showed the same four food photos
+  for every brand; a brand, and a new one, should start on a minimal set that fits the theme.
+- **Cards.** `ideate/fan-art.tsx` (`FanArt`): four SVG cards, 100 × 132, in the layer and confetti
+  colours of `styles/tokens.css`. The shapes sit left of centre, since each card hides under the
+  next one's left edge. `ConnectSources` draws them when the brand has no board covers; `FAN` and
+  its four photo paths go (the photos stay in `public/demo/pins` for the demo's boards).
+- **Tests.** The empty state on the core draws the four cards and no photo, hidden from screen
+  readers, with the three sources as its only buttons. 1289 tests (259 skipped without a
+  Postgres server).
 
 ## 2.53.0 — 2026-11-01
 
