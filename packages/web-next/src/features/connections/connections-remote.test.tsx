@@ -44,7 +44,7 @@ const page = () =>
 const row = (name: string) => screen.getByText(name, { selector: 'span' }).closest('li')!
 
 describe('Connections on the core', () => {
-  it('shows Instagram, TikTok, Facebook and Pinterest as not available, even one stored as connected', () => {
+  it('shows only what the live app has ready, and says Instagram and Pinterest are not set up yet', () => {
     page()
     act(() =>
       linkers[0]!('casa-vostra', {
@@ -55,16 +55,17 @@ describe('Connections on the core', () => {
         ],
       }),
     )
-    for (const name of ['Instagram', 'TikTok', 'Facebook', 'Pinterest']) {
+    // TikTok, Google Drive, Lark and the Insights sources are hidden until they are ready.
+    for (const name of ['TikTok', 'Google Drive', 'Lark calendar', 'Website', 'Bookings']) {
+      expect(screen.queryByText(name, { selector: 'span' })).toBeNull()
+    }
+    // What shows and is not set up on the server waits, even one stored as connected.
+    for (const name of ['Instagram', 'Facebook', 'Pinterest']) {
       const r = row(name)
       expect(within(r).getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
       expect(within(r).getByRole('tooltip')).toHaveTextContent(`${name} isn’t connected yet.`)
       expect(within(r).queryByRole('button', { name: new RegExp(`Connect|More for`) })).toBeNull()
     }
-    // The other services fake their sign-in the same way: they wait too, in one short line.
-    const drive = row('Google Drive')
-    expect(within(drive).getByRole('tooltip').textContent).toBe('Google Drive isn’t connected yet.')
-    expect(within(drive).queryByRole('button', { name: /Connect/ })).toBeNull()
   })
 
   it('keeps its reason open while the pointer moves onto it', () => {

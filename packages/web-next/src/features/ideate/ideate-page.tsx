@@ -35,7 +35,12 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
-import { NotAvailable, notAvailable, reasonOf } from '@/features/connections/not-available'
+import {
+  MOOD_SOURCES_ON_CORE,
+  NotAvailable,
+  notAvailable,
+  reasonOf,
+} from '@/features/connections/not-available'
 import { demoOf, newId, remote, RemoteError, report } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
@@ -1476,21 +1481,23 @@ function ConnectSources() {
       </span>
       <span className="font-display text-[32px] leading-none">Bring in your moodboard</span>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
-        {(Object.keys(SOURCE_NAME) as MoodSource[]).map((source) => {
-          const on = open === source
-          return (
-            <button
-              key={source}
-              type="button"
-              aria-expanded={on}
-              onClick={() => setOpen(on ? null : source)}
-              className={`bb-press flex h-11 min-w-[176px] items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium hover:opacity-85 ${on ? 'bg-ink text-page' : 'bg-surface text-ink'}`}
-            >
-              <PlatformLogo platform={SOURCE_LOGO[source]} size={14} />
-              {SOURCE_NAME[source]}
-            </button>
-          )
-        })}
+        {(Object.keys(SOURCE_NAME) as MoodSource[])
+          .filter((source) => !remote || MOOD_SOURCES_ON_CORE.includes(source))
+          .map((source) => {
+            const on = open === source
+            return (
+              <button
+                key={source}
+                type="button"
+                aria-expanded={on}
+                onClick={() => setOpen(on ? null : source)}
+                className={`group/source bb-press flex h-11 min-w-[176px] items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium transition-[transform,box-shadow,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-10px_rgba(18,18,18,0.35)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${on ? 'bg-ink text-page' : 'bg-surface text-ink hover:bg-paper'}`}
+              >
+                <PlatformLogo platform={SOURCE_LOGO[source]} size={14} />
+                {SOURCE_NAME[source]}
+              </button>
+            )
+          })}
       </div>
       {open && (
         <div

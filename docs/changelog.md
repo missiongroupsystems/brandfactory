@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.53.3** — 2026-11-01 — `design/phone-calendar`: a reload keeps the brand that was open (kept in the browser; the account's first brand when it no longer reaches it). The live app hides what is not ready: Connections lists Instagram, Facebook and Pinterest only, and the moodboard offers Pinterest only (TikTok, Instagram DMs, Google Drive, Lark and the Insights sources stay in the code, listed in the handoff doc's "Hidden until ready"). The moodboard's source buttons lift on hover. The brand menu's logos are one size, cropped inside their rim, each with a fine ring. No pack change, no migration. 1292 tests (259 skipped without a Postgres server).
 - **2.53.2** — 2026-11-01 — `design/phone-calendar`: the moodboard's drawn cards are bolder and each its own shape: a terracotta quarter circle under an ochre sun, a solid green arch, blue bands cut by a white disc, a lavender four-petal flower, each with the logo's dot or ring. Same colours as 2.53.1. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.53.1** — 2026-11-01 — `design/phone-calendar`: the moodboard's empty state fans out four drawn cards, not four photos of one brand's food: the logo's ring and dot played four ways in the calendar's colours (terracotta and ochre, green arches, a blue orbit, a lavender horizon). Every brand without boards, and every new brand, has them; a brand's own board covers still take their place. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.53.0** — 2026-11-01 — `design/phone-calendar`: the Schedule on a phone is an agenda. The week is one list, a day after a day, each post a row with its photo, its words, its time, stage and accounts; a day's events, stories and ideas sit with it. The week strip and the grid of small photos go: seven dots down the right edge are the week, the day being read is a short bar, and a finger drawn along them runs through the days with a tick on a phone that has one (Android; iOS has none) and the day's name beside the finger. A swipe on the list steps the week; the title switches to the whole month. The desktop is unchanged. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
@@ -110,6 +111,30 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.53.3 — 2026-11-01
+
+- **Why.** The owner: a reload went back to Casa Vostra; the moodboard's source buttons had no
+  hover, and Instagram DMs and TikTok (and the rest of Connections that does not work yet) should
+  go until ready, written down so they come back; the brand menu's logos looked uneven.
+- **The brand open.** `BrandProvider` keeps a brand picked (`setBrandId`) in `localStorage`
+  (`brandbase.brand`); when the account's brands arrive it opens that one if the account reaches
+  it, else the one open, else the account's first. Only a pick is kept, so the default the page
+  starts on never wipes it.
+- **Hidden until ready.** `not-available.tsx`: `SHOWN_ON_CORE` (ig, fb, pinterest) filters
+  Connections' groups on the core, an empty group goes; `MOOD_SOURCES_ON_CORE` (pinterest)
+  filters the moodboard's sources. The demo keeps them all. The handoff doc lists what is hidden
+  and how to bring it back.
+- **Hover.** The source buttons rise 2px with a soft shadow and a paper fill (none with reduced
+  motion).
+- **Brand logos.** `BrandMark`: 28px everywhere, the logo scaled 8% inside the circle (a
+  profile picture's own white rim falls outside), one inset hairline ring; rows 14px, a little
+  more room.
+- **Tests.** The brand open across reloads (kept, a switch kept, one out of reach); Connections
+  on the core lists only what is shown; the moodboard offers Pinterest alone; the TikTok cases
+  show TikTok through a mock, so its code stays covered. A call sheet test now lists Casa Vostra
+  in its account and clears the kept brand before each case: the provider opens only a brand the
+  account reaches. 1292 tests (259 skipped without a Postgres server).
 
 ## 2.53.2 — 2026-11-01
 

@@ -78,7 +78,8 @@ describe('the moodboard’s empty state on the core', () => {
     // A brand with no boards yet shows four drawn cards, never another brand's photos.
     expect(photos(empty)).toEqual([])
     expect(empty.querySelectorAll('svg[viewBox="0 0 100 132"]')).toHaveLength(4)
-    // Hidden from screen readers and nothing to press: the only buttons are the three sources.
+    // Hidden from screen readers and nothing to press: the one button is Pinterest, the only
+    // source ready on the live app.
     const fan = empty.querySelector('svg[viewBox="0 0 100 132"]')!.closest('[aria-hidden="true"]')
     expect(fan).not.toBeNull()
     expect(within(empty).queryAllByRole('img')).toHaveLength(0)
@@ -86,7 +87,7 @@ describe('the moodboard’s empty state on the core', () => {
       within(empty)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Pinterest', 'Instagram DMs', 'TikTok'])
+    ).toEqual(['Pinterest'])
     // Nothing of the demo's moodboard comes with the cards: no board names, captions or handles.
     expect(screen.queryByText('Pasta shots')).toBeNull()
     expect(screen.queryByText('Pizza close-ups')).toBeNull()

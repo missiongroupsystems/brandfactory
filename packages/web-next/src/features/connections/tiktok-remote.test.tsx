@@ -5,6 +5,7 @@ import { BrandProvider } from '@/features/schedule/posts-store'
 import type * as Remote from '@/lib/remote'
 
 import { ConnectionsPage } from './connections-page'
+import type * as NotAvailable from './not-available'
 import { resetTikTok } from './tiktok'
 
 // On the core, with the server's TikTok app set up (`GET /platforms` says tiktok) and no other.
@@ -32,6 +33,12 @@ vi.mock('@/lib/remote', async (original) => ({
     return () => undefined
   },
   onAccount: () => () => undefined,
+}))
+// TikTok is hidden on the live app until its app is approved; these cases show it, so its
+// upload connection keeps working for when it comes back.
+vi.mock('./not-available', async (original) => ({
+  ...(await original<typeof NotAvailable>()),
+  SHOWN_ON_CORE: ['ig', 'fb', 'pinterest', 'tt'],
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/brand/connections',

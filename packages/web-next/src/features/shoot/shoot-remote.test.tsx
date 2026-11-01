@@ -1,6 +1,6 @@
 import { fireEvent, render, renderHook, screen } from '@testing-library/react'
 import * as React from 'react'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { BrandId } from '@/data/brands'
 import { WEEKS } from '@/data/demo'
@@ -24,7 +24,18 @@ vi.mock('@/lib/remote', async (original) => ({
   onState: () => () => undefined,
   onAccount: (listener: (account: unknown) => void) => {
     listener({
+      // casa-vostra too: the provider opens only a brand the account reaches.
       brands: [
+        {
+          id: 'casa-vostra',
+          orgId: 'mission-group',
+          name: 'Casa Vostra',
+          handle: '@casavostrasg',
+          line: '',
+          linked: ['ig'],
+          timezone: 'Asia/Singapore',
+          position: 0,
+        },
         {
           id: 'chin-mee-chin',
           orgId: 'mission-group',
@@ -53,6 +64,8 @@ vi.stubGlobal('matchMedia', () => ({
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
 })
+// A brand picked in one case is kept in the browser; each case starts with none kept.
+beforeEach(() => localStorage.clear())
 
 /** Switches the provider to a brand the core listed. */
 function On({ id, children }: { id: string; children: React.ReactNode }) {

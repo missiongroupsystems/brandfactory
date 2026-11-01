@@ -184,6 +184,27 @@ const sendIdea = (
   if (id) push(brandId, () => request('POST', `/brands/${brandId}/ideas/${id}${path}`, body))
 }
 
+/** Where the browser keeps the brand last open. */
+const BRAND_KEY = 'brandbase.brand'
+/**
+ * A brand picked is kept in the browser, so a reload opens it again once the account's brands
+ * are known. Only a pick is kept: the default the page starts on must not wipe it.
+ */
+function remember(id: string) {
+  try {
+    localStorage.setItem(BRAND_KEY, id)
+  } catch {
+    // Private mode or storage off: the default brand opens next time.
+  }
+}
+function remembered(): string | null {
+  try {
+    return localStorage.getItem(BRAND_KEY)
+  } catch {
+    return null
+  }
+}
+
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [brandId, setBrandIdNow] = React.useState<BrandId>(DEFAULT_BRAND_ID)
   const [postsByBrand, setPostsByBrand] = React.useState<PostsByBrand>(INITIAL_POSTS)
@@ -216,6 +237,17 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     return onAccount((account) => {
       setBrands(account.brands.map(asBrand))
       setCompanies(managed(account.companies))
+      // The brand last open in this browser, if the account still reaches it; else the one open
+      // now, if it does; else the account's first.
+      const reach = (id: string | null) => id !== null && account.brands.some((b) => b.id === id)
+      const last = remembered()
+      setBrandIdNow((id) =>
+        reach(last)
+          ? (last as BrandId)
+          : reach(id)
+            ? id
+            : ((account.brands[0]?.id ?? id) as BrandId),
+      )
     })
   }, [])
 
@@ -254,6 +286,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   // The page cross-fades to the new brand where the browser has view transitions (CSS in
   // tokens.css, which also turns it off for reduced motion); elsewhere it switches at once.
   const setBrandId = React.useCallback((id: BrandId) => {
+    remember(id)
     if (typeof document !== 'undefined' && 'startViewTransition' in document) {
       document.startViewTransition(() => flushSync(() => setBrandIdNow(id)))
     } else {

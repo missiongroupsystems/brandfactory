@@ -25,6 +25,19 @@ export const NOT_SET_UP = [
   'res',
 ] as const
 
+/**
+ * What the live app shows at all, until the rest is ready: Instagram and Facebook publishing
+ * (through Make, once the server has it) and Pinterest on the moodboard. TikTok (its app is not
+ * approved), Instagram DMs and TikTok on the moodboard, Google Drive, Lark and the Insights
+ * sources are hidden on the core, not shown as "Unavailable"; the static demo shows them all.
+ * To bring one back, add it here (docs/executing/brandbase-backend-handoff.md, "Hidden until
+ * ready").
+ */
+export const SHOWN_ON_CORE: readonly string[] = ['ig', 'fb', 'pinterest']
+
+/** The moodboard's sources the live app offers: Pinterest alone, until the others are ready. */
+export const MOOD_SOURCES_ON_CORE: readonly string[] = ['pinterest']
+
 /** Why a service shows "Unavailable": one short line. Several names read as one plural. */
 export function reasonOf(name: string): string {
   return `${name} ${name.includes(' and ') ? 'aren’t' : 'isn’t'} connected yet.`

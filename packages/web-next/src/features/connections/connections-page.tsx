@@ -19,7 +19,7 @@ import {
 } from './connections-store'
 import { makeOn, type MakeKey, unlinkMake, useMakeAccount } from './make'
 import { MakeSheet } from './make-sheet'
-import { NotAvailable, notAvailable, reasonOf } from './not-available'
+import { NotAvailable, notAvailable, reasonOf, SHOWN_ON_CORE } from './not-available'
 import { connectTikTok, disconnectTikTok, tiktokOn, useTikTokAccount } from './tiktok'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
@@ -31,6 +31,13 @@ const GROUPS: Array<{ label: string; keys: SourceKey[] }> = [
   { label: 'Files and calendar', keys: ['drive', 'lark'] },
   { label: 'Insights', keys: ['web', 'gbp', 'res'] },
 ]
+
+/** The groups with only what the live app shows (`SHOWN_ON_CORE`); a group left empty goes. */
+const shownGroups = () =>
+  GROUPS.map((g) => ({
+    ...g,
+    keys: remote ? g.keys.filter((k) => SHOWN_ON_CORE.includes(k)) : g.keys,
+  })).filter((g) => g.keys.length > 0)
 
 /**
  * The Connections page (`/brand/connections`): every account and tool the brand in the header
@@ -70,7 +77,7 @@ export function ConnectionsPage() {
           Connections
         </h1>
 
-        {GROUPS.map((g) => (
+        {shownGroups().map((g) => (
           <section key={g.label} aria-label={g.label} className="flex flex-col gap-3">
             <h2 className={`${EYEBROW} px-1`}>{g.label}</h2>
             <ul className="flex flex-col rounded-[18px] bg-page shadow-[0_0_0_1px_var(--line)]">
