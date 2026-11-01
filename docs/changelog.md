@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.54.0** — 2026-11-01 — `design/phone-calendar`: the app's address shows a public home page to a visitor with no sign-in (what brand base is, how it uses TikTok, Sign in, Terms and Privacy in the header), for TikTok's app review; TikTok shows again on the live Connections page. 1294 tests (259 skipped without a Postgres server).
 - **2.53.4** — 2026-11-01 — `design/phone-calendar`: a story's photo sits in the middle of its ring, on the phone calendar and on Posted. 1292 tests (259 skipped without a Postgres server).
 - **2.53.3** — 2026-11-01 — `design/phone-calendar`: a reload keeps the brand that was open (kept in the browser; the account's first brand when it no longer reaches it). The live app hides what is not ready: Connections lists Instagram, Facebook and Pinterest only, and the moodboard offers Pinterest only (TikTok, Instagram DMs, Google Drive, Lark and the Insights sources stay in the code, listed in the handoff doc's "Hidden until ready"). The moodboard's source buttons lift on hover. The brand menu's logos are one size, cropped inside their rim, each with a fine ring. No pack change, no migration. 1292 tests (259 skipped without a Postgres server).
 - **2.53.2** — 2026-11-01 — `design/phone-calendar`: the moodboard's drawn cards are bolder and each its own shape: a terracotta quarter circle under an ochre sun, a solid green arch, blue bands cut by a white disc, a lavender four-petal flower, each with the logo's dot or ring. Same colours as 2.53.1. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
@@ -112,6 +113,32 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.54.0 — 2026-11-01
+
+- **Why.** TikTok did not approve the app: the Website URL `https://branding.missionsystems.ai/`
+  opened the sign-in page, and TikTok wants "an externally facing fully developed website" with
+  the Terms and Privacy links in view. The URL stays (it is the only verified URL property, and
+  the redirect, Terms and Privacy are on it); the page behind it changes.
+- **Home page.** `components/welcome.tsx`: the logo, Terms and Privacy in the header, the drawn
+  cards, "Plan, make and post for every brand", one line on what brand base is, Sign in, three
+  parts (calendar, moodboard, drafts to TikTok), "How brand base works with TikTok" in three
+  steps, the disconnect line from the privacy policy, and the contact address. `RemoteSync`
+  shows it at `/` to a browser with no session; every other page still goes to sign-in. The
+  session is read in the browser only (`useSyncExternalStore`), so the server's first render is
+  the loading dots for everyone. The legal pages' "brand base" now links to `/`.
+- **Terms, Privacy and the TikTok card.** An independent review read the site as TikTok's
+  reviewer. Terms and Privacy now say that for TikTok brand base only sends a video to the
+  account's inbox as a draft and shows its name and picture, and does not post or read videos (the
+  general lines said it publishes and reads). "Last updated" is 1 November 2026. After a send, the
+  card says it can take a few minutes and to open the notification in TikTok. The site's
+  description no longer names Casa Vostra. The home page shows a picture of the week calendar
+  (`public/home/calendar.webp`, from the demo).
+- **TikTok on Connections.** `SHOWN_ON_CORE` takes `tt` again: the review's demo video connects
+  TikTok on the live site, and the reviewers look for it there. The handoff doc says so.
+- **Tests.** The home page for a visitor with no session (Terms, Privacy and Sign in links, no
+  account load, no redirect); a visitor on another page still goes to sign-in; Connections on the
+  core lists TikTok; a signed-in visitor never sees the home page. 1294 tests (259 skipped without a Postgres server).
 
 ## 2.53.4 — 2026-11-01
 

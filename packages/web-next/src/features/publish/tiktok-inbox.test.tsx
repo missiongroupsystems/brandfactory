@@ -68,7 +68,9 @@ describe('Send to TikTok inbox', () => {
     answer.value = { postId: 'p1', status: 'sent', reason: null, updatedAt: 'x' }
     fireEvent.click(screen.getByRole('button', { name: 'Send to TikTok inbox' }))
     expect(
-      await screen.findByText('Sent to your TikTok inbox. Open TikTok to post it.'),
+      await screen.findByText(
+        'Sent to your TikTok inbox. It can take a few minutes to show. Open the notification in TikTok to finish and post it.',
+      ),
     ).toBeInTheDocument()
     expect(requests).toEqual(['POST /brands/casa/posts/p1/tiktok'])
     expect(screen.queryByRole('button', { name: 'Send to TikTok inbox' })).toBeNull()

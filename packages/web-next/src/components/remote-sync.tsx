@@ -19,6 +19,7 @@ import { PUBLIC_PATHS } from './legal'
 import { LoadingDots } from './loading-dots'
 import { NoCompany } from './no-company'
 import { SetPassword } from './set-password'
+import { Welcome } from './welcome'
 
 type State = 'loading' | 'password' | 'ready' | 'waiting'
 
@@ -26,8 +27,9 @@ type State = 'loading' | 'password' | 'ready' | 'waiting'
  * With the server on: the team's pages wait for the brands to load, a visit without a session
  * goes to sign-in, a first sign-in sets a password before anything else, a signed-in person the
  * core knows in no company sees that one page, and the data reloads when the tab comes back into
- * view. A refused change shows a short line at the bottom. The static demo, the guest share page
- * and the sign-in page pass straight through.
+ * view. A visit to the app's address with no session sees the public home page (`Welcome`). A
+ * refused change shows a short line at the bottom. The static demo, the guest share page and the
+ * sign-in page pass straight through.
  */
 export function RemoteSync({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -35,6 +37,13 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
   // The sign-in page, the terms and the privacy policy open with no sign-in, as do share links.
   const open = !remote || pathname.startsWith('/share') || PUBLIC_PATHS.includes(pathname)
   const [state, setState] = React.useState<State>('loading')
+  // The session lives in the browser: the server renders the loading dots, the browser decides.
+  const inBrowser = React.useSyncExternalStore(
+    noChange,
+    () => true,
+    () => false,
+  )
+  const home = !open && pathname === '/' && inBrowser && !signedIn()
   const [problem, setProblem] = React.useState<string | null>(null)
 
   // Back on sign-in (a link, the address bar), whoever signs in next loads afresh: nothing of the
@@ -55,7 +64,8 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (open || state !== 'loading') return
     if (!signedIn()) {
-      router.replace('/sign-in')
+      // The app's address shows the public home page instead (`home`).
+      if (pathname !== '/') router.replace('/sign-in')
       return
     }
     // A first sign-in sets a password first. Loaded: the app, or the waiting page for an
@@ -67,7 +77,7 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
       if (noAccess(err)) setState('waiting')
       else router.replace('/sign-in')
     })
-  }, [open, state, router])
+  }, [open, state, router, pathname])
 
   // Back to the tab: what others changed meanwhile comes in, after this tab's own changes land.
   // A person who was waiting and has been added since comes through to the app.
@@ -90,7 +100,9 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {open || state === 'ready' ? (
+      {home ? (
+        <Welcome />
+      ) : open || state === 'ready' ? (
         children
       ) : state === 'password' ? (
         <SetPassword onDone={load} onSignOut={leave} />
@@ -112,3 +124,5 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
     </>
   )
 }
+
+const noChange = () => () => {}

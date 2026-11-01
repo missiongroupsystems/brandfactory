@@ -55,12 +55,13 @@ describe('Connections on the core', () => {
         ],
       }),
     )
-    // TikTok, Google Drive, Lark and the Insights sources are hidden until they are ready.
-    for (const name of ['TikTok', 'Google Drive', 'Lark calendar', 'Website', 'Bookings']) {
+    // Google Drive, Lark and the Insights sources are hidden until they are ready.
+    for (const name of ['Google Drive', 'Lark calendar', 'Website', 'Bookings']) {
       expect(screen.queryByText(name, { selector: 'span' })).toBeNull()
     }
     // What shows and is not set up on the server waits, even one stored as connected.
-    for (const name of ['Instagram', 'Facebook', 'Pinterest']) {
+    // TikTok shows for its review: TikTok's reviewers connect it on the live site.
+    for (const name of ['Instagram', 'Facebook', 'TikTok', 'Pinterest']) {
       const r = row(name)
       expect(within(r).getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
       expect(within(r).getByRole('tooltip')).toHaveTextContent(`${name} isn’t connected yet.`)

@@ -79,7 +79,7 @@ export function TikTokInbox({ post }: { post: Post }) {
     : busy
       ? 'Sending to TikTok…'
       : send?.status === 'sent'
-        ? 'Sent to your TikTok inbox. Open TikTok to post it.'
+        ? 'Sent to your TikTok inbox. It can take a few minutes to show. Open the notification in TikTok to finish and post it.'
         : send?.status === 'failed'
           ? (send.reason ?? 'TikTok did not take the video. Try again.')
           : `Sends the video to ${account.name}’s TikTok inbox as a draft. Your team finishes the post in the TikTok app.`

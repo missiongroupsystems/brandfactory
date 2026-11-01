@@ -126,15 +126,16 @@ The live app shows only what works end to end. The rest stays in the code, built
 is hidden on the core (the static demo still shows it all). Two lists in
 `packages/web-next/src/features/connections/not-available.tsx` decide it:
 
-- `SHOWN_ON_CORE` = Instagram, Facebook (publishing through Make) and Pinterest. Hidden on
-  Connections: TikTok (upload only, `tiktok.ts`; its app is not yet approved by TikTok), Google
-  Drive, Lark calendar, and the Insights sources (Website, Google Business Profile, Bookings).
+- `SHOWN_ON_CORE` = Instagram, Facebook (publishing through Make), TikTok and Pinterest. TikTok
+  (upload only, `tiktok.ts`) came back in 2.54.0: its app review needs the connect flow on the
+  live site. Hidden on Connections: Google Drive, Lark calendar, and the Insights sources
+  (Website, Google Business Profile, Bookings).
 - `MOOD_SOURCES_ON_CORE` = Pinterest. Hidden on the moodboard's "Bring in your moodboard":
   Instagram DMs (`@mission.moodboards` with the brand's hashtag) and TikTok.
 
 To bring one back, add its key to the list once its service works on the server, and check the
 tests that name it (`connections-remote.test.tsx`, `pinterest-remote.test.tsx`,
-`moodboard-fan-remote.test.tsx`; `tiktok-remote.test.tsx` already shows TikTok through a mock).
+`moodboard-fan-remote.test.tsx`).
 Before 2.53.3 these rows showed with an amber "Unavailable" pill and a one-line reason; that
 pill still shows for a listed service the server has not set up.
 

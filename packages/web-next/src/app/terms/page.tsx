@@ -26,10 +26,16 @@ export default function Page() {
         <h2>Connected social accounts</h2>
         <p>
           A brand&rsquo;s Instagram, TikTok, Facebook or other account is connected only by someone
-          allowed to manage it. brand base then publishes only what a person on the team has
-          scheduled or approved, and, once the account is connected, reads what planning needs from
-          it, such as its posts and their counts. You can disconnect an account at any time in
-          Connections.
+          allowed to manage it. Except on TikTok (below), brand base then publishes only what a
+          person on the team has scheduled or approved, and, once the account is connected, reads
+          what planning needs from it, such as its posts and their counts. You can disconnect an
+          account at any time in Connections.
+        </p>
+        <p>
+          For TikTok, brand base only sends a video to the connected account&rsquo;s TikTok inbox as
+          a draft, and shows the account&rsquo;s name and picture. It does not post to TikTok and
+          does not read the account&rsquo;s videos. The creator finishes and posts the draft in the
+          TikTok app.
         </p>
       </section>
       <section>

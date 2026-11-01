@@ -207,7 +207,7 @@ describe('a board read on its way', () => {
 })
 
 describe('Connections on the core with Pinterest set up', () => {
-  it('offers a real Connect for Pinterest only; Instagram and Facebook stay not available', async () => {
+  it('offers a real Connect for Pinterest only; Instagram, Facebook and TikTok stay not available', async () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { ...window.location, assign })
     answers['/brands/casa-vostra/pinterest/connect'] = { url: 'https://www.pinterest.com/oauth/?x' }
@@ -226,11 +226,10 @@ describe('Connections on the core with Pinterest set up', () => {
       }),
     )
     const row = (name: string) => screen.getByText(name, { selector: 'span' }).closest('li')!
-    for (const name of ['Instagram', 'Facebook']) {
+    // TikTok shows on the live app for its review; this server has not set it up.
+    for (const name of ['Instagram', 'Facebook', 'TikTok']) {
       expect(within(row(name)).getByRole('button', { name: 'Unavailable' })).toBeVisible()
     }
-    // TikTok is hidden on the live app until its app is approved.
-    expect(screen.queryByText('TikTok', { selector: 'span' })).toBeNull()
     const pinterest = row('Pinterest')
     expect(within(pinterest).queryByRole('button', { name: 'Unavailable' })).toBeNull()
     // No pretend sheet: the browser leaves for Pinterest's own sign-in.

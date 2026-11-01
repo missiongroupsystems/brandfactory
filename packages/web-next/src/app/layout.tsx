@@ -27,7 +27,7 @@ const mono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'brand base',
-  description: 'Plan, make and publish for Casa Vostra.',
+  description: 'Plan, make and post social media for every restaurant brand, on one calendar.',
 }
 
 // The page runs under a phone's home bar; the tab bar pads itself clear of it.

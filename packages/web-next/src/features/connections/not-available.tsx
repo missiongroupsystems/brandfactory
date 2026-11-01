@@ -27,13 +27,14 @@ export const NOT_SET_UP = [
 
 /**
  * What the live app shows at all, until the rest is ready: Instagram and Facebook publishing
- * (through Make, once the server has it) and Pinterest on the moodboard. TikTok (its app is not
- * approved), Instagram DMs and TikTok on the moodboard, Google Drive, Lark and the Insights
- * sources are hidden on the core, not shown as "Unavailable"; the static demo shows them all.
+ * (through Make, once the server has it), TikTok's upload to the inbox (its app review needs it on
+ * the live site) and Pinterest on the moodboard. Instagram DMs and TikTok on the moodboard, Google
+ * Drive, Lark and the Insights sources are hidden on the core, not shown as "Unavailable"; the
+ * static demo shows them all.
  * To bring one back, add it here (docs/executing/brandbase-backend-handoff.md, "Hidden until
  * ready").
  */
-export const SHOWN_ON_CORE: readonly string[] = ['ig', 'fb', 'pinterest']
+export const SHOWN_ON_CORE: readonly string[] = ['ig', 'fb', 'tt', 'pinterest']
 
 /** The moodboard's sources the live app offers: Pinterest alone, until the others are ready. */
 export const MOOD_SOURCES_ON_CORE: readonly string[] = ['pinterest']

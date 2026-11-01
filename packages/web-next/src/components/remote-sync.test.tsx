@@ -15,10 +15,10 @@ const remote = vi.hoisted(() => ({
   sessionEmail: vi.fn(() => 'nat@missiongroup.com'),
 }))
 vi.mock('@/lib/remote', () => remote)
-const nav = vi.hoisted(() => ({ path: '/' }))
+const nav = vi.hoisted(() => ({ path: '/', replace: vi.fn() }))
 vi.mock('next/navigation', () => ({
   usePathname: () => nav.path,
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: nav.replace }),
 }))
 
 import { RemoteSync } from './remote-sync'
@@ -51,6 +51,31 @@ describe('RemoteSync', () => {
     expect(remote.loadAll).not.toHaveBeenCalled()
   })
 
+  it("shows a visitor with no sign-in a public home page at the app's address, for TikTok", () => {
+    remote.signedIn.mockReturnValue(false)
+    render(tree())
+    expect(
+      screen.getByRole('heading', { name: 'Plan, make and post for every brand' }),
+    ).toBeInTheDocument()
+    // The reviewers reach the terms, the privacy policy and sign-in from it, with no account.
+    expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/sign-in')
+    expect(screen.queryByText('the app')).not.toBeInTheDocument()
+    expect(nav.replace).not.toHaveBeenCalled()
+    expect(remote.loadAll).not.toHaveBeenCalled()
+  })
+
+  it('sends a visitor with no sign-in on any other page to sign-in', () => {
+    remote.signedIn.mockReturnValue(false)
+    nav.path = '/ideate'
+    render(tree())
+    expect(nav.replace).toHaveBeenCalledWith('/sign-in')
+    expect(
+      screen.queryByRole('heading', { name: 'Plan, make and post for every brand' }),
+    ).toBeNull()
+  })
+
   it('asks a first sign-in for a password before anything loads', async () => {
     remote.needsPassword.mockReturnValue(true)
     render(tree())
@@ -66,6 +91,10 @@ describe('RemoteSync', () => {
     expect(await screen.findByText('the app')).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: 'Loading' })).not.toBeInTheDocument()
     expect(passwordScreen()).not.toBeInTheDocument()
+    // A person signed in never sees the public home page at the app's address.
+    expect(
+      screen.queryByRole('heading', { name: 'Plan, make and post for every brand' }),
+    ).toBeNull()
   })
 
   it('shows the waiting page for an account in no company', async () => {
