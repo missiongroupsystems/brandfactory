@@ -46,7 +46,7 @@ export function PostPage({
       {/* A post is a task: on a phone it is one white screen, with a back link and no header. */}
       {/* The wrapper is the header's height, so it is the one that stays at the top. */}
       <div className="max-md:hidden md:sticky md:top-0 md:z-40">
-        <AppHeader section={posted ? '/insights' : undefined} tinted />
+        <AppHeader section={posted ? '/feed' : undefined} tinted />
       </div>
       <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(140px+env(safe-area-inset-bottom))]">
         <div className="pb-5 max-md:pb-4">

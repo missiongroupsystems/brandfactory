@@ -302,6 +302,8 @@ describe('counts', () => {
       { label: 'story', value: 1 },
     ])
     expect(figuresOf(sum, 'fb').map((f) => f.label)).toEqual(['posts'])
+    // A phone leaves the stories out: its rings show them, and the line must stay one line.
+    expect(figuresOf(sum, 'ig', true).map((f) => f.label)).toEqual(['posts'])
   })
 
   it('leave out a figure that is 0: no "0 stories", no "0 posts"', () => {

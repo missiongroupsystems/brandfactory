@@ -5,6 +5,7 @@ import * as React from 'react'
 import { PlusIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
+import { useMenu } from '@/components/use-menu'
 import type { Format } from '@/data/demo'
 import { useConnections } from '@/features/connections/connections-store'
 import { FORMAT_LABEL } from '@/features/publish/model'
@@ -15,7 +16,7 @@ import { useBrand } from './posts-store'
 
 const FORMATS: Format[] = ['carousel', 'reel', 'story']
 const ROW =
-  'flex h-9 items-center gap-3 rounded-[8px] px-2.5 text-left text-[13px] transition-colors hover:bg-surface max-md:h-10 max-md:text-[14px]'
+  'flex h-9 items-center gap-3 rounded-[8px] px-2.5 text-left text-[13px] transition-colors outline-none hover:bg-surface focus-visible:bg-surface max-md:h-10 max-md:text-[14px]'
 
 /**
  * The one strong button, "New": a menu of what to make, a post, a reel or a story, each with
@@ -39,21 +40,11 @@ export function NewMenu({
   const [shoot, setShoot] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
 
-  React.useEffect(() => {
-    if (!open) return
-    function onPointer(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  useMenu(
+    open,
+    React.useCallback(() => setOpen(false), []),
+    root,
+  )
 
   const pick = (format: Format) => {
     setOpen(false)

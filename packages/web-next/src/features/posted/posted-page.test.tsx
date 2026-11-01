@@ -41,7 +41,7 @@ describe('the feed in the static demo', () => {
     // Nothing is linked in the demo: the brand's name, never a handle it may not own there.
     // A heading under Insights' own title, never a second h1.
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(/^Casa Vostra$/)
-    expect(platform()).toHaveTextContent('Instagram')
+    expect(platform()).toHaveAccessibleName('Instagram')
     // The morning's stories (from 09:00 on 6 Oct, the demo's today) are up; the 5th's have gone.
     expect(rings().map((r) => r.getAttribute('aria-label'))).toEqual([
       expect.stringMatching(/^Story · \d frames · Today · Live, \d+ h left$/),
@@ -63,11 +63,11 @@ describe('the feed in the static demo', () => {
       'href',
       expect.stringMatching(/^\/post\/casa-vostra-archive-\d+\?posted=ig$/),
     )
-    // "as of" once, beside the totals, never repeated on each post.
-    expect(screen.getAllByText(/as of/)).toHaveLength(1)
-    expect(screen.getByText('as of 6 Oct').parentElement).toHaveAttribute(
+    // When the totals were read is on their hover only, never written on the page or a post.
+    expect(screen.queryAllByText(/as of/)).toEqual([])
+    expect(screen.getByText('posts').parentElement).toHaveAttribute(
       'title',
-      expect.stringMatching(/^Last 30 days/),
+      expect.stringMatching(/^Last 30 days.*as of 6 Oct$/),
     )
   })
 
@@ -126,7 +126,7 @@ describe('the feed in the static demo', () => {
   it('switches platform from the pills, tells its page which, and shows no Instagram numbers on Facebook', () => {
     open()
     fireEvent.click(screen.getAllByRole('radio', { name: /Facebook/ })[0]!)
-    expect(platform()).toHaveTextContent('Facebook')
+    expect(platform()).toHaveAccessibleName('Facebook')
     // The page keeps the platform in the address, so a post's way back lands on it.
     expect(onPick).toHaveBeenCalledWith('fb')
     // The archive's carousels also went to Facebook; their counts are Instagram's, so none show.
@@ -137,6 +137,6 @@ describe('the feed in the static demo', () => {
 
   it('opens on the platform the address names', () => {
     open('tt')
-    expect(platform()).toHaveTextContent('TikTok')
+    expect(platform()).toHaveAccessibleName('TikTok')
   })
 })

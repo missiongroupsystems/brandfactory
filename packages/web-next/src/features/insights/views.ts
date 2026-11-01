@@ -1,18 +1,21 @@
 import { type Platform, PLATFORMS } from '@/features/posted/model'
 
 /**
- * The Insights page's views and their addresses, with no `'use client'`: the routes read them on
+ * The Feed page's views and their addresses, with no `'use client'`: the routes read them on
  * the server, where a client module's exports are references, not values.
  */
 export type InsightsView = 'overview' | 'sentiment' | 'creators' | 'feed'
 export const INSIGHTS_VIEWS: InsightsView[] = ['overview', 'sentiment', 'creators', 'feed']
 
-/** The address of a view: `/insights`, `/insights?view=feed&on=fb`. */
+/**
+ * The address of a view: the feed is the plain address, `/feed` or `/feed?on=fb`; a row
+ * folded open names itself, `/feed?view=sentiment&on=fb`.
+ */
 export function insightsUrl(view: InsightsView, on?: Platform): string {
   const q = new URLSearchParams()
-  if (view !== 'overview') q.set('view', view)
-  if (view === 'feed' && on) q.set('on', on)
-  return q.size ? `/insights?${q}` : '/insights'
+  if (view !== 'feed') q.set('view', view)
+  if (on) q.set('on', on)
+  return q.size ? `/feed?${q}` : '/feed'
 }
 
 /** The view and the feed's platform an address names; either is undefined where it names none. */

@@ -12,10 +12,12 @@ import {
   ChevronIcon,
   CloseIcon,
   CropIcon,
+  PencilIcon,
   PlusIcon,
   SparkIcon,
+  UploadIcon,
 } from '@/components/icons'
-import { fromFile, isVideo, Media } from '@/components/media'
+import { fromFile, isVideo } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { Combobox, useMention, type Suggestion } from '@/components/suggest'
@@ -29,7 +31,7 @@ import { brandToday, dayOf, storyTaken, tooSoon } from '@/features/schedule/move
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { NotAvailable } from '@/features/connections/not-available'
-import { editIdea, ideaIdOfHook, useIdeas } from '@/features/ideate/ideas-store'
+import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
 import { demoOf, newId, quietly, remote, report, request, sent } from '@/lib/remote'
@@ -174,8 +176,6 @@ export function Composer({
     brand,
     weeks,
     captions,
-    library,
-    ideas,
     byId,
     planPost,
     reschedule,
@@ -343,7 +343,7 @@ export function Composer({
     if (!formatChosen && media.length > 0) update({ format: formatOf(media) })
   }, [formatChosen, media, update])
   /**
-   * Media added from the picker, a drop, the library or Drive, in order. What the post holds
+   * Media added from the picker, a drop, an idea or Drive, in order. What the post holds
    * stays; the new ones come in as far as the format's limit allows, and a line says what was
    * left out. A chosen Reel takes the last video of the add and keeps its own against photos.
    */
@@ -386,8 +386,6 @@ export function Composer({
     const dropped = await Promise.all(picked.map(fromFile))
     addMedia(dropped.map((d) => shotOf(d.src)))
   }
-  // The idea a new post started from, so the calendar swaps that idea's tile for the post.
-  const [ideaHook, setIdeaHook] = React.useState<string | null>(null)
   // A post off the calendar's weeks is shown, not changed. A posted one has its own view below.
   const readOnly = Boolean(post && !dayOf(weeks, post.id))
   const [details, setDetails] = React.useState(
@@ -532,9 +530,8 @@ export function Composer({
 
   /** The words a new post is known by on the calendar. */
   const newHook = () =>
-    ideaHook ??
-    ((draft.format !== 'story' && draft.caption.split(/[.!?\n]/)[0]?.trim()) ||
-      (draft.format === 'story' ? 'New story' : 'New post'))
+    (draft.format !== 'story' && draft.caption.split(/[.!?\n]/)[0]?.trim()) ||
+    (draft.format === 'story' ? 'New story' : 'New post')
 
   /**
    * The server's side of a save or a send, in order: the post is made or moved, everything the
@@ -573,22 +570,12 @@ export function Composer({
     }
     return sent(b, async () => {
       if (isNew) {
-        const ideaId = ideaHook ? ideaIdOfHook(b, ideaHook) : undefined
-        if (ideaId) {
-          await request('POST', `/brands/${b}/ideas/${ideaId}/plan`, {
-            postId: id,
-            day,
-            time,
-            stage: 'draft',
-          })
-        } else {
-          await request('POST', `/brands/${b}/posts`, {
-            id,
-            format: draft.format,
-            hook: newHook(),
-            ...(send !== 'now' && { day, time }),
-          })
-        }
+        await request('POST', `/brands/${b}/posts`, {
+          id,
+          format: draft.format,
+          hook: newHook(),
+          ...(send !== 'now' && { day, time }),
+        })
       } else if (send === 'slot' || (send === null && moved)) {
         // A plain save that keeps the day and the time is a PATCH alone, not a move.
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
@@ -704,9 +691,8 @@ export function Composer({
   const unsaveable = readOnly || (remote && post?.stage === 'scheduled' && active.length === 0)
 
   // A new post with no media and no caption has nothing to keep.
-  // A Story may be kept as a draft with nothing in it (it is scheduled only with media), and an
-  // idea's words count.
-  const empty = !post && !story && !ideaHook && media.length === 0 && draft.caption.trim() === ''
+  // A Story may be kept as a draft with nothing in it (it is scheduled only with media).
+  const empty = !post && !story && media.length === 0 && draft.caption.trim() === ''
 
   /** The accounts a new post went to, for the next one. A Story's (Instagram only) are not. */
   function remember() {
@@ -979,7 +965,7 @@ export function Composer({
     },
   }
   const whenText = when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`
-  const moreText = moreSummary(draft, details, labels, media)
+  const moreText = moreSummary(draft, labels, media)
   const moreNeeds = active.some((c) => summaryOf(draft, extra)[c.key].needs)
 
   return (
@@ -1062,6 +1048,9 @@ export function Composer({
 
       <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 max-md:gap-7">
+          <div className="max-md:hidden">
+            <Accounts api={api} sends={sends} saved={post ? channelsOf(post) : []} />
+          </div>
           <Content
             api={api}
             media={media}
@@ -1070,13 +1059,23 @@ export function Composer({
             addMedia={addMedia}
             leftOut={leftOut}
             room={room}
-            library={library}
-            ideas={post ? [] : ideas.filter((i) => !i.postId || !byId(i.postId))}
-            onIdea={setIdeaHook}
             pickFormat={pickFormat}
             formatLocked={post !== undefined}
             perAccountAsked={perAccountAsked}
           />
+          {/* What a post often changes stays in view; the rest folds into More options. */}
+          <KeyDetails>
+            <Details
+              api={api}
+              details={details}
+              setDetails={setDetails}
+              labels={labels}
+              setLabels={setLabels}
+              media={media}
+              setMedia={setMedia}
+              part="main"
+            />
+          </KeyDetails>
           {/* The phone's list: every other card as a row that says its answer and opens it. */}
           <div className="flex flex-col border-t border-(--cal-line) md:hidden">
             <Row
@@ -1120,41 +1119,9 @@ export function Composer({
               {more}
             </MoreCard>
           </div>
-          {/* The lines that send: where the post goes and when, then the one button. They stay
-                at the foot of the window while the page is taller than it. */}
-          {/* No rule on top: stuck over the card, a fade from the page's colour hides its edge
-              instead of a line drawn across it. */}
-          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 bg-surface-2 px-1 pt-3 pb-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-surface-2 before:to-transparent max-md:hidden">
-            <div className="flex flex-wrap items-center gap-2 px-1">
-              <Accounts api={api} sends={sends} saved={post ? channelsOf(post) : []} />
-              <span className="ml-auto">
-                <WhenField when={when} date={date} time={time} setWhen={setWhen}>
-                  {(close) => (
-                    <WhenCard
-                      when={when}
-                      date={date}
-                      setDate={setDate}
-                      time={time}
-                      setTime={setTime}
-                      onDone={close}
-                      freeDay={freeDay}
-                    />
-                  )}
-                </WhenField>
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-4 px-1">
-              <div
-                aria-live="polite"
-                className="flex min-h-10 flex-col justify-center gap-1 text-[13px] text-ink-3"
-              >
-                {hint(true)}
-              </div>
-              <span className="flex shrink-0 items-center gap-2">{actions}</span>
-            </div>
-          </div>
         </div>
-        <div className="sticky top-[calc(var(--header)+24px)] max-lg:static max-md:hidden">
+        {/* The send sits under the preview and stays in view with it, as 2.46.0 had it. */}
+        <div className="sticky top-[calc(var(--header)+24px)] flex flex-col gap-3 max-lg:static max-md:hidden">
           <Preview
             api={api}
             media={media}
@@ -1163,6 +1130,23 @@ export function Composer({
             counts={counts}
             self={post?.id}
           />
+          {/* The demo can post at once: then there is no day or hour to pick. */}
+          {when === 'schedule' && (
+            <WhenPanel
+              date={date}
+              setDate={setDate}
+              time={time}
+              setTime={setTime}
+              freeDay={freeDay}
+            />
+          )}
+          <div className="flex items-center justify-end gap-2">{actions}</div>
+          <div
+            aria-live="polite"
+            className="flex min-h-[18px] flex-col gap-1 px-1 text-[13px] text-ink-3"
+          >
+            {hint(true)}
+          </div>
         </div>
       </div>
       {sheet && inSheet[sheet] && (
@@ -1414,9 +1398,6 @@ function Content({
   media,
   setMedia,
   onFiles,
-  library,
-  ideas,
-  onIdea,
   pickFormat,
   formatLocked,
   addMedia,
@@ -1433,9 +1414,6 @@ function Content({
   leftOut: string | null
   /** How many more the post takes. */
   room: number
-  library: string[]
-  ideas: Array<{ hook: string; format: Exclude<Format, 'story'> }>
-  onIdea: (hook: string) => void
   pickFormat: (format: Format) => void
   /** An existing post: its format shows as words, since a save keeps the format it has. */
   formatLocked: boolean
@@ -1581,32 +1559,6 @@ function Content({
 
   return (
     <section aria-label="Content" className={CARD}>
-      {/* With no media there is nothing to post yet, so an idea is still on offer, caption or not:
-          an idea fills the caption, and its photo's X must not take the ideas away with it. */}
-      {ideas.length > 0 && media.length === 0 && (
-        <div className="flex flex-col gap-2">
-          <div className={`flex flex-wrap gap-1.5 ${STRIP}`}>
-            {ideas.slice(0, 4).map((idea) => (
-              <button
-                key={idea.hook}
-                type="button"
-                onClick={() => {
-                  // The idea's format first: the photo it brings must not change it.
-                  pickFormat(idea.format)
-                  update({ caption: idea.hook })
-                  onIdea(idea.hook)
-                  setMedia(library.slice(0, 1).map(shotOf))
-                }}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[14px]"
-              >
-                <SparkIcon size={9} />
-                {idea.hook}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
           {formatLocked ? (
@@ -1708,27 +1660,31 @@ function Content({
               </span>
             )
           })}
-          {room > 0 && (
-            // What the format takes is on the tile's tooltip, not printed over the card. With no
-            // media yet the tile is the whole strip: one wide place to drop a file on.
+          {room > 0 && media.length === 0 && (
+            <EmptyDrop
+              rule={MEDIA_RULE[draft.format]}
+              onUpload={() => input.current?.click()}
+              onDrive={() => (driveLinked ? setDriveOpen(true) : setLinkingDrive(true))}
+            />
+          )}
+          {room > 0 && media.length > 0 && (
+            // What the format takes is on the tile's tooltip, not printed over the card.
             <span
               title={MEDIA_RULE[draft.format]}
-              className={`flex h-[132px] shrink-0 overflow-hidden rounded-[12px] border border-dashed border-(--cal-ghost) text-[13px] text-ink-3 ${media.length === 0 ? 'w-full flex-row items-center justify-center gap-2 max-md:h-[112px]' : 'w-[106px] flex-col text-[12px]'}`}
+              className="flex h-[132px] w-[106px] shrink-0 flex-col divide-y divide-page overflow-hidden rounded-[12px] bg-surface-2 text-[12px] text-ink-3"
             >
               <button
                 type="button"
                 onClick={() => input.current?.click()}
-                className={`flex items-center justify-center gap-1.5 transition-colors hover:text-ink ${media.length === 0 ? 'h-9 rounded-full bg-surface px-4 font-medium text-ink-2 hover:bg-paper' : 'flex-1 flex-col gap-1 hover:bg-surface-2'}`}
+                className="flex flex-1 flex-col items-center justify-center gap-1 transition-colors hover:bg-surface hover:text-ink"
               >
                 <PlusIcon size={12} />
-                {draft.format === 'reel' && room === 1 && media.length > 0
-                  ? 'Replace video'
-                  : 'Upload'}
+                {draft.format === 'reel' && room === 1 ? 'Replace video' : 'Upload'}
               </button>
               <button
                 type="button"
                 onClick={() => (driveLinked ? setDriveOpen(true) : setLinkingDrive(true))}
-                className={`flex items-center justify-center gap-1.5 transition-colors hover:text-ink ${media.length === 0 ? 'h-9 rounded-full bg-surface px-4 font-medium text-ink-2 hover:bg-paper' : 'border-t border-dashed border-(--cal-ghost) py-2 hover:bg-surface-2'}`}
+                className="flex items-center justify-center gap-1.5 py-2 transition-colors hover:bg-surface hover:text-ink"
               >
                 <DriveGlyph />
                 Google Drive
@@ -1750,37 +1706,6 @@ function Content({
             <span className="size-1.5 shrink-0 rounded-full bg-ink" />A Reel is a video: this is a
             photo.
           </span>
-        )}
-        {/* The brand's library, in reach under the strip while the post has room for more. The
-            core has no library yet, so nothing shows there. */}
-        {library.length > 0 && room > 0 && (
-          <div className={`flex gap-2 ${STRIP}`}>
-            {library.map((src) => {
-              // A photo already in the post is marked, and a second tap takes it out again.
-              const picked = media.some((m) => m.src === src)
-              const name = src.split('/').pop()?.split('#')[0]
-              return (
-                <button
-                  key={src}
-                  type="button"
-                  aria-label={picked ? `Remove ${name}` : `Add ${name}`}
-                  aria-pressed={picked}
-                  onClick={() =>
-                    picked ? setMedia(media.filter((m) => m.src !== src)) : addMedia([shotOf(src)])
-                  }
-                  className={`relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5 ${picked ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--ink)]' : ''}`}
-                >
-                  <Media src={src} sizes="140px" />
-                  {isVideo(src) && <TypeBadge format="reel" slides={1} />}
-                  {picked && (
-                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-ink text-page">
-                      <CheckIcon size={8} strokeWidth={2.4} />
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
         )}
       </div>
 
@@ -1919,6 +1844,150 @@ function Content({
 }
 
 /** The file picker behind Upload and behind the preview's empty state; one file for a reel. */
+/**
+ * The empty media slot: the places to pick from, in one quiet line. The preview beside it is
+ * where a file is dropped.
+ */
+function EmptyDrop({
+  rule,
+  onUpload,
+  onDrive,
+}: {
+  rule: string
+  onUpload: () => void
+  onDrive: () => void
+}) {
+  const pill =
+    'flex h-9 items-center gap-1.5 rounded-full bg-surface px-4 text-[13.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-11 max-md:flex-1 max-md:justify-center max-md:text-[14px]'
+  return (
+    <div title={rule} className="flex w-full items-center gap-2">
+      <button type="button" onClick={onUpload} className={pill}>
+        <PlusIcon size={11} />
+        Upload
+      </button>
+      <button type="button" onClick={onDrive} className={pill}>
+        <DriveGlyph size={13} />
+        Google Drive
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The day and the hour under the preview, always in view: the coming week as days, the brand's
+ * hours as bars, and the time to type over. The calendar icon opens any other day.
+ */
+function WhenPanel({
+  date,
+  setDate,
+  time,
+  setTime,
+  freeDay,
+}: {
+  date: string
+  setDate: (d: string) => void
+  time: string
+  setTime: (t: string) => void
+  freeDay?: (day: string) => string
+}) {
+  const { brand, times } = useBrand()
+  const today = brandToday(brand.id)
+  const week = Array.from({ length: 7 }, (_, i) => addDays(today, i))
+  const far = !week.includes(date)
+  const bestDay = times
+    ? week.reduce((top, d) =>
+        (times.days[weekdayOf(d)] ?? 0) > (times.days[weekdayOf(top)] ?? 0) ? d : top,
+      )
+    : null
+  // The brand's best hour on the picked day: what is left of today, its usual best on any other.
+  const slot = nextSlot(brand.id, times)
+  const bestHour = times?.best ?? null
+  const best = date === today ? (slot.date === today ? slot.time : null) : bestHour
+  const calendar = (close: () => void) => (
+    <WhenCard
+      when="schedule"
+      date={date}
+      setDate={setDate}
+      time={time}
+      setTime={setTime}
+      onDone={close}
+      freeDay={freeDay}
+      dayOnly
+    />
+  )
+  return (
+    <section
+      aria-label="When"
+      className="flex flex-col gap-4 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)]"
+    >
+      <div className="flex items-center gap-1">
+        {week.map((d) => {
+          const on = d === date
+          return (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setDate(d)}
+              className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-[12px] transition-colors ${on ? 'bg-ink text-page' : 'text-ink hover:bg-surface'}`}
+            >
+              <span className={`text-[12px] ${on ? 'text-page/70' : 'text-ink-4'}`}>
+                {d === today
+                  ? 'Today'
+                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekdayOf(d)]}
+              </span>
+              <span className="text-[15px] font-medium tabular-nums">{dayNumber(d)}</span>
+              {d === bestDay && !on && (
+                <span className="absolute bottom-1.5 size-1 rounded-full bg-(--insight-5)" />
+              )}
+            </button>
+          )
+        })}
+        <WhenField
+          // A day off the strip shows here, picked, so the day set is always on the page.
+          className={`flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-[12px] transition-colors ${far ? 'bg-ink px-3 text-[13px] font-medium text-page' : 'w-9 text-ink-3 hover:bg-surface hover:text-ink'}`}
+          // Named by the day and the time it holds, as a date picker's button is.
+          ariaLabel={`${dayLabel(date)}, ${time}`}
+          label={
+            <>
+              <CalendarGlyph />
+              {far && dayLabel(date)}
+            </>
+          }
+        >
+          {calendar}
+        </WhenField>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 items-center gap-1.5 rounded-[10px] bg-page px-2.5 text-ink-4 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--ink)] hover:shadow-[inset_0_0_0_1px_var(--ink-4)]">
+          <ClockGlyph />
+          <TimeField
+            time={time}
+            setTime={setTime}
+            className="w-[42px] cursor-text bg-transparent text-[15px] font-medium text-ink tabular-nums outline-none"
+          />
+          <PencilIcon size={10} />
+        </div>
+        {best === time ? (
+          <span className="text-[13.5px] text-(--insight-6)">Best time</span>
+        ) : (
+          best && (
+            <button
+              type="button"
+              onClick={() => setTime(best)}
+              className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+            >
+              <SparkIcon size={9} />
+              Best time: {best}
+            </button>
+          )
+        )}
+      </div>
+      <DayChart date={date} time={time} setTime={setTime} bare />
+    </section>
+  )
+}
+
 function MediaInput({
   ref,
   format,
@@ -2047,6 +2116,7 @@ function Details({
   setLabels,
   media,
   setMedia,
+  part,
 }: {
   api: PublishDraftApi
   details: DetailState
@@ -2055,6 +2125,8 @@ function Details({
   setLabels: (l: string[]) => void
   media: Shot[]
   setMedia: (m: Shot[]) => void
+  /** `main`: what a post often changes, in view under the caption; `rest`: in More options. */
+  part: 'main' | 'rest'
 }) {
   const phone = usePhone()
   const { brand } = useBrand()
@@ -2077,6 +2149,9 @@ function Details({
     { key: 'tags', label: 'Tag people', to: story ? [] : for_(DETAIL_ON.tags) },
     { key: 'collab', label: 'Collaborators', to: story ? [] : for_(DETAIL_ON.collab) },
   ]
+  const MAIN: Array<keyof typeof DETAIL_ON> = ['location', 'collab']
+  const shown = rows.filter((r) => r.to.length > 0 && MAIN.includes(r.key) === (part === 'main'))
+  if (part === 'main' && shown.length === 0) return null
 
   /** Drops an account's tag from every photo. */
   function untag(handle: string) {
@@ -2148,39 +2223,41 @@ function Details({
     ),
   }
   return (
-    <section aria-label="Details" className="flex flex-col">
+    <section aria-label={part === 'main' ? 'Details' : 'More details'} className="flex flex-col">
       {/* Label beside the field on a desktop; above it on a phone. */}
       <div className="flex flex-col">
-        {rows
-          .filter((r) => r.to.length > 0)
-          .map((r) => (
-            <div
-              key={r.key}
-              className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4"
-            >
-              <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">{r.label}</span>
-              <div className="flex min-w-0 flex-col gap-1.5">{control[r.key]}</div>
+        {shown.map((r) => (
+          <div
+            key={r.key}
+            className={`grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4 ${part === 'main' ? 'last:border-b-0 last:pb-0' : ''}`}
+          >
+            <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">{r.label}</span>
+            <div className="flex min-w-0 flex-col gap-1.5">{control[r.key]}</div>
+          </div>
+        ))}
+        {part === 'rest' && (
+          <>
+            <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
+              <span className="text-[13px] max-md:text-[14px]">AI-generated label</span>
+              <span className="flex max-md:justify-end">
+                <Switch
+                  label="AI-generated label"
+                  checked={details.aiLabel}
+                  onChange={(aiLabel) => setDetails({ ...details, aiLabel })}
+                />
+              </span>
             </div>
-          ))}
-        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
-          <span className="text-[13px] max-md:text-[14px]">AI-generated label</span>
-          <span className="flex max-md:justify-end">
-            <Switch
-              label="AI-generated label"
-              checked={details.aiLabel}
-              onChange={(aiLabel) => setDetails({ ...details, aiLabel })}
-            />
-          </span>
-        </div>
-        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4">
-          <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">Labels</span>
-          <Chips
-            values={labels}
-            onChange={setLabels}
-            placeholder={remote ? '' : 'e.g. TMP_Wine, F1 weekend'}
-            options={labelsOf(brand.id)}
-          />
-        </div>
+            <div className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4">
+              <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">Labels</span>
+              <Chips
+                values={labels}
+                onChange={setLabels}
+                placeholder={remote ? '' : 'e.g. TMP_Wine, F1 weekend'}
+                options={labelsOf(brand.id)}
+              />
+            </div>
+          </>
+        )}
       </div>
       {tagging && (
         <TagEditor
@@ -2480,6 +2557,7 @@ function MoreOptions({
         setLabels={setLabels}
         media={media}
         setMedia={setMedia}
+        part="rest"
       />
       {onPerAccount && (
         <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4">
@@ -2498,6 +2576,15 @@ function MoreOptions({
       {activeChannels(api.draft).length > 0 && (
         <PerAccount api={api} extra={extra} setExtra={setExtra} />
       )}
+    </div>
+  )
+}
+
+/** The card under the caption for the details in view; none when the accounts take none. */
+function KeyDetails({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-[18px] bg-page px-6 py-5 shadow-[0_0_0_1px_var(--line)] empty:hidden max-md:rounded-none max-md:bg-transparent max-md:p-0 max-md:shadow-none">
+      {children}
     </div>
   )
 }
@@ -2545,20 +2632,12 @@ function MoreCard({
   )
 }
 
-/** What is set inside More options, in a few words: the location, the people, the labels. */
-function moreSummary(draft: Draft, details: DetailState, labels: string[], media: Shot[]) {
+/** What is set inside More options, in a few words: the people tagged, else the labels. */
+function moreSummary(draft: Draft, labels: string[], media: Shot[]) {
   const active = activeChannels(draft)
   const onIg = active.some((c) => c.key === 'ig') && draft.format !== 'story'
   const tagCount = onIg ? taggedIn(media).length : 0
-  return (
-    [
-      active.some((c) => DETAIL_ON.location.includes(c.key)) ? details.location : '',
-      tagCount > 0 ? `${tagCount} tagged` : '',
-      onIg && details.collab.length > 0 ? `with ${details.collab.join(', ')}` : '',
-    ]
-      .filter(Boolean)
-      .join(' · ') || labels.join(', ')
-  )
+  return [tagCount > 0 ? `${tagCount} tagged` : ''].filter(Boolean).join(' · ') || labels.join(', ')
 }
 
 // ── Per-account settings ─────────────────────────────────────────────────────────────────────
@@ -2939,6 +3018,7 @@ function WhenCard({
   setTime,
   onDone,
   freeDay,
+  dayOnly,
 }: {
   when: WhenChoice
   date: string
@@ -2949,6 +3029,8 @@ function WhenCard({
   onDone?: () => void
   /** The first day from a day on that the post can take: a Story steps past days with one. */
   freeDay?: (day: string) => string
+  /** Only the day: the time and its chart are on the page already, so a day picked closes it. */
+  dayOnly?: boolean
 }) {
   const { brand, times, weeks } = useBrand()
   const today = brandToday(brand.id)
@@ -3013,7 +3095,10 @@ function WhenCard({
             )
           })}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-4">
+        <div
+          hidden={dayOnly}
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-4 [&[hidden]]:hidden"
+        >
           <span className="flex items-center gap-3">
             <span className="font-display text-[22px] leading-none tracking-[-0.02em] max-md:text-[20px]">
               {dayLabel(date)}
@@ -3032,7 +3117,9 @@ function WhenCard({
             </button>
           )}
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 max-md:grid-cols-1">
+        <div
+          className={`grid gap-6 max-md:grid-cols-1 ${dayOnly ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'}`}
+        >
           <div className="flex flex-col gap-2">
             <div className="flex min-h-6 items-center justify-between">
               <span className="text-[13px] font-medium">{pages.title}</span>
@@ -3055,7 +3142,10 @@ function WhenCard({
                     type="button"
                     disabled={disabled}
                     aria-pressed={on}
-                    onClick={() => setDate(d.date)}
+                    onClick={() => {
+                      setDate(d.date)
+                      if (dayOnly) onDone?.()
+                    }}
                     className={`relative flex h-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : d.outside ? 'text-ink-4 hover:bg-surface' : 'text-ink hover:bg-surface'}`}
                   >
                     {dayNumber(d.date)}
@@ -3064,7 +3154,7 @@ function WhenCard({
               })}
             </div>
           </div>
-          <DayChart date={date} time={time} setTime={setTime} onPick={onDone} />
+          {!dayOnly && <DayChart date={date} time={time} setTime={setTime} onPick={onDone} />}
         </div>
       </Fold>
     </section>
@@ -3072,21 +3162,19 @@ function WhenCard({
 }
 
 /**
- * The date chip on the line that sends: "Fri 30 Oct, 18:00", or "Now". A click opens the day and
- * the time in a dialog over the page, Done or a click outside closes it.
+ * A button that opens the day and the time in a dialog over the page; Done or a click outside
+ * closes it.
  */
 function WhenField({
-  when,
-  date,
-  time,
-  setWhen,
   children,
+  className,
+  label,
+  ariaLabel,
 }: {
-  when: WhenChoice
-  date: string
-  time: string
-  setWhen: (w: WhenChoice) => void
   children: (close: () => void) => React.ReactNode
+  className: string
+  label: React.ReactNode
+  ariaLabel: string
 }) {
   const [open, setOpen] = React.useState(false)
   return (
@@ -3095,16 +3183,11 @@ function WhenField({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => {
-          // A post set to go now picks a day again by opening the picker.
-          if (when === 'now') setWhen('schedule')
-          setOpen(true)
-        }}
-        className="flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] transition-colors hover:bg-surface"
+        onClick={() => setOpen(true)}
+        aria-label={ariaLabel}
+        className={className}
       >
-        <CalendarGlyph />
-        {when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`}
-        <ChevronIcon size={9} />
+        {label}
       </button>
       {open && (
         <Dialog title="When" onClose={() => setOpen(false)} wide>
@@ -3321,6 +3404,15 @@ function PostMenu({
   )
 }
 
+function ClockGlyph() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="5.6" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 4.2V7l1.9 1.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function CalendarGlyph() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -3340,7 +3432,15 @@ function CalendarGlyph() {
  * typed over: "19:30", "1930" and "7.30pm" all land as 19:30; what is not a time, or is before
  * the calendar's day starts (07:00), goes back to the time it was.
  */
-function TimeField({ time, setTime }: { time: string; setTime: (t: string) => void }) {
+function TimeField({
+  time,
+  setTime,
+  className,
+}: {
+  time: string
+  setTime: (t: string) => void
+  className?: string
+}) {
   const [typed, setTyped] = React.useState<string | null>(null)
   // Escape blurs too: the blur must then drop the typed text, not keep it.
   const cancelled = React.useRef(false)
@@ -3368,7 +3468,10 @@ function TimeField({ time, setTime }: { time: string; setTime: (t: string) => vo
         }
         if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur()
       }}
-      className="h-9 w-[76px] rounded-[10px] bg-surface text-center text-[15px] font-medium tabular-nums outline-none transition-colors hover:bg-paper focus:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)] max-md:h-11 max-md:text-[16px]"
+      className={
+        className ??
+        'h-9 w-[76px] rounded-[10px] bg-surface text-center text-[15px] font-medium tabular-nums outline-none transition-colors hover:bg-paper focus:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)] max-md:h-11 max-md:text-[16px]'
+      }
     />
   )
 }
@@ -3405,12 +3508,15 @@ function DayChart({
   time,
   setTime,
   onPick,
+  bare,
 }: {
   date: string
   time: string
   setTime: (t: string) => void
   /** A bar settles the hour: the card can close. */
   onPick?: () => void
+  /** The time is shown in a field above it, so the chart draws no line of its own. */
+  bare?: boolean
 }) {
   const { brand, times } = useBrand()
   const [hover, setHover] = React.useState<number | null>(null)
@@ -3440,6 +3546,7 @@ function DayChart({
     <div className="flex flex-col gap-2">
       {/* What the bars are, until the pointer reads an hour off them. */}
       <span
+        hidden={bare}
         className={`flex min-h-6 items-center text-[13px] ${hover === peak ? 'text-(--insight-6)' : 'text-ink-3'}`}
       >
         {/* The hour picked, or the one under the pointer: the chart says the rest. */}
@@ -3544,8 +3651,9 @@ function Preview({
   const input = React.useRef<HTMLInputElement>(null)
   const channel = active.find((c) => c.key === picked)?.key ?? active[0]?.key
   const showGrid = grid && channel === 'ig' && draft.format !== 'story'
+  const empty = media.length === 0
   const phone = channel && (
-    <Phone channel={channel} scale={1.25}>
+    <Phone channel={channel} format={draft.format} scale={1.25}>
       <PhoneMock
         channel={channel}
         format={draft.format}
@@ -3574,42 +3682,78 @@ function Preview({
       aria-label="Preview"
       className="flex flex-col gap-4 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)] max-md:p-0 max-md:shadow-none"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1">
-          {active.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              aria-pressed={c.key === channel}
-              aria-label={`Preview on ${c.name}`}
-              onClick={() => setPicked(c.key)}
-              className={`flex size-8 items-center justify-center rounded-full transition-colors max-md:size-10 ${c.key === channel ? 'bg-ink text-page' : 'text-ink-3 hover:bg-page hover:text-ink'}`}
-            >
-              <PlatformLogo platform={c.key} size={13} />
-            </button>
-          ))}
-        </div>
-        {channel === 'ig' && draft.format !== 'story' && (
-          <div className={`w-[136px] ${TAP}`}>
-            <Segmented<'phone' | 'grid'>
-              label="Preview as"
-              pill
-              value={grid ? 'grid' : 'phone'}
-              onChange={(v) => setGrid(v === 'grid')}
-              options={[
-                { value: 'phone', label: 'Post' },
-                { value: 'grid', label: 'Grid' },
-              ]}
-            />
+      {/* The accounts and the phone come once there is a photo or video to show in them. */}
+      {!empty && (
+        <div className="flex min-h-9 items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1">
+            {active.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                aria-pressed={c.key === channel}
+                aria-label={`Preview on ${c.name}`}
+                onClick={() => setPicked(c.key)}
+                className={`flex size-8 items-center justify-center rounded-full transition-colors max-md:size-10 ${c.key === channel ? 'bg-ink text-page' : 'text-ink-3 hover:bg-page hover:text-ink'}`}
+              >
+                <PlatformLogo platform={c.key} size={13} />
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+          {channel === 'ig' && draft.format !== 'story' && (
+            <div className={`w-[136px] ${TAP}`}>
+              <Segmented<'phone' | 'grid'>
+                label="Preview as"
+                pill
+                value={grid ? 'grid' : 'phone'}
+                onChange={(v) => setGrid(v === 'grid')}
+                options={[
+                  { value: 'phone', label: 'Post' },
+                  { value: 'grid', label: 'Grid' },
+                ]}
+              />
+            </div>
+          )}
+        </div>
+      )}
       {!channel ? (
         <p className="py-16 text-center text-[13px] text-ink-4">
           {remote && draft.linked.length === 0
             ? 'The preview shows once an account is set up.'
             : 'Tick an account to preview it.'}
         </p>
+      ) : empty ? (
+        <DropZone onFiles={onFiles} radius={16}>
+          <button
+            type="button"
+            onClick={() => input.current?.click()}
+            className="group/drop relative flex h-[420px] w-full flex-col items-center justify-center gap-3 rounded-[16px] text-center transition-colors hover:bg-surface-2"
+          >
+            {/* A dashed edge drawn as a rect, so the dashes are round and evenly spaced. */}
+            <svg aria-hidden="true" className="absolute inset-0 size-full overflow-visible">
+              <rect
+                x="0.75"
+                y="0.75"
+                width="calc(100% - 1.5px)"
+                height="calc(100% - 1.5px)"
+                rx="15"
+                fill="none"
+                stroke="var(--line-strong)"
+                strokeWidth="1.5"
+                strokeDasharray="6 7"
+                strokeLinecap="round"
+                className="transition-[stroke] group-hover/drop:stroke-ink-4"
+              />
+            </svg>
+            <span className="flex size-11 items-center justify-center rounded-full bg-surface-2 text-ink-2 transition-transform duration-200 group-hover/drop:-translate-y-0.5">
+              <UploadIcon size={18} />
+            </span>
+            <span className="flex flex-col gap-1">
+              <span className="text-[15px] font-medium text-ink">Drag a photo or video here</span>
+              <span className="text-[13.5px] text-ink-4">or click to choose a file</span>
+            </span>
+          </button>
+          <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
+        </DropZone>
       ) : showGrid ? (
         <div
           key="grid"
@@ -3713,8 +3857,8 @@ function Outcomes({
         {keys.map((k) => {
           const o = outcomes[k]!
           return (
-            <div key={k} className="flex w-[172px] flex-col items-center gap-3">
-              <Phone channel={k} scale={1}>
+            <div key={k} className="flex w-[182px] flex-col items-center gap-3">
+              <Phone channel={k} format={draft.format} scale={1}>
                 <PhoneMock
                   channel={k}
                   format={draft.format}
@@ -3769,33 +3913,63 @@ function Outcomes({
 }
 
 /**
- * The phone frame the mocks draw into: 172px wide, as they are designed, scaled up when the room
- * allows, so the app type stays in proportion.
+ * The phone the mocks draw into: a screen 172px wide, as they are designed, under a status bar,
+ * inside a thin dark bezel, so the post sits on a screen and not at the edge of a card. Scaled
+ * up when the room allows, so the app type stays in proportion.
  */
 function Phone({
   channel,
+  format,
   scale,
   children,
 }: {
   channel: ChannelKey
+  format: Format
   scale: number
   children: React.ReactNode
 }) {
   const w = 172
   const h = (w * 16) / 9
+  const bezel = 5
+  const bar = 16
+  // The status bar takes the app's own top: white on LinkedIn and on Facebook's feed.
+  const light = channel === 'li' || (channel === 'fb' && format === 'carousel')
   return (
-    <span className="block" style={{ width: w * scale, height: h * scale }}>
+    <span
+      className="block"
+      style={{ width: (w + bezel * 2) * scale, height: (h + bar + bezel * 2) * scale }}
+    >
       <span
-        className="relative block overflow-hidden rounded-[22px] shadow-[var(--shadow-phone-up)]"
+        className="relative block rounded-[27px] bg-[#0e0e0e] shadow-[var(--shadow-phone-up),inset_0_0_0_1px_rgba(255,255,255,0.09)]"
         style={{
-          width: w,
-          height: h,
+          width: w + bezel * 2,
+          height: h + bar + bezel * 2,
+          padding: bezel,
           transform: `scale(${scale})`,
           transformOrigin: 'top left',
-          background: channel === 'li' ? 'var(--page)' : 'var(--ink)',
         }}
       >
-        {children}
+        <span
+          className="flex flex-col overflow-hidden rounded-[22px]"
+          style={{ width: w, height: h + bar, background: light ? 'var(--page)' : 'var(--ink)' }}
+        >
+          <span
+            aria-hidden="true"
+            className={`relative flex shrink-0 items-center justify-between px-[14px] text-[7px] font-semibold tabular-nums ${light ? 'text-ink' : 'text-page'}`}
+            style={{ height: bar }}
+          >
+            9:41
+            <span className="absolute top-[4px] left-1/2 h-[8px] w-[34px] -translate-x-1/2 rounded-full bg-black" />
+            <span className="flex items-center gap-[2px]">
+              <span className="h-[4px] w-[8px] rounded-[1.5px] border-[0.75px] border-current p-[0.5px]">
+                <span className="block size-full rounded-[0.5px] bg-current" />
+              </span>
+            </span>
+          </span>
+          <span className="relative block" style={{ width: w, height: h }}>
+            {children}
+          </span>
+        </span>
       </span>
     </span>
   )

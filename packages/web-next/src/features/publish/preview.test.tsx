@@ -50,7 +50,8 @@ const inBrand = (ui: React.ReactElement) => render(<BrandProvider>{ui}</BrandPro
 const reel = [shotOf(VIDEO.margherita)]
 const photos = ['/demo/crust.jpg', '/demo/pasta.jpg', '/demo/dish.jpg'].map(shotOf)
 const preview = () => screen.getByRole('region', { name: 'Preview' })
-const placeholder = () => screen.queryByRole('button', { name: 'Add a photo or video' })
+/** The empty preview: a place to drop a file, or press to pick one. */
+const placeholder = () => screen.queryByRole('button', { name: /^Drag a photo or video here/ })
 
 describe('the demo reel', () => {
   it('is a video post with the poster beside its file', () => {
@@ -270,11 +271,11 @@ describe('a post from an earlier month in the demo', () => {
 })
 
 describe('the preview before any media', () => {
-  it('shows the placeholder on a tinted surface, not a black frame, and opens the picker', () => {
+  it('shows a place to drop a file, and no phone or accounts, until there is media', () => {
     inBrand(<Composer />)
     const empty = placeholder()!
-    expect(empty).toHaveTextContent('Add a photo or video')
-    expect(empty.style.background).toContain('gradient')
+    // No phone outline and no account to switch to before there is anything to show in them.
+    expect(within(preview()).queryByRole('button', { name: /^Preview on / })).toBeNull()
     expect(preview().querySelector('video')).toBeNull()
 
     const input = preview().querySelector<HTMLInputElement>('input[type="file"]')!
@@ -283,7 +284,7 @@ describe('the preview before any media', () => {
     expect(open).toHaveBeenCalledTimes(1)
   })
 
-  it('takes files dropped on the phone, through the same path as Upload', async () => {
+  it('takes files dropped on it, through the same path as Upload', async () => {
     inBrand(<Composer />)
     const files = {
       types: ['Files'],
@@ -306,6 +307,10 @@ describe('the preview before any media', () => {
     expect(screen.queryByText('Drop to add')).toBeNull()
     await waitFor(() => expect(placeholder()).toBeNull())
     expect(preview().querySelector('img[src="blob:dropped#photo"]')).toBeInTheDocument()
+    // With media in, the accounts to preview on come back.
+    expect(
+      within(preview()).getAllByRole('button', { name: /^Preview on / }).length,
+    ).toBeGreaterThan(0)
   })
 
   it('ignores a drag that carries text, not files', () => {

@@ -28,6 +28,27 @@ const open = (compact = false) => {
 }
 
 describe('the New menu', () => {
+  it('takes the keys: the focus on the first row, Up and Down round the ends, Escape back to New', () => {
+    render(
+      <BrandProvider>
+        <NewMenu onPost={onPost} />
+      </BrandProvider>,
+    )
+    const button = screen.getByRole('button', { name: 'New' })
+    button.focus()
+    fireEvent.click(button)
+    const row = (name: string) => screen.getByRole('menuitem', { name })
+    expect(row('Post')).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    expect(row('Reel')).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'ArrowUp' })
+    fireEvent.keyDown(window, { key: 'ArrowUp' })
+    expect(row('Story')).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(button).toHaveFocus()
+  })
+
   it('offers a post, a reel or a story, each with the accounts that post it, and starts the one picked', () => {
     const menu = open()
     const rows = within(menu).getAllByRole('menuitem')
