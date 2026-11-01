@@ -13,6 +13,7 @@ import {
   CloseIcon,
   CropIcon,
   PencilIcon,
+  PhotosIcon,
   PlusIcon,
   SparkIcon,
   UploadIcon,
@@ -1845,10 +1846,7 @@ function Content({
 }
 
 /** The file picker behind Upload and behind the preview's empty state; one file for a reel. */
-/**
- * The empty media slot: the places to pick from, in one quiet line. The preview beside it is
- * where a file is dropped.
- */
+/** The empty media slot: one calm panel to drop on, with the places to pick from as links. */
 function EmptyDrop({
   rule,
   onUpload,
@@ -1858,18 +1856,30 @@ function EmptyDrop({
   onUpload: () => void
   onDrive: () => void
 }) {
-  const pill =
-    'flex h-9 items-center gap-1.5 rounded-full bg-surface px-4 text-[13.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-11 max-md:flex-1 max-md:justify-center max-md:text-[14px]'
+  const link =
+    'inline-flex items-center gap-1.5 font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink'
   return (
-    <div title={rule} className="flex w-full items-center gap-2">
-      <button type="button" onClick={onUpload} className={pill}>
-        <PlusIcon size={11} />
-        Upload
-      </button>
-      <button type="button" onClick={onDrive} className={pill}>
-        <DriveGlyph size={13} />
-        Google Drive
-      </button>
+    <div
+      title={rule}
+      className="flex h-[176px] w-full flex-col items-center justify-center gap-3 rounded-[16px] bg-surface-2 text-center max-md:h-[148px]"
+    >
+      <span className="flex size-11 items-center justify-center rounded-full bg-page text-ink-2 shadow-[0_0_0_1px_var(--line)]">
+        <PhotosIcon size={17} />
+      </span>
+      <span className="flex flex-col gap-1">
+        <span className="text-[15px] font-medium text-ink">Drop a photo or video</span>
+        <span className="flex flex-wrap items-center justify-center gap-x-2 text-[13.5px] text-ink-3">
+          or
+          <button type="button" onClick={onUpload} className={link}>
+            Upload
+          </button>
+          ·
+          <button type="button" onClick={onDrive} className={link}>
+            <DriveGlyph size={13} />
+            Google Drive
+          </button>
+        </span>
+      </span>
     </div>
   )
 }
