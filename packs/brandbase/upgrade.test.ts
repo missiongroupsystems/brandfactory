@@ -461,3 +461,62 @@ describe('migration 0024 on a 1.13.1 database', () => {
     }
   })
 })
+
+/**
+ * Migration 0025 on a 1.13.1 database with 0024: the imported brands that are there start with
+ * the accounts they were seen working with, per platform, every other brand with none. The file
+ * runs again with nothing changed, and a member of another company sees none of them.
+ */
+describe('migration 0025 on a database with 0024', () => {
+  it('seeds only the brands that exist, once, under the row rules', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0025'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co'), ('other', 'Other');
+        insert into brandbase.brands (id, name, handle, org_id) values
+          ('willow', 'Willow', '@willow.restaurant', 'co'), ('temper', 'Temper', '@temper.sg', 'co'),
+          ('carlitos', 'Carlitos', '@carlitos', 'other');
+        insert into brandbase.users (id, email, role) values
+          ('a', 'a@example.com', 'member'), ('b', 'b@example.com', 'member');
+        insert into brandbase.org_members (user_id, org_id, role) values ('a', 'co', 'member'), ('b', 'other', 'owner');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+
+      type Row = { id: string; collaborators: Record<string, string[]> }
+      const all = () =>
+        db.query('select id, collaborators from brandbase.brands order by id') as Promise<Row[]>
+      const [carlitos, temper, willow] = await all()
+      expect(carlitos!.collaborators).toEqual({})
+      // Instagram first, as the Collab posts showed them; handles in lower case, each once.
+      expect(willow!.collaborators.ig?.[0]).toBe('@nictkc')
+      expect(temper!.collaborators.ig?.[0]).toBe('@joshua_raaj')
+      for (const row of [temper!, willow!])
+        for (const list of Object.values(row.collaborators)) {
+          expect(new Set(list.map((h) => h.toLowerCase())).size).toBe(list.length)
+        }
+      expect(await everyTableHasRowRules(db)).toEqual([])
+
+      // Again, after the team changed temper's list: nothing is added twice or put back.
+      await db.exec(
+        `update brandbase.brands set collaborators = '{"ig": ["@someone"]}' where id = 'temper'`,
+      )
+      await db.exec(content.migrations.find((m) => m.name.startsWith('0025'))!.sql)
+      const again = await all()
+      expect(again[1]!.collaborators).toEqual({ ig: ['@someone'] })
+      expect(again[2]!.collaborators).toEqual(willow!.collaborators)
+      expect(await everyTableHasRowRules(db)).toEqual([])
+
+      expect(await as(db, 'b', 'select id, collaborators from brandbase.brands')).toEqual([
+        { id: 'carlitos', collaborators: {} },
+      ])
+    } finally {
+      await db.close()
+    }
+  })
+})

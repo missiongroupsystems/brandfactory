@@ -1,0 +1,26 @@
+{
+  "name": "brand.collaborator_add",
+  "description": "Saves an account the brand works with on one platform, after its others, for every member's next post: an Instagram or TikTok handle (\"@name\", taken in lower case) or a Facebook Page's name. One the brand has already on that platform, in any case, is not added twice. Answers the brand's collaborators.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform", "handle"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["ig", "tt", "fb"]
+      },
+      "handle": {
+        "type": "string",
+        "maxLength": 80,
+        "pattern": "^[^\\u0000-\\u001f\\u007f]*[A-Za-z0-9][^\\u0000-\\u001f\\u007f]*$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "update brandbase.brands b set collaborators = jsonb_set(b.collaborators, array[:platform::text], case when exists (select 1 from jsonb_array_elements_text(coalesce(b.collaborators -> :platform::text, '[]'::jsonb)) e where lower(e) = lower(h.v)) then coalesce(b.collaborators -> :platform::text, '[]'::jsonb) else coalesce(b.collaborators -> :platform::text, '[]'::jsonb) || to_jsonb(h.v) end) from (select case when :platform::text in ('ig', 'tt') then '@' || lower(regexp_replace(btrim(:handle::text), '^@+', '')) else regexp_replace(btrim(:handle::text), '\\s+', ' ', 'g') end as v) h where b.id = :brand returning jsonb_build_object('collaborators', b.collaborators) as result"
+}

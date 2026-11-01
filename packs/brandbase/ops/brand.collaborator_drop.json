@@ -1,0 +1,26 @@
+{
+  "name": "brand.collaborator_drop",
+  "description": "Removes one of the accounts the brand works with on one platform, whatever its case; one it does not have changes nothing. A post that names the account keeps it. Answers the brand's collaborators.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform", "handle"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["ig", "tt", "fb"]
+      },
+      "handle": {
+        "type": "string",
+        "maxLength": 80,
+        "pattern": "^[^\\u0000-\\u001f\\u007f]*[A-Za-z0-9][^\\u0000-\\u001f\\u007f]*$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "update brandbase.brands b set collaborators = jsonb_set(b.collaborators, array[:platform::text], coalesce((select jsonb_agg(e order by n) from jsonb_array_elements_text(coalesce(b.collaborators -> :platform::text, '[]'::jsonb)) with ordinality t (e, n) where lower(e) <> lower(h.v)), '[]'::jsonb)) from (select case when :platform::text in ('ig', 'tt') then '@' || lower(regexp_replace(btrim(:handle::text), '^@+', '')) else regexp_replace(btrim(:handle::text), '\\s+', ' ', 'g') end as v) h where b.id = :brand returning jsonb_build_object('collaborators', b.collaborators) as result"
+}
