@@ -195,7 +195,8 @@ One line each — full write-ups are under the matching `##` heading further dow
   calendar icon named by the day and time it holds that opens the month (`WhenCard dayOnly`:
   the quick picks and the month, a day closes it), the time to type over (`TimeField`, boxed,
   with a clock and a pencil) with "Best time" or a button to it, and `DayChart` bare under it.
-  Posting now (the demo) hides it.
+  Posting now (the demo) hides it. The phone's When sheet is the same panel without its card;
+  `WhenCard` is now only the month dialog, and the chart has no line or close of its own.
 - **Details.** `Details part="main"` (Location, Collaborators) is a card under the caption, on
   a phone in the page; `part="rest"` (first comment, tags, the AI label, labels) stays in More
   options, whose summary no longer repeats the location or the collaborators.

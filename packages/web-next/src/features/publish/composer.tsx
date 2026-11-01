@@ -941,14 +941,14 @@ export function Composer({
     when: {
       title: 'When',
       body: (
-        <WhenCard
-          when={when}
+        // The same day, time and hours as the desktop's panel, without its card.
+        <WhenPanel
           date={date}
           setDate={setDate}
           time={time}
           setTime={setTime}
-          onDone={closeSheet}
           freeDay={freeDay}
+          bare
         />
       ),
     },
@@ -1894,12 +1894,15 @@ function WhenPanel({
   time,
   setTime,
   freeDay,
+  bare,
 }: {
   date: string
   setDate: (d: string) => void
   time: string
   setTime: (t: string) => void
   freeDay?: (day: string) => string
+  /** In the phone's sheet: no card of its own. */
+  bare?: boolean
 }) {
   const { brand, times } = useBrand()
   const today = brandToday(brand.id)
@@ -1916,20 +1919,18 @@ function WhenPanel({
   const best = date === today ? (slot.date === today ? slot.time : null) : bestHour
   const calendar = (close: () => void) => (
     <WhenCard
-      when="schedule"
       date={date}
       setDate={setDate}
       time={time}
       setTime={setTime}
       onDone={close}
       freeDay={freeDay}
-      dayOnly
     />
   )
   return (
     <section
       aria-label="When"
-      className="flex flex-col gap-4 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)]"
+      className={`flex flex-col gap-4 ${bare ? '' : 'rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)]'}`}
     >
       <div className="flex items-center gap-1">
         {week.map((d) => {
@@ -1994,7 +1995,7 @@ function WhenPanel({
           )
         )}
       </div>
-      <DayChart date={date} time={time} setTime={setTime} bare />
+      <DayChart date={date} time={time} setTime={setTime} />
     </section>
   )
 }
@@ -3016,40 +3017,30 @@ function TikTokRows({
 // ── When ─────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The day and the time. The answer leads, in one line: the day in words and the time in a field
- * that takes any time; the brand's best time sits beside it, one click away. Under it a month of
- * the calendar picks the day, and the day's hours, scored from Insights as bars like
- * Brandwatch's, pick the hour. On a desktop it opens from the date chip; on a phone in a sheet.
+ * Any other day, opened from the When panel's calendar icon: one-click picks (today, tomorrow,
+ * the week's best day at the best time), then a month. A pick closes it.
  */
 function WhenCard({
-  when,
   date,
   setDate,
   time,
   setTime,
   onDone,
   freeDay,
-  dayOnly,
 }: {
-  when: WhenChoice
   date: string
   setDate: (d: string) => void
   time: string
   setTime: (t: string) => void
-  /** A pick that settles the day and the time at once closes the card. */
+  /** A day or a quick pick closes the card. */
   onDone?: () => void
   /** The first day from a day on that the post can take: a Story steps past days with one. */
   freeDay?: (day: string) => string
-  /** Only the day: the time and its chart are on the page already, so a day picked closes it. */
-  dayOnly?: boolean
 }) {
   const { brand, times, weeks } = useBrand()
   const today = brandToday(brand.id)
   const slot = nextSlot(brand.id, times)
   const bestHour = times?.best ?? '18:00'
-  // The best hour on the chosen day: what is left of today, the brand's best hour on any other.
-  const bestOn = date === today ? (slot.date === today ? slot.time : null) : bestHour
-  const onBest = bestOn !== null && time === bestOn
   // The common answers in one click: today, tomorrow, and the best day of the coming week. A
   // Story steps past a day that has one, and the chip names the day it lands on.
   const free = freeDay ?? ((d: string) => d)
@@ -3088,8 +3079,7 @@ function WhenCard({
   }
   return (
     <section aria-label="When" className="flex flex-col gap-4">
-      {/* The demo can publish at once: the day and the time then wait, folded away. */}
-      <Fold className="grid-cols-[minmax(0,1fr)]" open={when === 'schedule'}>
+      <div className="flex flex-col">
         <div className={`flex flex-wrap items-center gap-2 pb-4 ${STRIP}`}>
           {quick.map((q) => {
             const on = q.date === date && q.time === time
@@ -3106,68 +3096,41 @@ function WhenCard({
             )
           })}
         </div>
-        <div
-          hidden={dayOnly}
-          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-4 [&[hidden]]:hidden"
-        >
-          <span className="flex items-center gap-3">
-            <span className="font-display text-[22px] leading-none tracking-[-0.02em] max-md:text-[20px]">
-              {dayLabel(date)}
-            </span>
-            <TimeField time={time} setTime={setTime} />
-            {onBest && <span className="text-[13px] text-(--insight-6)">Best time</span>}
-          </span>
-          {bestOn !== null && !onBest && (
-            <button
-              type="button"
-              onClick={() => setTime(bestOn)}
-              className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10"
-            >
-              <SparkIcon size={9} />
-              Best time: {bestOn}
-            </button>
-          )}
-        </div>
-        <div
-          className={`grid gap-6 max-md:grid-cols-1 ${dayOnly ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'}`}
-        >
-          <div className="flex flex-col gap-2">
-            <div className="flex min-h-6 items-center justify-between">
-              <span className="text-[13px] font-medium">{pages.title}</span>
-              <MonthArrows count={pages.count} page={pages.page} setPage={setPage} />
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center">
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                <span key={i} className="text-[13px] text-ink-4">
-                  {d}
-                </span>
-              ))}
-              {pages.days.map((d) => {
-                // Today is open for a time later today; the chart greys the hours gone. Past
-                // is by the brand's own clock, as the blockers read it.
-                const disabled = d.date < today
-                const on = d.date === date
-                return (
-                  <button
-                    key={d.date}
-                    type="button"
-                    disabled={disabled}
-                    aria-pressed={on}
-                    onClick={() => {
-                      setDate(d.date)
-                      if (dayOnly) onDone?.()
-                    }}
-                    className={`relative flex h-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : d.outside ? 'text-ink-4 hover:bg-surface' : 'text-ink hover:bg-surface'}`}
-                  >
-                    {dayNumber(d.date)}
-                  </button>
-                )
-              })}
-            </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex min-h-6 items-center justify-between">
+            <span className="text-[13px] font-medium">{pages.title}</span>
+            <MonthArrows count={pages.count} page={pages.page} setPage={setPage} />
           </div>
-          {!dayOnly && <DayChart date={date} time={time} setTime={setTime} onPick={onDone} />}
+          <div className="grid grid-cols-7 gap-1 text-center">
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+              <span key={i} className="text-[13px] text-ink-4">
+                {d}
+              </span>
+            ))}
+            {pages.days.map((d) => {
+              // Today is open for a time later today; the chart greys the hours gone. Past
+              // is by the brand's own clock, as the blockers read it.
+              const disabled = d.date < today
+              const on = d.date === date
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={on}
+                  onClick={() => {
+                    setDate(d.date)
+                    onDone?.()
+                  }}
+                  className={`relative flex h-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : d.outside ? 'text-ink-4 hover:bg-surface' : 'text-ink hover:bg-surface'}`}
+                >
+                  {dayNumber(d.date)}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </Fold>
+      </div>
     </section>
   )
 }
@@ -3518,16 +3481,10 @@ function DayChart({
   date,
   time,
   setTime,
-  onPick,
-  bare,
 }: {
   date: string
   time: string
   setTime: (t: string) => void
-  /** A bar settles the hour: the card can close. */
-  onPick?: () => void
-  /** The time is shown in a field above it, so the chart draws no line of its own. */
-  bare?: boolean
 }) {
   const { brand, times } = useBrand()
   const [hover, setHover] = React.useState<number | null>(null)
@@ -3555,16 +3512,6 @@ function DayChart({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* What the bars are, until the pointer reads an hour off them. */}
-      <span
-        hidden={bare}
-        className={`flex min-h-6 items-center text-[13px] ${hover === peak ? 'text-(--insight-6)' : 'text-ink-3'}`}
-      >
-        {/* The hour picked, or the one under the pointer: the chart says the rest. */}
-        {hover === null
-          ? `${time}${hour === HOURS[peak] ? ' · best hour' : ''}`
-          : `${timeFor(HOURS[hover]!) ?? at(HOURS[hover]!)}${hover === peak ? ' · best hour' : ''}`}
-      </span>
       <div role="radiogroup" aria-label="Post hour" className="flex h-[96px] items-end gap-[3px]">
         {HOURS.map((h, i) => {
           const on = h === hour
@@ -3586,7 +3533,6 @@ function DayChart({
                 setHover(null)
                 if (applies === null) return
                 setTime(applies)
-                onPick?.()
               }}
               className="group/bar flex h-full flex-1 items-end disabled:cursor-not-allowed"
             >
