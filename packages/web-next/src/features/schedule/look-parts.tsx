@@ -405,14 +405,21 @@ export function StoriesRow({
   )
 }
 
-/** A story's first frame in a ring, the way a phone shows a story. */
+/**
+ * A story's first frame in a ring, the way a phone shows a story. The ring is the frame's own
+ * outline: drawn on a second box around it, the two rounded to different pixels and the frame sat
+ * off centre.
+ */
 export function StoryRing({ image, size }: { image?: string; size: number }) {
   return (
     <span
-      className="block shrink-0 rounded-full p-[2.5px] shadow-[inset_0_0_0_1.5px_var(--ink)]"
+      className="flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
     >
-      <span className="relative block size-full overflow-hidden rounded-full bg-tile">
+      <span
+        className="relative block overflow-hidden rounded-full bg-tile outline-[1.5px] outline-offset-1 outline-ink outline-solid"
+        style={{ width: size - 5, height: size - 5 }}
+      >
         {image && <Media src={image} sizes="64px" />}
       </span>
     </span>

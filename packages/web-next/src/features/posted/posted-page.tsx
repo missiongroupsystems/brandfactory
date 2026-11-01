@@ -504,13 +504,14 @@ function Ring({ item, left, today }: { item: PostedItem; left: number | null; to
       aria-label={`${storyKind(item.post)} · ${day} · ${live ? `Live, ${left} h left` : 'Gone'}`}
       className="group flex rounded-[10px] w-[68px] shrink-0 flex-col items-center gap-2 max-md:w-[60px]"
     >
-      <span
-        className={`block size-[68px] rounded-full border-[1.5px] p-[3px] transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-[1.04] group-focus-visible:scale-[1.04] max-md:size-[60px] ${live ? 'border-live' : 'border-track'}`}
-      >
+      <span className="flex size-[68px] items-center justify-center transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-[1.04] group-focus-visible:scale-[1.04] max-md:size-[60px]">
+        {/* The ring is the photo's own outline, so it cannot sit off the photo's centre. */}
         <span
-          className={`relative block size-full overflow-hidden rounded-full bg-tile ${live ? '' : 'opacity-60'}`}
+          className={`relative block size-[59px] overflow-hidden rounded-full bg-tile outline-[1.5px] outline-offset-[3px] outline-solid max-md:size-[51px] ${live ? 'outline-live' : 'outline-track'}`}
         >
-          {item.post.images[0] && <Media src={item.post.images[0]} sizes="136px" />}
+          <span className={`absolute inset-0 ${live ? '' : 'opacity-60'}`}>
+            {item.post.images[0] && <Media src={item.post.images[0]} sizes="136px" />}
+          </span>
         </span>
       </span>
       <span className="grid text-[11.5px] leading-none whitespace-nowrap tabular-nums">

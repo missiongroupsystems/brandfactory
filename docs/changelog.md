@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.53.4** — 2026-11-01 — `design/phone-calendar`: a story's photo sits in the middle of its ring, on the phone calendar and on Posted. 1292 tests (259 skipped without a Postgres server).
 - **2.53.3** — 2026-11-01 — `design/phone-calendar`: a reload keeps the brand that was open (kept in the browser; the account's first brand when it no longer reaches it). The live app hides what is not ready: Connections lists Instagram, Facebook and Pinterest only, and the moodboard offers Pinterest only (TikTok, Instagram DMs, Google Drive, Lark and the Insights sources stay in the code, listed in the handoff doc's "Hidden until ready"). The moodboard's source buttons lift on hover. The brand menu's logos are one size, cropped inside their rim, each with a fine ring. No pack change, no migration. 1292 tests (259 skipped without a Postgres server).
 - **2.53.2** — 2026-11-01 — `design/phone-calendar`: the moodboard's drawn cards are bolder and each its own shape: a terracotta quarter circle under an ochre sun, a solid green arch, blue bands cut by a white disc, a lavender four-petal flower, each with the logo's dot or ring. Same colours as 2.53.1. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.53.1** — 2026-11-01 — `design/phone-calendar`: the moodboard's empty state fans out four drawn cards, not four photos of one brand's food: the logo's ring and dot played four ways in the calendar's colours (terracotta and ochre, green arches, a blue orbit, a lavender horizon). Every brand without boards, and every new brand, has them; a brand's own board covers still take their place. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
@@ -111,6 +112,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.53.4 — 2026-11-01
+
+- **Why.** The owner: a story's photo sat off the middle of its ring on the calendar.
+- **Cause.** `StoryRing` (the phone calendar) drew the ring on one box and the photo on a second
+  box inside it, 2.5px in; the Posted page's `Ring` did the same with a border and 3px. Chrome
+  rounds the two boxes to different device pixels: at 3x the gap measured 4px on the left and top
+  and 1px on the right and bottom. WebKit happened to round them alike.
+- **Fix.** The ring is now the photo's own `outline`, with a gap of 1px on the calendar and 3px on
+  Posted, so the ring and the photo share one box and one centre. Posted's faded photo keeps its
+  fade on an inner layer, so the grey ring stays full.
+- **Checked.** Both rings in Chromium and WebKit at 2x and 3x: the gap is equal on all four sides
+  in every case. No other circle in the app pads a photo inside an outline. 1292 tests (259
+  skipped without a Postgres server).
 
 ## 2.53.3 — 2026-11-01
 
