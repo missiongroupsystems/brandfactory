@@ -1,45 +1,41 @@
 /**
  * The four cards fanned above "Bring in your moodboard" before a brand brings its own boards in:
- * the logo's two shapes, a ring and a filled dot, played four ways in the calendar's own
- * colours. Drawn, not photographed, so no brand shows another's food, and a new brand has them
+ * four bold shapes, one per card (a quarter circle, an arch, bands, a flower), each with the
+ * logo's dot or ring, in the calendar's own colours. Drawn, not photographed, so no brand shows another's food, and a new brand has them
  * from the start.
  */
 const CARDS = [
-  // Ochre dot rising out of a terracotta ring: the mark itself, large.
+  // A terracotta quarter circle filling the corner, an ochre sun clear of it.
   <>
     <rect width="100" height="132" fill="var(--layer-holiday)" />
-    <circle cx="33" cy="82" r="24" fill="none" stroke="var(--confetti-1)" strokeWidth="7" />
-    <circle cx="56" cy="52" r="15" fill="var(--confetti-4)" />
+    <path d="M 0 132 V 50 A 82 82 0 0 1 82 132 Z" fill="var(--confetti-1)" />
+    <circle cx="58" cy="34" r="15" fill="var(--confetti-4)" />
   </>,
-  // Three green arches, one inside the next, with an ink dot over them.
+  // A solid green arch, a doorway, with a small ink dot at its top.
   <>
     <rect width="100" height="132" fill="var(--layer-ours)" />
-    {[32, 22, 12].map((r, i) => (
-      <path
-        key={r}
-        d={`M ${38 - r} 132 V ${104 - r * 0.15} A ${r} ${r} 0 0 1 ${38 + r} ${104 - r * 0.15} V 132`}
-        fill="none"
-        stroke="var(--confetti-2)"
-        strokeOpacity={1 - i * 0.25}
-        strokeWidth="6"
-      />
-    ))}
-    <circle cx="38" cy="34" r="7" fill="var(--ink)" />
+    <path d="M 6 132 V 74 A 32 32 0 0 1 70 74 V 132 Z" fill="var(--confetti-2)" />
+    <circle cx="38" cy="26" r="7" fill="var(--ink)" />
   </>,
-  // A blue ring with a dot on its orbit.
+  // Three blue bands across, thick to thin, cut by a white disc.
   <>
     <rect width="100" height="132" fill="var(--layer-city)" />
-    <circle cx="36" cy="68" r="25" fill="none" stroke="var(--confetti-3)" strokeWidth="2.5" />
-    <circle cx="36" cy="68" r="11" fill="var(--confetti-3)" fillOpacity="0.28" />
-    <circle cx="53.7" cy="50.3" r="7" fill="var(--confetti-3)" />
+    <rect y="30" width="100" height="22" fill="var(--confetti-3)" />
+    <rect y="62" width="100" height="14" fill="var(--confetti-3)" fillOpacity="0.7" />
+    <rect y="86" width="100" height="7" fill="var(--confetti-3)" fillOpacity="0.45" />
+    <circle cx="34" cy="64" r="17" fill="var(--page)" />
   </>,
-  // A lavender sun setting behind a horizon, a small ink ring above it.
+  // A lavender four-petal flower and an ink ring beside it.
   <>
     <rect width="100" height="132" fill="var(--layer-shoot)" />
-    <circle cx="50" cy="96" r="30" fill="var(--confetti-5)" fillOpacity="0.55" />
-    <rect y="96" width="100" height="36" fill="var(--layer-shoot)" />
-    <path d="M 12 96 H 88" stroke="var(--confetti-5)" strokeWidth="2.5" strokeLinecap="round" />
-    <circle cx="66" cy="36" r="9" fill="none" stroke="var(--ink)" strokeWidth="3" />
+    <g fill="var(--confetti-5)">
+      <circle cx="50" cy="56" r="17" />
+      <circle cx="50" cy="90" r="17" />
+      <circle cx="33" cy="73" r="17" />
+      <circle cx="67" cy="73" r="17" />
+    </g>
+    <circle cx="50" cy="73" r="7" fill="var(--layer-shoot)" />
+    <circle cx="78" cy="26" r="8" fill="none" stroke="var(--ink)" strokeWidth="3" />
   </>,
 ]
 

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.53.2** — 2026-11-01 — `design/phone-calendar`: the moodboard's drawn cards are bolder and each its own shape: a terracotta quarter circle under an ochre sun, a solid green arch, blue bands cut by a white disc, a lavender four-petal flower, each with the logo's dot or ring. Same colours as 2.53.1. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.53.1** — 2026-11-01 — `design/phone-calendar`: the moodboard's empty state fans out four drawn cards, not four photos of one brand's food: the logo's ring and dot played four ways in the calendar's colours (terracotta and ochre, green arches, a blue orbit, a lavender horizon). Every brand without boards, and every new brand, has them; a brand's own board covers still take their place. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.53.0** — 2026-11-01 — `design/phone-calendar`: the Schedule on a phone is an agenda. The week is one list, a day after a day, each post a row with its photo, its words, its time, stage and accounts; a day's events, stories and ideas sit with it. The week strip and the grid of small photos go: seven dots down the right edge are the week, the day being read is a short bar, and a finger drawn along them runs through the days with a tick on a phone that has one (Android; iOS has none) and the day's name beside the finger. A swipe on the list steps the week; the title switches to the whole month. The desktop is unchanged. No pack change, no migration. 1289 tests (259 skipped without a Postgres server).
 - **2.52.0** — 2026-11-01 — `feat/brand-collaborators`: a post's Location and Collaborators are menus of what the brand keeps on the core for every member (pack 1.14.0, migrations `0024_brand_locations.sql` and `0025_brand_collaborators.sql`, not applied to production). Location: the brand's saved places, one picked. Collaborators: the Instagram accounts the brand works with, up to three ticked, the menu open while they are picked. Each menu adds one for the whole brand and removes one in two presses, asked in its own row. The six production brands start with their known venues and with the accounts seen working with them, per platform (Instagram, TikTok, Facebook). 1286 tests (259 skipped without a Postgres server).
@@ -109,6 +110,15 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.53.2 — 2026-11-01
+
+- **Why.** The owner liked 2.53.1's colours, not its shapes: a ring, arches, an orbit and a
+  horizon read too alike. Of seven sets drawn side by side, the owner took the bolder one.
+- **Cards.** `ideate/fan-art.tsx`: a quarter circle filling the corner under a sun, a solid arch
+  with a dot above it, three bands thick to thin cut by a white disc, a four-petal flower with an
+  ink ring. Solid shapes, one per card, left of centre where the next card covers the right.
+  1289 tests (259 skipped without a Postgres server).
 
 ## 2.53.1 — 2026-11-01
 
