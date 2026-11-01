@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.51.0** — 2026-11-01 — `design/post-page-polish`: the new post page, calmer. The accounts sit above the card again and the send under the preview (2.46.0's places), so the sticky bar that cut off More options is gone. Under the preview: the coming week as days, the time to type over and the brand's hours as bars, always in view (the calendar icon opens any other day). Location and Collaborators sit in their own card under the caption; More options keeps the rest. No media yet: Upload and Google Drive in one line, and the preview is a dashed place to drop a file, with no phone or accounts until there is something to show. The phone has a bezel and a status bar, and each app's screen is drawn as the app draws it (Instagram's and Facebook's bars, tab bars and counts; the reels above their tab bars). The idea chips and the demo's photo library go. No pack change, no migration. 1260 tests (251 skipped without a Postgres server).
 - **2.50.1** — 2026-10-31 — `fix/feed-url`: the Feed page lives at `/feed` (`/insights` and `/posted` redirect, keeping the view and platform); the phone tab bar's Feed icon is a grid; the platform stack is one Tab stop with arrow keys; an opened row no longer pulls back a reader who scrolls. 1259 tests (251 skipped without a Postgres server).
 - **2.50.0** — 2026-10-31 — `design/feed-options`: Insights becomes Feed, and the feed is the page. `/insights` opens the brand's grid; the platforms are a stack of round logos beside the profile's name (the one on show in ink; hover spreads the stack; on a phone one disc with a chevron opens a menu of them); Overview, Sentiment and Creators are three rows under the grid that fold open in place (`?view=sentiment&on=fb`; `?view=feed&on=fb` and `/posted` still land on the feed). The two bars above the profile (the view switch and the platform pills) go, and so do "as of" on the figures line (the hover keeps it) and the period above the title (it sits inside the open Overview row); on a phone the figures line is one line without the stories figure. Small motion: the stack spreads and the ink moves to the picked logo, the figures count from one platform's to the next, the covers rise in one after the other, a cover lifts on hover, the rows ease open with a chevron turn and rise to the top of the window; none of it when the system asks for less motion. 1256 tests (251 skipped without a Postgres server).
 - **2.48.1** — 2026-10-31 — `fix/menu-keys`: the New and sort menus take the keys (the focus on the first row, Up and Down round the ends, Escape back to the button), and the feed's sort sits beside the profile's name. 1252 tests (251 skipped without a Postgres server).
@@ -105,6 +106,44 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.51.0 — 2026-11-01
+
+- **Why.** The owner on 2.50.1: More options, opened, was cut off by the bar stuck to the foot
+  of the window; the send was cleaner under the preview and the accounts at the top, as before;
+  the empty media slot, the empty phone, the idea chips and the demo photos under the strip were
+  clutter; the hour chart was hidden in a dialog; a location or collaborators should not hide in
+  a fold; the phone ran to the edges and did not look like the apps.
+- **Layout.** `Accounts` is back above the card, and the sticky foot bar goes: the preview's
+  column holds the `WhenPanel`, the buttons and every reason the post is held (all of them on a
+  desktop, the first on a phone). The phone's own bar at the foot is as it was.
+- **When.** `WhenPanel`: the next seven days (today first, a dot on the brand's best day), a
+  calendar icon named by the day and time it holds that opens the month (`WhenCard dayOnly`:
+  the quick picks and the month, a day closes it), the time to type over (`TimeField`, boxed,
+  with a clock and a pencil) with "Best time" or a button to it, and `DayChart` bare under it.
+  Posting now (the demo) hides it.
+- **Details.** `Details part="main"` (Location, Collaborators) is a card under the caption, on
+  a phone in the page; `part="rest"` (first comment, tags, the AI label, labels) stays in More
+  options, whose summary no longer repeats the location or the collaborators.
+- **Media.** No media yet: `EmptyDrop` is two pills, Upload and Google Drive. The preview is a
+  dashed drop area (`DropZone`, a press opens the picker) with no phone and no account switch
+  until there is a photo or a video. The add tile after the first file is solid, with Upload
+  and Google Drive. The demo's library strip and the idea chips go, with the state only they set
+  (`ideaHook`; a post started from an idea on the Ideas page is unchanged).
+- **Phone.** `Phone` draws a 5px bezel, a 16px status bar (white on LinkedIn and on Facebook's
+  feed) and a rounded screen. `phone-mocks.tsx`: Instagram's feed has its top bar, the post's
+  "…", carousel dots, the time and the tab bar; Facebook's feed has its top bar, reactions, Like,
+  Comment and Share and the tab bar; the reels sit above their tab bars (`NAV`), and "more" shows
+  only when a caption is cut.
+- **Tests.** The composer's tests add files through the picker (a video taken as it comes, as
+  jsdom loads none); the date is read off the calendar icon's name; new: the location in view
+  and the rest in More options, a typed time and Escape, the drop area with no phone until
+  media, no demo photos offered, a day off the strip shown on the calendar button. Review
+  (Sonnet, with screenshots on a desktop and a phone): a day picked past the week showed nowhere
+  on the page (the calendar button now says it, filled); the preview's top row changed height
+  between platforms (a fixed minimum now). A Story can still pick a strip day that has one: it is
+  reported, as the month grid's day always was. 1260 tests (251 skipped without a Postgres
+  server).
 
 ## 2.50.1 — 2026-10-31
 

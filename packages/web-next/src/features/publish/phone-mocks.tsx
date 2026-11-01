@@ -88,9 +88,16 @@ export function PhoneMock({
       className={`group/phone absolute inset-0 font-device antialiased ${shots.length === 0 ? 'pm-empty' : ''}`}
     >
       {screen}
-      {player && <ReelControls player={player} inset={channel === 'tt' ? 26 : 0} />}
+      {player && <ReelControls player={player} inset={navOf(channel, format)} />}
     </span>
   )
+}
+
+/** Each app's bottom tab bar, in px: the full-screen players keep their clip above it. */
+const NAV: Partial<Record<ChannelKey, number>> = { ig: 24, tt: 26, fb: 24 }
+
+function navOf(channel: ChannelKey, format: Format): number {
+  return format === 'story' ? 0 : (NAV[channel] ?? 0)
 }
 
 /** The media and its state, handed to every screen. */
@@ -368,6 +375,27 @@ const PAPER_PLANE = (size: number, width = 2) => (
     <path d="M22 3 9.2 10.1M11.7 20.3 22 3H2l7.2 7.1 2.5 10.2Z" />
   </Svg>
 )
+const HOUSE = 'M3 10.3 12 3l9 7.3V21h-6.2v-6.4H9.2V21H3V10.3Z'
+const SEARCH = (size: number) => (
+  <Svg size={size} stroke="currentColor" width={2.2}>
+    <circle cx="10.5" cy="10.5" r="7" />
+    <path d="m16 16 5 5" />
+  </Svg>
+)
+const PLUS_BOX = (size: number) => (
+  <Svg size={size} stroke="currentColor" width={2}>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <path d="M12 8v8M8 12h8" />
+  </Svg>
+)
+/** The reels glyph: a clapper with its play triangle. */
+const REELS = (size: number, on = false) => (
+  <Svg size={size} stroke="currentColor" width={2} fill={on ? 'currentColor' : 'none'}>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <path d="M3 8.5h18M8 3l3 5.5M14 3l3 5.5" />
+    <path d="M10 12v6l5-3-5-3Z" fill={on ? 'var(--pc-black)' : 'currentColor'} stroke="none" />
+  </Svg>
+)
 
 /* ---------- Instagram ---------- */
 
@@ -383,75 +411,99 @@ function InstagramReel({
   counts?: Counts
 }) {
   const { brand } = useBrand()
+  const short = clip(text, 52)
   return (
-    <span className="absolute inset-0 text-(--pc-white)">
-      <Photo media={media} />
-      <Scrims />
-      <span className="absolute top-[11px] left-[11px] flex items-center gap-[3px] text-[13px] leading-none font-bold tracking-[-0.02em]">
-        Reels
-        <Svg size={9} stroke="currentColor" width={3}>
-          <path d="m6 9 6 6 6-6" />
-        </Svg>
-      </span>
-
-      <span className="absolute right-[7px] bottom-[12px] flex flex-col items-center gap-[10px]">
-        <RailItem
-          icon={
-            <Svg size={16} stroke="currentColor" width={2}>
-              <path d={HEART} />
-            </Svg>
-          }
-          label={countOf(counts, 'likes', '2,418', true)}
-        />
-        <RailItem
-          icon={
-            <Svg size={16} stroke="currentColor" width={2}>
-              <path d="M20.66 17.01a9.99 9.99 0 1 0-3.59 3.61L22 22Z" />
-            </Svg>
-          }
-          label={countOf(counts, 'comments', '86', true)}
-        />
-        <RailItem icon={PAPER_PLANE(15)} label={countOf(counts, 'shares', '41', true)} />
-        <RailItem icon={DOTS_H(13)} />
-        <span className="relative size-[16px] overflow-hidden rounded-[4px] shadow-[0_0_0_1.5px_var(--pc-white)]">
-          <Photo media={media} still />
+    <span className="absolute inset-0 bg-(--pc-black) text-(--pc-white)">
+      <span className="absolute inset-x-0 top-0 bottom-[24px]">
+        <Photo media={media} />
+        <Scrims />
+        <span
+          className="absolute top-[11px] left-[11px] flex items-center gap-[3px] text-[13px] leading-none font-bold tracking-[-0.02em]"
+          style={lift}
+        >
+          Reels
+          <Svg size={9} stroke="currentColor" width={3}>
+            <path d="m6 9 6 6 6-6" />
+          </Svg>
         </span>
-      </span>
 
-      <span className="absolute right-[36px] bottom-[12px] left-[10px] flex flex-col gap-[5px]">
-        <span className="flex min-w-0 items-center gap-[5px]">
-          <Avatars size={18} collabs={people.collabs} />
-          <span className="truncate text-[8.5px] font-semibold">
-            {collabHeader(brand.handle, people.collabs)}
-          </span>
-          <span className="shrink-0 rounded-[5px] px-[5px] py-[2px] text-[7.5px] font-semibold shadow-[inset_0_0_0_0.75px_var(--pc-dim)]">
-            Follow
+        <span className="absolute right-[7px] bottom-[12px] flex flex-col items-center gap-[10px]">
+          <RailItem
+            icon={
+              <Svg size={16} stroke="currentColor" width={2}>
+                <path d={HEART} />
+              </Svg>
+            }
+            label={countOf(counts, 'likes', '2,418', true)}
+          />
+          <RailItem
+            icon={
+              <Svg size={16} stroke="currentColor" width={2}>
+                <path d="M20.66 17.01a9.99 9.99 0 1 0-3.59 3.61L22 22Z" />
+              </Svg>
+            }
+            label={countOf(counts, 'comments', '86', true)}
+          />
+          <RailItem icon={PAPER_PLANE(15)} label={countOf(counts, 'shares', '41', true)} />
+          <RailItem icon={DOTS_H(13)} />
+          <span className="relative size-[16px] overflow-hidden rounded-[4px] shadow-[0_0_0_1.5px_var(--pc-white)]">
+            <Photo media={media} still />
           </span>
         </span>
-        <span className="flex text-[8px] leading-[1.25]">
-          <span className="truncate">{text}</span>
-          <span className="shrink-0 pl-[2px] text-(--pc-dim)">more</span>
-        </span>
-        <span className="flex min-w-0 items-center gap-[3px] text-[7.5px] leading-none">
-          {MUSIC}
-          <span className="truncate">{brand.handle.slice(1)} · Original audio</span>
-          {people.tags.length > 0 && (
-            <span className="flex min-w-0 shrink items-center gap-[2px] pl-[3px]">
-              {PERSON(7)}
-              <span className="truncate">
-                {people.tags.length === 1
-                  ? people.tags[0]!.handle.slice(1)
-                  : `${people.tags.length} people`}
-              </span>
+
+        <span className="absolute right-[36px] bottom-[12px] left-[10px] flex flex-col gap-[5px]">
+          <span className="flex min-w-0 items-center gap-[5px]">
+            <Avatars size={18} collabs={people.collabs} />
+            <span className="truncate text-[8.5px] font-semibold">
+              {collabHeader(brand.handle, people.collabs)}
+            </span>
+            <span className="shrink-0 rounded-[5px] px-[5px] py-[2px] text-[7.5px] font-semibold shadow-[inset_0_0_0_0.75px_var(--pc-dim)]">
+              Follow
+            </span>
+          </span>
+          {short && (
+            <span className="line-clamp-2 text-[8px] leading-[1.25]" style={lift}>
+              {short}
+              {short !== text && <span className="text-(--pc-dim)">… more</span>}
             </span>
           )}
+          <span className="flex min-w-0 items-center gap-[3px] text-[7.5px] leading-none">
+            {MUSIC}
+            <span className="truncate">{brand.handle.slice(1)} · Original audio</span>
+            {people.tags.length > 0 && (
+              <span className="flex min-w-0 shrink items-center gap-[2px] pl-[3px]">
+                {PERSON(7)}
+                <span className="truncate">
+                  {people.tags.length === 1
+                    ? people.tags[0]!.handle.slice(1)
+                    : `${people.tags.length} people`}
+                </span>
+              </span>
+            )}
+          </span>
         </span>
       </span>
+      <InstagramNav on="reels" />
     </span>
   )
 }
 
-/** Instagram's feed photo post in dark mode, with the carousel's count chip and dots. */
+/** Instagram's tab bar: home, search, new post, reels and the brand's own profile picture. */
+function InstagramNav({ on }: { on: 'home' | 'reels' }) {
+  return (
+    <span className="absolute inset-x-0 bottom-0 flex h-[24px] items-center justify-around px-[8px] text-(--pc-white)">
+      <Svg size={13} stroke="currentColor" width={2} fill={on === 'home' ? 'currentColor' : 'none'}>
+        <path d={HOUSE} />
+      </Svg>
+      {SEARCH(13)}
+      {PLUS_BOX(13)}
+      {REELS(13, on === 'reels')}
+      <Avatar size={13} />
+    </span>
+  )
+}
+
+/** Instagram's feed in dark mode: the app bar, the post with its carousel's dots, the tab bar. */
 function InstagramPost({
   media,
   text,
@@ -466,15 +518,26 @@ function InstagramPost({
   const likes = countOf(counts, 'likes', '2,418')
   const comments = countOf(counts, 'comments', '86')
   const { brand } = useBrand()
+  const short = clip(text, 50)
   return (
     <span className="absolute inset-0 flex flex-col bg-(--pc-black) text-(--pc-ig-dark-text)">
-      <span className="flex h-[28px] shrink-0 items-center gap-[6px] px-[8px]">
-        <Avatars size={people.collabs.length > 0 ? 17 : 20} collabs={people.collabs} />
+      <span className="flex h-[22px] shrink-0 items-center px-[9px] text-[11px] leading-none font-semibold tracking-[-0.03em]">
+        Instagram
+        <span className="ml-auto flex items-center gap-[9px]">
+          <Svg size={12} stroke="currentColor" width={2}>
+            <path d={HEART} />
+          </Svg>
+          {PAPER_PLANE(11)}
+        </span>
+      </span>
+      <span className="flex h-[26px] shrink-0 items-center gap-[6px] px-[8px]">
+        <Avatars size={people.collabs.length > 0 ? 16 : 18} collabs={people.collabs} />
         <span
-          className={`truncate font-semibold ${people.collabs.length > 0 ? 'text-[7.5px]' : 'text-[8.5px]'}`}
+          className={`truncate font-semibold ${people.collabs.length > 0 ? 'text-[7.5px]' : 'text-[8px]'}`}
         >
           {collabHeader(brand.handle, people.collabs)}
         </span>
+        <span className="ml-auto shrink-0">{DOTS_H(11)}</span>
       </span>
       <span className="relative min-h-0 w-full flex-1">
         <Photo media={media} slides />
@@ -503,14 +566,14 @@ function InstagramPost({
           </span>
         )}
       </span>
-      <span className="relative flex h-[24px] shrink-0 items-center gap-[10px] px-[8px]">
-        <Svg size={14} stroke="currentColor">
+      <span className="relative flex h-[22px] shrink-0 items-center gap-[9px] px-[8px]">
+        <Svg size={13} stroke="currentColor">
           <path d={HEART} />
         </Svg>
-        <Svg size={14} stroke="currentColor">
+        <Svg size={13} stroke="currentColor">
           <path d="M20.66 17.01a9.99 9.99 0 1 0-3.59 3.61L22 22Z" />
         </Svg>
-        {PAPER_PLANE(13)}
+        {PAPER_PLANE(12)}
         {media.slides.count > 1 && (
           <span className="absolute left-1/2 -translate-x-1/2">
             <Dots
@@ -521,26 +584,30 @@ function InstagramPost({
           </span>
         )}
         <span className="ml-auto">
-          <Svg size={14} stroke="currentColor">
+          <Svg size={13} stroke="currentColor">
             <path d="M20 21 12 13.44 4 21V3h16Z" />
           </Svg>
         </span>
       </span>
-      <span className="flex shrink-0 flex-col gap-[2px] px-[8px] pb-[9px] text-[7.5px] leading-[1.3]">
+      <span className="flex min-h-0 shrink-0 flex-col gap-[2px] px-[8px] pb-[4px] text-[7.5px] leading-[1.3]">
         {likes && (
           <span className="font-semibold">{likes === '1' ? '1 like' : `${likes} likes`}</span>
         )}
-        <span className="flex">
-          <span className="truncate">
-            <span className="font-semibold">{brand.handle.slice(1)}</span> {text}
+        {short && (
+          <span className="line-clamp-2">
+            <span className="font-semibold">{brand.handle.slice(1)}</span> {short}
+            {short !== text && <span className="text-(--pc-ig-dark-muted)">… more</span>}
           </span>
-          <span className="shrink-0 pl-[2px] text-(--pc-ig-dark-muted)">more</span>
-        </span>
+        )}
         {comments && (
           <span className="text-(--pc-ig-dark-muted)">
             {comments === '1' ? 'View 1 comment' : `View all ${comments} comments`}
           </span>
         )}
+        <span className="text-[6.5px] text-(--pc-ig-dark-muted)">2 hours ago</span>
+      </span>
+      <span className="relative h-[24px] shrink-0">
+        <InstagramNav on="home" />
       </span>
     </span>
   )
@@ -648,8 +715,8 @@ function TikTok({
           {brand.name}
         </span>
         <span className="line-clamp-2 text-[8px] leading-[1.3]" style={lift}>
-          <Tags text={clip(text, 52)} />
-          {clip(text, 52) !== text && <span className="font-semibold">… more</span>}
+          <Tags text={clip(text, 44)} />
+          {clip(text, 44) !== text && <span className="font-semibold">… more</span>}
         </span>
         <span className="flex items-center gap-[3px] text-[7.5px] leading-none" style={lift}>
           {MUSIC}
@@ -936,63 +1003,125 @@ function FacebookReel({
   const { brand } = useBrand()
   const short = clip(text, 46)
   return (
-    <span className="absolute inset-0 text-(--pc-white)">
-      <Photo media={media} />
-      <Scrims />
-      <span
-        className="absolute top-[11px] left-[8px] flex items-center gap-[4px] text-[12px] leading-none font-bold"
-        style={lift}
-      >
-        <Svg size={12} stroke="currentColor" width={2.6}>
-          <path d="m15 5-7 7 7 7" />
-        </Svg>
-        Reels
-      </span>
+    <span className="absolute inset-0 bg-(--pc-black) text-(--pc-white)">
+      <span className="absolute inset-x-0 top-0 bottom-[24px]">
+        <Photo media={media} />
+        <Scrims />
+        <span
+          className="absolute top-[11px] left-[9px] text-[12px] leading-none font-bold"
+          style={lift}
+        >
+          Reels
+        </span>
 
-      <span className="absolute right-[7px] bottom-[14px] flex flex-col items-center gap-[11px]">
-        <RailItem
-          icon={
-            <Svg size={16} fill="currentColor">
-              <path d={THUMB} />
-            </Svg>
-          }
-          label={countOf(counts, 'likes', '1.2K', true)}
-        />
-        <RailItem
-          icon={
-            <Svg size={16} fill="currentColor">
-              <path d="M12 2.5c5.5 0 10 4.1 10 9.2s-4.5 9.2-10 9.2c-1.1 0-2.2-.2-3.2-.5L4 22l1.2-4.1A8.8 8.8 0 0 1 2 11.7c0-5.1 4.5-9.2 10-9.2Z" />
-            </Svg>
-          }
-          label={countOf(counts, 'comments', '64', true)}
-        />
-        <RailItem
-          icon={
-            <Svg size={16} fill="currentColor">
-              <path d="M13 3.6a.8.8 0 0 1 1.4-.6l8.2 8.3a1 1 0 0 1 0 1.4L14.4 21a.8.8 0 0 1-1.4-.6v-4.2c-5.5 0-9 1.7-11.2 5.1-.2.3-.7.2-.7-.2.5-6.5 4.6-11 11.9-11.6V3.6Z" />
-            </Svg>
-          }
-          label={countOf(counts, 'shares', '27', true)}
-        />
-        <RailItem icon={DOTS_H(13)} />
-      </span>
+        <span className="absolute right-[7px] bottom-[12px] flex flex-col items-center gap-[11px]">
+          <RailItem
+            icon={
+              <Svg size={16} fill="currentColor">
+                <path d={THUMB} />
+              </Svg>
+            }
+            label={countOf(counts, 'likes', '1.2K', true)}
+          />
+          <RailItem
+            icon={
+              <Svg size={16} fill="currentColor">
+                <path d="M12 2.5c5.5 0 10 4.1 10 9.2s-4.5 9.2-10 9.2c-1.1 0-2.2-.2-3.2-.5L4 22l1.2-4.1A8.8 8.8 0 0 1 2 11.7c0-5.1 4.5-9.2 10-9.2Z" />
+              </Svg>
+            }
+            label={countOf(counts, 'comments', '64', true)}
+          />
+          <RailItem
+            icon={
+              <Svg size={16} fill="currentColor">
+                <path d="M13 3.6a.8.8 0 0 1 1.4-.6l8.2 8.3a1 1 0 0 1 0 1.4L14.4 21a.8.8 0 0 1-1.4-.6v-4.2c-5.5 0-9 1.7-11.2 5.1-.2.3-.7.2-.7-.2.5-6.5 4.6-11 11.9-11.6V3.6Z" />
+              </Svg>
+            }
+            label={countOf(counts, 'shares', '27', true)}
+          />
+          <RailItem icon={DOTS_H(13)} />
+        </span>
 
-      <span className="absolute right-[36px] bottom-[12px] left-[9px] flex flex-col gap-[4px]">
-        <span className="flex items-center gap-[5px] text-[8.5px] leading-none font-semibold">
-          <Avatar size={18} />
-          <span className="truncate">{brand.name}</span>
-          <span className="text-(--pc-dim)">·</span>
-          <span className="shrink-0">Follow</span>
-        </span>
-        <span className="line-clamp-2 text-[8px] leading-[1.3]" style={lift}>
-          {short}
-          {short !== text && <span className="font-semibold text-(--pc-dim)">… See more</span>}
-        </span>
-        <span className="flex items-center gap-[3px] text-[7.5px] leading-none">
-          {MUSIC}
-          <span className="truncate">{brand.name} · Original audio</span>
+        <span className="absolute right-[36px] bottom-[10px] left-[9px] flex flex-col gap-[4px]">
+          <span className="flex items-center gap-[5px] text-[8.5px] leading-none font-semibold">
+            <Avatar size={18} />
+            <span className="truncate">{brand.name}</span>
+            <span className="text-(--pc-dim)">·</span>
+            <span className="shrink-0">Follow</span>
+          </span>
+          {short && (
+            <span className="line-clamp-2 text-[8px] leading-[1.3]" style={lift}>
+              {short}
+              {short !== text && <span className="font-semibold text-(--pc-dim)">… See more</span>}
+            </span>
+          )}
+          <span className="flex items-center gap-[3px] text-[7.5px] leading-none">
+            {MUSIC}
+            <span className="truncate">{brand.name} · Original audio</span>
+          </span>
         </span>
       </span>
+      <FacebookNav on="video" dark />
+    </span>
+  )
+}
+
+/** Facebook's tab bar: home, friends, video, marketplace, notifications and the menu. */
+function FacebookNav({ on, dark = false }: { on: 'home' | 'video'; dark?: boolean }) {
+  const tone = (k: string) =>
+    k === on
+      ? dark
+        ? 'text-(--pc-white)'
+        : 'text-(--pc-fb-blue)'
+      : dark
+        ? 'text-(--pc-dim)'
+        : 'text-(--pc-fb-muted)'
+  const item = (k: string, icon: ReactNode) => (
+    <span className={`flex items-center ${tone(k)}`}>{icon}</span>
+  )
+  return (
+    <span
+      className={`absolute inset-x-0 bottom-0 flex h-[24px] items-center justify-around px-[6px] ${dark ? '' : 'shadow-[0_-0.5px_0_var(--pc-fb-line)]'}`}
+    >
+      {item(
+        'home',
+        <Svg size={13} fill="currentColor">
+          <path d={HOUSE} />
+        </Svg>,
+      )}
+      {item(
+        'friends',
+        <Svg size={13} fill="currentColor">
+          <circle cx="9" cy="8" r="3.6" />
+          <path d="M2.4 20c.5-4 3.3-6.2 6.6-6.2s6.1 2.2 6.6 6.2H2.4Z" />
+          <circle cx="17" cy="9" r="2.8" />
+          <path d="M17.5 13.6c2.4.3 4 2.3 4.3 5.4h-4.1c-.2-2-.9-3.8-2.2-5.1.6-.2 1.3-.3 2-.3Z" />
+        </Svg>,
+      )}
+      {item(
+        'video',
+        <Svg size={13} fill="currentColor">
+          <path d="M4 3.5h16A1.5 1.5 0 0 1 21.5 5v14a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 19V5A1.5 1.5 0 0 1 4 3.5Zm6 5v7l5.5-3.5L10 8.5Z" />
+        </Svg>,
+      )}
+      {item(
+        'marketplace',
+        <Svg size={13} fill="currentColor">
+          <path d="M3 4h18l1.5 5a3.5 3.5 0 0 1-3 2.6V20.5h-5.3V15h-4.4v5.5H4.5V11.6A3.5 3.5 0 0 1 1.5 9L3 4Z" />
+        </Svg>,
+      )}
+      {item(
+        'bell',
+        <Svg size={13} fill="currentColor">
+          <path d="M12 2.5a6 6 0 0 1 6 6v4.2l1.8 2.9a1 1 0 0 1-.9 1.5H5.1a1 1 0 0 1-.9-1.5L6 12.7V8.5a6 6 0 0 1 6-6Zm-2.6 16h5.2a2.6 2.6 0 0 1-5.2 0Z" />
+        </Svg>,
+      )}
+      {item(
+        'menu',
+        <Svg size={13} stroke="currentColor" width={2.4}>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </Svg>,
+      )}
     </span>
   )
 }
@@ -1008,28 +1137,52 @@ function FacebookPost({
   counts?: Counts
 }) {
   const { brand } = useBrand()
-  const short = clip(text, 80)
+  const short = clip(text, 68)
   const action = (label: string, icon: ReactNode) => (
     <span className="flex items-center gap-[3px]">
       {icon}
       <span className="text-[7px] leading-none font-semibold">{label}</span>
     </span>
   )
+  const round = (icon: ReactNode) => (
+    <span className="flex size-[13px] items-center justify-center rounded-full bg-(--pc-fb-line) text-(--pc-fb-text)">
+      {icon}
+    </span>
+  )
   return (
     <span className="absolute inset-0 flex flex-col bg-(--pc-white) text-(--pc-fb-text)">
-      <span className="flex shrink-0 items-center gap-[6px] px-[9px] pt-[12px] pb-[6px]">
-        <Avatar size={22} />
-        <span className="flex flex-col gap-[2px]">
-          <span className="text-[8.5px] leading-none font-semibold">{brand.name}</span>
+      <span className="flex h-[22px] shrink-0 items-center px-[9px] text-[11.5px] leading-none font-bold tracking-[-0.04em] text-(--pc-fb-blue)">
+        facebook
+        <span className="ml-auto flex items-center gap-[4px]">
+          {round(
+            <Svg size={9} stroke="currentColor" width={3}>
+              <path d="M12 5v14M5 12h14" />
+            </Svg>,
+          )}
+          {round(SEARCH(8))}
+          {round(
+            <Svg size={8} fill="currentColor">
+              <path d="M12 2.5c5.5 0 10 4.1 10 9.2s-4.5 9.2-10 9.2c-1.1 0-2.2-.2-3.2-.5L4 22l1.2-4.1A8.8 8.8 0 0 1 2 11.7c0-5.1 4.5-9.2 10-9.2Z" />
+            </Svg>,
+          )}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-[6px] px-[9px] pt-[5px] pb-[5px]">
+        <Avatar size={20} />
+        <span className="flex min-w-0 flex-col gap-[2px]">
+          <span className="truncate text-[8px] leading-none font-semibold">{brand.name}</span>
           <span className="flex items-center gap-[2px] text-[6.5px] leading-none text-(--pc-fb-muted)">
             2h ·{GLOBE(7)}
           </span>
         </span>
+        <span className="ml-auto shrink-0 text-(--pc-fb-muted)">{DOTS_H(11)}</span>
       </span>
-      <span className="line-clamp-3 shrink-0 px-[9px] pb-[6px] text-[7.5px] leading-[1.35]">
-        {short}
-        {short !== text && <span className="text-(--pc-fb-muted)">… See more</span>}
-      </span>
+      {short && (
+        <span className="line-clamp-2 shrink-0 px-[9px] pb-[5px] text-[7.5px] leading-[1.35]">
+          {short}
+          {short !== text && <span className="text-(--pc-fb-muted)">… See more</span>}
+        </span>
+      )}
       <span className="relative min-h-0 flex-1">
         <Photo media={media} slides light />
       </span>
@@ -1053,7 +1206,7 @@ function FacebookPost({
         <span className="ml-auto">{tally(counts, ['64 comments', '27 shares'])}</span>
       </span>
       <span className="mx-[9px] h-px shrink-0 bg-(--pc-fb-line)" />
-      <span className="flex shrink-0 justify-around pt-[7px] pb-[10px] text-(--pc-fb-muted)">
+      <span className="flex shrink-0 justify-around pt-[6px] pb-[6px] text-(--pc-fb-muted)">
         {action(
           'Like',
           <Svg size={11} stroke="currentColor" width={1.8}>
@@ -1072,6 +1225,9 @@ function FacebookPost({
             <path d="M13.5 4.5 21 12l-7.5 7.5v-4c-5 0-8.2 1.4-10.5 4.5.6-5.6 4-9.6 10.5-10.3V4.5Z" />
           </Svg>,
         )}
+      </span>
+      <span className="relative mt-auto h-[24px] shrink-0">
+        <FacebookNav on="home" />
       </span>
     </span>
   )

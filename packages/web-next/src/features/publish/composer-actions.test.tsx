@@ -127,15 +127,12 @@ describe('saving a new post', () => {
     )
   })
 
-  it('marks a library photo once it is in the post, and takes it out on a second tap', () => {
+  it('takes media from Upload and Google Drive alone, with no demo photos offered beside them', () => {
     show()
-    const thumb = button(/^Add .+\.jpg$/)
-    const name = thumb.getAttribute('aria-label')!.replace(/^Add /, '')
-    fireEvent.click(thumb)
-    const picked = button(new RegExp(`^Remove ${name}$`))
-    expect(picked).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(picked)
-    expect(button(new RegExp(`^Add ${name}$`))).toHaveAttribute('aria-pressed', 'false')
+    // The demo's own photos were a stand-in the live app never had: none are offered.
+    expect(screen.queryAllByRole('button', { name: /^Add .+\.(jpg|mp4)$/ })).toHaveLength(0)
+    expect(button(/^Upload$/)).toBeTruthy()
+    expect(button(/^Google Drive$/)).toBeTruthy()
   })
 
   it('shows no caption for a Story, which has none on Instagram', () => {

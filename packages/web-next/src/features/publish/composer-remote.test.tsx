@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import * as React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -472,12 +472,12 @@ describe('the composer on the API', () => {
     fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
     // Today's quick pick lands on what is left of today.
     fireEvent.click(screen.getByRole('button', { name: 'Today 21:00' }))
-    fireEvent.click(screen.getByRole('button', { name: /^Tue 6 Oct, 21:00/ }))
+    expect(screen.queryByRole('dialog', { name: 'When' })).toBeNull()
+    // The hours on the page: the gone ones are shut, the running one starts at its next quarter.
     expect(screen.getByRole('radio', { name: '17:00' })).toBeDisabled()
     const running = screen.getByRole('radio', { name: /^18:15/ })
     expect(running).not.toBeDisabled()
     fireEvent.click(running)
-    expect(screen.queryByRole('dialog', { name: 'When' })).toBeNull()
     expect(screen.getByRole('button', { name: /^Tue 6 Oct, 18:15/ })).toBeInTheDocument()
     expect(screen.queryByText('Pick a time ahead.')).toBeNull()
   })
@@ -514,8 +514,9 @@ describe('the composer on the API', () => {
     )
     fireEvent.click(screen.getAllByRole('radio', { name: 'Story' })[0]!)
     fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
-    expect(screen.queryByRole('button', { name: /^Today/ })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Tomorrow 18:00' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Tomorrow 21:00' })).toBeNull()
+    const dialog = within(screen.getByRole('dialog', { name: 'When' }))
+    expect(dialog.queryByRole('button', { name: /^Today/ })).toBeNull()
+    expect(dialog.getByRole('button', { name: 'Tomorrow 18:00' })).toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: 'Tomorrow 21:00' })).toBeNull()
   })
 })
