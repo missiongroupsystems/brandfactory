@@ -51,7 +51,7 @@ async function payloadOf(
   input: Record<string, unknown>,
 ) {
   const params = paramsOf(deps, caller, input)
-  await setClaims(tx, deps, caller)
+  await setClaims(tx, deps, caller, content.manifest.name)
   await tx.exec('set local role pack_runtime')
   for (const id of op.before ?? []) await checkRule(tx, content.rules[id]!, params)
   const { text, params: values } = bind(op.payload!, params)
@@ -232,7 +232,7 @@ export async function fire(
     ])
     const params = { ...paramsOf(deps, caller, input), outcome, payload }
     return await deps.db.transaction(async (tx) => {
-      await setClaims(tx, deps, caller)
+      await setClaims(tx, deps, caller, content.manifest.name)
       await tx.exec('set local role pack_runtime')
       const { text, params: values } = bind(op.sql, params)
       const rows = await tx.query(text, values, { prepare: true })

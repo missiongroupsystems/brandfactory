@@ -227,21 +227,23 @@ Each item was checked against the code; the two marked *confirmed* were run on P
 
 Each phase ends with an independent review before its commit.
 
-0. **The escape that exists today** (R0). Small, separate commit; it protects Fly now.
-1. **Logins and install.** `core_owner`, `core_migrator`, `core_server`; `setupLogin` without a
-   superuser; the CLI's two URLs; the server's start check; `migrateCore` reporting the revokes.
-   A throwaway Postgres 18 in Docker for the tests (`CORE_TEST_PG_URL`).
-2. **Claims.** No delete at commit, the purge, `claims.open*`, the `known` flag, every path that
-   drops to a pack role opens first; the guest token bound (D6).
-3. **Core tables.** The functions of D3, the grants taken from `core_server`, every call site moved.
-4. **Session and deadline.** D4 and D5.
-5. **Attack suite.** Every item of acceptance 3 and the reviews' list (`SET CONSTRAINTS`, double
-   open, temp tables, settings, advisory locks, `PREPARE` names, `pg_stat_activity`, loadouts,
-   principals, other principals' timed calls), each with a control.
-6. **Whole check.** Core tests, brandbase cases on PGlite and Postgres, the speed comparison, the
-   docs and changelog, and the owner's script for Fly: create `core_owner` and `core_migrator`,
-   `REASSIGN OWNED` from the old login, revoke its memberships, create `core_server`, switch the
-   URLs. Tested on a Postgres made the old way first.
+0. **The escape that exists today** (R0). Done: `585bdf4` (2.55.0).
+1. **Claims** (D2, R3, R7). No delete at commit and the purge; `claims.open*` with the pack and
+   version in the row; a second open with other values refused; the `known` flag; every path that
+   drops to a pack role opens first; the guest token bound (D6). The login stays as it is, so
+   every commit runs.
+2. **Core tables** (D3, R8). The functions of D3, every call site moved to them, while the login
+   still owns everything (they work either way).
+3. **Logins** (D1, R1, R2, R10). `core_owner`, one owner role per pack, `core_server` with
+   `pack_runtime` only and no grant on core tables, the CLI's URLs, the start checks, `migrateCore`
+   without a superuser. Only now does the server's login lose its rights.
+4. **Session and deadline** (D4, R4, R5, D5, R9).
+5. **Attack suite** on Postgres 18: every item of acceptance 3 and the reviews' lists, each with
+   a control.
+6. **Whole check**: tests, brandbase cases on PGlite and Postgres, the speed comparison, the docs
+   and changelog, and the owner's script for Fly, tested on a Postgres made the old way first.
+
+Each phase ends with an independent review before its commit.
 
 ## Open questions
 

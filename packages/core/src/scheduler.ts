@@ -257,7 +257,14 @@ async function alert(deps: CoreDeps, job: Claimed, message: string) {
 }
 
 /** One pass of the loop: stuck calls first, then due calls one at a time. */
+/**
+ * Claims rows of finished calls stay until a pass of the loop deletes them (migration 0011):
+ * nothing may remove one while its transaction runs.
+ */
+const purgeClaims = (deps: Pick<CoreDeps, 'db'>) => deps.db.query('select claims.purge()')
+
 export async function tick(deps: CoreDeps, limit = 10) {
+  await purgeClaims(deps)
   await markStuck(deps)
   let ran = 0
   while (ran < limit) {
@@ -286,6 +293,7 @@ export function startScheduler(deps: CoreDeps, intervalMs = 5000, stopWaitMs = S
   let stopped = false
 
   const pass = async () => {
+    await purgeClaims(deps)
     await markStuck(deps)
     while (!stopped && running.size < MAX_RUNNING) {
       const job = await claim(deps)

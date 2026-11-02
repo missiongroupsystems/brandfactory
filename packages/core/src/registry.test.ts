@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { writeClaims } from './claims'
+import { principalClaimsSql, writeClaims } from './claims'
 import { type Db } from './db'
 import { Refused } from './errors'
 import { hashOf } from './pack'
@@ -130,6 +130,70 @@ describe('a published version', () => {
   })
 })
 
+describe('the claims of a call (migration 0011)', () => {
+  const claimsNow = (tx: { query: Db['query'] }) =>
+    tx.query<{ user_id: string; pack: string; known: boolean }>(
+      `select user_id, pack, known from claims.calls where xact = pg_current_xact_id_if_assigned()`,
+    )
+
+  it('are written once: the same again changes nothing, others are refused and change nothing', async () => {
+    const d = await db()
+    const out = await d.transaction(async (tx) => {
+      await writeClaims(tx, { user_id: 'ana', pack: 'toy' })
+      await writeClaims(tx, { user_id: 'ana', pack: 'toy' })
+      for (const other of [
+        { user_id: 'ben', pack: 'toy' },
+        { user_id: 'ana', pack: 'other' },
+      ]) {
+        await tx.exec('savepoint s')
+        await expect(writeClaims(tx, other)).rejects.toThrow(/already written/)
+        await tx.exec('rollback to savepoint s')
+      }
+      return claimsNow(tx)
+    })
+    expect(out).toEqual([{ user_id: 'ana', pack: 'toy', known: true }])
+  })
+
+  it('stay when a statement fires deferred triggers early, which once removed them', async () => {
+    const d = await db()
+    const out = await d.transaction(async (tx) => {
+      await writeClaims(tx, { user_id: 'ana', pack: 'toy' })
+      await tx.exec('set local role pack_runtime')
+      await tx.exec('set constraints all immediate')
+      await tx.exec('reset role')
+      return claimsNow(tx)
+    })
+    expect(out).toEqual([{ user_id: 'ana', pack: 'toy', known: true }])
+  })
+
+  it('mark an unknown principal, and leave no room for another open after it', async () => {
+    const d = await db()
+    const out = await d.transaction(async (tx) => {
+      await tx.query(principalClaimsSql('nobody', 'toy'))
+      await tx.exec('savepoint s')
+      await expect(writeClaims(tx, { user_id: 'ana', pack: 'toy' })).rejects.toThrow(
+        /already written/,
+      )
+      await tx.exec('rollback to savepoint s')
+      return claimsNow(tx)
+    })
+    expect(out).toEqual([{ user_id: '', pack: 'toy', known: false }])
+  })
+
+  it('go in the purge once their transaction ends, and not before', async () => {
+    const d = await db()
+    await d.transaction((tx) => writeClaims(tx, { user_id: 'ana', pack: 'toy' }))
+    const during = await d.transaction(async (tx) => {
+      await writeClaims(tx, { user_id: 'ben', pack: 'toy' })
+      await tx.query('select claims.purge()')
+      return claimsNow(tx)
+    })
+    expect(during).toEqual([{ user_id: 'ben', pack: 'toy', known: true }])
+    await d.query('select claims.purge()')
+    expect(await d.query(`select count(*)::int as n from claims.calls`)).toEqual([{ n: 0 }])
+  })
+})
+
 describe('the runtime role', () => {
   // A statement that slipped past the SQL check still meets the database's own wall.
   const raw = async (sql: string) => {
@@ -187,7 +251,10 @@ describe('the runtime role', () => {
     expect(seen.who).toEqual([{ who: 'ana' }])
     expect(seen.notes).toEqual([{ id: 'a1' }])
     expect(seen.writes.every((w) => /permission denied/.test(w))).toBe(true)
-    // The row goes with the transaction.
+    // The row stays until the scheduler's purge (migration 0011), then goes: nothing removes it
+    // while its transaction runs.
+    expect(await d.query(`select count(*)::int as n from claims.calls`)).not.toEqual([{ n: 0 }])
+    await d.query('select claims.purge()')
     expect(await d.query(`select count(*)::int as n from claims.calls`)).toEqual([{ n: 0 }])
   })
 

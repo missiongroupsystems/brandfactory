@@ -55,16 +55,18 @@ export async function setClaims(
   tx: Conn,
   deps: Pick<CoreDeps, 'statementTimeoutMs'>,
   caller: Caller,
+  pack: string,
 ) {
-  await tx.exec(claimsOf(deps, caller))
+  await tx.exec(claimsOf(deps, caller, pack))
 }
 
 /** What `setClaims` runs, as one text, for a caller that sends it with its begin. */
-export function claimsOf(deps: Pick<CoreDeps, 'statementTimeoutMs'>, caller: Caller) {
+export function claimsOf(deps: Pick<CoreDeps, 'statementTimeoutMs'>, caller: Caller, pack: string) {
   const claims = claimsSql({
     user_id: caller.person,
     agent_id: caller.agent ?? '',
     capability: caller.capability ?? '',
+    pack,
   })
   return `${claims};\n${settingsOf(deps)}`
 }
@@ -92,12 +94,12 @@ function checkOf(
   opName: string,
 ) {
   const [env, pk, op] = [deps.environment, pack, opName].map(textLiteral)
-  return `${principalClaimsSql(principal)};
+  return `${principalClaimsSql(principal, pack)};
      ${settingsOf(deps)};
      select (select v.content_hash from packs.channels ch
              join packs.pack_versions v on v.pack = ch.pack and v.version = ch.version
              where ch.environment = ${env} and ch.pack = ${pk}) as core_check,
-       c.xact is not null as known,
+       coalesce(c.known, false) as known,
        case when c.agent_id <> '' then c.user_id end as agent_of,
        (select count(*)::int from packs.loadouts l
         where l.pack = ${pk} and l.principal in (c.user_id, nullif(c.agent_id, ''))
@@ -280,7 +282,7 @@ export async function execute(
     // call's key.
     return await deps.db.transaction(
       (tx) => moveIn(tx, deps, content, op, caller, input, opts),
-      firstOf(claimsOf(deps, caller), isKeyed(op, opts.key)),
+      firstOf(claimsOf(deps, caller, content.manifest.name), isKeyed(op, opts.key)),
     )
   } catch (err) {
     if (err instanceof Refused) throw err
@@ -735,7 +737,7 @@ async function inOneRead(
     textLiteral,
   )
   const first = [
-    principalClaimsSql(principal),
+    principalClaimsSql(principal, req.pack),
     settingsOf(deps),
     `select packs.judge(${env}, ${pk}, ${name}, ${hash}, ${of}) as core_check`,
     'set local role pack_runtime',

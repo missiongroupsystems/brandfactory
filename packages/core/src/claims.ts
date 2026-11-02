@@ -10,30 +10,37 @@ export function textLiteral(value: string | null): string {
   return `pg_catalog.convert_from(pg_catalog.decode('${hex}', 'hex'), 'UTF8')`
 }
 
-type Claims = { user_id?: string; agent_id?: string; capability?: string; actor?: string }
+type Claims = {
+  user_id?: string
+  agent_id?: string
+  capability?: string
+  actor?: string
+  /** The pack the call runs (none for the registry's own calls). */
+  pack?: string
+}
 
-/** The statement `writeClaims` runs, for a caller that sends it with others in one round trip. */
+/**
+ * The statement `writeClaims` runs, for a caller that sends it with others in one round trip.
+ * Once per transaction (migration 0011): the same claims again change nothing, other ones are
+ * refused, so nothing that runs after the first open can name another caller.
+ */
 export function claimsSql(c: Claims) {
-  const values = [c.user_id, c.agent_id, c.capability, c.actor].map((v) => textLiteral(v ?? ''))
-  return `insert into claims.calls (user_id, agent_id, capability, actor) values (${values.join(', ')})
-     on conflict (xact) do update set user_id = excluded.user_id, agent_id = excluded.agent_id,
-       capability = excluded.capability, actor = excluded.actor`
+  const values = [c.user_id, c.agent_id, c.capability, c.actor, c.pack]
+  return `select claims.open(${values.map((v) => textLiteral(v ?? '')).join(', ')})`
 }
 
 /**
  * `claimsSql` for a principal read from `packs.principals` in the same statement: a person is
- * `user_id`; an agent is `agent_id`, with its person as `user_id`. No row is written for a
- * principal that does not exist.
+ * `user_id`; an agent is `agent_id`, with its person as `user_id`. A principal that does not
+ * exist gets a row marked unknown (`known` false), so the transaction still has its one row.
  */
-export function principalClaimsSql(principal: string) {
-  return `insert into claims.calls (user_id, agent_id, capability, actor)
-     select coalesce(agent_of, id), case when agent_of is null then '' else id end, '', ''
-     from packs.principals where id = ${textLiteral(principal)}`
+export function principalClaimsSql(principal: string, pack: string) {
+  return `select claims.open_principal(${textLiteral(principal)}, ${textLiteral(pack)})`
 }
 
 /**
- * Writes this transaction's claims (`claims.calls`, migration 0007) as the login role, before a
- * call drops to a pack role. Setting them again in the same transaction replaces them all.
+ * Writes this transaction's claims (`claims.calls`, migrations 0007 and 0011) as the login role,
+ * before a call drops to a pack role.
  */
 export async function writeClaims(tx: Conn, c: Claims) {
   await tx.exec(claimsSql(c))

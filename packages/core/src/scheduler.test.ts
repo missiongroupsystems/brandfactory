@@ -58,6 +58,15 @@ const statuses = (db: Db) =>
     .then((rows) => rows.map((r) => r.status))
 
 describe('the scheduler loop', () => {
+  it('deletes the claims rows of finished calls, which nothing else removes', async () => {
+    const { db, core } = await setup(0, 0)
+    await db.transaction((tx) => tx.query(`select claims.open('ana', '', '', '', 'toy')`))
+    const stop = startScheduler(core, 20)
+    await new Promise((r) => setTimeout(r, 100))
+    await stop()
+    expect(await db.query('select count(*)::int as n from claims.calls')).toEqual([{ n: 0 }])
+  })
+
   it('runs due calls side by side, so a long send does not hold the next', async () => {
     const { db, core, sending } = await setup(400)
     const stop = startScheduler(core, 20)

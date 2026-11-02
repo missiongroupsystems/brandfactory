@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.56.0** — 2026-11-02 — `feat/core-no-superuser`: a call's claims are written once and never removed while it runs (core migration `0011_claims_once.sql`, not applied to production). Any role could fire the deferred trigger that deleted the row at commit (`SET CONSTRAINTS ALL IMMEDIATE`), leaving the transaction with no caller. Now `claims.open` and `claims.open_principal` write the row once (the same claims again change nothing, others are refused), the row names the pack and whether the principal exists, and the scheduler's loop purges finished transactions' rows. Phase 1 of `docs/executing/core-no-superuser-plan.md`. 1573 tests, none skipped (Postgres 18 in Docker).
 - **2.55.0** — 2026-11-02 — `feat/core-no-superuser`: a pack migration can no longer hide SQL from the core's checks. It could write a function body in `E'…'` escapes (or turn `standard_conforming_strings` off in a function's SET clause) so the text check missed `RESET ROLE`, and the function then left `pack_runtime` for the login role, on Fly too. `E'…'` strings, the two decoding settings and `OWNER TO` are refused; after every statement of a pack migration the core checks the role and reads Postgres's stored, decoded definition of everything the migrator owns. Phase 0 of `docs/executing/core-no-superuser-plan.md`. 1568 tests, none skipped (a throwaway Postgres 18 in Docker).
 - **2.54.2** — 2026-11-02 — `design/phone-calendar`: the server sends the public home page at `/` (TikTok's checker and readers with no script saw a loading spinner); on the live app TikTok's row on a post says it goes as a draft, with no posting controls that never reach TikTok; wording for TikTok's private-use rule; privacy says what disconnecting deletes. 1295 tests (259 skipped without a Postgres server).
 - **2.54.1** — 2026-11-01 — `design/phone-calendar`: Terms, Privacy and the home page describe brand base as a workspace for brands and their marketing teams, opening to more teams with a free plan (accounts by invitation for now), not an internal tool. 1294 tests (259 skipped without a Postgres server).
@@ -116,6 +117,30 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.56.0 — 2026-11-02
+
+- **Why.** Checked on PGlite: a role with no rights ran `SET CONSTRAINTS ALL IMMEDIATE` and the
+  deferred trigger `claims.forget` (migration 0007) deleted the transaction's claims row at once.
+  With no row, SQL that reached the login role could write another and name any caller. Two
+  reviews of the plan found it independently.
+- **Core migration `0011_claims_once.sql`.** The trigger goes. `claims.calls` gains `pack` (the
+  pack the call runs) and `known` (false for a principal that does not exist). `claims.open`
+  inserts once and refuses other claims in the same transaction (the same claims again, as the
+  approval path writes them, change nothing); `claims.open_principal` reads the principal and
+  writes an unknown row when there is none. `claims.purge()` deletes rows of finished
+  transactions under a new delete policy; `packs.judge` reads "no account" from `known`.
+- **Code.** `claimsSql`, `principalClaimsSql`, `setClaims` and `claimsOf` call the functions with
+  the pack; `checkOf` reads `known`; the scheduler's loop (`startScheduler`'s pass and `tick`)
+  purges at the start of each pass. The login role still owns everything (phase 3 takes that
+  away), so the functions are not yet `SECURITY DEFINER`.
+- **Review (Sonnet).** Found the purge only in `tick`, which the server's loop never calls: fixed,
+  with a test of the loop. Measured `claims.open` at 2,226 calls a second against 2,255 for the
+  old insert on one connection; readers keep their index scan.
+- **Tests.** Claims written once, kept through `SET CONSTRAINTS`, an unknown principal's row, the
+  purge leaving the running transaction's row, the loop's purge; the phase 8 test now purges.
+  1573 tests on PGlite and Postgres 18, none skipped.
+- **Deploy.** Not applied. Core migration 0011 and this code go out together.
 
 ## 2.55.0 — 2026-11-02
 
