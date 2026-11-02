@@ -4,10 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { openPostgres, type Db } from './db'
 import { Refused } from './errors'
 import { migrateCore, setupLogin } from './migrate'
+import { approve } from './effects'
+import { serverLoginIsLimited } from './platform'
 import { hashOf } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { call, execute } from './run'
-import { claim } from './scheduler'
+import { claim, tick } from './scheduler'
 import { forbiddenFunction } from './sql'
 import { deps as depsOf, goLive, OWNER, person } from './testing'
 import { toyPack } from './toy-pack'
@@ -44,29 +46,89 @@ describe.skipIf(!url)('on a real Postgres', () => {
     await admin?.close()
   })
 
-  it('refuses to install the core as a login that is not a superuser, before it changes anything', async () => {
-    // As Supabase's `postgres` or Fly Managed Postgres's admin: it may create databases and roles
-    // but owns none of the built-in functions 0001 takes from PUBLIC.
-    const role = `managed_${randomUUID().slice(0, 8)}`
+  it('installs the core as a role that is not a superuser, as on Supabase, and serves calls through its login', async () => {
+    // As Supabase's `postgres`: it may make roles and owns its database, but owns none of the
+    // built-in functions, so 0001's revokes from PUBLIC do not take. The pack roles already exist
+    // on this server (roles are the server's), so the superuser hands them over with ADMIN, as a
+    // role that made them would hold them.
+    const owner = `managed_${randomUUID().slice(0, 8)}`
+    const login = `server_${randomUUID().slice(0, 8)}`
     const plain = `${name}_managed`
+    const password = randomUUID().replaceAll('-', '')
     await admin.exec(
-      `create role ${role} login password 'pw' nosuperuser createdb createrole bypassrls`,
+      `create role ${owner} login password 'pw' nosuperuser createrole nobypassrls;
+       grant pack_runtime, pack_admin, pack_migrator, pack_server to ${owner} with admin option`,
     )
-    await admin.exec(`create database ${plain} owner ${role}`)
+    await admin.exec(`create database ${plain} owner ${owner}`)
     const u = new URL(url!)
-    u.username = role
+    u.username = owner
     u.password = 'pw'
     u.pathname = `/${plain}`
     const managed = openPostgres(u.toString(), 1)
+    u.username = login
+    u.password = password
+    const server = openPostgres(u.toString(), 2)
     try {
-      await expect(migrateCore(managed)).rejects.toThrow(/must be installed by a superuser/)
-      expect(await managed.query(`select to_regnamespace('packs') is null as untouched`)).toEqual([
-        { untouched: true },
+      expect(await migrateCore(managed)).toContain('0013_server_role.sql')
+      await goLive(managed, toyPack())
+      await person(managed, 'lia', toyPack())
+      await setupLogin(managed, login, password)
+      const deps = { ...depsOf(server), now: () => new Date() }
+      await call(deps, req('lia', 'note.add', { id: 'l-1', body: 'through the login' }))
+      expect(await call(deps, req('lia', 'note.list'))).toEqual([
+        { id: 'l-1', body: 'through the login' },
       ])
+      // The purge runs as an owner with no BYPASSRLS, under the claims' forced row rules; the
+      // superuser counts the rows, which the owner's own reads would not see.
+      const su = new URL(url!)
+      su.pathname = `/${plain}`
+      const superuser = openPostgres(su.toString(), 1)
+      const rows = () =>
+        superuser.query<{ n: number }>('select count(*)::int as n from claims.calls')
+      expect((await rows())[0]!.n).toBeGreaterThan(0)
+      expect(await tick(deps)).toBe(0)
+      expect(await rows()).toEqual([{ n: 0 }])
+      await superuser.close()
+      expect(await serverLoginIsLimited(server)).toEqual([])
+      expect((await serverLoginIsLimited(managed)).join('; ')).toMatch(/owns objects/)
+      // What SQL that escaped to the login could leave for a later call (here the large-object
+      // functions and ALTER ROLE stay open to it) is refused at the call's end, and goes with it.
+      for (const leave of [
+        `select lo_from_bytea(0, convert_to('lia''s notes', 'UTF8'))`,
+        `alter role ${login} set statement_timeout = '7s'`,
+        `alter role ${login} in database ${plain} set role = pack_runtime`,
+        `alter default privileges for role ${login} grant select on tables to pack_server`,
+      ]) {
+        const left = server.transaction(async (tx) => {
+          await tx.query(`select claims.open('lia', '', '', '', 'toy')`)
+          await tx.exec(leave)
+          await tx.query('select packs.end_of_call()')
+        })
+        await expect(left).rejects.toThrow(/may leave no/)
+      }
+      const [after] = await managed.query<{ objects: number; settings: number }>(
+        `select (select count(*) from pg_largeobject_metadata)::int as objects,
+           (select count(*) from pg_db_role_setting where setrole = $1::regrole)::int as settings`,
+        [login],
+      )
+      expect(after).toEqual({ objects: 0, settings: 0 })
+      // A setting for one database, left outside a call, stops the server from starting, and
+      // setup-login, run again as this installer (a new password), takes it away.
+      await managed.exec(`alter role ${login} in database ${plain} set statement_timeout = '7s'`)
+      expect((await serverLoginIsLimited(server)).join('; ')).toMatch(/settings for a database/)
+      await setupLogin(managed, login, password)
+      expect(await serverLoginIsLimited(server)).toEqual([])
+      // The pack roles can still call set_config here: the core does not rely on it.
+      const [rt] = await managed.query<{ ok: boolean }>(
+        `select has_function_privilege('pack_runtime', 'pg_catalog.set_config(text,text,boolean)', 'execute') as ok`,
+      )
+      expect(rt!.ok).toBe(true)
     } finally {
+      await server.close()
       await managed.close()
       await admin.exec(`drop database if exists ${plain} with (force)`)
-      await admin.exec(`drop role if exists ${role}`)
+      await admin.exec(`drop role if exists ${login}`)
+      await admin.exec(`drop owned by ${owner}; drop role if exists ${owner}`)
     }
   })
 
@@ -93,7 +155,7 @@ describe.skipIf(!url)('on a real Postgres', () => {
     }
   })
 
-  it('runs a deployed core as a login that is not a superuser, made by the one that installed it', async () => {
+  it('runs a deployed core as a login that owns nothing and reaches no core table', async () => {
     const other = `${name}_login`
     const role = `core_login_${randomUUID().slice(0, 8)}`
     const password = randomUUID().replaceAll('-', '')
@@ -110,8 +172,6 @@ describe.skipIf(!url)('on a real Postgres', () => {
     await admin.exec(`create role ${role} nologin`)
     try {
       await migrateCore(installer)
-      // 0001 gave the role found there every function on its list; 0010 took back the
-      // superuser's own (server files, reload), before setup-login runs.
       const [early] = await installer.query<{ export: boolean; reload: boolean }>(
         `select has_function_privilege($1, 'pg_catalog.lo_export(oid, text)', 'execute') as export,
            has_function_privilege($1, 'pg_catalog.pg_reload_conf()', 'execute') as reload`,
@@ -119,38 +179,37 @@ describe.skipIf(!url)('on a real Postgres', () => {
       )
       expect(early).toEqual({ export: false, reload: false })
       await expect(setupLogin(installer, role, password)).rejects.toThrow(/not the core's login/)
-      await installer.exec(`grant pack_runtime to ${role}`)
+      await installer.exec(`grant pack_runtime, pack_admin to ${role}`)
       // Never the role running it, nor a password that would not go in DATABASE_URL as it is.
       const [installing] = await installer.query<{ name: string }>('select current_user as name')
       await expect(setupLogin(installer, installing!.name, password)).rejects.toThrow(
         /not the core's login/,
       )
       await expect(setupLogin(installer, role, 'a/b+c=d'.repeat(4))).rejects.toThrow(/letters/)
-      await setupLogin(installer, role, password)
-      await expect(setupLogin(login, role, password)).rejects.toThrow(/runs as the superuser/)
+      // A role setting left on the login (as an escape could leave one) goes.
+      await installer.exec(`alter role ${role} set search_path = somewhere`)
+      expect(await setupLogin(installer, role, password)).toBe(1)
+      await expect(setupLogin(login, role, password)).rejects.toThrow(/installed the core/)
       const wrong = new URL(u.toString())
       wrong.password = `${password}x`
       const stranger = openPostgres(wrong.toString(), 1)
       await expect(stranger.query('select 1')).rejects.toThrow(/password authentication failed/)
       await stranger.close()
-      // The login does all a running core does: migrate, publish, promote, call. A core
-      // migration it has not seen waits for the superuser, who then runs it.
-      expect(await migrateCore(login)).toEqual([])
-      await installer.exec(
-        `delete from packs.migrations where name = '0010_superuser_functions.sql'`,
-      )
-      await expect(migrateCore(login)).rejects.toThrow(/0010_superuser_functions.sql wait for/)
-      expect(await migrateCore(installer)).toEqual(['0010_superuser_functions.sql'])
-      await goLive(login, toyPack())
-      await person(login, 'lia', toyPack())
+      // The installer publishes and promotes; the login only serves calls.
+      await goLive(installer, toyPack())
+      await person(installer, 'lia', toyPack())
       const deps = { ...depsOf(login), now: () => new Date() }
       await call(deps, req('lia', 'note.add', { id: 'l-1', body: 'as the login' }))
       expect(await call(deps, req('lia', 'note.list'))).toEqual([
         { id: 'l-1', body: 'as the login' },
       ])
-      // It is no superuser, may make no database or role, and of 0001's functions keeps set_config.
-      const [me] = await installer.query<Record<string, boolean>>(
-        `select rolsuper, rolcreatedb, rolcreaterole, rolbypassrls from pg_roles where rolname = $1`,
+      // It is no superuser, may make no database or role, keeps no setting, holds pack_runtime
+      // and pack_server only, and of 0001's functions keeps set_config.
+      const [me] = await installer.query<Record<string, unknown>>(
+        `select rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, rolconfig,
+           array(select m.roleid::regrole::text from pg_auth_members m
+                 where m.member = r.oid order by 1) as held
+         from pg_roles r where rolname = $1`,
         [role],
       )
       expect(me).toEqual({
@@ -158,6 +217,8 @@ describe.skipIf(!url)('on a real Postgres', () => {
         rolcreatedb: false,
         rolcreaterole: false,
         rolbypassrls: false,
+        rolconfig: null,
+        held: ['pack_runtime', 'pack_server'],
       })
       const callable = await installer.query<{ proname: string }>(
         `select distinct p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -165,9 +226,31 @@ describe.skipIf(!url)('on a real Postgres', () => {
         [role],
       )
       expect(callable.map((c) => c.proname).filter(forbiddenFunction)).toEqual(['set_config'])
-      await expect(login.query(`select pg_read_file('postgresql.conf')`)).rejects.toThrow(
-        /permission denied/,
-      )
+      // No core table, no direct write to the claims, no migration, no file.
+      for (const sql of [
+        'select * from packs.principals',
+        'select * from packs.op_calls',
+        'select * from packs.scheduled_calls',
+        `insert into claims.calls (user_id) values ('ben')`,
+        `select pg_read_file('postgresql.conf')`,
+      ]) {
+        await expect(login.query(sql)).rejects.toThrow(/permission denied/)
+      }
+      await expect(migrateCore(login)).rejects.toThrow(/permission denied|must be owner/)
+      // A pass of the scheduler's loop (the purge under forced row rules, stuck calls, due
+      // calls) and a person's yes run as the login too.
+      expect(await tick(deps)).toBe(0)
+      expect(
+        await approve(deps, {
+          authorization: 'Bearer lia',
+          pack: 'toy',
+          op: 'note.share',
+          input: { id: 'l-1' },
+        }),
+      ).toMatchObject({ approval: expect.any(String) })
+      // The server starts on this login, and refuses the installer's.
+      expect(await serverLoginIsLimited(login)).toEqual([])
+      expect((await serverLoginIsLimited(installer)).join('; ')).toMatch(/superuser/)
     } finally {
       await login.close()
       await installer.close()

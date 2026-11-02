@@ -5,12 +5,10 @@
 #
 # Secrets, set with `fly secrets set` (never in this file):
 #   DATABASE_URL           the Fly Postgres app `brandbase-db` (sin), over Fly's private network,
-#                          as the login `core setup-login` makes: not a superuser, a member of
-#                          pack_runtime, pack_admin and pack_migrator, owner of the packs, claims
-#                          and textfn schemas, and of 0001's functions may call only set_config
-#                          (docs/completions/packs-core-phases-1-to-8.md, phase 3 review).
-#                          Not Supabase or Fly Managed Postgres: neither gives the superuser the
-#                          first install needs (src/migrate.ts).
+#                          as the server login `core setup-login` makes: not a superuser, owns
+#                          nothing, holds pack_runtime and pack_server only, no right on a core
+#                          table (docs/executing/core-no-superuser-plan.md, phase 3). The server
+#                          refuses to start on any other login.
 #   SUPABASE_JWKS_URL      Passport's project: https://<project>.supabase.co/auth/v1/.well-known/jwks.json
 #   SUPABASE_JWT_ISSUER    Passport's project: https://<project>.supabase.co/auth/v1
 #   SUPABASE_URL, SUPABASE_SERVICE_KEY   for Storage
@@ -41,14 +39,10 @@ kill_timeout   = 300
 [build]
   dockerfile = "packages/core/Dockerfile"
 
-# The core's own migrations (the registry, the roles and the wall) run before new machines take
-# traffic. Every core migration needs the superuser: the first install, by hand, then each new one
-# (run as the login, this command stops and names it; run it as the superuser, then `core
-# setup-login` again). Supabase's `postgres` is not a superuser: there 0001 cannot take set_config
-# and the other risky functions from the runtime role. A pack's migrations run with
-# `core migrate <pack> <version>` once a version has passed its tests.
-[deploy]
-  release_command = "node_modules/.bin/tsx node_modules/@brandfactory/core/src/cli.ts migrate"
+# No release command: the server's login may not migrate. The owner runs `core migrate` (and
+# `core migrate <pack> <version>` once a version has passed its tests) by hand, with the URL of
+# the role that installed the core, before deploying the code that needs it
+# (docs/executing/core-no-superuser-plan.md, the owner's steps).
 
 [http_service]
   internal_port        = 3001

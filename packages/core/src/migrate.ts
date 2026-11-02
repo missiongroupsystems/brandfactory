@@ -23,6 +23,21 @@ export function readMigrations(dir: string): Migration[] {
 const hashOf = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
 /**
+ * Core migrations rewritten after they ran, so that a role that is not a superuser can apply them
+ * (docs/executing/core-no-superuser-plan.md, phase 3): what they do on a superuser is unchanged, so
+ * a database that applied the earlier text is up to date.
+ */
+const EARLIER: Record<string, string[]> = {
+  '0001_registry.sql': ['debeea582024c6d3df3e3581a499ec468357ff122b110075b994d20a31288396'],
+  '0009_pack_roles_functions.sql': [
+    'a16be915da9db02e383cc675f370efb9c0ec97ffb8b8026f8af326e8921812be',
+  ],
+  '0010_superuser_functions.sql': [
+    'd99a06e636a2c359f6dbf2028fa3ed39d2c60fed26d2a00144ad74cedcb4433e',
+  ],
+}
+
+/**
  * Applies the migrations of one scope ('core', or a pack's name) that are not yet recorded, each
  * in its own transaction, as the login role. A recorded migration whose text changed is refused:
  * an applied migration is never edited, only followed by a new one.
@@ -60,7 +75,8 @@ async function apply(db: Db, scope: string, migrations: Migration[], role: strin
     const hash = hashOf(m.sql)
     const before = applied.get(m.name)
     if (before !== undefined) {
-      if (before !== hash) throw new Error(`migration ${scope}/${m.name} changed after it ran`)
+      const same = before === hash || (scope === 'core' && EARLIER[m.name]?.includes(before))
+      if (!same) throw new Error(`migration ${scope}/${m.name} changed after it ran`)
       continue
     }
     await db.transaction(async (tx) => {
@@ -142,39 +158,21 @@ async function refuseHiddenWords(tx: Conn, migration: string) {
 }
 
 /**
- * The core's migrations, as the login role. The first install needs that role to be a superuser:
- * 0001 takes risky functions (`set_config`, the `*_to_xml` family, large objects…) from PUBLIC,
- * which only their owner can do. Without it Postgres skips the revokes with a warning, and a
- * pack's SQL could reach `set_config('role', …)` and leave pack_runtime for the login role. A
- * managed Postgres that gives no superuser (Supabase, Fly Managed Postgres) is refused here.
+ * The core's migrations, as the role that installs and owns the core (never the server's login).
+ * On a superuser, 0001 also takes risky functions (`set_config`, the `*_to_xml` family, large
+ * objects…) from PUBLIC, which only their owner can do, and that is checked below. Without one
+ * (Supabase) the revokes are skipped: the core's walls since migrations 0011 to 0013 hold without
+ * them (docs/executing/core-no-superuser-plan.md).
  */
 export async function migrateCore(db: Db) {
   const migrations = readMigrations(CORE_DIR)
-  const [me] = await db.query<{ rolsuper: boolean; installed: boolean }>(
-    `select rolsuper, to_regclass('packs.migrations') is not null as installed
-     from pg_roles where rolname = current_user`,
+  const [me] = await db.query<{ rolsuper: boolean }>(
+    'select rolsuper from pg_roles where rolname = current_user',
   )
-  if (!me?.installed && !me?.rolsuper) {
-    throw new Error(
-      'the core must be installed by a superuser: without one, migration 0001 cannot take ' +
-        'set_config and the other risky functions from the runtime role ' +
-        '(packages/core/src/migrate.ts)',
-    )
-  }
-  if (me?.installed && !me.rolsuper) {
-    // A core migration run by the login would do less without a word: a revoke on a function it
-    // does not own is only a warning. So a pending one waits for the superuser.
-    const applied = await db.query<{ name: string }>(
-      `select name from packs.migrations where scope = 'core'`,
-    )
-    const pending = migrations.filter((m) => !applied.some((a) => a.name === m.name))
-    if (pending.length > 0) {
-      throw new Error(
-        `core migrations ${pending.map((m) => m.name).join(', ')} wait for the superuser: run ` +
-          '`core migrate` as it, then `core setup-login` again (packages/core/src/migrate.ts)',
-      )
-    }
-  }
+  // Without a superuser (Supabase) 0001's revokes from PUBLIC do not take: Postgres skips them
+  // with a warning. The core no longer relies on them (phases 0 to 3 of
+  // docs/executing/core-no-superuser-plan.md); where a superuser installs, they are a second wall
+  // and are checked below.
   const done = await applyMigrations(db, 'core', migrations)
   // Postgres's own rule, which 0001 broke for roles it found (0010): only a superuser reads or
   // writes server files or reloads the configuration.
@@ -198,11 +196,16 @@ export async function migrateCore(db: Db) {
   const callable = await db.query<{ role: string; proname: string }>(
     `select distinct r.role, p.proname
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace,
-       unnest(array['pack_runtime', 'pack_admin', 'pack_migrator']) as r(role)
+       unnest(array['pack_runtime', 'pack_admin', 'pack_migrator', 'pack_server']) as r(role)
      where n.nspname = 'pg_catalog' and has_function_privilege(r.role, p.oid, 'execute')`,
   )
   const risky = callable.filter((r) => forbiddenFunction(r.proname))
-  if (risky.length > 0) {
+  if (risky.length > 0 && !me?.rolsuper) {
+    console.warn(
+      `core migrate: not a superuser, so the pack roles keep ${new Set(risky.map((r) => r.proname)).size} ` +
+        'functions 0001 takes from PUBLIC elsewhere; the walls of migrations 0011 to 0013 hold without them',
+    )
+  } else if (risky.length > 0) {
     const named = [...new Set(risky.map((r) => `${r.role} ${r.proname}`))].sort()
     throw new Error(
       `a pack role can call a function 0001 takes away (${named.join(', ')}): the core was not ` +
@@ -231,13 +234,15 @@ export function scramVerifier(password: string, salt = randomBytes(16), iteratio
 }
 
 /**
- * The login a deployed core runs as, made once by the superuser that installed it
- * (`core setup-login`). Not a superuser: every escape a review found ends at the session user
- * (`docs/completions/packs-core-phases-1-to-8.md`, phase 3), so that user may do only what the core
- * does. It is a member of the pack roles, owns the core's schemas and what is in them, and may
- * call `set_config`, the one function migration 0001 took from PUBLIC that the core itself uses.
- * Run again, it resets the password, the attributes, the ownership and the functions; other
- * memberships the login holds stay. Roles belong to the server: one database per server.
+ * The login a deployed core runs as, made by whoever installed the core (`core setup-login`): a
+ * superuser on Fly, or on Supabase a role with CREATEROLE (docs/executing/core-no-superuser-plan.md,
+ * phase 3). Not a superuser, and owns nothing: every escape a review found ends at the session
+ * user, so that user may do only what one call may. It holds pack_runtime (to run a pack's SQL)
+ * and pack_server (to call the core's functions, migration 0013) and nothing else, has no right on
+ * any core table, and keeps no role settings of its own. Where the installer is a superuser it
+ * may also call `set_config`, the one function migration 0001 took from PUBLIC that the core
+ * uses. Run again, it resets the password, the attributes, the settings and the memberships.
+ * Roles belong to the server: one database per server.
  */
 export async function setupLogin(db: Db, role: string, password: string) {
   if (!ROLE.test(role))
@@ -249,60 +254,85 @@ export async function setupLogin(db: Db, role: string, password: string) {
     throw new Error('the password is 24 or more letters, digits, - or _ (openssl rand -hex 24)')
   }
   return db.transaction(async (tx) => {
-    const [me] = await tx.query<{ rolsuper: boolean }>(
-      'select rolsuper from pg_roles where rolname = current_user',
+    const [me] = await tx.query<{ rolsuper: boolean; owner: boolean }>(
+      `select rolsuper, (select nspowner = r.oid from pg_namespace where nspname = 'packs') as owner
+       from pg_roles r where rolname = current_user`,
     )
-    if (!me?.rolsuper) throw new Error('setup-login runs as the superuser that installed the core')
-    // Only the core's own login is made or reset: never the role running this, a superuser, or a
-    // role the core did not make (one that is not yet a member of pack_runtime).
-    const [found] = await tx.query<{ me: boolean; rolsuper: boolean; ours: boolean }>(
+    if (!me?.rolsuper && !me?.owner) {
+      throw new Error('setup-login runs as the role that installed the core')
+    }
+    // Only the core's own login is made or reset: never the role running this, a superuser, a
+    // role that owns anything, or one the core did not make (not a member of pack_runtime).
+    const [found] = await tx.query<{
+      me: boolean
+      rolsuper: boolean
+      ours: boolean
+      owns: boolean
+    }>(
       `select rolname = current_user as me, rolsuper,
          exists (select 1 from pg_auth_members m
-           where m.member = r.oid and m.roleid = 'pack_runtime'::regrole) as ours
+           where m.member = r.oid and m.roleid = 'pack_runtime'::regrole) as ours,
+         exists (select 1 from pg_class where relowner = r.oid)
+           or exists (select 1 from pg_proc where proowner = r.oid)
+           or exists (select 1 from pg_namespace where nspowner = r.oid)
+           or exists (select 1 from pg_type where typowner = r.oid) as owns
        from pg_roles r where rolname = $1`,
       [role],
     )
-    if (found && (found.me || found.rolsuper || !found.ours)) {
+    if (found && (found.me || found.rolsuper || !found.ours || found.owns)) {
       throw new Error(`${role} exists and is not the core's login: choose another name`)
     }
     const verifier = scramVerifier(password).replaceAll("'", "''")
-    const attributes = `login nosuperuser nocreatedb nocreaterole noreplication nobypassrls`
-    await tx.exec(
-      found
-        ? `alter role ${role} with ${attributes} password '${verifier}'`
-        : `create role ${role} with ${attributes} password '${verifier}'`,
-    )
-    await tx.exec(`grant pack_runtime, pack_admin, pack_migrator to ${role}`)
-    const owned = await tx.query<{ sql: string }>(
-      `select format('alter schema %I owner to %I', nspname, $1::text) as sql
-       from pg_namespace where nspname in ('packs', 'claims', 'textfn')
-       union all
-       select format('alter %s %I.%I owner to %I',
-         case c.relkind when 'v' then 'view' when 'm' then 'materialized view'
-           when 'S' then 'sequence' else 'table' end, n.nspname, c.relname, $1::text)
-       from pg_class c join pg_namespace n on n.oid = c.relnamespace
-       where n.nspname in ('packs', 'claims', 'textfn') and c.relkind in ('r', 'p', 'v', 'm', 'S')
-         and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass
-           and d.objid = c.oid and d.deptype in ('a', 'i'))
-       union all
-       select format('alter function %s owner to %I', p.oid::regprocedure, $1::text)
-       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-       where n.nspname in ('packs', 'claims', 'textfn')`,
-      [role],
-    )
-    for (const { sql } of owned) await tx.exec(sql)
-    // A login that existed when 0001 ran got every function on its list back; it keeps only
-    // set_config.
-    const granted = await tx.query<{ fn: string; proname: string }>(
-      `select p.oid::regprocedure::text as fn, p.proname from pg_proc p
-       join pg_namespace n on n.oid = p.pronamespace
-       where n.nspname = 'pg_catalog' and has_function_privilege($1, p.oid, 'execute')`,
-      [role],
-    )
-    for (const { fn } of granted.filter((g) => forbiddenFunction(g.proname))) {
-      await tx.exec(`revoke execute on function ${fn} from ${role}`)
+    if (found) {
+      // Run again (a new password): only a superuser may restate SUPERUSER and the rest, so the
+      // attributes are checked instead.
+      const [attrs] = await tx.query<{ ok: boolean }>(
+        `select not (rolsuper or rolcreatedb or rolcreaterole or rolreplication or rolbypassrls)
+           as ok from pg_roles where rolname = $1`,
+        [role],
+      )
+      if (!attrs?.ok) throw new Error(`${role} has an attribute the core's login may not have`)
+      await tx.exec(`alter role ${role} with login password '${verifier}'`)
+    } else {
+      await tx.exec(
+        `create role ${role} with login nosuperuser nocreatedb nocreaterole noreplication ` +
+          `nobypassrls password '${verifier}'`,
+      )
     }
-    await tx.exec(`grant execute on function pg_catalog.set_config(text, text, boolean) to ${role}`)
-    return owned.length
+    // A role's own settings outlive every reset a session makes, those for one database too; the
+    // login keeps none.
+    await tx.exec(`alter role ${role} reset all`)
+    const perDatabase = await tx.query<{ name: string }>(
+      `select d.datname as name from pg_db_role_setting s join pg_database d on d.oid = s.setdatabase
+       where s.setrole = $1::regrole`,
+      [role],
+    )
+    for (const { name } of perDatabase) {
+      await tx.exec(`alter role ${role} in database "${name.replaceAll('"', '""')}" reset all`)
+    }
+    const held = await tx.query<{ name: string }>(
+      `select m.roleid::regrole::text as name from pg_auth_members m
+       where m.member = $1::regrole and m.roleid not in ('pack_runtime'::regrole, 'pack_server'::regrole)`,
+      [role],
+    )
+    for (const { name } of held) await tx.exec(`revoke ${name} from ${role}`)
+    await tx.exec(`grant pack_runtime, pack_server to ${role}`)
+    if (me.rolsuper) {
+      // A login that existed when 0001 ran got every function on its list back; it keeps only
+      // set_config.
+      const granted = await tx.query<{ fn: string; proname: string }>(
+        `select p.oid::regprocedure::text as fn, p.proname from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'pg_catalog' and has_function_privilege($1, p.oid, 'execute')`,
+        [role],
+      )
+      for (const { fn } of granted.filter((g) => forbiddenFunction(g.proname))) {
+        await tx.exec(`revoke execute on function ${fn} from ${role}`)
+      }
+      await tx.exec(
+        `grant execute on function pg_catalog.set_config(text, text, boolean) to ${role}`,
+      )
+    }
+    return held.length
   })
 }

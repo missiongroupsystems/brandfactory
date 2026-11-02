@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.58.0** — 2026-11-02 — `feat/core-no-superuser`: the server's login reaches the core only as one call may, and the core installs without a superuser (core migration `0013_server_role.sql`, not applied to production). The login holds `pack_runtime` and a new `pack_server` only, owns nothing and has no right on a core table; the core's functions run with the installer's rights. `core setup-login` and `core migrate` no longer need a superuser; the server refuses to start on any other login; a call may leave no large object, role setting or default privilege. `fly.toml` has no release step: the owner migrates by hand (the steps are in the plan). Phase 3 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
 - **2.57.0** — 2026-11-02 — `feat/core-no-superuser`: the server reaches the core's own tables only through functions (core migration `0012_call_functions.sql`, not applied to production). Server-only ones (who may call, the live version, the scheduler's loop, agents, events, a send's outcome) refuse inside a call; per-call ones (idempotency keys, the log, timed calls, approvals, the first-trip check) act only for the principal and pack in the call's claims, and scheduling or using a yes needs the move. Every function searches `pg_catalog, pg_temp` only. Phase 2 of `docs/executing/core-no-superuser-plan.md`. 1592 tests, none skipped (Postgres 18 in Docker).
 - **2.56.0** — 2026-11-02 — `feat/core-no-superuser`: a call's claims are written once and never removed while it runs (core migration `0011_claims_once.sql`, not applied to production). Any role could fire the deferred trigger that deleted the row at commit (`SET CONSTRAINTS ALL IMMEDIATE`), leaving the transaction with no caller. Now `claims.open` and `claims.open_principal` write the row once (the same claims again change nothing, others are refused), the row names the pack and whether the principal exists, and the scheduler's loop purges finished transactions' rows. Phase 1 of `docs/executing/core-no-superuser-plan.md`. 1573 tests, none skipped (Postgres 18 in Docker).
 - **2.55.0** — 2026-11-02 — `feat/core-no-superuser`: a pack migration can no longer hide SQL from the core's checks. It could write a function body in `E'…'` escapes (or turn `standard_conforming_strings` off in a function's SET clause) so the text check missed `RESET ROLE`, and the function then left `pack_runtime` for the login role, on Fly too. `E'…'` strings, the two decoding settings and `OWNER TO` are refused; after every statement of a pack migration the core checks the role and reads Postgres's stored, decoded definition of everything the migrator owns. Phase 0 of `docs/executing/core-no-superuser-plan.md`. 1568 tests, none skipped (a throwaway Postgres 18 in Docker).
@@ -118,6 +119,45 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.58.0 — 2026-11-02
+
+- **Why.** SQL that escapes a pack role becomes the session user, the server's login. Until now
+  that login owned the core and every pack table and could write any caller's claims. Now it can
+  do only what one call can, so an escape gains nothing, and the core can run where nobody is a
+  superuser (Supabase).
+- **Core migration `0013_server_role.sql`.** Role `pack_server`; the functions of 0011 and 0012 and
+  `packs.judge` run with their owner's rights, callable by `pack_server`; `judge` refuses a pack
+  other than the claims' (a row with no pack, which only the code before 0011 writes, is taken
+  during the deploy window); the purge's owner may read finished claims rows (it deleted nothing as
+  an owner without BYPASSRLS); `packs.end_of_call()` refuses, at the call's commit, a large object,
+  a role setting (also for one database) or default privileges left by the login or the pack roles;
+  `log_call` runs it, and so does a send's first transaction.
+- **Installs without a superuser.** Core migrations 0001, 0009 and 0010 skip, without a superuser,
+  the grants and revokes only one can make; `migrateCore` accepts their earlier text (`EARLIER`)
+  and warns instead of refusing. `setupLogin` runs as the installer, makes the login a member of
+  `pack_runtime` and `pack_server` only, takes other memberships away, clears its settings in
+  every database, refuses a role that owns anything, and runs again for a new password.
+- **The server's start check** (`serverLoginIsLimited`): not a superuser, no BYPASSRLS, owns
+  nothing, holds the two roles only, no settings, may call `set_config`, no large objects or
+  default privileges left, and no `dblink`, `postgres_fdw`, `pg_net`, `http` or `pg_cron` it may
+  call.
+- **`fly.toml`.** No release step: the server's login may not migrate. The owner's steps for Fly
+  are in the plan; core 0011 to 0013 go before this code, and the code before it keeps working
+  after them.
+- **Reviews.** Opus attacked it on a real non-superuser setup: large objects and per-database
+  settings carried data between calls, and `setupLogin` could not run twice as a non-superuser;
+  all fixed, re-checked, then default privileges added. Sonnet traced the deploy: the release step
+  would have failed every deploy, the login lacked a check on `set_config`, and the old code would
+  have failed every call between migrating and deploying; all fixed.
+- **Tests.** On Postgres 18: an install as a role with `CREATEROLE` and no BYPASSRLS serves calls,
+  a scheduler pass and the purge through its login; the login reaches no core table, cannot write
+  claims or migrate; what a call leaves is refused and rolled back; the start check refuses the
+  installer and per-database settings; `setupLogin` runs again and clears them. 1594 tests,
+  none skipped.
+- **Accepted, written down in the plan.** Counters pass a few bits between calls; an escape can
+  change the login's password in a call that commits (the walls: Supabase's network restriction
+  and the start check). On Fly the installer's old login stays the owner (phase 3b).
 
 ## 2.57.0 — 2026-11-02
 

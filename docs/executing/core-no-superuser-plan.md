@@ -205,9 +205,10 @@ Each item was checked against the code; the two marked *confirmed* were run on P
   owner (Supabase's `postgres`), in the script.
 - **R6. Inputs in flight are visible to an escape.** With prepared statements on, inputs still go
   as literals (`execute one_x('…')`), and the call log too. An escape running as `core_server` can
-  read other sessions' statements in `pg_stat_activity` while they run. Binding every input costs
-  round trips. Accepted, and written down: an escape sees other calls' inputs in flight, not stored
-  rows; the guest token alone is bound (D6).
+  read other sessions' last statements in `pg_stat_activity`, idle pooled sessions included (the
+  third phase 3 review decoded another call's logged input this way). Binding every input costs
+  round trips. Not accepted as it stands: phase 4 decides between binding the log's input, a
+  `pg_stat_activity` that hides other sessions' text, or writing the leak down.
 - **R7. The purge and row rules.** The core's tables keep no row rules and no grants; only
   `claims.calls` has them, with a policy that lets `core_owner` delete finished rows. `core_owner`
   is not a superuser anywhere (Fly included), so the two behave alike.
@@ -255,23 +256,47 @@ Each phase ends with an independent review before its commit.
   (2.56.0), phase 2 `a353ab4` (2.57.0). Each had an independent review; findings fixed with tests.
 - Tests on a real Postgres: `docker run -d --name core-nosuper-pg -e POSTGRES_PASSWORD=test -p
   127.0.0.1:55432:5432 postgres:18`, then `CORE_TEST_PG_URL=postgres://postgres:test@127.0.0.1:55432/postgres pnpm test`.
-- **Phase 3 design (next):**
-  1. Core migration 0013: a group role `pack_server` (NOLOGIN). The functions of 0011 and 0012,
-     `packs.judge` and the `claims.*` readers become `SECURITY DEFINER` (owner: whoever installs the
-     core, `core_owner`), `EXECUTE` revoked from PUBLIC and granted to `pack_server` (and
-     `claims.rule_ok` and the readers to `pack_runtime` as now). `packs.judge` reads the pack from
-     the claims and refuses another.
-  2. `setupLogin` makes the server's login: a member of `pack_runtime` and `pack_server` only,
-     owning nothing, with no grant on any core table; it no longer needs a superuser, only a role
-     with `CREATEROLE` and `ADMIN` on the two roles (`core_owner`).
-  3. `migrateCore` no longer refuses a role that is not a superuser: it applies what it can and
-     reports which `0001` revokes took; on a superuser it still refuses a partial wall.
-  4. The server's start check: its login is not a superuser, has no BYPASSRLS, owns nothing, holds
-     only `pack_runtime` and `pack_server`, and has no role settings (`rolconfig`).
-  5. Tests on Postgres: install as a role that is not a superuser (`CREATEROLE`, owns the
-     database), make the server's login, run calls as it, and check it reaches no core table.
-  6. Then 3b: one owner role per pack (R2) and the CLI's migrator login.
+- Phase 3 (logins) is the commit after phase 2: migration 0013, `setupLogin`, `migrateCore`
+  without a superuser, the server's start check, `fly.toml` with no release step.
+- **Phase 3's review, fixed:** large objects and role settings (also per database) a call leaves
+  are refused at its commit (`packs.end_of_call`, from the log and from a send's first
+  transaction), and the start check refuses them, and `dblink`, `postgres_fdw`, `pg_net`, `http`
+  and `pg_cron` where the login may call them; `setup-login` runs again as a non-superuser
+  installer (a new password; the attributes checked) and clears settings in every database; the
+  purge works as an owner without BYPASSRLS.
+- **Accepted, written down:** counters still pass a few bits from one call to the next
+  (`pg_stat_*` scan counts, `nextval` on a sequence, which a rollback does not undo). 0013's
+  `judge` accepts a claims row with no pack only for the deploy window; a later migration removes
+  that.
+- **Still open (R1):** an escape can change the login's own password inside a call that commits;
+  nothing in the database can see that (`pg_authid` is the superuser's). The walls are Supabase's
+  network restriction and the start check's refusal of every way to open a second session.
+- **Known gap on Fly:** the installer's old login stays the owner of the core and of the
+  `SECURITY DEFINER` functions, and keeps `pack_admin` and `pack_migrator` (the CLI needs them).
+  A bug in a definer function reaches what that login can. Phase 3b moves ownership to a
+  `core_owner` with no other role.
+- **Next:** phase 3b (one owner role per pack, R2; the CLI's migrator login), then phase 4
+  (session reset and the server's own deadline), phase 5 (the attack suite), phase 6.
 
-## Open questions
+## The owner's steps for Fly (brandbase-db), when this is deployed
+
+`$OLD` is the login the server uses today (it owns the core); `core_server` is the new one.
+Steps 5 and 6 go back to back; step 5 cannot be undone except from the backup.
+
+1. Back up `brandbase-db` (a Fly snapshot or `pg_dump`).
+2. `fly proxy 15432:5432 -a brandbase-db`; the `postgres` password from the Keychain.
+3. As `postgres`: `create role pack_server nologin;` then, with
+   `CORE_LOGIN_PASSWORD=$(openssl rand -hex 24)` and the `postgres` URL as `DATABASE_URL`,
+   `core setup-login core_server`. Nothing changes for the running site.
+4. Build the image without releasing it, and stage the new secret: `fly deploy --build-only
+   --push --image-label nosuper`; `fly secrets set --stage DATABASE_URL=<core_server's URL>`.
+5. As `$OLD` (`DATABASE_URL=<$OLD's URL> core migrate`): applies core 0011 to 0013. The running
+   code keeps working: 0013's `judge` takes its claims rows, which name no pack.
+6. `fly deploy --image registry.fly.io/brandfactory:nosuper`. The new code starts as
+   `core_server`; it refuses to start on any other login.
+7. Check: `/health`, `fly logs`, one real call. The CLI (publish, promote, `migrate <pack>`) keeps
+   `$OLD`'s URL.
+
+## Open questions## Open questions
 
 - Moving the data from Fly to Supabase is a separate plan, after this lands.

@@ -8,6 +8,12 @@ DECLARE
   f regprocedure;
   r text;
 BEGIN
+  -- Only a superuser owns these functions; without one (Supabase) Postgres refuses these
+  -- revokes, and the core's walls hold without them (core migrations 0011 to 0013). Added after
+  -- this migration ran on Fly: `migrateCore` accepts the earlier text.
+  IF NOT (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
+    RETURN;
+  END IF;
   FOR f IN
     SELECT p.oid::regprocedure FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace

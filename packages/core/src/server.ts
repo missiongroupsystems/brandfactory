@@ -9,6 +9,7 @@ import { startScheduler, STOP_WAIT_MS } from './scheduler'
 import { openPglite, openPostgres } from './db'
 import { type CoreEnv, loadEnv } from './env'
 import { migrateCore } from './migrate'
+import { serverLoginIsLimited } from './platform'
 import { type Connector, type CoreDeps } from './run'
 
 /** What a host adds to the core: connectors by name, and routes of its own. */
@@ -27,6 +28,14 @@ export async function serveCore(extend?: (deps: CoreDeps, env: CoreEnv) => Exten
   let db
   if (env.databaseUrl) {
     db = openPostgres(env.databaseUrl, 5, { prepare: env.prepare })
+    // The server's login must be the one `core setup-login` makes, never the installer's.
+    const problems = await serverLoginIsLimited(db)
+    if (problems.length > 0) {
+      throw new Error(
+        `DATABASE_URL must name the core's server login: ${problems.join('; ')} ` +
+          '(core setup-login, docs/executing/core-no-superuser-plan.md)',
+      )
+    }
   } else {
     mkdirSync(env.pgliteDir, { recursive: true })
     db = openPglite(env.pgliteDir)

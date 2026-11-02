@@ -31,6 +31,82 @@ export async function runtimeRoleIsLimited(db: Db): Promise<string[]> {
 }
 
 /**
+ * The login the server runs as reaches the core only as one call may (docs/executing/
+ * core-no-superuser-plan.md, phase 3): not a superuser, no BYPASSRLS, owns nothing, holds
+ * pack_runtime and pack_server and no other role, and keeps no role settings (an escape could
+ * leave one, and a role's settings outlive every reset). Empty when it is so.
+ */
+export async function serverLoginIsLimited(db: Db): Promise<string[]> {
+  const [me] = await db.query<{
+    name: string
+    rolsuper: boolean
+    rolbypassrls: boolean
+    rolconfig: string[] | null
+    owns: boolean
+    held: string[]
+  }>(
+    `select r.rolname as name, r.rolsuper, r.rolbypassrls, r.rolconfig,
+       exists (select 1 from pg_class where relowner = r.oid)
+         or exists (select 1 from pg_proc where proowner = r.oid)
+         or exists (select 1 from pg_namespace where nspowner = r.oid)
+         or exists (select 1 from pg_type where typowner = r.oid) as owns,
+       array(select m.roleid::regrole::text from pg_auth_members m where m.member = r.oid
+             order by 1) as held
+     from pg_roles r where r.rolname = session_user`,
+  )
+  if (!me) return ['the login is not a role']
+  const problems: string[] = []
+  if (me.rolsuper) problems.push(`${me.name} is a superuser`)
+  if (me.rolbypassrls) problems.push(`${me.name} bypasses row rules`)
+  if (me.owns) problems.push(`${me.name} owns objects (it is the installer's login)`)
+  if (me.rolconfig) problems.push(`${me.name} has role settings: ${me.rolconfig.join(', ')}`)
+  const extra = me.held.filter((r) => r !== 'pack_runtime' && r !== 'pack_server')
+  if (extra.length > 0) problems.push(`${me.name} holds ${extra.join(', ')}`)
+  for (const role of ['pack_runtime', 'pack_server']) {
+    if (!me.held.includes(role)) problems.push(`${me.name} does not hold ${role}`)
+  }
+  // Every call sets its time limit with set_config: where 0001 took it from PUBLIC (a superuser's
+  // install), the login needs its own grant, which setup-login gives.
+  const [sets] = await db.query<{ ok: boolean }>(
+    `select has_function_privilege(session_user, 'pg_catalog.set_config(text,text,boolean)',
+       'execute') as ok`,
+  )
+  if (!sets?.ok) problems.push(`${me.name} may not call set_config`)
+  // Settings for one database outlive a session too (ALTER ROLE … IN DATABASE).
+  const [perDatabase] = await db.query<{ n: number }>(
+    `select count(*)::int as n from pg_db_role_setting
+     where setrole in (select oid from pg_roles where rolname = session_user)`,
+  )
+  if (perDatabase!.n > 0) problems.push(`${me.name} has role settings for a database`)
+  // A large object outlives a call (migration 0013, packs.end_of_call).
+  const [objects] = await db.query<{ n: number }>(
+    `select count(*)::int as n from pg_largeobject_metadata m
+     where m.lomowner in (select oid from pg_roles
+       where rolname in (session_user, 'pack_runtime', 'pack_server', 'pack_admin', 'pack_migrator'))`,
+  )
+  if (objects!.n > 0) problems.push(`the pack roles or ${me.name} own large objects`)
+  const [defaults] = await db.query<{ n: number }>(
+    `select count(*)::int as n from pg_default_acl
+     where defaclrole in (select oid from pg_roles
+       where rolname in (session_user, 'pack_runtime', 'pack_server'))`,
+  )
+  if (defaults!.n > 0) problems.push(`${me.name} or the pack roles have default privileges`)
+  // A way out of the server's own session (a new connection, with no claims) or out of the
+  // database: the login may call none (plan, R10).
+  const ways = await db.query<{ name: string }>(
+    `select distinct e.extname as name from pg_extension e
+     join pg_depend d on d.refobjid = e.oid and d.deptype = 'e' and d.classid = 'pg_proc'::regclass
+     join pg_proc p on p.oid = d.objid
+     where e.extname in ('dblink', 'postgres_fdw', 'pg_net', 'http', 'pg_cron')
+       and has_schema_privilege(session_user, p.pronamespace, 'usage')
+       and has_function_privilege(session_user, p.oid, 'execute')
+     order by 1`,
+  )
+  for (const { name } of ways) problems.push(`${me.name} may call ${name}`)
+  return problems
+}
+
+/**
  * Isolation in the database: every table the runtime role can read or write has row-level
  * security enabled and forced.
  */

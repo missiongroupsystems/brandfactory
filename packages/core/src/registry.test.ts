@@ -3,6 +3,7 @@ import { principalClaimsSql, writeClaims } from './claims'
 import { type Conn, type Db } from './db'
 import { Refused } from './errors'
 import { hashOf } from './pack'
+import { migrateCore } from './migrate'
 import { addPrincipal, liveVersion, promote, publish, recordTestRun } from './registry'
 import { execute } from './run'
 import { forbiddenFunction } from './sql'
@@ -252,6 +253,24 @@ describe('the call path functions (migration 0012)', () => {
     ])
   })
 
+  it('judge a call only for its own pack, and a row with no pack as the code before 0011 wrote it', async () => {
+    const d = await db()
+    await goLive(d, toyPack())
+    const judge = (pack: string, claimsPack: string) =>
+      refusal(
+        inCall(
+          d,
+          (tx) => tx.query(`select packs.judge('local', '${pack}', 'note.list', 'x', null)`),
+          'ana',
+          claimsPack,
+        ),
+      )
+    expect(await judge('other', 'toy')).toMatch(/not this call's pack/)
+    // Past the pack check: the stale hash is the next refusal.
+    expect(await judge('toy', 'toy')).toMatch(/core_refused/)
+    expect(await judge('toy', '')).toMatch(/core_refused/)
+  })
+
   it('check a call only for its own pack', async () => {
     const d = await db()
     await goLive(d, toyPack())
@@ -449,5 +468,19 @@ describe('the runtime role', () => {
       {},
     )
     expect(who).toEqual({ who: 'pack_runtime' })
+  })
+})
+
+describe('core migrations rewritten after they ran', () => {
+  it('count as applied under their earlier text, and refuse any other change', async () => {
+    const d = await freshDb()
+    open.push(d)
+    // 0001 as it ran on Fly before its superuser guard: the same migration.
+    await d.query(`update packs.migrations set hash = $1 where name = '0001_registry.sql'`, [
+      'debeea582024c6d3df3e3581a499ec468357ff122b110075b994d20a31288396',
+    ])
+    expect(await migrateCore(d)).toEqual([])
+    await d.query(`update packs.migrations set hash = 'x' where name = '0001_registry.sql'`)
+    await expect(migrateCore(d)).rejects.toThrow(/0001_registry.sql changed after it ran/)
   })
 })

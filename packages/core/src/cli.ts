@@ -14,7 +14,7 @@ import { authenticate } from './run'
 const USAGE = `core <command>
 
   migrate [<pack> <version>]        the core's migrations, then a tested version's
-  setup-login <role>                as the installing superuser: the login a deployed core runs
+  setup-login <role>                as the role that installed the core: the login a deployed core runs
                                     as; the password is read from CORE_LOGIN_PASSWORD
   login --dev <userId>              local sign-in: the token is the user id
   login <email>                     Supabase sign-in; the password is read from CORE_PASSWORD
@@ -122,8 +122,11 @@ export async function main(argv: string[]) {
       return withDb(async (db) => {
         const password = process.env.CORE_LOGIN_PASSWORD
         if (!args[0] || !password) throw new Error(USAGE)
-        const n = await setupLogin(db, args[0], password)
-        console.info(`${args[0]} logs in, holds the pack roles and owns the core's ${n} objects`)
+        const dropped = await setupLogin(db, args[0], password)
+        console.info(
+          `${args[0]} logs in and holds pack_runtime and pack_server only` +
+            (dropped ? ` (${dropped} other memberships taken away)` : ''),
+        )
       })
     case 'login': {
       const dev = option(args, '--dev')

@@ -151,6 +151,8 @@ export async function fire(
   const { payload, hash, approval } = await deps.db
     .transaction(async (tx) => {
       const out = await payloadOf(tx, deps, content, op, caller, input)
+      // No log goes with this transaction, so what a call may not leave is checked here.
+      tx.atCommit('select packs.end_of_call()')
       // A yes counts while its person is a person who still holds the move: a right taken away
       // takes the yeses given under it too.
       const [used] = await tx.query<{ id: string | null }>(
