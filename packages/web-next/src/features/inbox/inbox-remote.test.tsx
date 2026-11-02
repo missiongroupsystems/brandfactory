@@ -10,6 +10,7 @@ import { InboxPage } from './inbox-page'
 // state to it, and only to it (the other stores read other parts).
 const hydrators = vi.hoisted(() => [] as Array<(brandId: string, state: Remote.BrandState) => void>)
 const linkers = vi.hoisted(() => [] as Array<(brandId: string, state: Remote.BrandState) => void>)
+const accounts = vi.hoisted(() => [] as Array<(account: unknown) => void>)
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
   remote: true,
@@ -19,7 +20,10 @@ vi.mock('@/lib/remote', async (original) => ({
     if (stack.includes('connections-store')) linkers.push(h)
     return () => undefined
   },
-  onAccount: () => () => undefined,
+  onAccount: (listener: (a: unknown) => void) => {
+    accounts.push(listener)
+    return () => undefined
+  },
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/inbox',
@@ -90,5 +94,32 @@ describe('the inbox on the core', () => {
     )
     expect(screen.queryByText('All caught up')).toBeNull()
     expect(screen.getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
+  })
+
+  it('tags nothing for a brand on TikTok alone: brand base never reads TikTok comments', () => {
+    page()
+    act(() =>
+      accounts.forEach((listener) =>
+        listener({
+          brands: [
+            {
+              id: 'casa-vostra',
+              orgId: 'mission-group',
+              name: 'Casa Vostra',
+              handle: '@casavostrasg',
+              line: '',
+              linked: ['tt'],
+              timezone: 'Asia/Singapore',
+              position: 0,
+            },
+          ],
+          companies: [],
+        }),
+      ),
+    )
+    load([])
+    act(() => linkers[0]!('casa-vostra', { brand: { id: 'casa-vostra' }, connections: [] }))
+    expect(screen.getByText('No comments or DMs yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Unavailable' })).toBeNull()
   })
 })

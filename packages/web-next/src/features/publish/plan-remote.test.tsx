@@ -3,6 +3,7 @@ import * as React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Post } from '@/data/demo'
+import { demoAsCore } from '@/test-core-state'
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import type * as Remote from '@/lib/remote'
 
@@ -13,7 +14,11 @@ import { Composer } from './composer'
 const requests = vi.hoisted(() => [] as Array<{ call: string; body: unknown }>)
 const account = vi.hoisted(() => ({ platforms: undefined as string[] | undefined }))
 // The brand's state, as the core sends it, once the test begins.
-const core = vi.hoisted(() => ({ loaded: false }))
+const core = vi.hoisted(() => ({
+  loaded: false,
+  // Every store that listens for the brand's state, so a test can hand them more of it.
+  listeners: [] as Array<(id: string, state: unknown) => void>,
+}))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   return {
@@ -33,6 +38,7 @@ vi.mock('@/lib/remote', async (original) => {
     // The demo brand's posts, as the core sends them: on the core no store starts with the demo's.
     onState: (hydrate: (id: string, state: unknown) => void) => {
       // Once the modules are in: the stores that listen from their first line hear nothing.
+      core.listeners.push(hydrate)
       if (core.loaded) hydrate('casa-vostra', demoAsCore('casa-vostra'))
       return () => undefined
     },
@@ -153,6 +159,24 @@ describe('planning a post on the core, with no account connected', () => {
     expect(screen.getByText('This brand has no Instagram, TikTok or Facebook.')).toBeTruthy()
     const accounts = screen.getByRole('region', { name: 'Accounts' })
     expect(within(accounts).queryByRole('button', { name: 'Not available yet' })).toBeNull()
+  })
+
+  it('says nothing is set up only while TikTok is unlinked: a linked account takes the video as a draft', () => {
+    account.platforms = ['tt']
+    open({ ...draft, format: 'reel', channels: ['tt'] })
+    const accounts = screen.getByRole('region', { name: 'Accounts' })
+    expect(within(accounts).getByRole('button', { name: 'Not available yet' })).toBeTruthy()
+    act(() =>
+      core.listeners.forEach((hydrate) =>
+        hydrate('casa-vostra', {
+          ...demoAsCore('casa-vostra'),
+          tiktok: { name: 'casavostra', avatar: null },
+        }),
+      ),
+    )
+    expect(within(accounts).getByRole('checkbox', { name: /TikTok/ })).toBeTruthy()
+    expect(within(accounts).queryByRole('button', { name: 'Not available yet' })).toBeNull()
+    expect(screen.queryByText('This brand has no Instagram, TikTok or Facebook.')).toBeNull()
   })
 
   it('picks the platforms and previews the post on the one picked', () => {

@@ -35,6 +35,7 @@ import {
   ledgerOf,
   nowIn,
   PLATFORM_NAME,
+  PLATFORMS,
   platformOf,
   profileName,
   railOf,
@@ -89,7 +90,12 @@ export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => 
   const items = usePostedItems(now.day)
   const links = useConnections(brand.id)
   const linked = (p: Platform) => links[p] !== 'off'
-  const rail = railOf(items ?? [], linked)
+  // On the core brand base only sends TikTok drafts and never reads the account back, so the
+  // feed has nothing to show for TikTok; and it lists only the brand's own platforms.
+  const shown = remote
+    ? PLATFORMS.filter((p) => p !== 'tt' && (brand.platforms?.includes(p) ?? true))
+    : PLATFORMS
+  const rail = railOf(items ?? [], linked, shown)
   const platform = platformOf(rail, items ?? [], picked)
   const ledger = ledgerOf(items ?? [], platform)
   const count = (p: Platform) =>
@@ -103,6 +109,8 @@ export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => 
     <section aria-label="Feed" className="flex min-w-0 flex-col">
       {!items ? (
         <LoadingDots label="Loading posts" className="py-40" />
+      ) : shown.length === 0 ? (
+        <NoFeed />
       ) : (
         <Profile
           ledger={ledger}
@@ -115,6 +123,21 @@ export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => 
         />
       )}
     </section>
+  )
+}
+
+/** A brand on TikTok alone, on the core: brand base sends its videos as drafts and reads nothing back. */
+function NoFeed() {
+  return (
+    <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-16 max-md:gap-3 max-md:pt-12">
+      <h2 className="font-display text-[26px] leading-[1.15] tracking-[-0.025em] max-md:text-[24px]">
+        Nothing on the Feed yet.
+      </h2>
+      <span className="text-[15px] leading-normal text-ink-3 max-md:text-[14.5px]">
+        The Feed shows what went out on Instagram and Facebook. TikTok videos go to the TikTok inbox
+        as drafts, and the team posts them from the TikTok app.
+      </span>
+    </div>
   )
 }
 

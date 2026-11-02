@@ -15,8 +15,12 @@ vi.mock('@/lib/remote', async (original) => ({
   demoOf: () => undefined,
   request: async () => ({}),
   onState: () => () => undefined,
-  onAccount: () => () => undefined,
+  onAccount: (listener: (a: unknown) => void) => {
+    accounts.push(listener)
+    return () => undefined
+  },
 }))
+const accounts = vi.hoisted(() => [] as Array<(account: unknown) => void>)
 vi.mock('next/navigation', () => ({
   usePathname: () => '/posted',
   useRouter: () => ({ push: vi.fn() }),
@@ -82,5 +86,49 @@ describe('the feed on the core', () => {
     )
     // Only Instagram has anything, and nothing is linked: the rail holds Instagram alone.
     expect(screen.queryAllByRole('radio', { name: /TikTok|Facebook/ })).toEqual([])
+  })
+
+  it('never offers TikTok: the core only sends it drafts and reads nothing back from it', () => {
+    render(
+      <BrandProvider>
+        <Feed on="tt" />
+      </BrandProvider>,
+    )
+    act(() => takeState('casa-vostra', { brand: { id: 'casa-vostra' }, posts: [] }))
+    expect(screen.getAllByRole('radio', { name: /Instagram|Facebook/ })).toHaveLength(2)
+    expect(screen.queryAllByRole('radio', { name: /TikTok/ })).toEqual([])
+    expect(screen.queryByText(/TikTok/)).toBeNull()
+  })
+
+  it('tells a brand on TikTok alone what the Feed shows, with no platform to connect', () => {
+    render(
+      <BrandProvider>
+        <Feed />
+      </BrandProvider>,
+    )
+    act(() =>
+      accounts.forEach((listener) =>
+        listener({
+          brands: [
+            {
+              id: 'casa-vostra',
+              orgId: 'mission-group',
+              name: 'Casa Vostra',
+              handle: '@casavostrasg',
+              line: '',
+              linked: ['tt'],
+              timezone: 'Asia/Singapore',
+              position: 0,
+            },
+          ],
+          companies: [],
+        }),
+      ),
+    )
+    act(() => takeState('casa-vostra', { brand: { id: 'casa-vostra' }, posts: [] }))
+    expect(screen.getByText('Nothing on the Feed yet.')).toBeInTheDocument()
+    expect(screen.queryAllByRole('radio')).toEqual([])
+    expect(screen.queryByText('Not connected')).toBeNull()
+    expect(screen.queryByRole('link', { name: /Connect/ })).toBeNull()
   })
 })

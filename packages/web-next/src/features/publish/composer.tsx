@@ -32,6 +32,7 @@ import { brandToday, dayOf, storyTaken, tooSoon } from '@/features/schedule/move
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { NotAvailable } from '@/features/connections/not-available'
+import { useTikTokAccount } from '@/features/connections/tiktok'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
@@ -1277,6 +1278,7 @@ function Accounts({
 }) {
   const { brand } = useBrand()
   const { draft, toggleChannel, connect } = api
+  const tiktok = useTikTokAccount(brand.id)
   // With at least one account that posts this format, only those show: a planned-only account
   // (TikTok beside Make) is not offered beside one that posts. With none (nothing set up, or a
   // Story on the core, which Make cannot post), the post is planned on every account.
@@ -1347,21 +1349,24 @@ function Accounts({
         )
       })}
       {sends.length === 0 ? (
-        // On the core no account can publish yet: the post is planned on them, and the note
-        // says publishing is not set up. It does not promise the post goes out later.
-        linkedChannels(draft).length > 0 ? (
-          <span className="flex h-9 items-center max-md:h-14">
-            <NotAvailable
-              label="Not available yet"
-              reason="Publishing isn’t set up yet."
-              align="left"
-            />
-          </span>
-        ) : (
+        linkedChannels(draft).length === 0 ? (
           // A brand that posts on none of them has nothing to plan a post on.
           <span className="flex h-9 items-center text-[13px] text-ink-3 max-md:h-14 max-md:text-[15px]">
             This brand has no Instagram, TikTok or Facebook.
           </span>
+        ) : (
+          // On the core no account can publish yet: the post is planned on them, and the note
+          // says publishing is not set up. It does not promise the post goes out later. A linked
+          // TikTok account is set up: its video goes to the TikTok inbox as a draft.
+          linkedChannels(draft).some((c) => c.key !== 'tt' || !tiktok) && (
+            <span className="flex h-9 items-center max-md:h-14">
+              <NotAvailable
+                label="Not available yet"
+                reason="Publishing isn’t set up yet."
+                align="left"
+              />
+            </span>
+          )
         )
       ) : storyPlanned ? (
         <span className="flex h-9 items-center max-md:h-14">

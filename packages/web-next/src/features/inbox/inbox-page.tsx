@@ -87,6 +87,8 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   const unlinked = !(['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'connected')
   // An account that needs signing in again is linked, but nothing comes through it meanwhile.
   const lapsed = (['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'attention')
+  // brand base never reads TikTok comments: a brand on TikTok alone has nothing to wait for here.
+  const tiktokOnly = brand.platforms?.join() === 'tt'
 
   function send(id: string, text: string) {
     setLeaving((s) => new Set(s).add(id))
@@ -157,10 +159,12 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
               // On the core no account can connect yet: no link to a connect that cannot work.
               <div className="flex flex-col items-center gap-3 py-16 text-center">
                 <p className="text-[14px] text-ink-3">No comments or DMs yet.</p>
-                <NotAvailable
-                  reason="Comments and DMs arrive once accounts are connected."
-                  align="center"
-                />
+                {!tiktokOnly && (
+                  <NotAvailable
+                    reason="Comments and DMs arrive once accounts are connected."
+                    align="center"
+                  />
+                )}
               </div>
             ) : unlinked && waiting.length === 0 ? (
               <p className="py-16 text-center text-[14px] text-ink-3">

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.54.3** — 2026-11-02 — `design/phone-calendar`: on the live app a brand with its TikTok account linked no longer reads as not set up: the new post page drops "Not available yet" when TikTok is the only account and it is linked, the Feed lists the brand's own Instagram and Facebook only (brand base never reads TikTok back), and a brand on TikTok alone gets one line saying so, and the Inbox shows no "Unavailable" tag for a brand on TikTok alone. Found signed in as the TikTok review account. 1299 tests (259 skipped without a Postgres server).
 - **2.54.2** — 2026-11-02 — `design/phone-calendar`: the server sends the public home page at `/` (TikTok's checker and readers with no script saw a loading spinner); on the live app TikTok's row on a post says it goes as a draft, with no posting controls that never reach TikTok; wording for TikTok's private-use rule; privacy says what disconnecting deletes. 1295 tests (259 skipped without a Postgres server).
 - **2.54.1** — 2026-11-01 — `design/phone-calendar`: Terms, Privacy and the home page describe brand base as a workspace for brands and their marketing teams, opening to more teams with a free plan (accounts by invitation for now), not an internal tool. 1294 tests (259 skipped without a Postgres server).
 - **2.54.0** — 2026-11-01 — `design/phone-calendar`: the app's address shows a public home page to a visitor with no sign-in (what brand base is, how it uses TikTok, Sign in, Terms and Privacy in the header), for TikTok's app review; TikTok shows again on the live Connections page. 1294 tests (259 skipped without a Postgres server).
@@ -115,6 +116,23 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.54.3 — 2026-11-02
+
+- **Why.** Signed in as the TikTok review account (Demo Kitchen, TikTok only) with TikTok
+  linked, the new post page said "Not available yet", and the Feed said TikTok was "Not
+  connected". A reviewer would read both as a broken integration.
+- **New post.** On the core with no account that publishes, the "Not available yet" note shows
+  only while some account is neither publishing nor a linked TikTok account: a linked TikTok
+  account takes the video as a draft.
+- **Feed.** On the core the Feed lists the brand's own Instagram and Facebook only (`railOf`
+  takes the list): brand base sends TikTok drafts and reads nothing back, so a TikTok tab could
+  only say "Not connected" or promise posts that never come. A brand on TikTok alone gets "Nothing
+  on the Feed yet." and a line on where its videos go, with no platform to connect. The Feed's own connection list (`useConnections`)
+  never knew about the TikTok link; Connections reads the account itself.
+- **Inbox.** A brand on TikTok alone shows "No comments or DMs yet." with no "Unavailable" tag:
+  brand base reads no TikTok comments.
+- **Tests.** One per change, each failing without it. 1299 tests (259 skipped without a Postgres server).
 
 ## 2.54.2 — 2026-11-02
 

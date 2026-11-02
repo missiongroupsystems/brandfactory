@@ -98,9 +98,13 @@ export function ledgerOf(items: PostedItem[], platform: Platform): PostedItem[] 
  * The rail: each platform with something on it or an account linked. With neither anywhere,
  * every platform shows, each with its way to connect.
  */
-export function railOf(items: PostedItem[], linked: (p: Platform) => boolean): Platform[] {
-  const found = PLATFORMS.filter((p) => linked(p) || ledgerOf(items, p).length > 0)
-  return found.length > 0 ? found : PLATFORMS
+export function railOf(
+  items: PostedItem[],
+  linked: (p: Platform) => boolean,
+  platforms: Platform[] = PLATFORMS,
+): Platform[] {
+  const found = platforms.filter((p) => linked(p) || ledgerOf(items, p).length > 0)
+  return found.length > 0 ? found : platforms
 }
 
 /**
