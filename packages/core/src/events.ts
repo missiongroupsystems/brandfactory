@@ -23,8 +23,10 @@ export async function events(deps: CoreDeps, c: Context) {
   const principal = await authenticate(deps.auth, c.req.header('authorization'))
   const pack = c.req.param('pack')!
   if (!PATH_PART.test(pack)) throw new Refused(404, 'PACK_NOT_LIVE', 'no such pack')
-  const [who] = await deps.db.query('select 1 from packs.principals where id = $1', [principal])
-  if (!who) throw new Refused(403, 'NO_ACCOUNT', 'this account has no access')
+  const [who] = await deps.db.query<{ ok: boolean }>('select packs.is_principal($1) as ok', [
+    principal,
+  ])
+  if (!who?.ok) throw new Refused(403, 'NO_ACCOUNT', 'this account has no access')
   // Prefixed, so no pack name can be one of the emitter's own events (`error`, `newListener`).
   const topic = `pack:${pack}`
   return streamSSE(c, async (stream) => {

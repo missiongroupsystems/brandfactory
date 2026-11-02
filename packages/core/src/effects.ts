@@ -81,26 +81,13 @@ export async function approveIn(
   const limit = Object.hasOwn(connectors, op.connector!)
     ? (connectors[op.connector!]!.timeoutMs ?? SEND_TIMEOUT_MS)
     : SEND_TIMEOUT_MS
-  const [sending] = await tx.query(
-    `select 1 from packs.approvals
-     where pack = $1 and op = $2 and payload_hash = $3 and used_at is not null
-       and outcome is null and used_at > now() - make_interval(secs => $4::double precision)`,
-    [content.manifest.name, op.name, hash, limit / 1000 + 120],
+  // For this call's principal and pack (`packs.approval_store`, migration 0012).
+  const [row] = await tx.query<{ id: string | null; sending: boolean }>(
+    'select id, sending from packs.approval_store($1, $2, $3)',
+    [op.name, hash, limit / 1000 + 120],
   )
-  if (sending) throw new Refused(409, 'SENDING', 'this is on its way already')
-  const [row] = await tx.query<{ id: string }>(
-    `with open as (
-       select id from packs.approvals
-       where pack = $1 and op = $2 and payload_hash = $3 and approved_by = $4 and used_at is null
-       limit 1)
-     , made as (
-       insert into packs.approvals (pack, op, payload_hash, approved_by)
-       select $1, $2, $3, $4 where not exists (select 1 from open)
-       returning id)
-     select id::text from made union all select id::text from open`,
-    [content.manifest.name, op.name, hash, caller.principal],
-  )
-  return { approval: row!.id, payload }
+  if (row!.sending) throw new Refused(409, 'SENDING', 'this is on its way already')
+  return { approval: row!.id!, payload }
 }
 
 /**
@@ -166,18 +153,11 @@ export async function fire(
       const out = await payloadOf(tx, deps, content, op, caller, input)
       // A yes counts while its person is a person who still holds the move: a right taken away
       // takes the yeses given under it too.
-      const [used] = await tx.query<{ id: string }>(
-        `update packs.approvals set used_at = now(), used_by = $4
-         where id = (select a.id from packs.approvals a
-                     join packs.principals p on p.id = a.approved_by and p.agent_of is null
-                     join packs.loadouts l on l.principal = a.approved_by and l.pack = a.pack
-                       and a.op = any(l.ops)
-                     where a.pack = $1 and a.op = $2 and a.payload_hash = $3 and a.used_at is null
-                     order by a.id limit 1 for update of a skip locked)
-         returning id::text`,
-        [content.manifest.name, op.name, out.hash, caller.principal],
+      const [used] = await tx.query<{ id: string | null }>(
+        'select packs.approval_use($1, $2) as id',
+        [op.name, out.hash],
       )
-      if (!used) {
+      if (!used?.id) {
         throw new Refused(403, 'NEEDS_APPROVAL', 'a person has not approved what this sends', {
           details: { payload: out.payload, payloadHash: out.hash },
         })
@@ -206,7 +186,7 @@ export async function fire(
     const sent = (err as { sent?: unknown } | null)?.sent
     // Marked, so the yes it used no longer reads as a send on its way.
     await deps.db
-      .query('update packs.approvals set outcome = $2 where id = $1::bigint', [
+      .query('select packs.approval_outcome($1::bigint, $2)', [
         approval,
         JSON.stringify(sent === 'maybe' ? { unknown: words } : { failed: words }),
       ])
@@ -226,7 +206,7 @@ export async function fire(
   try {
     // The answer is kept on the approval at once: if recording it with the move fails, the
     // platform's id is not lost.
-    await deps.db.query('update packs.approvals set outcome = $2 where id = $1::bigint', [
+    await deps.db.query('select packs.approval_outcome($1::bigint, $2)', [
       approval,
       JSON.stringify(outcome ?? null),
     ])

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { principalClaimsSql, writeClaims } from './claims'
-import { type Db } from './db'
+import { type Conn, type Db } from './db'
 import { Refused } from './errors'
 import { hashOf } from './pack'
 import { addPrincipal, liveVersion, promote, publish, recordTestRun } from './registry'
@@ -191,6 +191,168 @@ describe('the claims of a call (migration 0011)', () => {
     expect(during).toEqual([{ user_id: 'ben', pack: 'toy', known: true }])
     await d.query('select claims.purge()')
     expect(await d.query(`select count(*)::int as n from claims.calls`)).toEqual([{ n: 0 }])
+  })
+})
+
+describe('the call path functions (migration 0012)', () => {
+  // Inside a call, as SQL that escaped to the login role would be.
+  const inCall = <T>(d: Db, fn: (tx: Conn) => Promise<T>, who = 'ana', pack = 'toy') =>
+    d.transaction(async (tx) => {
+      await writeClaims(tx, { user_id: who, pack })
+      return fn(tx)
+    })
+  const refusal = (p: Promise<unknown>) =>
+    p.then(
+      () => 'OK',
+      (e: unknown) => String((e as Error).message),
+    )
+
+  it.each([
+    ['look up a principal', `select * from packs.who('ben', 'toy', 'note.list')`],
+    ['read the live pointer', `select * from packs.live_version('test', 'toy')`],
+    ['read a version', `select packs.version_content('x')`],
+  ])('refuse to %s inside a call, and allow it outside', async (_, sql) => {
+    const d = await db()
+    await goLive(d, toyPack())
+    expect(await refusal(inCall(d, (tx) => tx.query(sql)))).toMatch(/not inside a call/)
+    expect(await refusal(d.query(sql))).toBe('OK')
+  })
+
+  it('keep idempotency keys to the call’s own principal and pack', async () => {
+    const d = await db()
+    await d.query(
+      `insert into packs.idempotency (principal, pack, op, key, input_hash, result)
+       values ('ben', 'toy', 'note.add', 'k-0000001', 'h', '"bens answer"')`,
+    )
+    const seen = await inCall(d, (tx) =>
+      tx.query<{ fresh: boolean; result: unknown }>(
+        `select fresh, result from packs.key_start('note.add', 'k-0000001', 'h')`,
+      ),
+    )
+    // Ana's own key, fresh: never Ben's answer.
+    expect(seen).toEqual([{ fresh: true, result: null }])
+    await inCall(d, (tx) => tx.query(`select packs.key_done('note.add', 'k-0000001', '"x"')`))
+    const [bens] = await d.query<{ result: unknown }>(
+      `select result from packs.idempotency where principal = 'ben'`,
+    )
+    expect(bens!.result).toBe('bens answer')
+  })
+
+  it('log inside a call only as its own principal and pack, and anything outside one', async () => {
+    const d = await db()
+    const logAs = (principal: string, pack: string) =>
+      `select packs.log_call('${principal}', null, '${pack}', '1.0.0', 'note.add', null, 200, null)`
+    expect(await refusal(inCall(d, (tx) => tx.query(logAs('ben', 'toy'))))).toBe('OK')
+    expect(await refusal(inCall(d, (tx) => tx.query(logAs('ana', 'other'))))).toMatch(/log/)
+    expect(await refusal(d.query(logAs('ben', 'other')))).toBe('OK')
+    // Inside Ana's call, a row that names Ben is logged as Ana's.
+    expect(await d.query(`select principal, pack from packs.op_calls order by id`)).toEqual([
+      { principal: 'ana', pack: 'toy' },
+      { principal: 'ben', pack: 'other' },
+    ])
+  })
+
+  it('check a call only for its own pack', async () => {
+    const d = await db()
+    await goLive(d, toyPack())
+    const check = (pack: string) =>
+      inCall(d, (tx) => tx.query(`select * from packs.call_check('test', '${pack}', 'note.list')`))
+    expect(await refusal(check('toy'))).toBe('OK')
+    expect(await refusal(check('other'))).toMatch(/pack/)
+  })
+
+  it.each([
+    ['claim a due timed call', `select * from packs.claim_due(now())`],
+    ['beat for a timed call', `select packs.call_beat(1, now())`],
+    ['end a timed call', `select packs.call_end(1, 'done', null, null, now())`],
+    ['mark stuck calls', `select * from packs.calls_stuck(now(), now())`],
+    ['alert a principal', `select packs.alert('ben', 'toy', null, 'x')`],
+    ['read a follow-up move', `select packs.follow_op('local', 'toy', 'onRefused')`],
+    ['record a send’s outcome', `select packs.approval_outcome(1, '{}')`],
+    ['start an agent', `select packs.start_agent('ben', 'helper')`],
+    ['ask whether a principal exists', `select packs.is_principal('ben')`],
+  ])('refuse to %s inside a call', async (_, sql) => {
+    const d = await db()
+    expect(await refusal(inCall(d, (tx) => tx.query(sql)))).toMatch(/not inside a call/)
+  })
+
+  it('schedule and approve only for the call’s own principal and pack', async () => {
+    const d = await db()
+    await goLive(d, toyPack())
+    await d.exec(`insert into packs.principals (id) values ('ana') on conflict do nothing;
+      insert into packs.loadouts (principal, pack, ops) values ('ana', 'toy', '{note.add}')
+      on conflict (principal, pack) do update set ops = excluded.ops`)
+    await inCall(d, async (tx) => {
+      await tx.query(
+        `select packs.schedule('{note.add}', '[{"op":"note.add","key":"k1","input":{},"at":"2030-01-01T00:00:00Z"}]')`,
+      )
+      await tx.query(`select * from packs.approval_store('note.add', 'h', 60)`)
+    })
+    expect(await d.query(`select principal, pack from packs.scheduled_calls`)).toEqual([
+      { principal: 'ana', pack: 'toy' },
+    ])
+    expect(await d.query(`select approved_by, pack from packs.approvals`)).toEqual([
+      { approved_by: 'ana', pack: 'toy' },
+    ])
+  })
+
+  it('schedule only moves the caller holds, whatever it lists, and nothing for a guest', async () => {
+    const d = await db()
+    await goLive(d, toyPack())
+    await d.exec(`insert into packs.principals (id) values ('ana'), ('bob') on conflict do nothing;
+      insert into packs.loadouts (principal, pack, ops) values ('ana', 'toy', '{note.drop}'),
+        ('bob', 'toy', '{note.list}') on conflict (principal, pack) do update set ops = excluded.ops`)
+    const ask = (input: string) =>
+      `select packs.schedule('{}', '[{"op":"note.drop","key":"k1","input":${input},"at":"2030-01-01T00:00:00Z"}]') as missing`
+    await inCall(d, (tx) => tx.query(ask('{"id":"anas"}')))
+    // Bob lists nothing as needed and asks for Ana's move under her key: refused, unchanged.
+    const bobs = await inCall(
+      d,
+      (tx) => tx.query<{ missing: string[] }>(ask('{"id":"bobs"}')),
+      'bob',
+    )
+    expect(bobs).toEqual([{ missing: ['note.drop'] }])
+    expect(await refusal(inCall(d, (tx) => tx.query(ask('{"id":"x"}')), ''))).toMatch(/guest/)
+    expect(await d.query(`select principal, input from packs.scheduled_calls`)).toEqual([
+      { principal: 'ana', input: { id: 'anas' } },
+    ])
+  })
+
+  it('store and use a yes only for a caller who holds the move', async () => {
+    const d = await db()
+    await d.exec(`insert into packs.principals (id) values ('ana'), ('bob') on conflict do nothing;
+      insert into packs.loadouts (principal, pack, ops) values ('ana', 'toy', '{note.share}'),
+        ('bob', 'toy', '{note.list}') on conflict (principal, pack) do update set ops = excluded.ops`)
+    await inCall(d, (tx) => tx.query(`select * from packs.approval_store('note.share', 'h', 60)`))
+    // Bob, who lacks the move, gets no yes and spends none.
+    expect(
+      await inCall(
+        d,
+        (tx) => tx.query(`select packs.approval_use('note.share', 'h') as id`),
+        'bob',
+      ),
+    ).toEqual([{ id: null }])
+    expect(
+      await refusal(
+        inCall(
+          d,
+          (tx) => tx.query(`select * from packs.approval_store('note.share', 'h', 60)`),
+          'bob',
+        ),
+      ),
+    ).toMatch(/does not hold/)
+    expect(await d.query(`select used_by from packs.approvals`)).toEqual([{ used_by: null }])
+  })
+
+  it('keep working when a temporary table is named like a type', async () => {
+    const d = await db()
+    const out = await inCall(d, async (tx) => {
+      await tx.exec('create temporary table text (x int); create temporary table jsonb (x int)')
+      return tx.query<{ fresh: boolean }>(
+        `select fresh from packs.key_start('note.add', 'k-0000002', 'h')`,
+      )
+    })
+    expect(out).toEqual([{ fresh: true }])
   })
 })
 

@@ -120,20 +120,17 @@ export async function liveVersion(
   pack: string,
 ): Promise<LiveVersion | null> {
   const [row] = await db.query<{ version: string; hash: string }>(
-    `select v.version, v.content_hash as hash
-     from packs.channels c
-     join packs.pack_versions v on v.pack = c.pack and v.version = c.version
-     where c.environment = $1 and c.pack = $2`,
+    'select version, hash from packs.live_version($1, $2)',
     [environment, pack],
   )
   if (!row) return null
   let content = contents.get(row.hash)
   if (!content) {
-    const [v] = await db.query<{ content: PackContent }>(
-      'select content from packs.pack_versions where content_hash = $1',
+    const [v] = await db.query<{ content: PackContent | null }>(
+      'select packs.version_content($1) as content',
       [row.hash],
     )
-    if (!v) throw new Error(`no content for ${pack} ${row.version}`)
+    if (!v?.content) throw new Error(`no content for ${pack} ${row.version}`)
     if (contents.size >= CONTENTS_MAX) contents.clear()
     // Shared by every call that reads this version, so no call can change it for the next.
     content = frozen(v.content)

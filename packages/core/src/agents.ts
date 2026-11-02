@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { type AuthProvider } from './auth'
 import { Refused } from './errors'
-import { addPrincipal } from './registry'
 import { authenticate, type CoreDeps } from './run'
 
 /**
@@ -92,26 +91,19 @@ export async function agentSession(
     throw new Refused(400, 'VALIDATION', 'name is 1 to 32 lowercase letters, digits or -')
   }
   const principal = `${person}/${name}`
-  await deps.db.transaction(async (tx) => {
-    const [who] = await tx.query<{ agent_of: string | null }>(
-      'select agent_of from packs.principals where id = $1',
-      [person],
-    )
-    if (!who) throw new Refused(403, 'NO_ACCOUNT', 'this account has no access')
-    if (who.agent_of) throw new Refused(403, 'NOT_A_PERSON', 'only a person can start an agent')
-    await addPrincipal(tx, principal, person)
-    // An upsert, so two sessions starting at once both succeed; packs the person lost go too.
-    await tx.query(
-      `insert into packs.loadouts (principal, pack, ops)
-       select $1, pack, ops from packs.loadouts where principal = $2
-       on conflict (principal, pack) do update set ops = excluded.ops`,
-      [principal, person],
-    )
-    await tx.query(
-      `delete from packs.loadouts a where a.principal = $1
-       and not exists (select 1 from packs.loadouts p where p.principal = $2 and p.pack = a.pack)`,
-      [principal, person],
-    )
-  })
+  // Made on first use with a copy of the person's loadouts, in one statement outside any call
+  // (`packs.start_agent`, migration 0012).
+  const [made] = await deps.db.query<{ result: string }>(
+    'select packs.start_agent($1, $2) as result',
+    [person, name],
+  )
+  if (made?.result === 'NO_ACCOUNT')
+    throw new Refused(403, 'NO_ACCOUNT', 'this account has no access')
+  if (made?.result === 'NOT_A_PERSON') {
+    throw new Refused(403, 'NOT_A_PERSON', 'only a person can start an agent')
+  }
+  if (made?.result === 'PRINCIPAL_EXISTS') {
+    throw new Refused(409, 'PRINCIPAL_EXISTS', `${principal} exists as another kind of principal`)
+  }
   return { principal, ...deps.agents.sign(principal, deps.now()) }
 }

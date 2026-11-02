@@ -113,6 +113,10 @@ describe('an agent session', () => {
     // An agent's own token cannot start another agent.
     const agent = (await session()).data.token
     expect((await session(agent)).data.code).toBe('NOT_A_PERSON')
+    // A person whose name is taken by another kind of principal gets no agent under it.
+    await addPrincipal(db, 'ana/taken')
+    const taken = await session('ana', 'taken')
+    expect([taken.status, taken.data.code]).toEqual([409, 'PRINCIPAL_EXISTS'])
   })
 
   it('refuses an expired, altered or foreign token', async () => {

@@ -232,7 +232,11 @@ Each phase ends with an independent review before its commit.
    version in the row; a second open with other values refused; the `known` flag; every path that
    drops to a pack role opens first; the guest token bound (D6). The login stays as it is, so
    every commit runs.
-2. **Core tables** (D3, R8). The functions of D3, every call site moved to them, while the login
+2. **Core tables** (D3, R8). Done with phase 2's commit; left for phase 3 from its review:
+   `packs.judge` is not yet bound to the claims' pack and has no `search_path`; the brandbase
+   test cases and `runner.ts` read and write core tables directly (they run as `core_owner`);
+   a holder of a move can still re-arm another person's waiting call of that move with its own
+   input (the old rule, "a waiting call keeps who asked for it"): the owner's call. The functions of D3, every call site moved to them, while the login
    still owns everything (they work either way).
 3. **Logins** (D1, R1, R2, R10). `core_owner`, one owner role per pack, `core_server` with
    `pack_runtime` only and no grant on core tables, the CLI's URLs, the start checks, `migrateCore`

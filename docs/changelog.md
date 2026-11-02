@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.57.0** — 2026-11-02 — `feat/core-no-superuser`: the server reaches the core's own tables only through functions (core migration `0012_call_functions.sql`, not applied to production). Server-only ones (who may call, the live version, the scheduler's loop, agents, events, a send's outcome) refuse inside a call; per-call ones (idempotency keys, the log, timed calls, approvals, the first-trip check) act only for the principal and pack in the call's claims, and scheduling or using a yes needs the move. Every function searches `pg_catalog, pg_temp` only. Phase 2 of `docs/executing/core-no-superuser-plan.md`. 1592 tests, none skipped (Postgres 18 in Docker).
 - **2.56.0** — 2026-11-02 — `feat/core-no-superuser`: a call's claims are written once and never removed while it runs (core migration `0011_claims_once.sql`, not applied to production). Any role could fire the deferred trigger that deleted the row at commit (`SET CONSTRAINTS ALL IMMEDIATE`), leaving the transaction with no caller. Now `claims.open` and `claims.open_principal` write the row once (the same claims again change nothing, others are refused), the row names the pack and whether the principal exists, and the scheduler's loop purges finished transactions' rows. Phase 1 of `docs/executing/core-no-superuser-plan.md`. 1573 tests, none skipped (Postgres 18 in Docker).
 - **2.55.0** — 2026-11-02 — `feat/core-no-superuser`: a pack migration can no longer hide SQL from the core's checks. It could write a function body in `E'…'` escapes (or turn `standard_conforming_strings` off in a function's SET clause) so the text check missed `RESET ROLE`, and the function then left `pack_runtime` for the login role, on Fly too. `E'…'` strings, the two decoding settings and `OWNER TO` are refused; after every statement of a pack migration the core checks the role and reads Postgres's stored, decoded definition of everything the migrator owns. Phase 0 of `docs/executing/core-no-superuser-plan.md`. 1568 tests, none skipped (a throwaway Postgres 18 in Docker).
 - **2.54.2** — 2026-11-02 — `design/phone-calendar`: the server sends the public home page at `/` (TikTok's checker and readers with no script saw a loading spinner); on the live app TikTok's row on a post says it goes as a draft, with no posting controls that never reach TikTok; wording for TikTok's private-use rule; privacy says what disconnecting deletes. 1295 tests (259 skipped without a Postgres server).
@@ -117,6 +118,37 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.57.0 — 2026-11-02
+
+- **Why.** In phase 3 the server's login loses every right on the core's tables, so SQL that
+  escapes a pack role to that login can reach them only through functions that act no wider than
+  its own call. This phase adds the functions and moves every call site; the login still owns
+  everything, so nothing changes for a call today.
+- **Core migration `0012_call_functions.sql`.** `packs.server_only()` refuses in a transaction
+  that has a claims row; `packs.this_call()` gives the claims' principal and pack;
+  `packs.holds(op)` asks whether that principal (and an agent's person) holds a move.
+  - Server only: `live_version`, `version_content`, `who`, `claim_due`, `call_beat`, `call_end`,
+    `calls_stuck`, `alert`, `follow_op`, `approval_outcome`, `start_agent`, `is_principal`.
+  - For this call: `call_check` (the first trip), `key_start` and `key_done` (idempotency),
+    `log_call` (inside a call the row's principal and person come from the claims),
+    `schedule` (every move asked for must be held; a guest schedules nothing),
+    `approval_store` and `approval_use` (the caller must hold the move).
+  - Every function sets `search_path = pg_catalog, pg_temp`, and so do 0011's three: with
+    `pg_catalog` alone, a temporary table named like a type could change what they do.
+- **Code.** `run.ts`, `effects.ts`, `scheduler.ts`, `agents.ts`, `events.ts` and
+  `registry.liveVersion` call the functions; `schedule()` drops its principal argument. Only the
+  CLI and the test runner (the owner's paths) still touch the tables directly.
+- **Reviews.** Sonnet compared every old statement with its function: no change in behaviour.
+  Opus found, and this fixes: `schedule` trusted the caller's list of needed moves (an escape could
+  re-arm another person's waiting call), a yes could be spent by a caller without the move, and
+  the type-shadowing search path. It measured the call path before and after on Postgres 18: the
+  medians did not get slower (read 3.7 to 4.2 ms, write 1.8 to 1.9 ms, keyed write 3.2 to 3.5 ms).
+- **Tests.** Each server-only function refuses inside a call; keys, logs, timed calls and yeses
+  stay with the call's principal and pack; a guest schedules nothing; a temporary table named
+  `text` changes nothing; a taken agent name is `PRINCIPAL_EXISTS`. Each fix fails its test when
+  removed. 1592 tests on PGlite and Postgres 18, none skipped.
+- **Left for phase 3.** `packs.judge` bound to the claims' pack; the test runner's direct writes.
 
 ## 2.56.0 — 2026-11-02
 

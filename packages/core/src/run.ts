@@ -96,16 +96,7 @@ function checkOf(
   const [env, pk, op] = [deps.environment, pack, opName].map(textLiteral)
   return `${principalClaimsSql(principal, pack)};
      ${settingsOf(deps)};
-     select (select v.content_hash from packs.channels ch
-             join packs.pack_versions v on v.pack = ch.pack and v.version = ch.version
-             where ch.environment = ${env} and ch.pack = ${pk}) as core_check,
-       coalesce(c.known, false) as known,
-       case when c.agent_id <> '' then c.user_id end as agent_of,
-       (select count(*)::int from packs.loadouts l
-        where l.pack = ${pk} and l.principal in (c.user_id, nullif(c.agent_id, ''))
-          and ${op} = any(l.ops)) as held
-     from (select 1) one
-     left join claims.calls c on c.xact = pg_current_xact_id_if_assigned()`
+     select core_check, known, agent_of, held from packs.call_check(${env}, ${pk}, ${op})`
 }
 
 /** What goes with the begin: the drop to pack_runtime too, unless a key is claimed first. */
@@ -169,9 +160,7 @@ export async function authorise(
   // The principal and the loadouts that hold the move (its own, and an agent's person's), in one
   // statement.
   const [who] = await db.query<{ agent_of: string | null; held: number }>(
-    `select p.agent_of, (select count(*)::int from packs.loadouts l
-       where l.pack = $2 and l.principal in (p.id, p.agent_of) and $3 = any(l.ops)) as held
-     from packs.principals p where p.id = $1`,
+    'select agent_of, held from packs.who($1, $2, $3)',
     [principal, live.content.manifest.name, opName],
   )
   return admit(who, principal, live, opName)
@@ -315,18 +304,13 @@ async function moveIn(
   let replay: { result: unknown } | null = null
   if (keyed) {
     const hash = createHash('sha256').update(canonical(input)).digest('hex')
-    const [fresh] = await tx.query(
-      `insert into packs.idempotency (principal, pack, op, key, input_hash)
-       values ($1, $2, $3, $4, $5) on conflict do nothing returning key`,
-      [...claim, hash],
+    // For this call's principal and pack only (`packs.key_start`, migration 0012).
+    const [seen] = await tx.query<{ fresh: boolean; seen_hash: string; result: unknown }>(
+      'select fresh, seen_hash, result from packs.key_start($1, $2, $3)',
+      [op.name, key, hash],
     )
-    if (!fresh) {
-      const [seen] = await tx.query<{ input_hash: string; result: unknown }>(
-        `select input_hash, result from packs.idempotency
-         where principal = $1 and pack = $2 and op = $3 and key = $4`,
-        claim,
-      )
-      if (seen?.input_hash !== hash) {
+    if (!seen?.fresh) {
+      if (seen?.seen_hash !== hash) {
         throw new Refused(409, 'KEY_REUSED', 'this key was used for another call')
       }
       replay = { result: seen.result }
@@ -379,7 +363,7 @@ async function answer(
   // Back to the login role for what follows; with only `done` left, it goes with the commit.
   if (keyed || later.length > 0) await tx.exec('reset role')
   else if (done) tx.atCommit('reset role')
-  await schedule(tx, content, caller.principal, later)
+  await schedule(tx, content, later)
   // A person's yes, given with the asking (`PlannedCall.approve`).
   if (!caller.agent) {
     for (const c of later.filter((c) => c.approve)) {
@@ -387,11 +371,11 @@ async function answer(
     }
   }
   if (keyed) {
-    await tx.query(
-      `update packs.idempotency set result = $5
-       where principal = $1 and pack = $2 and op = $3 and key = $4`,
-      [...claim, JSON.stringify(result ?? null)],
-    )
+    await tx.query('select packs.key_done($1, $2, $3)', [
+      op.name,
+      claim[3],
+      JSON.stringify(result ?? null),
+    ])
   }
   await done?.(tx)
   return result
@@ -471,8 +455,7 @@ export function logSql(entry: LogEntry) {
     String(entry.status),
     textLiteral(entry.code),
   ]
-  return `insert into packs.op_calls (principal, agent_of, pack, version, op, input, status, code)
-     values (${values.join(', ')})`
+  return `select packs.log_call(${values.join(', ')})`
 }
 
 /**
