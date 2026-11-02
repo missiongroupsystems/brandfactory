@@ -64,8 +64,11 @@ async function apply(db: Db, scope: string, migrations: Migration[], role: strin
   )
   const applied = new Map<string, string>()
   if (exists?.ok) {
+    // A pack's through the owner's function: its migrator's login reads no core table (0014).
     const rows = await db.query<{ name: string; hash: string }>(
-      'select name, hash from packs.migrations where scope = $1',
+      role
+        ? 'select name, hash from packs.pack_migrations($1)'
+        : 'select name, hash from packs.migrations where scope = $1',
       [scope],
     )
     for (const r of rows) applied.set(r.name, r.hash)
@@ -93,16 +96,29 @@ async function apply(db: Db, scope: string, migrations: Migration[], role: strin
           const [now] = await tx.query<{ ok: boolean }>('select current_user = $1 as ok', [role])
           if (!now?.ok) throw new Error(`migration ${scope}/${m.name} left the role ${role}`)
           await refuseHiddenWords(tx, `${scope}/${m.name}`)
+          // From the migrator's login (not the core's owner, nor a superuser in tests), SQL that
+          // left pack_migrator could make an object the login owns, which no check reads.
+          const [left] = await tx.query<{ owns: boolean }>(
+            `select exists (select 1 from pg_class where relowner = r.oid)
+               or exists (select 1 from pg_proc where proowner = r.oid)
+               or exists (select 1 from pg_namespace where nspowner = r.oid)
+               or exists (select 1 from pg_type where typowner = r.oid) as owns
+             from pg_roles r where r.rolname = session_user and not r.rolsuper
+               and r.oid <> (select nspowner from pg_namespace where nspname = 'packs')`,
+          )
+          if (left?.owns)
+            throw new Error(`migration ${scope}/${m.name} made an object its login owns`)
         }
         await tx.exec('reset role')
       } else {
         await tx.exec(m.sql)
       }
-      await tx.query('insert into packs.migrations (scope, name, hash) values ($1, $2, $3)', [
-        scope,
-        m.name,
-        hash,
-      ])
+      await tx.query(
+        role
+          ? 'select packs.pack_migration_done($1, $2, $3)'
+          : 'insert into packs.migrations (scope, name, hash) values ($1, $2, $3)',
+        [scope, m.name, hash],
+      )
     })
     done.push(m.name)
   }
@@ -175,14 +191,20 @@ export async function migrateCore(db: Db) {
   // and are checked below.
   const done = await applyMigrations(db, 'core', migrations)
   // Postgres's own rule, which 0001 broke for roles it found (0010): only a superuser reads or
-  // writes server files or reloads the configuration.
+  // writes server files or reloads the configuration. Without a superuser only the core's roles
+  // and their members are the core's to answer for: Supabase itself gives `postgres`
+  // pg_reload_conf, and no role but its superuser can take it back.
   const servers = await db.query<{ role: string; proname: string }>(
     `select distinct r.rolname as role, p.proname
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace, pg_roles r
      where n.nspname = 'pg_catalog' and not r.rolsuper and r.rolname not like 'pg\\_%'
        and p.proname in ('lo_import', 'lo_export', 'pg_read_file', 'pg_read_binary_file',
          'pg_ls_dir', 'pg_stat_file', 'pg_reload_conf')
-       and has_function_privilege(r.oid, p.oid, 'execute')`,
+       and has_function_privilege(r.oid, p.oid, 'execute')
+       and ($1 or r.rolname like 'pack\\_%' or (r.rolname <> current_user and exists (
+         select 1 from pg_auth_members m join pg_roles g on g.oid = m.roleid
+         where m.member = r.oid and g.rolname like 'pack\\_%')))`,
+    [me?.rolsuper ?? false],
   )
   if (servers.length > 0) {
     const named = [...new Set(servers.map((r) => `${r.role} ${r.proname}`))].sort()
@@ -233,6 +255,12 @@ export function scramVerifier(password: string, salt = randomBytes(16), iteratio
   return `SCRAM-SHA-256$${iterations}:${b64(salt)}$${b64(stored)}:${b64(server)}`
 }
 
+/** The pack roles each kind of login holds, and nothing else. */
+export const LOGIN_ROLES = {
+  server: ['pack_runtime', 'pack_server'],
+  migrator: ['pack_migrator', 'pack_recorder'],
+} as const
+
 /**
  * The login a deployed core runs as, made by whoever installed the core (`core setup-login`): a
  * superuser on Fly, or on Supabase a role with CREATEROLE (docs/executing/core-no-superuser-plan.md,
@@ -243,8 +271,18 @@ export function scramVerifier(password: string, salt = randomBytes(16), iteratio
  * may also call `set_config`, the one function migration 0001 took from PUBLIC that the core
  * uses. Run again, it resets the password, the attributes, the settings and the memberships.
  * Roles belong to the server: one database per server.
+ *
+ * With `kind` 'migrator' (`core setup-migrator`), the login a pack's migrations run from: it holds
+ * pack_migrator and pack_recorder (migration 0014) instead, so SQL in a migration that leaves
+ * pack_migrator lands on a role with no more rights.
  */
-export async function setupLogin(db: Db, role: string, password: string) {
+export async function setupLogin(
+  db: Db,
+  role: string,
+  password: string,
+  kind: keyof typeof LOGIN_ROLES = 'server',
+) {
+  const roles = LOGIN_ROLES[kind]
   if (!ROLE.test(role))
     throw new Error(`a login role is lowercase letters, digits and _, not ${role}`)
   if (role.startsWith('pack_') || role.startsWith('pg_')) throw new Error(`${role} is reserved`)
@@ -262,7 +300,8 @@ export async function setupLogin(db: Db, role: string, password: string) {
       throw new Error('setup-login runs as the role that installed the core')
     }
     // Only the core's own login is made or reset: never the role running this, a superuser, a
-    // role that owns anything, or one the core did not make (not a member of pack_runtime).
+    // role that owns anything, or one the core did not make for this use (not a member of
+    // pack_runtime, or pack_migrator for the migrator's).
     const [found] = await tx.query<{
       me: boolean
       rolsuper: boolean
@@ -271,13 +310,13 @@ export async function setupLogin(db: Db, role: string, password: string) {
     }>(
       `select rolname = current_user as me, rolsuper,
          exists (select 1 from pg_auth_members m
-           where m.member = r.oid and m.roleid = 'pack_runtime'::regrole) as ours,
+           where m.member = r.oid and m.roleid = $2::regrole) as ours,
          exists (select 1 from pg_class where relowner = r.oid)
            or exists (select 1 from pg_proc where proowner = r.oid)
            or exists (select 1 from pg_namespace where nspowner = r.oid)
            or exists (select 1 from pg_type where typowner = r.oid) as owns
        from pg_roles r where rolname = $1`,
-      [role],
+      [role, roles[0]],
     )
     if (found && (found.me || found.rolsuper || !found.ours || found.owns)) {
       throw new Error(`${role} exists and is not the core's login: choose another name`)
@@ -312,11 +351,11 @@ export async function setupLogin(db: Db, role: string, password: string) {
     }
     const held = await tx.query<{ name: string }>(
       `select m.roleid::regrole::text as name from pg_auth_members m
-       where m.member = $1::regrole and m.roleid not in ('pack_runtime'::regrole, 'pack_server'::regrole)`,
-      [role],
+       where m.member = $1::regrole and m.roleid::regrole::text <> all ($2::text[])`,
+      [role, [...roles]],
     )
     for (const { name } of held) await tx.exec(`revoke ${name} from ${role}`)
-    await tx.exec(`grant pack_runtime, pack_server to ${role}`)
+    await tx.exec(`grant ${roles.join(', ')} to ${role}`)
     if (me.rolsuper) {
       // A login that existed when 0001 ran got every function on its list back; it keeps only
       // set_config.
@@ -329,9 +368,12 @@ export async function setupLogin(db: Db, role: string, password: string) {
       for (const { fn } of granted.filter((g) => forbiddenFunction(g.proname))) {
         await tx.exec(`revoke execute on function ${fn} from ${role}`)
       }
-      await tx.exec(
-        `grant execute on function pg_catalog.set_config(text, text, boolean) to ${role}`,
-      )
+      // A migration needs no function; a call sets its time limit with set_config.
+      if (kind === 'server') {
+        await tx.exec(
+          `grant execute on function pg_catalog.set_config(text, text, boolean) to ${role}`,
+        )
+      }
     }
     return held.length
   })

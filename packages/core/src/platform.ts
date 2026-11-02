@@ -1,5 +1,5 @@
 import { openPglite, type Db } from './db'
-import { migrateCore } from './migrate'
+import { LOGIN_ROLES, migrateCore } from './migrate'
 import { hashOf, kindOf, type PackContent } from './pack'
 import { pglite, runPackTests, type RunResult, type Target } from './runner'
 
@@ -36,16 +36,27 @@ export async function runtimeRoleIsLimited(db: Db): Promise<string[]> {
  * pack_runtime and pack_server and no other role, and keeps no role settings (an escape could
  * leave one, and a role's settings outlive every reset). Empty when it is so.
  */
-export async function serverLoginIsLimited(db: Db): Promise<string[]> {
+export function serverLoginIsLimited(db: Db): Promise<string[]> {
+  return loginIsLimited(db, 'server')
+}
+
+/**
+ * The same for either login `setupLogin` makes: the server's, or the one a pack's migrations run
+ * from (`core setup-migrator`), which holds pack_migrator and pack_recorder instead.
+ */
+export async function loginIsLimited(db: Db, kind: keyof typeof LOGIN_ROLES): Promise<string[]> {
+  const roles: readonly string[] = LOGIN_ROLES[kind]
   const [me] = await db.query<{
     name: string
     rolsuper: boolean
+    rolcreaterole: boolean
+    rolcreatedb: boolean
     rolbypassrls: boolean
     rolconfig: string[] | null
     owns: boolean
     held: string[]
   }>(
-    `select r.rolname as name, r.rolsuper, r.rolbypassrls, r.rolconfig,
+    `select r.rolname as name, r.rolsuper, r.rolcreaterole, r.rolcreatedb, r.rolbypassrls, r.rolconfig,
        exists (select 1 from pg_class where relowner = r.oid)
          or exists (select 1 from pg_proc where proowner = r.oid)
          or exists (select 1 from pg_namespace where nspowner = r.oid)
@@ -57,12 +68,13 @@ export async function serverLoginIsLimited(db: Db): Promise<string[]> {
   if (!me) return ['the login is not a role']
   const problems: string[] = []
   if (me.rolsuper) problems.push(`${me.name} is a superuser`)
+  if (me.rolcreaterole || me.rolcreatedb) problems.push(`${me.name} may make roles or databases`)
   if (me.rolbypassrls) problems.push(`${me.name} bypasses row rules`)
   if (me.owns) problems.push(`${me.name} owns objects (it is the installer's login)`)
   if (me.rolconfig) problems.push(`${me.name} has role settings: ${me.rolconfig.join(', ')}`)
-  const extra = me.held.filter((r) => r !== 'pack_runtime' && r !== 'pack_server')
+  const extra = me.held.filter((r) => !roles.includes(r))
   if (extra.length > 0) problems.push(`${me.name} holds ${extra.join(', ')}`)
-  for (const role of ['pack_runtime', 'pack_server']) {
+  for (const role of roles) {
     if (!me.held.includes(role)) problems.push(`${me.name} does not hold ${role}`)
   }
   // Every call sets its time limit with set_config: where 0001 took it from PUBLIC (a superuser's
@@ -71,7 +83,7 @@ export async function serverLoginIsLimited(db: Db): Promise<string[]> {
     `select has_function_privilege(session_user, 'pg_catalog.set_config(text,text,boolean)',
        'execute') as ok`,
   )
-  if (!sets?.ok) problems.push(`${me.name} may not call set_config`)
+  if (kind === 'server' && !sets?.ok) problems.push(`${me.name} may not call set_config`)
   // Settings for one database outlive a session too (ALTER ROLE … IN DATABASE).
   const [perDatabase] = await db.query<{ n: number }>(
     `select count(*)::int as n from pg_db_role_setting

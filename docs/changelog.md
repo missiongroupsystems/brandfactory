@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.61.0** — 2026-11-02 — `feat/core-no-superuser`: the final review's fixes. A pack's migrations run from their own login (`core setup-migrator`, `MIGRATOR_DATABASE_URL`, core migration `0014_migrator_login.sql`, not applied to production): on Supabase SQL in a migration could leave `pack_migrator` for the installer's session and act as the core's owner, past every text check (reproduced). `core migrate` installs on Supabase (it refused every Supabase database over `postgres`'s own `pg_reload_conf`). The owner's Fly steps stage the new secret just before the deploy, not before the migration. The demo scripts run again (broken since 2.58.0). Run on a local Supabase (Postgres 17.6): install, the brandbase pack, calls and 20 escapes, all as planned. 1595 tests, none skipped (Postgres 18 in Docker).
 - **2.60.0** — 2026-11-02 — `feat/core-no-superuser`: the owner's upgrade of Fly's brandbase-db, as a script (`packages/core/scripts/fly-no-superuser.sh`: prepare, check, secret, migrate) and a test that runs it on a Postgres made the old way, with the old code's data and the old code working between the migration and the deploy; `core check-login` runs the server's start check from the CLI. Nothing applied. 1595 tests, none skipped (Postgres 18 in Docker).
 - **2.59.0** — 2026-11-02 — `feat/core-no-superuser`: nothing a call leaves on its pooled connection reaches the next caller. After each commit or rollback the server cleans the connection (role, settings, temporary tables, held cursors, sequence values, listens, advisory locks) and checks that every statement it runs by name is still the one it made, dropping the connection if not; an idle connection shows the clean in `pg_stat_activity`, not the last call's input. Phase 4 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
 - **2.58.0** — 2026-11-02 — `feat/core-no-superuser`: the server's login reaches the core only as one call may, and the core installs without a superuser (core migration `0013_server_role.sql`, not applied to production). The login holds `pack_runtime` and a new `pack_server` only, owns nothing and has no right on a core table; the core's functions run with the installer's rights. `core setup-login` and `core migrate` no longer need a superuser; the server refuses to start on any other login; a call may leave no large object, role setting or default privilege. `fly.toml` has no release step: the owner migrates by hand (the steps are in the plan). Phase 3 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
@@ -121,6 +122,51 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.61.0 — 2026-11-02
+
+- **Why.** A final review of the whole branch (Opus and Sonnet) and a run on a local Supabase
+  (`supabase db start`, Postgres 17.6, as `postgres` into the `postgres` database, as production
+  would be) found two faults that stopped the branch from working on Supabase, and one in the
+  owner's Fly steps.
+- **A pack migration ran as the core's owner on Supabase.** Without a superuser PUBLIC keeps
+  `set_config` and `query_to_xml`, so a migration could run
+  `query_to_xml('select s'||'et_config(''role'',''none'',…)')`, a word no text check can see, and
+  leave `pack_migrator` for the session's login: the installer, which owns the core. Reproduced: it
+  read `packs.principals` and committed. Now a pack's migrations run from their own login (`core
+  setup-migrator`; `core migrate <pack>` needs `MIGRATOR_DATABASE_URL` and refuses a login that
+  holds more). The login holds `pack_migrator` and a new `pack_recorder`, which reads and records a
+  pack's migrations through two functions of core 0014 and never a core migration. The same
+  migration now gets "permission denied for table principals", and one that leaves an object its
+  login owns (which no check reads) is refused after the statement. This was the plan's design
+  (D1); phase 3 had left it out.
+- **`core migrate` refused every Supabase database.** Supabase gives `postgres` `pg_reload_conf`,
+  and the check after 0010 looked at every role on the server. Without a superuser it looks at the
+  core's roles and their members only; with one, at every role, as before.
+- **The owner's steps** (`docs/executing/core-no-superuser-plan.md`): the new secret was staged
+  before the migration, so any release in between would have started the old code as
+  `core_server`, which reaches no table. It is staged just before the deploy, other deploys stop
+  for the window, and the recorded hashes of core 0001, 0009 and 0010 are compared first. The
+  rollback takes the old URL from the clipboard. `prepare` also makes `pack_recorder` and
+  `core_migrator`.
+- **The README** described the old deploy (a superuser only, Fly's release step).
+- **The brandbase demo scripts** (`demo/web.sh`, `demo/hour-rule.sh`) had not run since 2.58.0:
+  the server refused their superuser URL. They now make `core_server` and `core_migrator` on
+  their throwaway database and use them; both were run to the end on Postgres 18. The script's
+  `secret` takes a port, for `core_migrator`'s URL through `fly proxy`.
+- **On the local Supabase** (a script outside the repo): the install, the brandbase pack's
+  migrations from `core_migrator`, calls through `core_server`, 20 escapes refused (role switches,
+  a second claims row, the core's tables, `auth.users`, files, a forged setting, what a call may
+  not leave), the API roles reach nothing of the core, and `core_server` cannot read
+  `pg_stat_statements`. 35 of 35.
+- **Tests.** `postgres.test.ts`: the Supabase-like install has `pg_reload_conf` on its installer
+  and runs the escaping migration from a migrator login; the Fly upgrade makes `pack_recorder` and
+  the migrator login in step 3, applies 0014 and migrates the pack from the new login. 1595, none
+  skipped.
+- **Recorded, not fixed** (the plan): the Postgres tests are not in CI; no start check that the
+  core's migrations are current; pack migrations are slower (definitions read after every
+  statement); a guest's timed call now fails with 500, not 403; inside its own call escaped SQL
+  can write extra log rows for its own pack, or use up a waiting yes whose hash it knows.
 
 ## 2.60.0 — 2026-11-02
 

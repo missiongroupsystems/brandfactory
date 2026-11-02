@@ -59,9 +59,11 @@ the registry, the core's tables or the session.
   On Supabase: a role that `postgres` makes, **without BYPASSRLS** (so the core's `SECURITY
   DEFINER` functions stay under forced row rules); on Fly it may be the superuser. Holds the pack
   roles `WITH ADMIN` so it can grant `pack_runtime` to `core_server`.
-- **`core_migrator`** runs pack migrations from the CLI (`CORE_MIGRATOR_URL`): a member of
-  `pack_migrator` only. An escape during a pack migration reaches `pack_migrator`, which owns pack
-  tables but has no right in `packs` or `claims`.
+- **`core_migrator`** runs pack migrations from the CLI (`MIGRATOR_DATABASE_URL`, made by `core
+  setup-migrator`): a member of `pack_migrator` and `pack_recorder` only (`pack_recorder` reads and
+  records a pack's migrations through two functions, core 0014). An escape during a pack migration
+  reaches `pack_migrator`, which owns pack tables but has no right in `packs` or `claims`. (Left
+  out of phase 3, added in 2.61.0 after the final review reproduced the escape.)
 - **`core_server`** is the deployed server's login (`DATABASE_URL`): `LOGIN NOSUPERUSER NOCREATEDB
   NOCREATEROLE NOBYPASSRLS NOREPLICATION`, owns nothing, member of `pack_runtime` only, no `TEMP`
   where the owner can revoke it. The server refuses to start when its login is a superuser, owns
@@ -254,8 +256,37 @@ Each phase ends with an independent review before its commit.
 
 - Done and pushed on `feat/core-no-superuser`: phase 0 `585bdf4` (2.55.0), phase 1 `43fc554`
   (2.56.0), phase 2 `a353ab4` (2.57.0), phase 3 `f988888` (2.58.0), phase 4 `82cb39d` (2.59.0),
-  the owner's script and its test (2.60.0).
+  the owner's script and its test (2.60.0), the final review's fixes (2.61.0).
   Each had an independent review; findings fixed with tests.
+- **Final review (Opus and Sonnet on the whole branch, and a run on a local Supabase, Postgres
+  17.6, `supabase db start`), fixed in 2.61.0:**
+  - A pack migration could run as the core's owner on Supabase: SQL in it called
+    `query_to_xml('select s'||'et_config(''role'',''none'',…)')`, which no text check can see,
+    and left `pack_migrator` for the session's login, the installer. Reproduced (it read
+    `packs.principals` as `postgres` and committed). A pack's migrations now run from their own
+    login (`core setup-migrator`, `MIGRATOR_DATABASE_URL`, migration 0014), which holds
+    `pack_migrator` and `pack_recorder` only; the same escape gets "permission denied".
+  - `core migrate` refused every Supabase database: Supabase gives `postgres` `pg_reload_conf`,
+    and the check for 0010 looked at every role. Without a superuser it now looks at the core's
+    roles and their members only.
+  - The owner's steps staged the new secret before the migration: a release in between would have
+    started the old code on a login that reaches no table. It is staged now just before the
+    deploy, other deploys stop for the window, and the recorded core hashes are compared first.
+  - On the local Supabase, as `postgres` into the `postgres` database: install, the brandbase
+    pack, calls through `core_server`, 20 escapes refused, `anon`, `authenticated` and
+    `service_role` reach nothing of the core, and `core_server` has no use of the `extensions`
+    schema, so it cannot read `pg_stat_statements`.
+- **Final review, not fixed (recorded for later):**
+  - The tests on a real Postgres are not in CI (`CORE_TEST_PG_URL` is unset there): add a
+    `postgres:18` service.
+  - The server does not check at start that the core's migrations are current (no release step
+    any more): a release that needs a new migration fails on calls, not at start.
+  - `refuseHiddenWords` reads every definition the migrator owns after every statement: the
+    brandbase pack migrates in about 3 s locally, slower through `fly proxy`.
+  - A guest's call that plans a timed call now fails with 500, not 403 (`packs.schedule` refuses
+    a guest with 42501). No pack does this today.
+  - Inside its own call, escaped SQL can write extra log rows for its own principal and pack, and
+    use up another person's waiting yes for the same move and input if it knows the hash.
 - Tests on a real Postgres: `docker run -d --name core-nosuper-pg -e POSTGRES_PASSWORD=test -p
   127.0.0.1:55432:5432 postgres:18`, then `CORE_TEST_PG_URL=postgres://postgres:test@127.0.0.1:55432/postgres pnpm test`.
 - Phase 3 (logins) is the commit after phase 2: migration 0013, `setupLogin`, `migrateCore`
@@ -288,11 +319,11 @@ Each phase ends with an independent review before its commit.
   - Cost (review, 20 callers on a pool of 5, one machine): throughput 20 to 25% lower when the
     pool is the limit, p50 6 to 8 ms; each connection is held one more round trip.
   - Accepted: a statement other sessions see while it runs (its input among it).
-  - Not verified: `pg_stat_statements` on Supabase (installed there by default; its entries are
-    kept per role, and constants inside a DO body may stay).
+  - `pg_stat_statements` on Supabase: `core_server` cannot reach it (no use of the `extensions`
+    schema; checked on a local Supabase in the final review).
   - Not done: D5, the server's own deadline (a pack that lifts its time limit can slow the
     server, not read data).
-- **Next:** phase 3b (one owner role per pack, R2; the CLI's migrator login); phase 5 (gather the
+- **Next:** phase 3b (one owner role per pack, R2); phase 5 (gather the
   attacks the phases' tests already run into one suite, add those still missing: `SET
   CONSTRAINTS`, a guest's escape, `pg_stat_statements` on Supabase); the server's own deadline
   (D5).
@@ -306,27 +337,34 @@ core made the old way" runs steps 3 and 5, in this order, on a Postgres made the
 
 1. Back up `brandbase-db` (a Fly snapshot or `pg_dump`), and check the backup restores into a
    throwaway database. Write down the image the app runs now (`fly releases -a brandfactory`).
-2. `fly proxy 15432:5432 -a brandbase-db` in another terminal.
-3. `OLD_LOGIN=<role> …/fly-no-superuser.sh prepare`: as `postgres`, creates `pack_server`, makes
-   `core_server`'s password in the Keychain and runs `core setup-login core_server`. Nothing
-   changes for the running site. Then `…/fly-no-superuser.sh check`: the server's start check, as
+   Stop other deploys to `brandfactory` (CI included) until step 6 is done.
+2. `fly proxy 15432:5432 -a brandbase-db` in another terminal. Read the recorded core migrations
+   (`begin; set transaction read only; select name, hash from packs.migrations where scope =
+   'core' order by name; rollback;`) and compare 0001, 0009 and 0010 with `EARLIER` in
+   `src/migrate.ts`. A different hash stops `migrate` before it applies anything; stop here too.
+3. `OLD_LOGIN=<role> …/fly-no-superuser.sh prepare`: as `postgres`, creates `pack_server` and
+   `pack_recorder`, makes the passwords of `core_server` and `core_migrator` in the Keychain and
+   runs `core setup-login core_server` and `core setup-migrator core_migrator`. Nothing changes for
+   the running site. Then `…/fly-no-superuser.sh check`: the server's start check, as
    `core_server`, through the proxy. It checks the login alone, so it passes here; a failure is a
    finding to stop on. (It does not make a call: step 7 does.)
-4. Build the image without releasing it, and stage the new secret: `fly deploy --build-only
-   --push --image-label nosuper`; `…/fly-no-superuser.sh secret <host>` copies `core_server`'s
-   URL; `fly secrets set --stage DATABASE_URL="$(pbpaste)" -a brandfactory`; `pbcopy </dev/null`.
+4. Build the image without releasing it: `fly deploy --build-only --push --image-label nosuper`.
 5. `OLD_LOGIN=<role> …/fly-no-superuser.sh migrate`: refuses `postgres` or any superuser, shows the
-   database, asks, then applies core 0011 to 0013 as `$OLD`. The running code keeps working: 0013's
+   database, asks, then applies core 0011 to 0014 as `$OLD`. The running code keeps working: 0013's
    `judge` takes its claims rows, which name no pack. Run `check` again: it must pass.
-6. `fly deploy --image registry.fly.io/brandfactory:nosuper` at once. The new code starts as
-   `core_server` and refuses to start on any other login.
-7. Check: `/health`, `fly logs`, one real call. The CLI (publish, promote, `migrate <pack>`) keeps
-   `$OLD`'s URL.
+6. At once: `…/fly-no-superuser.sh secret <host>` copies `core_server`'s URL; `fly secrets set
+   --stage DATABASE_URL="$(pbpaste)" -a brandfactory`; `pbcopy </dev/null`; `fly deploy --image
+   registry.fly.io/brandfactory:nosuper`. The secret is staged only now: any release before the
+   new image would start the old code as `core_server`, which reaches no table. The new code
+   starts as `core_server` and refuses to start on any other login.
+7. Check: `/health`, `fly logs`, one real call. The CLI keeps `$OLD`'s URL for publish and promote;
+   `core migrate <pack>` also needs `MIGRATOR_DATABASE_URL`, `core_migrator`'s URL.
 
-**Rollback** after step 6: `fly secrets set DATABASE_URL=<$OLD's URL>` and deploy the image written
-down in step 1. The old code runs on the migrated database (the test shows it); its claims rows
-then stay until the new code's purge runs again. Before step 5 nothing needs undoing; after it, only
-the backup removes core 0011 to 0013.
+**Rollback** after step 6: `…/fly-no-superuser.sh secret <host> <$OLD>`; `fly secrets set --stage
+DATABASE_URL="$(pbpaste)" -a brandfactory`; `pbcopy </dev/null`; deploy the image written down in
+step 1. The old code runs on the migrated database (the test shows it); its claims rows then stay
+until the new code's purge runs again. Before step 5 nothing needs undoing; after it, only the
+backup removes core 0011 to 0014.
 
 ## Open questions
 

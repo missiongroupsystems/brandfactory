@@ -10,8 +10,9 @@
 #
 #   OLD_LOGIN=<role> packages/core/scripts/fly-no-superuser.sh prepare   # step 3: safe
 #   packages/core/scripts/fly-no-superuser.sh check                       # the start check, as core_server
-#   packages/core/scripts/fly-no-superuser.sh secret <fly-db-host>        # step 4: the new URL, to the clipboard
 #   OLD_LOGIN=<role> packages/core/scripts/fly-no-superuser.sh migrate   # step 5: cannot be undone
+#   packages/core/scripts/fly-no-superuser.sh secret <host> [role] [port] # step 6: a URL, to the clipboard
+#     (127.0.0.1 core_migrator 15432: MIGRATOR_DATABASE_URL through the proxy, for `migrate <pack>`)
 set -euo pipefail
 
 DB=brandbase
@@ -44,25 +45,34 @@ case "${1:-}" in
   prepare)
     old_login
     superuser="$(url_for postgres 127.0.0.1 15432)"
-    # pack_server, as the superuser: the old login may not create roles.
+    # pack_server and pack_recorder (core 0013, 0014), as the superuser: the old login may not
+    # create roles.
     psql_as postgres -qc \
       "do \$\$ begin if not exists (select 1 from pg_roles where rolname = 'pack_server') then
-         create role pack_server nologin; end if; end \$\$"
-    # The new login's password, made here and kept in the Keychain only.
-    if ! security find-generic-password -s brandbase-db -a core_server >/dev/null 2>&1; then
-      printf 'add-generic-password -s brandbase-db -a core_server -w %s\n' "$(openssl rand -hex 24)" | security -i
-    fi
+         create role pack_server nologin; end if;
+         if not exists (select 1 from pg_roles where rolname = 'pack_recorder') then
+         create role pack_recorder nologin; end if; end \$\$"
+    # The new logins' passwords, made here and kept in the Keychain only: the server's, and the
+    # one a pack's migrations run from.
+    for login in core_server core_migrator; do
+      if ! security find-generic-password -s brandbase-db -a "$login" >/dev/null 2>&1; then
+        printf 'add-generic-password -s brandbase-db -a %s -w %s\n' "$login" "$(openssl rand -hex 24)" | security -i
+      fi
+    done
     login_password="$(pw core_server)"
     CORE_LOGIN_PASSWORD="$login_password" core "$superuser" setup-login core_server
-    echo "prepared: pack_server and core_server exist; nothing changed for the running site"
+    login_password="$(pw core_migrator)"
+    CORE_LOGIN_PASSWORD="$login_password" core "$superuser" setup-migrator core_migrator
+    echo "prepared: pack_server, pack_recorder, core_server and core_migrator exist; nothing changed for the running site"
     ;;
   check)
     core "$(url_for core_server 127.0.0.1 15432)" check-login
     ;;
   secret)
     host="${2:?the database host the app uses on the Fly private network}"
-    url_for core_server "$host" 5432 | pbcopy
-    echo "copied core_server's URL: fly secrets set --stage DATABASE_URL=\"\$(pbpaste)\" -a brandfactory; then pbcopy </dev/null"
+    role="${3:-core_server}"
+    url_for "$role" "$host" "${4:-5432}" | pbcopy
+    echo "copied ${role}'s URL: fly secrets set --stage DATABASE_URL=\"\$(pbpaste)\" -a brandfactory; then pbcopy </dev/null"
     ;;
   migrate)
     old_login
@@ -78,7 +88,7 @@ case "${1:-}" in
     echo "migrated: deploy the new image now (step 6), the same minute"
     ;;
   *)
-    sed -n '2,14p' "$0"
+    sed -n '2,15p' "$0"
     exit 1
     ;;
 esac

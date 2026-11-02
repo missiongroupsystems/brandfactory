@@ -5,17 +5,19 @@ import { fileURLToPath } from 'node:url'
 import { openPostgres, type Db } from './db'
 import { loadEnv } from './env'
 import { Refused } from './errors'
-import { applyPackMigrations, migrateCore, setupLogin } from './migrate'
+import { applyPackMigrations, LOGIN_ROLES, migrateCore, setupLogin } from './migrate'
 import { readPack, type PackContent } from './pack'
-import { serverLoginIsLimited, testVersion } from './platform'
+import { loginIsLimited, serverLoginIsLimited, testVersion } from './platform'
 import { addPrincipal, liveVersion, promote, publish, recordTestRun, setLoadout } from './registry'
 import { authenticate } from './run'
 
 const USAGE = `core <command>
 
-  migrate [<pack> <version>]        the core's migrations, then a tested version's
+  migrate [<pack> <version>]        the core's migrations, then a tested version's, which run from
+                                    the login in MIGRATOR_DATABASE_URL
   setup-login <role>                as the role that installed the core: the login a deployed core runs
                                     as; the password is read from CORE_LOGIN_PASSWORD
+  setup-migrator <role>             the same for the login a pack's migrations run from
   check-login                       as the server's login: the checks the server makes at start
   login --dev <userId>              local sign-in: the token is the user id
   login <email>                     Supabase sign-in; the password is read from CORE_PASSWORD
@@ -116,8 +118,21 @@ export async function main(argv: string[]) {
           [pack, version],
         )
         if (!row) throw new Error(`${pack} ${version} has no passing test run`)
-        const done = await applyPackMigrations(db, pack, row.content.migrations)
-        console.info(`${pack}:`, done.join(', ') || 'up to date')
+        // Never from DATABASE_URL's login, which owns the core: SQL in a migration can leave
+        // pack_migrator for the session's login (migration 0014).
+        const url = process.env.MIGRATOR_DATABASE_URL
+        if (!url)
+          throw new Error("a pack's migrations need MIGRATOR_DATABASE_URL (core setup-migrator)")
+        const migrator = openPostgres(url, 1)
+        try {
+          const problems = await loginIsLimited(migrator, 'migrator')
+          if (problems.length > 0)
+            throw new Error(`MIGRATOR_DATABASE_URL may not run migrations: ${problems.join('; ')}`)
+          const done = await applyPackMigrations(migrator, pack, row.content.migrations)
+          console.info(`${pack}:`, done.join(', ') || 'up to date')
+        } finally {
+          await migrator.close()
+        }
       })
     case 'check-login':
       return withDb(async (db) => {
@@ -127,12 +142,14 @@ export async function main(argv: string[]) {
         console.info('the server would start on this login')
       })
     case 'setup-login':
+    case 'setup-migrator':
       return withDb(async (db) => {
         const password = process.env.CORE_LOGIN_PASSWORD
         if (!args[0] || !password) throw new Error(USAGE)
-        const dropped = await setupLogin(db, args[0], password)
+        const kind = command === 'setup-login' ? 'server' : 'migrator'
+        const dropped = await setupLogin(db, args[0], password, kind)
         console.info(
-          `${args[0]} logs in and holds pack_runtime and pack_server only` +
+          `${args[0]} logs in and holds ${LOGIN_ROLES[kind].join(' and ')} only` +
             (dropped ? ` (${dropped} other memberships taken away)` : ''),
         )
       })

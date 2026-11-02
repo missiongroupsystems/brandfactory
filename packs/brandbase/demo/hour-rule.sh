@@ -10,6 +10,20 @@ ROOT=$(git rev-parse --show-toplevel)
 PORT=${PORT:-3013}
 WORK=$(mktemp -d)
 core() { (cd "$ROOT/packages/core" && pnpm -s exec tsx src/cli.ts "$@"); }
+# The core's two logins on this throwaway database (core setup-login, setup-migrator): the server
+# refuses the installer's login, and a pack's migrations run from their own.
+login_url() {
+  node -e 'const u = new URL(process.argv[1]); u.username = process.argv[2]; u.password = process.argv[3]; process.stdout.write(u.toString())' "$DATABASE_URL" "$1" "$2"
+}
+logins() {
+  local server_pw migrator_pw
+  server_pw=$(openssl rand -hex 24)
+  migrator_pw=$(openssl rand -hex 24)
+  CORE_LOGIN_PASSWORD=$server_pw core setup-login core_server >/dev/null
+  CORE_LOGIN_PASSWORD=$migrator_pw core setup-migrator core_migrator >/dev/null
+  SERVER_URL=$(login_url core_server "$server_pw")
+  export MIGRATOR_DATABASE_URL=$(login_url core_migrator "$migrator_pw")
+}
 say() { printf '\n== %s\n' "$*"; }
 
 # Three versions of the pack, from the one in the repo.
@@ -33,6 +47,7 @@ edit(`${work}/v120/tests/posts.json`, (t) => ({ ...t, cases: [...t.cases, { name
 
 say "the core's migrations, and the demo's people"
 core migrate
+logins
 core principal owner
 core principal member
 export CORE_TOKEN=owner  # the dev sign-in: the token is the user id
@@ -46,7 +61,7 @@ core promote brandbase 1.0.0
 core loadout member brandbase all
 
 say "one core server, started once"
-(cd "$ROOT/packages/core" && PORT=$PORT PIN_NOW=2026-10-06T04:00:00Z pnpm -s exec tsx src/main.ts) &
+(cd "$ROOT/packages/core" && DATABASE_URL=$SERVER_URL PORT=$PORT PIN_NOW=2026-10-06T04:00:00Z pnpm -s exec tsx src/main.ts) &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null || true; rm -rf "$WORK"' EXIT
 until curl -sf "http://localhost:$PORT/health" >/dev/null; do sleep 0.5; done

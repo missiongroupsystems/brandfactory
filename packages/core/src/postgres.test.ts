@@ -13,7 +13,7 @@ import {
   setupLogin,
 } from './migrate'
 import { approve } from './effects'
-import { serverLoginIsLimited } from './platform'
+import { loginIsLimited, serverLoginIsLimited } from './platform'
 import { hashOf } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { call, execute } from './run'
@@ -65,7 +65,8 @@ describe.skipIf(!url)('on a real Postgres', () => {
     const password = randomUUID().replaceAll('-', '')
     await admin.exec(
       `create role ${owner} login password 'pw' nosuperuser createrole nobypassrls;
-       grant pack_runtime, pack_admin, pack_migrator, pack_server to ${owner} with admin option`,
+       grant pack_runtime, pack_admin, pack_migrator, pack_server, pack_recorder to ${owner}
+         with admin option`,
     )
     await admin.exec(`create database ${plain} owner ${owner}`)
     const u = new URL(url!)
@@ -73,11 +74,59 @@ describe.skipIf(!url)('on a real Postgres', () => {
     u.password = 'pw'
     u.pathname = `/${plain}`
     const managed = openPostgres(u.toString(), 1)
+    const su = new URL(url!)
+    su.pathname = `/${plain}`
+    const superuser = openPostgres(su.toString(), 1)
     u.username = login
     u.password = password
     const server = openPostgres(u.toString(), 2)
     try {
-      expect(await migrateCore(managed)).toContain('0013_server_role.sql')
+      // Supabase gives its `postgres` pg_reload_conf, and only its superuser could take it back:
+      // the install answers for the core's roles, not for the installer's own grants.
+      await superuser.exec(`grant execute on function pg_reload_conf() to ${owner}`)
+      expect(await migrateCore(managed)).toContain('0014_migrator_login.sql')
+      // A pack's migrations run from their own login. SQL in one that leaves pack_migrator for
+      // the session's login, its words hidden from the text checks, lands on a role that reads no
+      // core table and records no core migration.
+      const migratorPw = randomUUID().replaceAll('-', '')
+      const migratorName = `migrator_${randomUUID().slice(0, 8)}`
+      await setupLogin(managed, migratorName, migratorPw, 'migrator')
+      const mu = new URL(u.toString())
+      mu.username = migratorName
+      mu.password = migratorPw
+      const migrator = openPostgres(mu.toString(), 1)
+      try {
+        expect(await loginIsLimited(migrator, 'migrator')).toEqual([])
+        expect((await loginIsLimited(managed, 'migrator')).join('; ')).toMatch(/owns objects/)
+        await applyPackMigrations(migrator, 'toy', toyPack().migrations)
+        const loot = `create table toy.loot (who text, n text);
+          do $x$ declare r text := current_user; begin
+            perform query_to_xml('select s'||'et_config(''role'',''none'',true)', false, false, '');
+            insert into toy.loot select current_user,
+              query_to_xml('select * from pa'||'cks.principals', false, false, '')::text;
+            perform query_to_xml('select s'||'et_config(''role'','''||r||''',true)', false, false, '');
+          end $x$;`
+        await expect(
+          applyPackMigrations(migrator, 'toy', [{ name: '0002_loot.sql', sql: loot }]),
+        ).rejects.toThrow(/permission denied for table principals/)
+        const owned = `do $x$ declare r text := current_user; begin
+            perform query_to_xml('select s'||'et_config(''role'',''none'',true)', false, false, '');
+            create view toy.peek as select 1 as x;
+            perform query_to_xml('select s'||'et_config(''role'','''||r||''',true)', false, false, '');
+          end $x$;`
+        await expect(
+          applyPackMigrations(migrator, 'toy', [{ name: '0002_peek.sql', sql: owned }]),
+        ).rejects.toThrow(/made an object its login owns/)
+        await expect(
+          migrator.query(`select packs.pack_migration_done('core', '0099_x.sql', 'x')`),
+        ).rejects.toThrow(/recorded by its owner/)
+        await expect(migrator.query('select * from packs.migrations')).rejects.toThrow(
+          /permission denied/,
+        )
+      } finally {
+        await migrator.close()
+        await superuser.exec(`drop owned by ${migratorName}; drop role ${migratorName}`)
+      }
       await goLive(managed, toyPack())
       await person(managed, 'lia', toyPack())
       await setupLogin(managed, login, password)
@@ -88,15 +137,11 @@ describe.skipIf(!url)('on a real Postgres', () => {
       ])
       // The purge runs as an owner with no BYPASSRLS, under the claims' forced row rules; the
       // superuser counts the rows, which the owner's own reads would not see.
-      const su = new URL(url!)
-      su.pathname = `/${plain}`
-      const superuser = openPostgres(su.toString(), 1)
       const rows = () =>
         superuser.query<{ n: number }>('select count(*)::int as n from claims.calls')
       expect((await rows())[0]!.n).toBeGreaterThan(0)
       expect(await tick(deps)).toBe(0)
       expect(await rows()).toEqual([{ n: 0 }])
-      await superuser.close()
       expect(await serverLoginIsLimited(server)).toEqual([])
       expect((await serverLoginIsLimited(managed)).join('; ')).toMatch(/owns objects/)
       // What SQL that escaped to the login could leave for a later call (here the large-object
@@ -177,6 +222,7 @@ describe.skipIf(!url)('on a real Postgres', () => {
     } finally {
       await server.close()
       await managed.close()
+      await superuser.close()
       await admin.exec(`drop database if exists ${plain} with (force)`)
       await admin.exec(`drop role if exists ${login}`)
       await admin.exec(`drop owned by ${owner}; drop role if exists ${owner}`)
@@ -214,6 +260,8 @@ describe.skipIf(!url)('on a real Postgres', () => {
     const server = `server_${randomUUID().slice(0, 8)}`
     const oldPw = randomUUID().replaceAll('-', '')
     const serverPw = randomUUID().replaceAll('-', '')
+    const migratorName = `migrator_${randomUUID().slice(0, 8)}`
+    const migratorPw = randomUUID().replaceAll('-', '')
     await admin.exec(`create database ${fly}`)
     const at = (user?: string, password?: string) => {
       const u = new URL(url!)
@@ -277,7 +325,16 @@ describe.skipIf(!url)('on a real Postgres', () => {
          values ('toy', '1.0.0', $1, true, '[]')`,
         [hashOf(pack)],
       )
-      await applyPackMigrations(oldLogin, 'toy', pack.migrations)
+      for (const m of pack.migrations) {
+        await oldLogin.transaction(async (tx) => {
+          await tx.exec(`set local role pack_migrator; ${m.sql}; reset role`)
+          await tx.query('insert into packs.migrations (scope, name, hash) values ($1, $2, $3)', [
+            'toy',
+            m.name,
+            createHash('sha256').update(m.sql).digest('hex'),
+          ])
+        })
+      }
       await oldAdmin(
         `insert into packs.channels (environment, pack, version, promoted_by)
          values ('local', 'toy', '1.0.0', '')`,
@@ -291,12 +348,15 @@ describe.skipIf(!url)('on a real Postgres', () => {
         `insert into toy.notes (id, owner, body) values ('o-1', 'lia', 'before')`,
       )
 
-      // Step 3, as the script runs it: as the superuser, pack_server, then the new login, before
-      // the migration. (On Fly pack_server is made after 0001 ran, so it has none of 0001's
+      // Step 3, as the script runs it: as the superuser, pack_server and pack_recorder, then the
+      // new login, before the migration. (On Fly pack_server is made after 0001 ran, so it has none of 0001's
       // functions; on this test server it existed before, so they are taken back here.)
       await superuser.exec(`do $$ begin
         if not exists (select 1 from pg_roles where rolname = 'pack_server') then
           create role pack_server nologin;
+        end if;
+        if not exists (select 1 from pg_roles where rolname = 'pack_recorder') then
+          create role pack_recorder nologin;
         end if; end $$`)
       await superuser.exec(`do $$ declare f regprocedure; begin
         for f in select p.oid::regprocedure from pg_proc p
@@ -307,11 +367,13 @@ describe.skipIf(!url)('on a real Postgres', () => {
           then execute format('revoke execute on function %s from pack_server', f); end if;
         end loop; end $$`)
       await setupLogin(superuser, server, serverPw)
-      // Step 5: as the old login, core 0011 to 0013.
+      await setupLogin(superuser, migratorName, migratorPw, 'migrator')
+      // Step 5: as the old login, core 0011 to 0014.
       expect(await migrateCore(oldLogin)).toEqual([
         '0011_claims_once.sql',
         '0012_call_functions.sql',
         '0013_server_role.sql',
+        '0014_migrator_login.sql',
       ])
       // Between the migration and the deploy, the old code: it writes claims with no pack, as a
       // plain insert, and its judge call still passes the pack check.
@@ -347,11 +409,21 @@ describe.skipIf(!url)('on a real Postgres', () => {
         { n: 0 },
       ])
       await goLive(oldLogin, toyPack('1.0.1'))
+      // A pack's migrations now run from the migrator's login, which sees those the old code
+      // recorded.
+      const migrator = openPostgres(at(migratorName, migratorPw), 1)
+      try {
+        expect(await loginIsLimited(migrator, 'migrator')).toEqual([])
+        expect(await applyPackMigrations(migrator, 'toy', pack.migrations)).toEqual([])
+      } finally {
+        await migrator.close()
+      }
     } finally {
       await newLogin.close()
       await oldLogin.close()
       await superuser.close()
       await admin.exec(`drop database if exists ${fly} with (force)`)
+      await admin.exec(`drop role if exists ${migratorName}`)
       await admin.exec(`drop role if exists ${server}`)
       await admin.exec(`drop role if exists ${old}`)
     }
