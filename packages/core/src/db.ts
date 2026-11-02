@@ -154,12 +154,69 @@ const lost = new WeakSet<object>()
 const TRANSACTION_POOLER_PORT = '6543'
 
 /**
+ * What a transaction may have left on its session, taken away before the next caller gets the
+ * connection (docs/executing/core-no-superuser-plan.md, phase 4): the role and every setting
+ * (`set_config(…, false)` outlives the transaction), temporary tables (one named like a type
+ * changes what the core's own statements mean), cursors kept past the commit, the session's last
+ * sequence values, listens, and advisory locks where the login may release them. It is also the
+ * session's last statement, so `pg_stat_activity` shows it, not the call's own text and input.
+ *
+ * Named statements stay, and neither a commit nor a rollback undoes PREPARE or DEALLOCATE: SQL
+ * that replaced one would run with the next caller's claims. So the statements the server made are
+ * checked too (`held`, the driver's own), and a connection where one changed is dropped.
+ */
+function cleanText(made: Map<string, string>, parsed: string[]) {
+  const quote = (v: string) => `'${v.replaceAll("'", "''")}'`
+  return `reset role; reset all; discard temp; close all; discard sequences; unlisten *;
+  do $$
+  declare
+    want jsonb := ${quote(JSON.stringify(Object.fromEntries(made)))}::jsonb;
+    parsed text[] := array[${parsed.map(quote).join(', ')}]::text[];
+  begin
+    if exists (select 1 from pg_catalog.pg_prepared_statements p
+        where p.from_sql and (want ->> p.name) is distinct from p.prepare_time::text)
+      or exists (select 1 from pg_catalog.jsonb_object_keys(want) k
+        where not exists (select 1 from pg_catalog.pg_prepared_statements p
+          where p.name = k and p.from_sql))
+      or exists (select 1 from pg_catalog.unnest(parsed) n
+        where not exists (select 1 from pg_catalog.pg_prepared_statements p
+          where p.name = n and not p.from_sql)) then
+      raise exception 'a statement the server runs by name was changed';
+    end if;
+    if pg_catalog.has_function_privilege('pg_catalog.pg_advisory_unlock_all()', 'execute') then
+      perform pg_catalog.pg_advisory_unlock_all();
+    end if;
+  end $$`
+}
+
+/**
  * A Postgres server: local Docker, a local Supabase stack, or a deployment. With `prepare`, a
  * query asked to prepare is sent named (`Conn.query`); without it, every statement is unnamed.
  * Named statements need a session that keeps them, so the transaction pooler is refused.
  */
-export function openPostgres(url: string, max = 5, opts: { prepare?: boolean } = {}): Db {
+export function openPostgres(
+  url: string,
+  max = 5,
+  opts: { prepare?: boolean; keepSession?: boolean } = {},
+): Db {
   const prepare = opts.prepare ?? false
+  // The statements each connection holds from `saved` (`PREPARE`, not node-pg's own names), with
+  // the time Postgres made each.
+  const held = new WeakMap<pg.PoolClient, Map<string, string>>()
+  // A pack's test cases (runner.ts) may keep a temporary table from one step to the next, on a
+  // throwaway database, as its owner: there nothing is cleaned between transactions.
+  const release = (client: pg.PoolClient) => {
+    if (opts.keepSession) return Promise.resolve(client.release())
+    const parsed = Object.keys(
+      (client as unknown as { connection: { parsedStatements: Record<string, string> } }).connection
+        .parsedStatements,
+    )
+    return client.query(cleanText(held.get(client) ?? new Map(), parsed)).then(
+      () => client.release(),
+      // A connection that cannot be cleaned, or where a statement changed, is dropped.
+      (err: Error) => client.release(err),
+    )
+  }
   if (prepare && new URL(url).port === TRANSACTION_POOLER_PORT) {
     throw new Error(
       'prepared statements need a session: use the direct port or the session pooler, ' +
@@ -194,8 +251,6 @@ export function openPostgres(url: string, max = 5, opts: { prepare?: boolean } =
       await c.query(text)
     },
   })
-  // The statements each connection holds from `saved` (`PREPARE`, not node-pg's own names).
-  const held = new WeakMap<pg.PoolClient, Set<string>>()
   async function once<T>(
     fn: (tx: Tx, check: Row[], results: Row[][]) => Promise<T>,
     first?: string,
@@ -204,36 +259,50 @@ export function openPostgres(url: string, max = 5, opts: { prepare?: boolean } =
     const client = await pool.connect()
     const last: string[] = []
     let has = held.get(client)
-    if (!has) held.set(client, (has = new Set()))
+    if (!has) held.set(client, (has = new Map()))
     const fresh = prepare ? saved.filter((s) => !has.has(s.name)) : []
+    if (fresh.length > 0) {
+      // In their own message, before the call's: Postgres stamps each with this message's time,
+      // which no statement of the call shares, and the clean checks the stamps (`cleanText`).
+      try {
+        const names = fresh.map((s) => `'${s.name}'`).join(', ')
+        const made = (await client.query(
+          [
+            ...fresh.map((s) => `prepare ${s.name} as ${s.text}`),
+            `select name, prepare_time::text as at from pg_catalog.pg_prepared_statements
+             where from_sql and name in (${names})`,
+          ].join(';\n'),
+        )) as unknown as pg.QueryResult[]
+        for (const r of made.at(-1)!.rows as { name: string; at: string }[]) has.set(r.name, r.at)
+      } catch (err) {
+        // Which statements were made is unknown: the connection is dropped.
+        client.release(err as Error)
+        throw err
+      }
+    }
     try {
       // The simple protocol, so begin and `first` go in one round trip; the commit and the
       // statements kept for it likewise. One that fails skips the rest, so nothing commits.
-      const texts = [...fresh.map((s) => `prepare ${s.name} as ${s.text}`), 'begin']
+      const texts = ['begin']
       if (first) texts.push(first)
       const begun: pg.QueryResult | pg.QueryResult[] = await client.query(texts.join(';\n'))
-      const ofFirst = Array.isArray(begun) ? begun.slice(fresh.length + 1) : []
-      for (const s of fresh) has.add(s.name)
+      const ofFirst = Array.isArray(begun) ? begun.slice(1) : []
       const out = await fn(
         { ...on(client), atCommit: (text) => void last.push(text) },
         checkRows(ofFirst),
         rowsOf(ofFirst),
       )
       await client.query([...last, 'commit'].join(';\n'))
-      client.release()
+      // Not awaited: the caller has its answer; the connection goes back once it is clean.
+      void release(client)
       return out
     } catch (err) {
-      // A statement saved before a failure stays saved; a core refusal comes after every
-      // `prepare`, so they all ran. After any other failure which ran is unknown, and a
-      // statement the server lost (26000) leaves the same doubt: the connection is dropped.
-      // A saved statement the server lost runs once more on a fresh connection, as named
+      // A saved statement the server lost (26000) runs once more on a fresh connection, as named
       // statements do (`transaction`). One whose plan went stale keeps its name, so other
       // connections may hold it stale too: this connection goes, and the caller sends the call
       // without saved statements (`inOneRead`).
-      if (fresh.length > 0 && isCoreRefusal(err)) for (const s of fresh) has.add(s.name)
       if (saved.length > 0 && (err as { code?: string })?.code === '26000') lost.add(err as object)
-      const unsure =
-        (fresh.length > 0 && !isCoreRefusal(err)) || (saved.length > 0 && isStalePlan(err))
+      const unsure = saved.length > 0 && isStalePlan(err)
       // node-pg still thinks this connection holds its statements: it is dropped, not reused.
       if (lost.has(err as object) || unsure) {
         client.release(err as Error)
@@ -241,7 +310,7 @@ export function openPostgres(url: string, max = 5, opts: { prepare?: boolean } =
       }
       try {
         await client.query('rollback')
-        client.release()
+        void release(client)
       } catch (rollbackErr) {
         // A connection that cannot roll back is dropped, not handed to the next caller.
         client.release(rollbackErr as Error)

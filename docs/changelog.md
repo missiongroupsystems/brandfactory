@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.59.0** — 2026-11-02 — `feat/core-no-superuser`: nothing a call leaves on its pooled connection reaches the next caller. After each commit or rollback the server cleans the connection (role, settings, temporary tables, held cursors, sequence values, listens, advisory locks) and checks that every statement it runs by name is still the one it made, dropping the connection if not; an idle connection shows the clean in `pg_stat_activity`, not the last call's input. Phase 4 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
 - **2.58.0** — 2026-11-02 — `feat/core-no-superuser`: the server's login reaches the core only as one call may, and the core installs without a superuser (core migration `0013_server_role.sql`, not applied to production). The login holds `pack_runtime` and a new `pack_server` only, owns nothing and has no right on a core table; the core's functions run with the installer's rights. `core setup-login` and `core migrate` no longer need a superuser; the server refuses to start on any other login; a call may leave no large object, role setting or default privilege. `fly.toml` has no release step: the owner migrates by hand (the steps are in the plan). Phase 3 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
 - **2.57.0** — 2026-11-02 — `feat/core-no-superuser`: the server reaches the core's own tables only through functions (core migration `0012_call_functions.sql`, not applied to production). Server-only ones (who may call, the live version, the scheduler's loop, agents, events, a send's outcome) refuse inside a call; per-call ones (idempotency keys, the log, timed calls, approvals, the first-trip check) act only for the principal and pack in the call's claims, and scheduling or using a yes needs the move. Every function searches `pg_catalog, pg_temp` only. Phase 2 of `docs/executing/core-no-superuser-plan.md`. 1592 tests, none skipped (Postgres 18 in Docker).
 - **2.56.0** — 2026-11-02 — `feat/core-no-superuser`: a call's claims are written once and never removed while it runs (core migration `0011_claims_once.sql`, not applied to production). Any role could fire the deferred trigger that deleted the row at commit (`SET CONSTRAINTS ALL IMMEDIATE`), leaving the transaction with no caller. Now `claims.open` and `claims.open_principal` write the row once (the same claims again change nothing, others are refused), the row names the pack and whether the principal exists, and the scheduler's loop purges finished transactions' rows. Phase 1 of `docs/executing/core-no-superuser-plan.md`. 1573 tests, none skipped (Postgres 18 in Docker).
@@ -119,6 +120,35 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.59.0 — 2026-11-02
+
+- **Why.** The server's connections are pooled, so whatever SQL that escaped a pack role left on a
+  session would meet the next caller there: a setting made with `set_config(…, false)`, a
+  temporary table named like a type (one named `jsonb` broke later calls), a cursor kept past
+  the commit, `lastval()`, and a named statement replaced by its own text, which outlives a
+  rollback (a review ran it: the next caller got `stolen: victim`).
+- **The clean** (`src/db.ts`, `cleanText`), after every commit and rollback, before the
+  connection goes back: `reset role; reset all; discard temp; close all; discard sequences;
+  unlisten *`, advisory locks where the login may release them, and a check that every statement
+  made by SQL is one the server made, with the stamp Postgres gave it, and that every statement
+  the driver made is still there and still the driver's. A connection that fails it is dropped.
+  The clean runs after the answer, so no call waits for it, and an idle session's last statement
+  is the clean, not the call's text and input.
+- **Saved statements** go in their own message before the call's, once per connection, and their
+  stamps are read back; the pack test runner keeps its sessions (`keepSession`), since a pack's
+  cases may keep a temporary table from one step to the next on a throwaway database.
+- **Reviews (Opus).** The first found the replaced statement surviving a rollback and the stamp
+  shared within one message, and the cursor and `lastval` left over; all fixed, then re-checked:
+  replacing, planting and the first attack each end with the connection dropped and the next
+  caller's own answer.
+- **Cost.** One more round trip holds each connection: on one machine, 20 callers on a pool of 5
+  ran 20 to 25% fewer transactions a second (p50 6 to 8 ms); calls do not wait for it.
+- **Tests.** On Postgres 18, one connection: a setting and a temporary table are gone for the next
+  call, the idle session shows the clean, and a replaced statement after a failed call does not
+  reach the next caller (it does with the check off). 1594 tests, none skipped.
+- **Not done.** The server's own deadline (a pack that lifts its time limit can slow the server,
+  not read data); `pg_stat_statements` on Supabase is not checked.
 
 ## 2.58.0 — 2026-11-02
 

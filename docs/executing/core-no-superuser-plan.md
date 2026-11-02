@@ -275,6 +275,21 @@ Each phase ends with an independent review before its commit.
   `SECURITY DEFINER` functions, and keeps `pack_admin` and `pack_migrator` (the CLI needs them).
   A bug in a definer function reaches what that login can. Phase 3b moves ownership to a
   `core_owner` with no other role.
+- **Phase 4 (session) is the commit after phase 3:** each connection is cleaned before it goes back
+  to the pool (`src/db.ts`, `cleanText`): `reset role; reset all; discard temp; close all; discard
+  sequences; unlisten *`, advisory locks where the login may, and a check that every statement the
+  server runs by name is still the one it made (PREPARE and DEALLOCATE outlive a rollback; a
+  changed one drops the connection). The server's saved statements are made in their own message,
+  once per connection, so their stamps match no statement of a call. The clean runs after the
+  answer, so no call waits for it; it is also the session's last statement, so an idle session
+  shows it in `pg_stat_activity`, not the call's input.
+  - Cost (review, 20 callers on a pool of 5, one machine): throughput 20 to 25% lower when the
+    pool is the limit, p50 6 to 8 ms; each connection is held one more round trip.
+  - Accepted: a statement other sessions see while it runs (its input among it).
+  - Not verified: `pg_stat_statements` on Supabase (installed there by default; its entries are
+    kept per role, and constants inside a DO body may stay).
+  - Not done: D5, the server's own deadline (a pack that lifts its time limit can slow the
+    server, not read data).
 - **Next:** phase 3b (one owner role per pack, R2; the CLI's migrator login), then phase 4
   (session reset and the server's own deadline), phase 5 (the attack suite), phase 6.
 

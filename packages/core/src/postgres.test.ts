@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { openPostgres, type Db } from './db'
@@ -112,6 +112,49 @@ describe.skipIf(!url)('on a real Postgres', () => {
         [login],
       )
       expect(after).toEqual({ objects: 0, settings: 0 })
+      // On one connection, what a call leaves on its session is gone for the next (src/db.ts):
+      // a setting, a temporary table named like a type, and its last statement as others see it.
+      const one = openPostgres(u.toString(), 1)
+      await one.transaction(async (tx) => {
+        await tx.query(`select claims.open('lia', '', '', '', 'toy')`)
+        await tx.exec(`select set_config('search_path', 'nowhere', false);
+          create temporary table jsonb (x int)`)
+        await tx.query(`select packs.log_call('lia', null, 'toy', '1', 'note.list',
+          '{"secret": "lia''s diary"}', 200, null)`)
+      })
+      const [next] = await one.transaction((tx) =>
+        tx.query<{ path: string; temp: string | null; pid: number }>(
+          `select current_setting('search_path') as path,
+             to_regclass('pg_temp.jsonb')::text as temp, pg_backend_pid() as pid`,
+        ),
+      )
+      expect([next!.path, next!.temp]).toEqual(['"$user", public', null])
+      await new Promise((r) => setTimeout(r, 50))
+      const [seen] = await server.query<{ query: string }>(
+        'select query from pg_stat_activity where pid = $1',
+        [next!.pid],
+      )
+      expect(seen!.query).toMatch(/^reset role; reset all; discard temp/)
+      expect(seen!.query).not.toContain('diary')
+      await one.close()
+      // Neither a commit nor a rollback undoes PREPARE or DEALLOCATE. A call that puts its own
+      // text under a name the server runs, then fails, would have the next caller on the
+      // connection run it: the clean finds the change and drops the connection instead.
+      const named = openPostgres(u.toString(), 1, { prepare: true })
+      const text = 'select $1::text as v'
+      const name = `core_${createHash('sha256').update(text).digest('hex').slice(0, 40)}`
+      await named.transaction((tx) => tx.query(text, ['first'], { prepare: true }))
+      const poisoned = named.transaction(async (tx) => {
+        await tx.exec(`deallocate ${name};
+          prepare ${name}(text) as select 'stolen: ' || $1 as v`)
+        throw new Error('the call fails')
+      })
+      await expect(poisoned).rejects.toThrow(/the call fails/)
+      const [victim] = await named.transaction((tx) =>
+        tx.query<{ v: string }>(text, ['victim'], { prepare: true }),
+      )
+      expect(victim!.v).toBe('victim')
+      await named.close()
       // A setting for one database, left outside a call, stops the server from starting, and
       // setup-login, run again as this installer (a new password), takes it away.
       await managed.exec(`alter role ${login} in database ${plain} set statement_timeout = '7s'`)
@@ -731,7 +774,9 @@ describe.skipIf(!url)('on a real Postgres', () => {
           pg.Client.prototype.query = sent
           await w.close()
         }
-        expect(trips).toHaveLength(2)
+        // Two trips for the call; a third, after the answer, cleans the connection (src/db.ts).
+        expect(trips).toHaveLength(3)
+        expect(trips[2]).toMatch(/^reset role; reset all; discard temp/)
         expect(trips[0]).toContain('packs.judge')
         expect(trips[0]).not.toContain('prepare one_')
         expect(trips[0]).toContain(prepare ? 'execute one_' : 'toy.touch(')
