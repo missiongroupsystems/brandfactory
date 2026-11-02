@@ -249,6 +249,29 @@ Each phase ends with an independent review before its commit.
 
 Each phase ends with an independent review before its commit.
 
+## Progress and the next step (kept current for whoever picks this up)
+
+- Done and pushed on `feat/core-no-superuser`: phase 0 `585bdf4` (2.55.0), phase 1 `43fc554`
+  (2.56.0), phase 2 `a353ab4` (2.57.0). Each had an independent review; findings fixed with tests.
+- Tests on a real Postgres: `docker run -d --name core-nosuper-pg -e POSTGRES_PASSWORD=test -p
+  127.0.0.1:55432:5432 postgres:18`, then `CORE_TEST_PG_URL=postgres://postgres:test@127.0.0.1:55432/postgres pnpm test`.
+- **Phase 3 design (next):**
+  1. Core migration 0013: a group role `pack_server` (NOLOGIN). The functions of 0011 and 0012,
+     `packs.judge` and the `claims.*` readers become `SECURITY DEFINER` (owner: whoever installs the
+     core, `core_owner`), `EXECUTE` revoked from PUBLIC and granted to `pack_server` (and
+     `claims.rule_ok` and the readers to `pack_runtime` as now). `packs.judge` reads the pack from
+     the claims and refuses another.
+  2. `setupLogin` makes the server's login: a member of `pack_runtime` and `pack_server` only,
+     owning nothing, with no grant on any core table; it no longer needs a superuser, only a role
+     with `CREATEROLE` and `ADMIN` on the two roles (`core_owner`).
+  3. `migrateCore` no longer refuses a role that is not a superuser: it applies what it can and
+     reports which `0001` revokes took; on a superuser it still refuses a partial wall.
+  4. The server's start check: its login is not a superuser, has no BYPASSRLS, owns nothing, holds
+     only `pack_runtime` and `pack_server`, and has no role settings (`rolconfig`).
+  5. Tests on Postgres: install as a role that is not a superuser (`CREATEROLE`, owns the
+     database), make the server's login, run calls as it, and check it reaches no core table.
+  6. Then 3b: one owner role per pack (R2) and the CLI's migrator login.
+
 ## Open questions
 
 - Moving the data from Fly to Supabase is a separate plan, after this lands.
