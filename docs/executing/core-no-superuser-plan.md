@@ -253,7 +253,8 @@ Each phase ends with an independent review before its commit.
 ## Progress and the next step (kept current for whoever picks this up)
 
 - Done and pushed on `feat/core-no-superuser`: phase 0 `585bdf4` (2.55.0), phase 1 `43fc554`
-  (2.56.0), phase 2 `a353ab4` (2.57.0). Each had an independent review; findings fixed with tests.
+  (2.56.0), phase 2 `a353ab4` (2.57.0), phase 3 `f988888` (2.58.0), phase 4 `82cb39d` (2.59.0).
+  Each had an independent review; findings fixed with tests.
 - Tests on a real Postgres: `docker run -d --name core-nosuper-pg -e POSTGRES_PASSWORD=test -p
   127.0.0.1:55432:5432 postgres:18`, then `CORE_TEST_PG_URL=postgres://postgres:test@127.0.0.1:55432/postgres pnpm test`.
 - Phase 3 (logins) is the commit after phase 2: migration 0013, `setupLogin`, `migrateCore`
@@ -290,8 +291,11 @@ Each phase ends with an independent review before its commit.
     kept per role, and constants inside a DO body may stay).
   - Not done: D5, the server's own deadline (a pack that lifts its time limit can slow the
     server, not read data).
-- **Next:** phase 3b (one owner role per pack, R2; the CLI's migrator login), then phase 4
-  (session reset and the server's own deadline), phase 5 (the attack suite), phase 6.
+- **Next:** phase 6's owner script, tested on a Postgres made the old way (it is what a deploy
+  needs); phase 3b (one owner role per pack, R2; the CLI's migrator login); phase 5 (gather the
+  attacks the phases' tests already run into one suite, add those still missing: `SET
+  CONSTRAINTS`, a guest's escape, `pg_stat_statements` on Supabase); the server's own deadline
+  (D5).
 
 ## The owner's steps for Fly (brandbase-db), when this is deployed
 
