@@ -253,7 +253,8 @@ Each phase ends with an independent review before its commit.
 ## Progress and the next step (kept current for whoever picks this up)
 
 - Done and pushed on `feat/core-no-superuser`: phase 0 `585bdf4` (2.55.0), phase 1 `43fc554`
-  (2.56.0), phase 2 `a353ab4` (2.57.0), phase 3 `f988888` (2.58.0), phase 4 `82cb39d` (2.59.0).
+  (2.56.0), phase 2 `a353ab4` (2.57.0), phase 3 `f988888` (2.58.0), phase 4 `82cb39d` (2.59.0),
+  the owner's script and its test (2.60.0).
   Each had an independent review; findings fixed with tests.
 - Tests on a real Postgres: `docker run -d --name core-nosuper-pg -e POSTGRES_PASSWORD=test -p
   127.0.0.1:55432:5432 postgres:18`, then `CORE_TEST_PG_URL=postgres://postgres:test@127.0.0.1:55432/postgres pnpm test`.
@@ -291,31 +292,42 @@ Each phase ends with an independent review before its commit.
     kept per role, and constants inside a DO body may stay).
   - Not done: D5, the server's own deadline (a pack that lifts its time limit can slow the
     server, not read data).
-- **Next:** phase 6's owner script, tested on a Postgres made the old way (it is what a deploy
-  needs); phase 3b (one owner role per pack, R2; the CLI's migrator login); phase 5 (gather the
+- **Next:** phase 3b (one owner role per pack, R2; the CLI's migrator login); phase 5 (gather the
   attacks the phases' tests already run into one suite, add those still missing: `SET
   CONSTRAINTS`, a guest's escape, `pg_stat_statements` on Supabase); the server's own deadline
   (D5).
 
 ## The owner's steps for Fly (brandbase-db), when this is deployed
 
-`$OLD` is the login the server uses today (it owns the core); `core_server` is the new one.
-Steps 5 and 6 go back to back; step 5 cannot be undone except from the backup.
+`$OLD` is the login the server uses today (it owns the core; made by `core setup-login` before
+`585bdf4`); `core_server` is the new one. The script is `packages/core/scripts/fly-no-superuser.sh`
+(passwords from the Keychain, never printed). Steps 5 and 6 go back to back. The test "upgrades a
+core made the old way" runs steps 3 and 5, in this order, on a Postgres made the old way.
 
-1. Back up `brandbase-db` (a Fly snapshot or `pg_dump`).
-2. `fly proxy 15432:5432 -a brandbase-db`; the `postgres` password from the Keychain.
-3. As `postgres`: `create role pack_server nologin;` then, with
-   `CORE_LOGIN_PASSWORD=$(openssl rand -hex 24)` and the `postgres` URL as `DATABASE_URL`,
-   `core setup-login core_server`. Nothing changes for the running site.
+1. Back up `brandbase-db` (a Fly snapshot or `pg_dump`), and check the backup restores into a
+   throwaway database. Write down the image the app runs now (`fly releases -a brandfactory`).
+2. `fly proxy 15432:5432 -a brandbase-db` in another terminal.
+3. `OLD_LOGIN=<role> …/fly-no-superuser.sh prepare`: as `postgres`, creates `pack_server`, makes
+   `core_server`'s password in the Keychain and runs `core setup-login core_server`. Nothing
+   changes for the running site. Then `…/fly-no-superuser.sh check`: the server's start check, as
+   `core_server`, through the proxy. It checks the login alone, so it passes here; a failure is a
+   finding to stop on. (It does not make a call: step 7 does.)
 4. Build the image without releasing it, and stage the new secret: `fly deploy --build-only
-   --push --image-label nosuper`; `fly secrets set --stage DATABASE_URL=<core_server's URL>`.
-5. As `$OLD` (`DATABASE_URL=<$OLD's URL> core migrate`): applies core 0011 to 0013. The running
-   code keeps working: 0013's `judge` takes its claims rows, which name no pack.
-6. `fly deploy --image registry.fly.io/brandfactory:nosuper`. The new code starts as
-   `core_server`; it refuses to start on any other login.
+   --push --image-label nosuper`; `…/fly-no-superuser.sh secret <host>` copies `core_server`'s
+   URL; `fly secrets set --stage DATABASE_URL="$(pbpaste)" -a brandfactory`; `pbcopy </dev/null`.
+5. `OLD_LOGIN=<role> …/fly-no-superuser.sh migrate`: refuses `postgres` or any superuser, shows the
+   database, asks, then applies core 0011 to 0013 as `$OLD`. The running code keeps working: 0013's
+   `judge` takes its claims rows, which name no pack. Run `check` again: it must pass.
+6. `fly deploy --image registry.fly.io/brandfactory:nosuper` at once. The new code starts as
+   `core_server` and refuses to start on any other login.
 7. Check: `/health`, `fly logs`, one real call. The CLI (publish, promote, `migrate <pack>`) keeps
    `$OLD`'s URL.
 
-## Open questions## Open questions
+**Rollback** after step 6: `fly secrets set DATABASE_URL=<$OLD's URL>` and deploy the image written
+down in step 1. The old code runs on the migrated database (the test shows it); its claims rows
+then stay until the new code's purge runs again. Before step 5 nothing needs undoing; after it, only
+the backup removes core 0011 to 0013.
+
+## Open questions
 
 - Moving the data from Fly to Supabase is a separate plan, after this lands.

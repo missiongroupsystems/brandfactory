@@ -7,7 +7,7 @@ import { loadEnv } from './env'
 import { Refused } from './errors'
 import { applyPackMigrations, migrateCore, setupLogin } from './migrate'
 import { readPack, type PackContent } from './pack'
-import { testVersion } from './platform'
+import { serverLoginIsLimited, testVersion } from './platform'
 import { addPrincipal, liveVersion, promote, publish, recordTestRun, setLoadout } from './registry'
 import { authenticate } from './run'
 
@@ -16,6 +16,7 @@ const USAGE = `core <command>
   migrate [<pack> <version>]        the core's migrations, then a tested version's
   setup-login <role>                as the role that installed the core: the login a deployed core runs
                                     as; the password is read from CORE_LOGIN_PASSWORD
+  check-login                       as the server's login: the checks the server makes at start
   login --dev <userId>              local sign-in: the token is the user id
   login <email>                     Supabase sign-in; the password is read from CORE_PASSWORD
   publish <packDir>                 freezes the pack's version
@@ -117,6 +118,13 @@ export async function main(argv: string[]) {
         if (!row) throw new Error(`${pack} ${version} has no passing test run`)
         const done = await applyPackMigrations(db, pack, row.content.migrations)
         console.info(`${pack}:`, done.join(', ') || 'up to date')
+      })
+    case 'check-login':
+      return withDb(async (db) => {
+        const problems = await serverLoginIsLimited(db)
+        if (problems.length > 0)
+          throw new Error(`the server would refuse this login: ${problems.join('; ')}`)
+        console.info('the server would start on this login')
       })
     case 'setup-login':
       return withDb(async (db) => {

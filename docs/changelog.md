@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.60.0** — 2026-11-02 — `feat/core-no-superuser`: the owner's upgrade of Fly's brandbase-db, as a script (`packages/core/scripts/fly-no-superuser.sh`: prepare, check, secret, migrate) and a test that runs it on a Postgres made the old way, with the old code's data and the old code working between the migration and the deploy; `core check-login` runs the server's start check from the CLI. Nothing applied. 1595 tests, none skipped (Postgres 18 in Docker).
 - **2.59.0** — 2026-11-02 — `feat/core-no-superuser`: nothing a call leaves on its pooled connection reaches the next caller. After each commit or rollback the server cleans the connection (role, settings, temporary tables, held cursors, sequence values, listens, advisory locks) and checks that every statement it runs by name is still the one it made, dropping the connection if not; an idle connection shows the clean in `pg_stat_activity`, not the last call's input. Phase 4 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
 - **2.58.0** — 2026-11-02 — `feat/core-no-superuser`: the server's login reaches the core only as one call may, and the core installs without a superuser (core migration `0013_server_role.sql`, not applied to production). The login holds `pack_runtime` and a new `pack_server` only, owns nothing and has no right on a core table; the core's functions run with the installer's rights. `core setup-login` and `core migrate` no longer need a superuser; the server refuses to start on any other login; a call may leave no large object, role setting or default privilege. `fly.toml` has no release step: the owner migrates by hand (the steps are in the plan). Phase 3 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
 - **2.57.0** — 2026-11-02 — `feat/core-no-superuser`: the server reaches the core's own tables only through functions (core migration `0012_call_functions.sql`, not applied to production). Server-only ones (who may call, the live version, the scheduler's loop, agents, events, a send's outcome) refuse inside a call; per-call ones (idempotency keys, the log, timed calls, approvals, the first-trip check) act only for the principal and pack in the call's claims, and scheduling or using a yes needs the move. Every function searches `pg_catalog, pg_temp` only. Phase 2 of `docs/executing/core-no-superuser-plan.md`. 1592 tests, none skipped (Postgres 18 in Docker).
@@ -120,6 +121,31 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.60.0 — 2026-11-02
+
+- **Why.** Production (Fly's brandbase-db) was installed the old way: the superuser applied core
+  0001 to 0010, and a login made by the old `setup-login` owns the core and serves the app. The
+  owner moves it to this branch's shape by hand; the steps must be right the first time.
+- **The script** (`packages/core/scripts/fly-no-superuser.sh`), through `fly proxy`, with every
+  password from the Keychain, read into a variable and passed by the environment or stdin:
+  `prepare` (as `postgres`: `pack_server` and `core_server`, nothing changes for the site),
+  `check` (`core check-login`, the server's start check, as `core_server`), `secret` (the new URL
+  to the clipboard, for a staged Fly secret) and `migrate` (core 0011 to 0013 as the old login; it
+  refuses `postgres` or any superuser, shows the database and asks first).
+- **`core check-login`** (`src/cli.ts`): `serverLoginIsLimited` from the CLI.
+- **The test** (`postgres.test.ts`, "upgrades a core made the old way"): the old shape (0001 to
+  0010, the old login's ownership and roles), a pack published, promoted and holding data with
+  the old code's own SQL, then steps 3 and 5 in the script's order; the old code's claims and its
+  judge between the migration and the deploy; then the new code serving calls over the old data
+  as `core_server`, its purge taking the old rows, and the old login promoting a new version.
+- **The plan's steps** (`docs/executing/core-no-superuser-plan.md`): a backup that is checked to
+  restore, the image noted, prepare, check, staged secret, migrate, deploy at once, and the
+  rollback (the old image and URL run on the migrated database).
+- **Review (Sonnet, twice).** The test ran the steps in another order than the script and
+  started from too thin an old state; the script took `postgres` as the old login and could put
+  an empty password in a URL; the plan had no check before the deploy and no rollback. All fixed.
+- **Tests.** 1595, none skipped.
 
 ## 2.59.0 — 2026-11-02
 

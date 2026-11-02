@@ -1,9 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { openPostgres, type Db } from './db'
 import { Refused } from './errors'
-import { migrateCore, setupLogin } from './migrate'
+import {
+  applyMigrations,
+  applyPackMigrations,
+  migrateCore,
+  readMigrations,
+  setupLogin,
+} from './migrate'
 import { approve } from './effects'
 import { serverLoginIsLimited } from './platform'
 import { hashOf } from './pack'
@@ -195,6 +203,157 @@ describe.skipIf(!url)('on a real Postgres', () => {
     } finally {
       await d.close()
       await admin.exec(`drop database if exists ${other} with (force)`)
+    }
+  })
+
+  it('upgrades a core made the old way (Fly) by the owner’s steps, with the old code working in between', async () => {
+    // As brandbase-db is today: the superuser applied core 0001 to 0010, and the old setup-login
+    // (before 585bdf4) made a login that owns the core and holds every pack role.
+    const fly = `${name}_fly`
+    const old = `old_${randomUUID().slice(0, 8)}`
+    const server = `server_${randomUUID().slice(0, 8)}`
+    const oldPw = randomUUID().replaceAll('-', '')
+    const serverPw = randomUUID().replaceAll('-', '')
+    await admin.exec(`create database ${fly}`)
+    const at = (user?: string, password?: string) => {
+      const u = new URL(url!)
+      u.pathname = `/${fly}`
+      if (user) {
+        u.username = user
+        u.password = password!
+      }
+      return u.toString()
+    }
+    const superuser = openPostgres(at(), 1)
+    const oldLogin = openPostgres(at(old, oldPw), 2)
+    const newLogin = openPostgres(at(server, serverPw), 2)
+    try {
+      const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../migrations')
+      await applyMigrations(superuser, 'core', readMigrations(dir).slice(0, 10))
+      await superuser.exec(`create role ${old} login password '${oldPw}' nosuperuser;
+        grant pack_runtime, pack_admin, pack_migrator to ${old}`)
+      const owned = await superuser.query<{ sql: string }>(
+        `select format('alter schema %I owner to %I', nspname, $1::text) as sql
+         from pg_namespace where nspname in ('packs', 'claims', 'textfn')
+         union all
+         select format('alter %s %I.%I owner to %I',
+           case c.relkind when 'v' then 'view' when 'S' then 'sequence' else 'table' end,
+           n.nspname, c.relname, $1::text)
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname in ('packs', 'claims', 'textfn') and c.relkind in ('r', 'v', 'S')
+           and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass
+             and d.objid = c.oid and d.deptype in ('a', 'i'))
+         union all
+         select format('alter function %s owner to %I', p.oid::regprocedure, $1::text)
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname in ('packs', 'claims', 'textfn')`,
+        [old],
+      )
+      for (const { sql } of owned) await superuser.exec(sql)
+      await superuser.exec(
+        `grant execute on function pg_catalog.set_config(text, text, boolean) to ${old}`,
+      )
+      // The old code's CLI work before the upgrade, as it wrote it: claims by a plain insert, the
+      // registry as pack_admin, the pack's migrations as pack_migrator; then the pack's data.
+      const pack = toyPack()
+      const oldAdmin = (sql: string, params: unknown[]) =>
+        oldLogin.transaction(async (tx) => {
+          await tx.query(
+            `insert into claims.calls (user_id, agent_id, capability, actor) values ('', '', '', $1)
+             on conflict (xact) do update set actor = excluded.actor`,
+            [OWNER],
+          )
+          await tx.exec('set local role pack_admin')
+          await tx.query(sql, params)
+        })
+      await oldLogin.query(`insert into packs.principals (id) values ($1), ('lia')`, [OWNER])
+      await oldAdmin(
+        `insert into packs.pack_versions (pack, version, content, content_hash, published_by)
+         values ('toy', '1.0.0', $1, $2, $3)`,
+        [JSON.stringify(pack), hashOf(pack), OWNER],
+      )
+      await oldAdmin(
+        `insert into packs.test_runs (pack, version, version_hash, passed, results)
+         values ('toy', '1.0.0', $1, true, '[]')`,
+        [hashOf(pack)],
+      )
+      await applyPackMigrations(oldLogin, 'toy', pack.migrations)
+      await oldAdmin(
+        `insert into packs.channels (environment, pack, version, promoted_by)
+         values ('local', 'toy', '1.0.0', '')`,
+        [],
+      )
+      await oldLogin.query(
+        `insert into packs.loadouts (principal, pack, ops) values ('lia', 'toy', $1)`,
+        [Object.keys(pack.ops)],
+      )
+      await superuser.exec(
+        `insert into toy.notes (id, owner, body) values ('o-1', 'lia', 'before')`,
+      )
+
+      // Step 3, as the script runs it: as the superuser, pack_server, then the new login, before
+      // the migration. (On Fly pack_server is made after 0001 ran, so it has none of 0001's
+      // functions; on this test server it existed before, so they are taken back here.)
+      await superuser.exec(`do $$ begin
+        if not exists (select 1 from pg_roles where rolname = 'pack_server') then
+          create role pack_server nologin;
+        end if; end $$`)
+      await superuser.exec(`do $$ declare f regprocedure; begin
+        for f in select p.oid::regprocedure from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'pg_catalog' and has_function_privilege('pack_server', p.oid, 'execute')
+        loop
+          if f::text ~ '^(set_config|pg_sleep|lo_|pg_advisory|pg_try_advisory|query_to_xml|xpath)'
+          then execute format('revoke execute on function %s from pack_server', f); end if;
+        end loop; end $$`)
+      await setupLogin(superuser, server, serverPw)
+      // Step 5: as the old login, core 0011 to 0013.
+      expect(await migrateCore(oldLogin)).toEqual([
+        '0011_claims_once.sql',
+        '0012_call_functions.sql',
+        '0013_server_role.sql',
+      ])
+      // Between the migration and the deploy, the old code: it writes claims with no pack, as a
+      // plain insert, and its judge call still passes the pack check.
+      const between = await oldLogin.transaction(async (tx) => {
+        await tx.exec(`insert into claims.calls (user_id, agent_id, capability, actor)
+          values ('lia', '', '', '')`)
+        // A stale hash, so it refuses: past the pack check, which is what matters here.
+        await tx.exec('savepoint s')
+        const judged = await tx
+          .query(`select packs.judge('local', 'toy', 'note.list', 'x', null)`)
+          .then(
+            () => 'passed',
+            (e: Error) => e.message,
+          )
+        await tx.exec('rollback to savepoint s')
+        await tx.exec('set local role pack_runtime')
+        const notes = await tx.query<{ id: string }>('select id from toy.notes')
+        return { judged, notes: notes.map((n) => n.id) }
+      })
+      expect(between.notes).toEqual(['o-1'])
+      expect(between.judged).toBe('core_refused')
+      // Step 6: the new code starts on the new login and serves calls over the old data; the
+      // purge takes the old code's rows; the old login keeps the CLI's work with the new code.
+      expect(await serverLoginIsLimited(newLogin)).toEqual([])
+      const deps = { ...depsOf(newLogin), now: () => new Date() }
+      await call(deps, req('lia', 'note.add', { id: 'n-1', body: 'after' }))
+      expect(await call(deps, req('lia', 'note.list'))).toEqual([
+        { id: 'n-1', body: 'after' },
+        { id: 'o-1', body: 'before' },
+      ])
+      expect(await tick(deps)).toBe(0)
+      expect(await superuser.query('select count(*)::int as n from claims.calls')).toEqual([
+        { n: 0 },
+      ])
+      await goLive(oldLogin, toyPack('1.0.1'))
+    } finally {
+      await newLogin.close()
+      await oldLogin.close()
+      await superuser.close()
+      await admin.exec(`drop database if exists ${fly} with (force)`)
+      await admin.exec(`drop role if exists ${server}`)
+      await admin.exec(`drop role if exists ${old}`)
     }
   })
 
