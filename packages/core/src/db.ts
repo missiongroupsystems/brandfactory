@@ -225,6 +225,10 @@ export function openPostgres(
   }
   // A connection lives at most half an hour, so statements and plans of old versions go with it.
   const pool = new pg.Pool({ connectionString: url, max, maxLifetimeSeconds: 1800 })
+  // An idle connection that Postgres ends (a restart, a failover, pg_terminate_backend) reaches
+  // the pool as an 'error' event; with no listener, Node ends the process. The pool has already
+  // dropped that connection, and the next caller gets a new one.
+  pool.on('error', (err) => console.warn('core: an idle database connection ended:', err.message))
   // A text whose statement went stale gets a new name on every connection, so each prepares it
   // again; the old one is left to its connection.
   const renamed = new Map<string, number>()
@@ -259,7 +263,13 @@ export function openPostgres(
     const client = await pool.connect()
     const last: string[] = []
     let has = held.get(client)
-    if (!has) held.set(client, (has = new Map()))
+    if (!has) {
+      held.set(client, (has = new Map()))
+      // The pool listens to a connection only while it is idle. One that drops during a call
+      // (a network or proxy reset) fails that call's query; its 'error' event, unheard, would
+      // end the process. The failed call releases it with the error, so the pool drops it.
+      client.on('error', () => {})
+    }
     const fresh = prepare ? saved.filter((s) => !has.has(s.name)) : []
     if (fresh.length > 0) {
       // In their own message, before the call's: Postgres stamps each with this message's time,

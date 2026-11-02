@@ -54,6 +54,38 @@ describe.skipIf(!url)('on a real Postgres', () => {
     await admin?.close()
   })
 
+  it('keeps serving when Postgres ends an idle connection of the pool', async () => {
+    // A restart or a failover ends idle connections; with no listener on the pool, Node ended the
+    // whole process (and this file's run) on the 'error' event.
+    const pool = openPostgres(dbUrl, 1)
+    const pidOf = async () =>
+      (await pool.query<{ pid: number }>('select pg_backend_pid() as pid'))[0]!.pid
+    const pid = await pidOf()
+    await admin.query('select pg_terminate_backend($1)', [pid])
+    await new Promise((r) => setTimeout(r, 200))
+    expect(await pidOf()).not.toBe(pid)
+    await pool.close()
+  })
+
+  it('keeps serving when a connection drops during a call', async () => {
+    // A network or proxy reset mid-call: the call fails, the process and the next call do not.
+    type Handle = { remotePort?: number; destroy?: (err: Error) => void }
+    const handles = () =>
+      (process as unknown as { _getActiveHandles(): Handle[] })._getActiveHandles()
+    const before = new Set(handles())
+    const pool = openPostgres(dbUrl, 1)
+    await expect(
+      pool.transaction(async (tx) => {
+        const sleeping = tx.query('select pg_sleep(1)')
+        for (const h of handles())
+          if (!before.has(h) && h.remotePort) h.destroy?.(new Error('reset'))
+        return sleeping
+      }),
+    ).rejects.toThrow(/reset/)
+    expect(await pool.query('select 1 as ok')).toEqual([{ ok: 1 }])
+    await pool.close()
+  })
+
   it('installs the core as a role that is not a superuser, as on Supabase, and serves calls through its login', async () => {
     // As Supabase's `postgres`: it may make roles and owns its database, but owns none of the
     // built-in functions, so 0001's revokes from PUBLIC do not take. The pack roles already exist

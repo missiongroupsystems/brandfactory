@@ -82,7 +82,7 @@ case "${1:-}" in
       exit 1
     fi
     echo "Database: $(psql_as "$OLD_LOGIN" -tAc "select current_database() || ' on ' || coalesce(inet_server_addr()::text, 'a socket')") (through the proxy on 15432)"
-    read -r -p "Apply core 0011 to 0013 as ${OLD_LOGIN}? Only the backup undoes it; deploy at once after. [yes/no] " ok
+    read -r -p "Apply core 0011 to 0014 as ${OLD_LOGIN}? Only the backup undoes it; deploy at once after. [yes/no] " ok
     [ "$ok" = yes ] || { echo "stopped"; exit 1; }
     core "$target" migrate
     echo "migrated: deploy the new image now (step 6), the same minute"

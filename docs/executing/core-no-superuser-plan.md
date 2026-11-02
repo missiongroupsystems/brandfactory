@@ -184,7 +184,7 @@ Each item was checked against the code; the two marked *confirmed* were run on P
   `core_server` could set a password it knows and log in from outside, with no claims row. Walls:
   Supabase's network restrictions limited to the server's addresses (an owner's step, in the
   script); the server refuses to start, and refuses a new connection, when `pg_roles.rolconfig` is
-  set for its login or `core_migrator`; the server's own statements set `search_path` to
+  set for its login, and `core migrate <pack>` refuses a migrator login with one; the server's own statements set `search_path` to
   `pg_catalog` and are schema-qualified. Without the network restriction this wall does not hold,
   and the plan says so where it is deployed.
 - **R2. One owner per pack.** `pack_migrator` owns every pack's tables and has `CREATE` on the
@@ -287,6 +287,26 @@ Each phase ends with an independent review before its commit.
     a guest with 42501). No pack does this today.
   - Inside its own call, escaped SQL can write extra log rows for its own principal and pack, and
     use up another person's waiting yes for the same move and input if it knows the hash.
+- **Review before merge (Opus, fresh), fixed:** the pool had no `'error'` listener, so Postgres
+  ending an idle connection (a restart, a failover, a forced drop in the tests) ended the node
+  process, and so did one dropped during a call (the connection's own event); both reproduced,
+  fixed in `src/db.ts`, each with a test. The owner's steps now say that main is
+  not deployed until they are done.
+- **Review before merge, not fixed (recorded):**
+  - Where the installer is not a superuser (Fly's old login too, not only Supabase), the check for
+    0010 looks only at the core's roles and their members, and a risky function only warns.
+  - An escaped migration can make objects owned by `pack_recorder`, or statistics objects and
+    operators owned by the login, which the per-statement check does not read; no use found. Add
+    `pack_recorder` to the large-object lists and `PACK_DEFINITIONS`.
+  - R2 is wider than "change pack B's rules": `drop owned by current_user` passes the checks and
+    drops every pack's objects. Phase 3b (one owner per pack) closes it.
+- **Rehearsal on a copy of production (2 Nov):** `brandbase-db`'s dump restored into a local
+  Postgres 18 with its roles; core 0011 to 0014 applied as `core_login` in 2 s; `core_server` and
+  `core_migrator` pass their checks; the new code serves every call; the old code still serves on
+  the migrated copy (the rollback). 262 cross-company reads and writes by 12 real people: 0 leaks,
+  before and after. Speed on one laptop, same data: a call alone takes the same time (brand.list
+  2.4 to 3.5 ms, brand.state 32 to 38 ms at p50, both versions); under 20 callers the runs vary
+  more between repeats than between versions.
 - Tests on a real Postgres: `docker run -d --name core-nosuper-pg -e POSTGRES_PASSWORD=test -p
   127.0.0.1:55432:5432 postgres:18`, then `CORE_TEST_PG_URL=postgres://postgres:test@127.0.0.1:55432/postgres pnpm test`.
 - Phase 3 (logins) is the commit after phase 2: migration 0013, `setupLogin`, `migrateCore`
@@ -329,6 +349,10 @@ Each phase ends with an independent review before its commit.
   (D5).
 
 ## The owner's steps for Fly (brandbase-db), when this is deployed
+
+Main is not deployed (`fly deploy` from a checkout of main) until these steps are done: main's
+`fly.toml` has no release step, and the new code refuses to start on `$OLD`. Steps 4 and 6 run
+from a checkout of this branch (or of main once it holds it), whose `fly.toml` is read.
 
 `$OLD` is the login the server uses today (it owns the core; made by `core setup-login` before
 `585bdf4`); `core_server` is the new one. The script is `packages/core/scripts/fly-no-superuser.sh`

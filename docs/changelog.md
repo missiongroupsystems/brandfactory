@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.61.1** — 2026-11-02 — `feat/core-no-superuser`: the review before merge. The core no longer ends its process when a database connection drops, idle (a restart, a failover) or during a call (a network or proxy reset); both reproduced, each with a test. The owner's Fly steps say main is not deployed until they are done, and the script asks about 0011 to 0014, not 0013. A rehearsal on a restored copy of production: the upgrade, the new code, the old code on the migrated copy, and 262 cross-company checks by 12 real people with 0 leaks before and after. 1597 tests, none skipped (Postgres 18 in Docker).
 - **2.61.0** — 2026-11-02 — `feat/core-no-superuser`: the final review's fixes. A pack's migrations run from their own login (`core setup-migrator`, `MIGRATOR_DATABASE_URL`, core migration `0014_migrator_login.sql`, not applied to production): on Supabase SQL in a migration could leave `pack_migrator` for the installer's session and act as the core's owner, past every text check (reproduced). `core migrate` installs on Supabase (it refused every Supabase database over `postgres`'s own `pg_reload_conf`). The owner's Fly steps stage the new secret just before the deploy, not before the migration. The demo scripts run again (broken since 2.58.0). Run on a local Supabase (Postgres 17.6): install, the brandbase pack, calls and 20 escapes, all as planned. 1595 tests, none skipped (Postgres 18 in Docker).
 - **2.60.0** — 2026-11-02 — `feat/core-no-superuser`: the owner's upgrade of Fly's brandbase-db, as a script (`packages/core/scripts/fly-no-superuser.sh`: prepare, check, secret, migrate) and a test that runs it on a Postgres made the old way, with the old code's data and the old code working between the migration and the deploy; `core check-login` runs the server's start check from the CLI. Nothing applied. 1595 tests, none skipped (Postgres 18 in Docker).
 - **2.59.0** — 2026-11-02 — `feat/core-no-superuser`: nothing a call leaves on its pooled connection reaches the next caller. After each commit or rollback the server cleans the connection (role, settings, temporary tables, held cursors, sequence values, listens, advisory locks) and checks that every statement it runs by name is still the one it made, dropping the connection if not; an idle connection shows the clean in `pg_stat_activity`, not the last call's input. Phase 4 of `docs/executing/core-no-superuser-plan.md`. 1594 tests, none skipped (Postgres 18 in Docker).
@@ -122,6 +123,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.61.1 — 2026-11-02
+
+- **Why.** A fresh review (Opus) before the merge found no blocker and two items to fix.
+- **An idle connection ended by Postgres ended the core.** The pool had no `'error'` listener: a
+  restart, a failover or `pg_terminate_backend` on an idle connection raised an unhandled event
+  and Node stopped the process. It also failed the Postgres test file's runs (a forced drop in a
+  teardown). `src/db.ts` now logs it; the pool has already dropped that connection. Test: "keeps
+  serving when Postgres ends an idle connection of the pool" (it fails without the fix).
+  A connection that dropped during a call (a network or proxy reset) did the same through the
+  connection's own `'error'` event, which the pool hears only while the connection is idle (found
+  by the review of this fix); each connection now has a listener, and the failed call drops it.
+  Test: "keeps serving when a connection drops during a call" (it fails without the fix).
+- **Deploy order.** The owner's steps say main is not deployed until they are done, and from
+  which checkout steps 4 and 6 run. `fly-no-superuser.sh migrate` asks about 0011 to 0014.
+- **Rehearsal on a copy of production.** `brandbase-db` dumped (read-only) and restored into a
+  local Postgres 18 with its roles: core 0011 to 0014 applied as `core_login` in 2 s, both logins
+  pass their checks, the new code serves every call, and the old code still serves on the
+  migrated copy (the rollback). 12 real people, 262 reads and writes on brands of other companies:
+  0 leaks before and after. A call alone takes the same time in both versions.
+- **Recorded, not fixed:** in the plan's "Review before merge, not fixed".
+- 1597 tests, none skipped (Postgres 18 in Docker); typecheck, lint, format and build pass.
 
 ## 2.61.0 — 2026-11-02
 
