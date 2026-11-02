@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.55.0** — 2026-11-02 — `feat/core-no-superuser`: a pack migration can no longer hide SQL from the core's checks. It could write a function body in `E'…'` escapes (or turn `standard_conforming_strings` off in a function's SET clause) so the text check missed `RESET ROLE`, and the function then left `pack_runtime` for the login role, on Fly too. `E'…'` strings, the two decoding settings and `OWNER TO` are refused; after every statement of a pack migration the core checks the role and reads Postgres's stored, decoded definition of everything the migrator owns. Phase 0 of `docs/executing/core-no-superuser-plan.md`. 1568 tests, none skipped (a throwaway Postgres 18 in Docker).
 - **2.54.2** — 2026-11-02 — `design/phone-calendar`: the server sends the public home page at `/` (TikTok's checker and readers with no script saw a loading spinner); on the live app TikTok's row on a post says it goes as a draft, with no posting controls that never reach TikTok; wording for TikTok's private-use rule; privacy says what disconnecting deletes. 1295 tests (259 skipped without a Postgres server).
 - **2.54.1** — 2026-11-01 — `design/phone-calendar`: Terms, Privacy and the home page describe brand base as a workspace for brands and their marketing teams, opening to more teams with a free plan (accounts by invitation for now), not an internal tool. 1294 tests (259 skipped without a Postgres server).
 - **2.54.0** — 2026-11-01 — `design/phone-calendar`: the app's address shows a public home page to a visitor with no sign-in (what brand base is, how it uses TikTok, Sign in, Terms and Privacy in the header), for TikTok's app review; TikTok shows again on the live Connections page. 1294 tests (259 skipped without a Postgres server).
@@ -115,6 +116,32 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.55.0 — 2026-11-02
+
+- **Why.** Checked on a Postgres 18 with a login role that is not a superuser: a pack migration
+  can make `CREATE FUNCTION toy.esc() … AS E'r\x65set role; …'`. The text check (`migrationProblem`)
+  reads the raw text, where `reset` is spelt in escapes; Postgres stores the body decoded, and the
+  function, called as `pack_runtime`, returns to the session user (the login role, which owns the
+  core). The `0001` revokes do not stop it: `RESET ROLE` is a statement, not `set_config`. Three
+  reviews (Opus) found more ways to the same end: a comment splitting `SET ROLE`, a function made
+  and called within one migration and then handed to another owner, and a function whose `SET
+  standard_conforming_strings = off` makes plain strings decode backslashes while it runs.
+- **Refused in a migration's text.** `E'…'` strings (`src/sql.ts`: the tokenizer marks them),
+  `standard_conforming_strings` and `backslash_quote`, and `OWNER TO`. Plain strings and dollar
+  quotes take no escapes, so the raw text is now what Postgres stores; `apply` sets
+  `standard_conforming_strings` on for a pack's migration.
+- **Read after every statement.** `refuseHiddenWords` (`src/migrate.ts`) checks that the
+  statement left the migrator's role, and reads the stored definitions of everything
+  `pack_migrator` owns (functions, views, row rules, defaults, checks, domain checks, indexes,
+  triggers, rules) through `definitionProblem`: four readings, with and without each kind of
+  comment, against the same words, and every word against the forbidden functions, bodies
+  included. Refused means the migration rolls back.
+- **Tests.** `platform.test.ts`: each escape above is refused, a view and a domain that run SQL from
+  text are refused from their stored definitions and leave nothing, comment tricks are read; each
+  fails without its fix. 1568 tests on PGlite and Postgres 18, none skipped.
+- **Production.** Nothing applied. brandbase's migrations use none of what is now refused; the next
+  `core migrate`/pack migration on Fly runs the new checks.
 
 ## 2.54.2 — 2026-11-02
 

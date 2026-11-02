@@ -14,6 +14,7 @@ import {
 import { applyPackMigrations } from './migrate'
 import { packProblems } from './pack'
 import { pglite } from './runner'
+import { definitionProblem, migrationProblem } from './sql'
 import { freshDb } from './testing'
 import { toyPack } from './toy-pack'
 
@@ -340,6 +341,95 @@ describe('the platform tests', () => {
       "schema pack_runtime has a role's name",
       "the registry's function packs.check_promotion() is not the core's",
     ])
+  })
+
+  // A word spelt in escapes inside an E'…' string passed the raw text check, and Postgres kept the
+  // body decoded: on a real Postgres such a function left pack_runtime for the login role when it
+  // ran (2 Nov 2026), and one migration could call it before any later check. So E'…' strings
+  // are refused, and the stored, decoded definition of each object is read after every statement.
+  const R = String.raw
+  it.each([
+    [
+      'a reset in escapes',
+      R`CREATE FUNCTION toy.esc() RETURNS text LANGUAGE sql AS E'r\x65set role; select 1::text';`,
+    ],
+    [
+      'a SET ROLE split by an escaped comment',
+      R`CREATE FUNCTION toy.esc() RETURNS text LANGUAGE sql AS E'set\x2f**/role none; select 1::text';`,
+    ],
+    [
+      'a forbidden function in escapes',
+      R`CREATE FUNCTION toy.esc() RETURNS text LANGUAGE sql AS E'select qu\x65ry_to_xml(''select 1'', false, false, '''')::text';`,
+    ],
+    ['an escaped string anywhere', R`CREATE VIEW toy.esc AS SELECT E'a' AS x;`],
+  ])('refuse %s in a migration before it runs', async (_, sql) => {
+    const db = await freshDb()
+    open.push(db)
+    await applyPackMigrations(db, 'toy', toyPack().migrations)
+    // Refused at the text check, before anything runs.
+    expect(() => applyPackMigrations(db, 'toy', [{ name: '9001_hidden.sql', sql }])).toThrow(
+      /E'…' strings are not allowed/,
+    )
+  })
+
+  it.each([
+    [
+      'a view that runs a query from text',
+      `CREATE VIEW toy.esc AS SELECT query_to_xml('select 1', false, false, '') AS x;`,
+      /view toy\.esc holds query_to_xml/,
+    ],
+    [
+      'a domain whose check runs a query from text',
+      `CREATE DOMAIN toy.esc AS text CHECK (length(query_to_xml(VALUE, false, false, '')::text) > 0);`,
+      /domain check .* holds query_to_xml/,
+    ],
+  ])('refuse %s from what Postgres stores, and keep nothing of it', async (_, sql, refusal) => {
+    const db = await freshDb()
+    open.push(db)
+    await applyPackMigrations(db, 'toy', toyPack().migrations)
+    await expect(
+      applyPackMigrations(db, 'toy', [{ name: '9001_hidden.sql', sql }]),
+    ).rejects.toThrow(refusal)
+    const [left] = await db.query<{ n: number }>(
+      `select (select count(*) from pg_class where relname = 'esc')::int
+         + (select count(*) from pg_type where typname = 'esc')::int as n`,
+    )
+    expect(left!.n).toBe(0)
+  })
+
+  it('refuse a function that turns plain strings back into escaped ones while it runs', async () => {
+    // Inside a function with this SET clause, a plain string decodes backslashes: it could make,
+    // call and drop a decoded function within one statement (found in review, 2 Nov 2026).
+    const sql = String.raw`CREATE FUNCTION toy.f() RETURNS void LANGUAGE plpgsql SET standard_conforming_strings = off AS $f$
+begin
+  create function toy.g() returns void language plpgsql as 'begin r\x65set role; end';
+  perform toy.g();
+  drop function toy.g();
+end $f$;
+SELECT toy.f();
+DROP FUNCTION toy.f();`
+    const db = await freshDb()
+    open.push(db)
+    await applyPackMigrations(db, 'toy', toyPack().migrations)
+    expect(() => applyPackMigrations(db, 'toy', [{ name: '9001_hidden.sql', sql }])).toThrow(
+      /a setting that decodes backslashes/,
+    )
+    expect(definitionProblem('ALTER FUNCTION f() SET backslash_quote = on')).toMatch(/decodes/)
+  })
+
+  it('refuse a migration that hands an object to another owner', () => {
+    expect(migrationProblem('ALTER FUNCTION toy.f() OWNER TO CURRENT_USER;')).toMatch(/OWNER TO/)
+  })
+
+  it.each([
+    ['set/**/role none', /SET ROLE/],
+    ['set --\nrole none', /SET ROLE/],
+    ['set /* a /* nested */ one */ role none', /SET ROLE/],
+    [`select '--'; reset role`, /RESET/],
+    [`select '/*'; reset role; select '*/'`, /RESET/],
+    ['select query_to_xml(x) from t', /query_to_xml/],
+  ])('read %s in a stored definition, whatever comment surrounds it', (definition, refusal) => {
+    expect(definitionProblem(definition)).toMatch(refusal)
   })
 
   it('find the toy pack and its registry as the core left them', async () => {

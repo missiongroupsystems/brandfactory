@@ -7,7 +7,8 @@
 type Token =
   | { kind: 'word'; text: string; quoted: boolean }
   | { kind: 'param'; name: string }
-  | { kind: 'string' }
+  /** `escaped`: an `E'…'` string, where a backslash spells any character. */
+  | { kind: 'string'; escaped?: boolean }
   | { kind: 'comment' }
   | { kind: 'semicolon' }
   | { kind: 'other'; text: string }
@@ -57,7 +58,7 @@ function tokenize(sql: string): Located[] {
         } else i++
       }
       i++
-      push({ kind: closed ? 'string' : 'unclosed' }, start)
+      push(closed ? { kind: 'string', escaped: ch !== "'" } : { kind: 'unclosed' }, start)
     } else if (ch === '"') {
       let text = ''
       let closed = false
@@ -328,6 +329,11 @@ const MIGRATION_TEXT: [RegExp, string][] = [
   [/\bu&/, 'U& escapes'],
   [/\b(copy|dblink\w*|lo_\w+)\b/, 'COPY, dblink or large objects'],
   [/\bpg_prepared_statements?\b/, 'the connection’s prepared statements'],
+  // With either setting off, a plain string decodes backslashes again (a function's SET clause
+  // turns it off while the function runs), so a word could hide in escapes.
+  [/\b(standard_conforming_strings|backslash_quote)\b/, 'a setting that decodes backslashes'],
+  // An owner a migration hands its object to is one the check after it never reads.
+  [/\bowner\s+to\b/, 'OWNER TO'],
 ]
 
 /**
@@ -375,9 +381,48 @@ const MIGRATION_FIRST = new Set([
   'import',
 ])
 
+/**
+ * Why a definition Postgres stores for a pack's object (a function's source, a view, a policy, a
+ * default) may not stay, or null when it may. The migration's text was checked before it ran
+ * (`migrationProblem`), but a string body can spell a word in escapes (`E'r\\x65set role'`) that
+ * the raw text never shows; Postgres keeps the body decoded, so this reads it after the migration.
+ */
+export function definitionProblem(definition: string): string | null {
+  // Four readings: as stored, without line comments, without block comments (they nest, so the
+  // innermost goes until none is left), and without both. A comment cannot split a word from the
+  // next in every reading (`set/**/role`), and a comment mark inside a string cannot hide what
+  // follows it in every reading either (`'--'; reset role`).
+  const base = definition.toLowerCase().replaceAll('"', '')
+  const noLine = (t: string) => t.replace(/--[^\n]*/g, ' ')
+  const noBlock = (t: string) => {
+    for (let last = ''; last !== t; )
+      [last, t] = [t, t.replace(/\/\*(?:(?!\/\*|\*\/)[\s\S])*\*\//g, ' ')]
+    return t
+  }
+  const readings = [base, noLine(base), noBlock(base), noBlock(noLine(base))].map((t) =>
+    t.replace(/\s+/g, ' '),
+  )
+  for (const [pattern, what] of MIGRATION_TEXT) {
+    if (readings.some((r) => pattern.test(r))) return what
+  }
+  // Every word, function bodies included (the tokenizer takes a body for one string).
+  for (const r of readings) {
+    for (const word of r.match(/[a-z_\u0080-\uffff][a-z0-9_$\u0080-\uffff]*/g) ?? []) {
+      if (forbiddenFunction(word)) return word
+    }
+  }
+  return null
+}
+
 /** Why a pack migration may not be published, or null when it may. */
 export function migrationProblem(sql: string): string | null {
   if (sql.includes('/*')) return 'block comments are not allowed in a migration'
+  // In an E'…' string a backslash spells any character, so a word could hide from every check of
+  // the text below. Plain strings and dollar quotes take no escapes (with
+  // standard_conforming_strings on, which `apply` sets for a pack's migration).
+  if (tokenize(sql).some((t) => t.token.kind === 'string' && t.token.escaped)) {
+    return "E'…' strings are not allowed in a migration"
+  }
   for (const st of statements(sql)) {
     const first = tokenize(st).find((t) => t.token.kind === 'word')?.token
     if (first?.kind === 'word' && MIGRATION_FIRST.has(first.text)) {

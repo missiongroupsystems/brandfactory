@@ -2,8 +2,8 @@ import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { type Db } from './db'
-import { forbiddenFunction, migrationProblem, statements } from './sql'
+import { type Conn, type Db } from './db'
+import { definitionProblem, forbiddenFunction, migrationProblem, statements } from './sql'
 
 export interface Migration {
   name: string
@@ -68,8 +68,16 @@ async function apply(db: Db, scope: string, migrations: Migration[], role: strin
         // One statement at a time, through the protocol that runs one statement only: the text
         // was checked at publish (migrationProblem), and nothing here can end this transaction
         // or leave the role.
-        await tx.exec(`set local role ${role}`)
-        for (const st of statements(m.sql)) await tx.query(st)
+        // Plain strings take no backslash escapes, whatever the server's default.
+        await tx.exec(`set local standard_conforming_strings = on; set local role ${role}`)
+        for (const st of statements(m.sql)) {
+          await tx.query(st)
+          // After every statement, not once at the end: a statement could call a function the
+          // one before it made. Still the migrator, and nothing it owns hides a word.
+          const [now] = await tx.query<{ ok: boolean }>('select current_user = $1 as ok', [role])
+          if (!now?.ok) throw new Error(`migration ${scope}/${m.name} left the role ${role}`)
+          await refuseHiddenWords(tx, `${scope}/${m.name}`)
+        }
         await tx.exec('reset role')
       } else {
         await tx.exec(m.sql)
@@ -83,6 +91,54 @@ async function apply(db: Db, scope: string, migrations: Migration[], role: strin
     done.push(m.name)
   }
   return done
+}
+
+/**
+ * What Postgres stores, decoded, for every object pack_migrator owns: function sources, views,
+ * row rules, defaults, checks, indexes, triggers and rules. Each must pass `definitionProblem`, so
+ * a word the migration's raw text hid in escapes is refused before the migration commits.
+ */
+const PACK_DEFINITIONS = `
+  select 'function ' || p.oid::regprocedure::text as what, pg_get_functiondef(p.oid) as def
+    from pg_proc p where p.proowner = 'pack_migrator'::regrole and p.prokind in ('f', 'p')
+  union all
+  select 'view ' || c.oid::regclass::text, pg_get_viewdef(c.oid)
+    from pg_class c where c.relowner = 'pack_migrator'::regrole and c.relkind in ('v', 'm')
+  union all
+  select 'policy ' || pol.polname || ' on ' || pol.polrelid::regclass::text,
+    concat_ws(' ', pg_get_expr(pol.polqual, pol.polrelid), pg_get_expr(pol.polwithcheck, pol.polrelid))
+    from pg_policy pol join pg_class c on c.oid = pol.polrelid
+    where c.relowner = 'pack_migrator'::regrole
+  union all
+  select 'default on ' || d.adrelid::regclass::text, pg_get_expr(d.adbin, d.adrelid)
+    from pg_attrdef d join pg_class c on c.oid = d.adrelid
+    where c.relowner = 'pack_migrator'::regrole
+  union all
+  select 'constraint ' || con.conname, pg_get_constraintdef(con.oid)
+    from pg_constraint con join pg_class c on c.oid = con.conrelid
+    where c.relowner = 'pack_migrator'::regrole and con.contype = 'c'
+  union all
+  select 'domain check ' || con.conname, pg_get_constraintdef(con.oid)
+    from pg_constraint con join pg_type ty on ty.oid = con.contypid
+    where ty.typowner = 'pack_migrator'::regrole and con.contype = 'c'
+  union all
+  select 'index ' || i.indexrelid::regclass::text, pg_get_indexdef(i.indexrelid)
+    from pg_index i join pg_class c on c.oid = i.indrelid
+    where c.relowner = 'pack_migrator'::regrole
+  union all
+  select 'trigger ' || t.tgname, pg_get_triggerdef(t.oid)
+    from pg_trigger t join pg_class c on c.oid = t.tgrelid
+    where c.relowner = 'pack_migrator'::regrole and not t.tgisinternal
+  union all
+  select 'rule ' || r.rulename, pg_get_ruledef(r.oid)
+    from pg_rewrite r join pg_class c on c.oid = r.ev_class
+    where c.relowner = 'pack_migrator'::regrole and r.rulename <> '_RETURN'`
+
+async function refuseHiddenWords(tx: Conn, migration: string) {
+  for (const { what, def } of await tx.query<{ what: string; def: string }>(PACK_DEFINITIONS)) {
+    const problem = definitionProblem(def ?? '')
+    if (problem) throw new Error(`migration ${migration}: ${what} holds ${problem}`)
+  }
 }
 
 /**
