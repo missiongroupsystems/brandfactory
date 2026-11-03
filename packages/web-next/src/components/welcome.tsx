@@ -28,7 +28,7 @@ const PARTS = [
 const TIKTOK_STEPS = [
   {
     title: 'Connect',
-    body: 'A team member connects the brand’s TikTok account through TikTok’s own sign-in. brand base shows the account’s name and picture, so the team sees where videos go.',
+    body: 'A team member connects the brand’s TikTok account through TikTok’s own sign-in. brand base shows the account’s name and picture, so the team sees where videos go, and its public videos with their views, likes, comments and shares on the Feed.',
   },
   {
     title: 'Send',

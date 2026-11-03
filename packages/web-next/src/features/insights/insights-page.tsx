@@ -219,7 +219,8 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
                     {kept === v &&
                       (!data || !hub ? (
                         <p className="text-[15px] text-ink-3">
-                          Numbers arrive once the brand&apos;s accounts are connected.
+                          Numbers arrive once the brand&apos;s Instagram and Facebook accounts are
+                          connected.
                         </p>
                       ) : v === 'overview' ? (
                         <div className="flex flex-col gap-5">

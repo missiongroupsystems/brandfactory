@@ -16,14 +16,15 @@ import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { useMenu } from '@/components/use-menu'
+import type { BrandId } from '@/data/brands'
 import { BrandLogo } from '@/features/brand/brand-logo'
 import { useConnections } from '@/features/connections/connections-store'
 import { useMakeAccount } from '@/features/connections/make'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
-import { useTikTokAccount } from '@/features/connections/tiktok'
+import { tiktokVideos, useTikTokAccount, type TikTokVideo } from '@/features/connections/tiktok'
 import { useBrand } from '@/features/schedule/posts-store'
-import { todayDate } from '@/lib/dates'
-import { remote, timezoneOf } from '@/lib/remote'
+import { clockToday, dayLabel, todayDate } from '@/lib/dates'
+import { RemoteError, remote, timezoneOf } from '@/lib/remote'
 
 import {
   canRank,
@@ -88,7 +89,9 @@ export function Feed({ on, onPick }: { on?: Platform; onPick?: (p: Platform) => 
   const now = useNow()
   const items = usePostedItems(now.day)
   const links = useConnections(brand.id)
-  const linked = (p: Platform) => links[p] !== 'off'
+  const tiktok = useTikTokAccount(brand.id)
+  // On the core TikTok is linked through its own sign-in (`connections/tiktok.ts`).
+  const linked = (p: Platform) => (remote && p === 'tt' ? tiktok !== null : links[p] !== 'off')
   const rail = railOf(items ?? [], linked)
   const platform = platformOf(rail, items ?? [], picked)
   const ledger = ledgerOf(items ?? [], platform)
@@ -171,13 +174,17 @@ function Profile({
     tt: useTikTokAccount(brand.id)?.name,
   }
   const [order, setOrder] = React.useState<Order>('newest')
+  // On the core the TikTok tab is the account's own public videos, read from TikTok.
+  const ownVideos = remote && platform === 'tt'
+  const videos = useTikTokVideos(brand.id, ownVideos)
   const sum = summaryOf(ledger, platform, now.day)
-  const figures = figuresOf(sum, platform)
+  // The videos carry their own counts: the header adds none up from a part of them.
+  const figures = ownVideos ? [] : figuresOf(sum, platform)
   // A phone keeps the figures to one line: the ones it leaves out are hidden there by CSS, so
   // the server's first paint is already right on either width.
   const onPhone = new Set(figuresOf(sum, platform, true).map((f) => f.label))
   const grid = gridOf(ledger, platform, order)
-  const ranks = canRank(gridOf(ledger, platform, 'newest'), platform)
+  const ranks = !ownVideos && canRank(gridOf(ledger, platform, 'newest'), platform)
   const rings = ringsOf(ledger, now)
   return (
     <>
@@ -207,7 +214,7 @@ function Profile({
             {ranks && <SortMenu order={order} onChange={setOrder} />}
           </div>
           <p
-            title={windowLine(sum)}
+            title={ownVideos ? undefined : windowLine(sum)}
             className="flex items-baseline gap-x-6 text-[14px] whitespace-nowrap text-ink-3 max-md:gap-x-3.5 max-md:text-[13px]"
           >
             {figures.map((f) => (
@@ -223,7 +230,9 @@ function Profile({
       </header>
 
       <div key={platform} className="bb-swap flex flex-col">
-        {ledger.length === 0 ? (
+        {ownVideos ? (
+          <Videos got={videos} today={now.day} zone={timezoneOf(brand.id)} />
+        ) : ledger.length === 0 ? (
           <Empty platform={platform} linked={linked(platform)} />
         ) : (
           <>
@@ -593,6 +602,138 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
         )}
       </span>
     </Link>
+  )
+}
+
+/** The account's videos as the server last answered for this brand: none yet while it loads. */
+type VideosGot = { videos: TikTokVideo[] } | { error: unknown } | null
+
+/** The brand's TikTok videos, asked of the server each time the tab opens. */
+function useTikTokVideos(brandId: BrandId, on: boolean): VideosGot {
+  const [got, setGot] = React.useState<{ brandId: string; value: VideosGot }>()
+  React.useEffect(() => {
+    if (!on) return
+    let live = true
+    tiktokVideos(brandId).then(
+      (videos) => live && setGot({ brandId, value: { videos } }),
+      (error: unknown) => live && setGot({ brandId, value: { error } }),
+    )
+    return () => {
+      live = false
+    }
+  }, [brandId, on])
+  return got?.brandId === brandId ? got.value : null
+}
+
+/** A line in place of the videos, with the way to fix it when there is one. */
+function VideosLine({ line, reconnect = false }: { line: string; reconnect?: boolean }) {
+  return (
+    <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-16 max-md:gap-3 max-md:pt-12">
+      <span className="text-[15px] leading-normal text-ink-3 max-md:text-[14.5px]">{line}</span>
+      {reconnect && (
+        <Link
+          href="/brand/connections"
+          className="bb-press mt-2 inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page max-md:h-10"
+        >
+          Reconnect TikTok
+        </Link>
+      )}
+    </div>
+  )
+}
+
+/** The TikTok account's public videos as its profile grid: newest first, each opens on TikTok. */
+function Videos({ got, today, zone }: { got: VideosGot; today: string; zone: string }) {
+  if (!got) return <LoadingDots label="Loading TikTok videos" className="py-40" />
+  if ('error' in got) {
+    return got.error instanceof RemoteError && got.error.code === 'TIKTOK_RECONNECT' ? (
+      <VideosLine line="Connect TikTok again to show its videos here." reconnect />
+    ) : (
+      <VideosLine line="TikTok did not send the videos. Try again later." />
+    )
+  }
+  if (got.videos.length === 0) return <VideosLine line="No public videos on TikTok yet." />
+  return (
+    <ol aria-label="Videos" className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5">
+      {got.videos.map((v, i) => (
+        <li key={v.id} className="bb-rise" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
+          <VideoTile video={v} today={today} zone={zone} />
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+const VIDEO_COUNTS = [
+  ['views', 'views'],
+  ['likes', 'likes'],
+  ['comments', 'comments'],
+  ['shares', 'shares'],
+] as const
+
+/**
+ * A TikTok video's cover at 3:4, as TikTok's grid crops it, with its length top right and its
+ * views bottom left. Hover or focus lays its title and its four counts over it. A count of 0, or
+ * one TikTok did not give, is left out. A click opens the video on TikTok in a new tab.
+ */
+function VideoTile({ video, today, zone }: { video: TikTokVideo; today: string; zone: string }) {
+  const counts = VIDEO_COUNTS.flatMap(([key, label]) =>
+    video[key] ? [{ key, label, value: video[key] }] : [],
+  )
+  const day = video.createdAt ? clockToday(new Date(video.createdAt), zone) : null
+  const when = !day
+    ? ''
+    : day === today
+      ? 'Today'
+      : `${dayLabel(day)}${day.slice(0, 4) !== today.slice(0, 4) ? ` ${day.slice(0, 4)}` : ''}`
+  const length =
+    video.duration !== null
+      ? `${Math.floor(video.duration / 60)}:${String(video.duration % 60).padStart(2, '0')}`
+      : null
+  const views = video.views ? k(video.views) : null
+  const title = video.title || 'Video'
+  return (
+    <a
+      href={video.url ?? undefined}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Video${when && ` · ${when}`}: ${title}${views ? ` · ${views} views` : ''}`}
+      className="group relative block aspect-[3/4] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none md:hover:-translate-y-0.5"
+    >
+      <Cover src={video.cover ?? undefined} />
+      {length && (
+        <span
+          className={`pointer-events-none absolute top-2 right-2 flex h-[22px] min-w-[22px] items-center justify-center px-1.5 font-mono text-[10.5px] tabular-nums max-md:top-1 max-md:right-1 max-md:h-5 max-md:min-w-5 max-md:text-[9.5px] ${ON_COVER}`}
+        >
+          {length}
+        </span>
+      )}
+      {views && (
+        <span
+          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[10.5px] ${ON_COVER}`}
+        >
+          <PlayIcon />
+          {views}
+          <span className="sr-only">views</span>
+        </span>
+      )}
+      <span className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 bg-black/55 p-4 text-page opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:hidden">
+        <span className="flex flex-col gap-1">
+          {when && <span className="truncate text-[12px] text-(--pc-dim)">{when}</span>}
+          <span className="line-clamp-2 font-display text-[16px] leading-[1.25]">{title}</span>
+        </span>
+        {counts.length > 0 && (
+          <span className="flex flex-wrap gap-x-4 gap-y-2">
+            {counts.map((c) => (
+              <span key={c.key} className="flex flex-col gap-[3px]">
+                <span className={`${NUM} text-[16px] leading-none`}>{k(c.value)}</span>
+                <span className="text-[11px] text-(--pc-dim)">{c.label}</span>
+              </span>
+            ))}
+          </span>
+        )}
+      </span>
+    </a>
   )
 }
 

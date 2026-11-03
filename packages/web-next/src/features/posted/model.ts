@@ -2,6 +2,7 @@ import type { Post } from '@/data/demo'
 import { FORMAT_LABEL, kindOn, type ChannelKey } from '@/features/publish/model'
 import { postOf, wentOf, type ServerPost } from '@/features/schedule/remote-calendar'
 import { addDays, clockTime, clockToday, dayLabel, MONTH_SHORT, todayDate } from '@/lib/dates'
+import { remote } from '@/lib/remote'
 
 /**
  * The Posted page's model, as pure functions the page only reads: what went out on each platform,
@@ -99,8 +100,11 @@ export function ledgerOf(items: PostedItem[], platform: Platform): PostedItem[] 
  * every platform shows, each with its way to connect.
  */
 export function railOf(items: PostedItem[], linked: (p: Platform) => boolean): Platform[] {
-  const found = PLATFORMS.filter((p) => linked(p) || ledgerOf(items, p).length > 0)
-  return found.length > 0 ? found : PLATFORMS
+  // On the core TikTok is in the rail only with the brand's account connected: its tab is that
+  // account's own videos, read from TikTok. With none connected, the Feed promises no TikTok.
+  const all = remote && !linked('tt') ? PLATFORMS.filter((p) => p !== 'tt') : PLATFORMS
+  const found = all.filter((p) => linked(p) || ledgerOf(items, p).length > 0)
+  return found.length > 0 ? found : all
 }
 
 /**

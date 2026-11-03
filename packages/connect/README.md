@@ -19,14 +19,17 @@ described below; it is not deployed.
   pack's internal moves (`account.link`, `account.read`, `account.retoken`, `account.board`,
   `account.forget`), run as the signed-in person. The pack's row rules decide which brands they
   reach; a screen or an agent cannot call these moves. Pinterest and TikTok sign in; Meta does not
-  yet. TikTok is upload only (`user.info.basic`, `video.upload`): a planned video goes to the
-  brand's TikTok inbox as a draft (`post.tiktok_start`, `post.tiktok_done`, `post.tiktok_read`).
+  yet. TikTok uploads drafts and reads the account's own public videos (`user.info.basic`,
+  `video.upload`, `video.list`): a planned video goes to the brand's TikTok inbox as a draft
+  (`post.tiktok_start`, `post.tiktok_done`, `post.tiktok_read`), and the Feed shows the videos,
+  read live and never stored.
 - **Routes** (on the core's address, called by the web app with the person's session):
   `GET /platforms` (no sign-in: which platforms have an app set up),
   `POST /brands/:brand/pinterest/connect`, `POST /pinterest/callback`,
   `GET|PUT|DELETE /brands/:brand/pinterest`, `GET /brands/:brand/pinterest/pins`,
   `POST /brands/:brand/tiktok/connect`, `POST /tiktok/callback`, `DELETE /brands/:brand/tiktok`,
-  `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands).
+  `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands),
+  `GET /brands/:brand/tiktok/videos` (the account's newest 20 public videos with their counts).
 - **Environment** (`src/brandbase/env.ts`): `TOKEN_ENCRYPTION_KEY`, and `PINTEREST_APP_ID`,
   `PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL`, all three or none. The redirect is the web
   app's `/connect/pinterest` page. `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,

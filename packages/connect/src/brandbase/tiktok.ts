@@ -2,9 +2,24 @@ import { deriveKey, openExpiring, seal, sealExpiring, unseal } from './crypto'
 
 const AUTHORIZE = 'https://www.tiktok.com/v2/auth/authorize/'
 const API = 'https://open.tiktokapis.com/v2'
-// Upload only: the video lands in the creator's TikTok inbox as a draft, and they finish the post
-// in the TikTok app. No Direct Post (`video.publish`).
-export const SCOPES = ['user.info.basic', 'video.upload']
+// Upload, and a read of the account's own public videos for the Feed: the video lands in the
+// creator's TikTok inbox as a draft, and they finish the post in the TikTok app. No Direct Post
+// (`video.publish`).
+export const SCOPES = ['user.info.basic', 'video.upload', 'video.list']
+/** The fields of a video the Feed shows. */
+const VIDEO_FIELDS = [
+  'id',
+  'title',
+  'video_description',
+  'cover_image_url',
+  'share_url',
+  'create_time',
+  'duration',
+  'view_count',
+  'like_count',
+  'comment_count',
+  'share_count',
+]
 /** How long a connect link stays good. */
 const STATE_TTL_MS = 10 * 60 * 1000
 /**
@@ -41,6 +56,36 @@ export class TikTokReconnect extends Error {}
 
 /** TikTok refused, in words for people. Nothing reached the inbox. */
 export class TikTokRefused extends Error {}
+
+/** One of the account's public videos, as the Feed shows it. A count TikTok did not give is null. */
+export interface TikTokVideo {
+  id: string
+  title: string
+  /** https only, else null. TikTok's cover links expire after some hours. */
+  cover: string | null
+  /** The video on TikTok; https only, else null. */
+  url: string | null
+  /** ISO time it was posted. */
+  createdAt: string | null
+  /** Seconds. */
+  duration: number | null
+  views: number | null
+  likes: number | null
+  comments: number | null
+  shares: number | null
+}
+
+/** A link we may put on the page: https only. */
+function https(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  try {
+    return new URL(value).protocol === 'https:' ? value : null
+  } catch {
+    return null
+  }
+}
+
+const count = (value: unknown) => (typeof value === 'number' ? value : null)
 
 /** Where TikTok has the video, as `status/fetch` says. */
 export type InboxStatus =
@@ -164,8 +209,8 @@ export function tiktokApp(config: TikTokConfig) {
 
     /**
      * The code from the redirect, for the tokens and the account they belong to: its name and
-     * picture. A person may turn a scope off on TikTok's screen; without the upload grant nothing
-     * here works, so that is refused.
+     * picture. A person may turn a scope off on TikTok's screen; without every grant asked for (the
+     * upload, and the read of the videos the Feed shows), that is refused.
      */
     async exchange(code: string, now: number) {
       const body = await oauth('/oauth/token/', {
@@ -180,7 +225,7 @@ export function tiktokApp(config: TikTokConfig) {
           console.error('tiktok revoke after a partial grant failed', err),
         )
         throw new TikTokRefused(
-          'Allow brand base to upload videos on TikTok’s screen, then connect again.',
+          'Allow everything brand base asks for on TikTok’s screen, then connect again.',
         )
       }
       const res = await doFetch(`${API}/user/info/?fields=open_id,display_name,avatar_url`, {
@@ -266,6 +311,34 @@ export function tiktokApp(config: TikTokConfig) {
         if (!res.ok) throw new Error(`TikTok upload chunk ${i + 1}/${chunks}: HTTP ${res.status}`)
       }
       return init.publish_id
+    },
+
+    /**
+     * The account's newest public videos (up to 20) with their counts, newest first. An account
+     * connected before brand base asked for `video.list` gets `scope_not_authorized`: reconnect.
+     */
+    async listVideos(access: string): Promise<TikTokVideo[]> {
+      const got = await api<{ videos?: Record<string, unknown>[] }>(
+        access,
+        `/video/list/?fields=${VIDEO_FIELDS.join(',')}`,
+        { max_count: 20 },
+      )
+      // A video without an id is left out: the id names it on the screen.
+      return (got?.videos ?? [])
+        .filter((v) => v.id)
+        .map((v) => ({
+          id: String(v.id),
+          title: String(v.title || v.video_description || '').trim(),
+          cover: https(v.cover_image_url),
+          url: https(v.share_url),
+          createdAt:
+            typeof v.create_time === 'number' ? new Date(v.create_time * 1000).toISOString() : null,
+          duration: count(v.duration),
+          views: count(v.view_count),
+          likes: count(v.like_count),
+          comments: count(v.comment_count),
+          shares: count(v.share_count),
+        }))
     },
 
     /** Where TikTok has a video sent to the inbox. */

@@ -9,6 +9,7 @@ import type { Post } from '@/data/demo'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
 import { asOf, bodyOf, k, openOn, readingOn, type ReadingOn } from '@/features/posted/model'
 import { useBrand } from '@/features/schedule/posts-store'
+import { remote } from '@/lib/remote'
 
 import { CHANNELS, FORMAT_LABEL, type ChannelKey, type Shot } from './model'
 import { TypeBadge } from './preview-media'
@@ -492,7 +493,8 @@ export function PostedPost({ v }: { v: PostedView }) {
           </div>
         )}
         {on && <OnAccount v={v} on={on} setOn={setOn} read={read} />}
-        <Analytics key={on} v={v} on={on} />
+        {/* On the core brand base reads no TikTok analytics: no empty card promises them. */}
+        {!(remote && on === 'tt') && <Analytics key={on} v={v} on={on} />}
       </div>
     </div>
   )

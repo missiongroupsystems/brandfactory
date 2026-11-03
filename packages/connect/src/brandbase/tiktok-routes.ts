@@ -68,10 +68,11 @@ function failure(err: unknown): string {
 }
 
 /**
- * TikTok for a brand: the Login Kit sign-in (scopes `user.info.basic` and `video.upload` only),
- * forgetting the account with its grant revoked, and sending a planned video post to the brand's
- * TikTok inbox as a draft, which the team then finishes in the TikTok app. Nothing is posted from
- * here. As for Pinterest, the sealed state names the person who started the sign-in, and every
+ * TikTok for a brand: the Login Kit sign-in (scopes `user.info.basic`, `video.upload` and
+ * `video.list` only), forgetting the account with its grant revoked, sending a planned video post
+ * to the brand's TikTok inbox as a draft, which the team then finishes in the TikTok app, and the
+ * account's public videos read live for the Feed (nothing of them is stored). Nothing is posted
+ * from here. As for Pinterest, the sealed state names the person who started the sign-in, and every
  * read and write is one of the pack's internal moves run as the person, so the pack's walls decide
  * which brands and posts they reach, and an agent reaches none.
  */
@@ -244,6 +245,17 @@ export function tiktokRoutes(core: CoreDeps, tiktok: TikTokApp | undefined) {
           return null
         })
         return c.json(shown(send ?? (await readTikTokSend(core, who(c), brand, id))))
+      })
+
+      // The account's newest public videos and their counts, read from TikTok each time. An account
+      // connected before `video.list` was asked for answers TIKTOK_RECONNECT.
+      .get('/brands/:brand/tiktok/videos', async (c) => {
+        const app = appOf(tiktok)
+        const brand = c.req.param('brand')
+        const token = await access(c, app, brand, await linked(c, brand))
+        // Read live, kept by no cache on the way: brand base stores none of it.
+        c.header('cache-control', 'no-store')
+        return c.json({ videos: await ask(() => app.listVideos(token)) })
       })
 
       // Where a post's send to the TikTok inbox stands, asked of TikTok while it is processing.

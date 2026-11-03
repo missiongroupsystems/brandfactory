@@ -45,8 +45,8 @@ const shownGroups = () =>
  * fixes it. What changes here, the composer, the Drive picker, the call sheet and the moodboard
  * read. Simulated: a Connect is a pretend sign-in (`ConnectSheet`), except Pinterest on the core,
  * which leaves for Pinterest's own sign-in and comes back to the moodboard to pick the board, and
- * TikTok on the core once the server has its app, which leaves for TikTok's sign-in (upload only:
- * `tiktok.ts`) and comes back here, and Instagram and Facebook on the core once the server posts
+ * TikTok on the core once the server has its app, which leaves for TikTok's sign-in (inbox drafts,
+ * and its videos on the Feed: `tiktok.ts`) and comes back here, and Instagram and Facebook on the core once the server posts
  * through Make, which take the account's id and name in a small sheet (`make.ts`).
  */
 export function ConnectionsPage() {
@@ -106,7 +106,7 @@ function Row({
   const { brand } = useBrand()
   const info = SOURCES[source]
   const linkedName = useAccountName(brand.id, source)
-  // TikTok on the core, once the server has its app: the brand's own account, upload only.
+  // TikTok on the core, once the server has its app: the brand's own account: inbox drafts, and its videos on the Feed.
   const tiktok = source === 'tt' && tiktokOn()
   const account = useTikTokAccount(brand.id)
   // Instagram and Facebook through Make: the id and name an owner or admin typed.

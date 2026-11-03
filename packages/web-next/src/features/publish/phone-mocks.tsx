@@ -5,6 +5,7 @@ import { ProfilePicture } from '@/components/profile-picture'
 import type { Format, Post } from '@/data/demo'
 import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
+import { remote } from '@/lib/remote'
 
 import { collabHeader, type ChannelKey, type Shot, type Tag } from './model'
 import {
@@ -122,10 +123,16 @@ type Counts = NonNullable<Post['metrics']>
 
 /**
  * A count as the app prints it: the post's own when it has counts (none when it lacks that one),
- * else the mock's invented one. `compact` as TikTok and the rails print it (24.8K).
+ * else the mock's invented one (the static demo only). `compact` as TikTok and the rails print it (24.8K).
  */
-function countOf(counts: Counts | undefined, key: keyof Counts, made: string, compact = false) {
-  if (!counts) return made
+export function countOf(
+  counts: Counts | undefined,
+  key: keyof Counts,
+  made: string,
+  compact = false,
+) {
+  // On the core a preview shows no invented counts: they could read as the platform's own.
+  if (!counts) return remote ? undefined : made
   const n = counts[key]
   if (n === undefined) return undefined
   return compact
@@ -135,10 +142,11 @@ function countOf(counts: Counts | undefined, key: keyof Counts, made: string, co
 
 /**
  * "12 comments · 4 reposts": the post's own comments and shares when it has counts (a missing one
- * left out), else the mock's invented line.
+ * left out), else the mock's invented line (the static demo only).
  */
-function tally(counts: Counts | undefined, made: [string, string]) {
-  if (!counts) return made.join(' · ')
+export function tally(counts: Counts | undefined, made: [string, string]) {
+  // On the core a preview shows no invented counts, as `countOf`.
+  if (!counts) return remote ? '' : made.join(' · ')
   const comments = countOf(counts, 'comments', '', true)
   const shares = countOf(counts, 'shares', '', true)
   return [comments && `${comments} comments`, shares && `${shares} shares`]

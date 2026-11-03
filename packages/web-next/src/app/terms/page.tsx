@@ -32,10 +32,10 @@ export default function Page() {
           account at any time in Connections.
         </p>
         <p>
-          For TikTok, brand base only sends a video to the connected account&rsquo;s TikTok inbox as
-          a draft, and shows the account&rsquo;s name and picture. It does not post to TikTok and
-          does not read the account&rsquo;s videos. The creator finishes and posts the draft in the
-          TikTok app.
+          For TikTok, brand base sends a video to the connected account&rsquo;s TikTok inbox as a
+          draft, shows the account&rsquo;s name and picture, and shows the account&rsquo;s public
+          videos and their counts on the Feed. It does not post to TikTok. The creator finishes and
+          posts the draft in the TikTok app.
         </p>
       </section>
       <section>

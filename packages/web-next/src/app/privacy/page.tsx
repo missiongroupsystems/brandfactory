@@ -51,10 +51,12 @@ export default function Page() {
         </p>
         <p>
           For TikTok, brand base keeps only the account&rsquo;s id, display name, profile picture
-          and access tokens. It uses them to show which account is connected and to send a video to
-          the account&rsquo;s TikTok inbox as a draft. The only content it sends to TikTok is the
-          video a person on the team chooses to send. It does not post to TikTok and does not read
-          the account&rsquo;s videos.
+          and access tokens. It uses them to show which account is connected, to send a video to the
+          account&rsquo;s TikTok inbox as a draft, and to read the account&rsquo;s public videos and
+          their views, likes, comments and shares, which it shows to the team on the Feed. It reads
+          the videos from TikTok each time the Feed shows them and does not store them. The only
+          content it sends to TikTok is the video a person on the team chooses to send. It does not
+          post to TikTok.
         </p>
         <p>
           The TikTok access tokens are kept, encrypted, while the account is connected, and renewed

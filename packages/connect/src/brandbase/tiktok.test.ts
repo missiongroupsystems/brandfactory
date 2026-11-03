@@ -13,7 +13,8 @@ const KEY = 'brandbase/00000000-0000-4000-8000-0000000000b1.mp4'
 /**
  * A stand-in for TikTok and for our storage. The code names the account that signs in
  * (`code-casa` signs in as `open-casa`); `scope` is what the person allowed on TikTok's screen.
- * Each inbox upload is kept with its chunks, and `status` says what status/fetch answers. Any
+ * Each inbox upload is kept with its chunks, and `status` says what status/fetch answers;
+ * `listScope` false is an account connected before brand base asked for `video.list`. Any
  * request it does not know fails the test, so nothing reaches the network.
  */
 function fakeTikTok() {
@@ -21,7 +22,8 @@ function fakeTikTok() {
   const uploads: { init: Record<string, unknown>; chunks: { range: string; bytes: number }[] }[] =
     []
   const state = {
-    scope: 'user.info.basic,video.upload',
+    scope: 'user.info.basic,video.upload,video.list',
+    listScope: true,
     status: 'SEND_TO_USER_INBOX',
     failReason: undefined as string | undefined,
     initError: null as null | { status: number; code: string },
@@ -108,6 +110,43 @@ function fakeTikTok() {
         upload_url: `https://upload.tiktok.test/video/?upload_id=${uploads.length}`,
       })
     }
+    if (path.startsWith('/video/list/?')) {
+      if (!state.listScope) {
+        return json(
+          { error: { code: 'scope_not_authorized', message: 'no video.list', log_id: 'l' } },
+          401,
+        )
+      }
+      expect(JSON.parse(String(init?.body))).toEqual({ max_count: 20 })
+      expect(new URL(url).searchParams.get('fields')).toContain('share_url')
+      return ok({
+        videos: [
+          {
+            id: '7301',
+            title: 'Fresh pasta, rolled by hand',
+            cover_image_url: 'https://p16.tiktokcdn.test/7301.jpeg',
+            share_url: 'https://www.tiktok.com/@casavostra/video/7301',
+            create_time: 1761300000,
+            duration: 21,
+            view_count: 18420,
+            like_count: 1204,
+            comment_count: 64,
+            share_count: 27,
+          },
+          // No title: its description stands in. A cover that is not https never reaches the page.
+          {
+            id: '7300',
+            video_description: 'Sunday roast',
+            cover_image_url: 'http://p16.tiktokcdn.test/7300.jpeg',
+            share_url: 'javascript:alert(1)',
+            create_time: 1761200000,
+            view_count: 900,
+          },
+        ],
+        cursor: 1761200000000,
+        has_more: false,
+      })
+    }
     if (path === '/post/publish/status/fetch/') {
       if (state.statusRevoked) {
         return json({ error: { code: 'access_token_invalid', message: 'revoked' } }, 401)
@@ -186,13 +225,13 @@ describe('TikTok', () => {
     })
   })
 
-  it('asks for the two upload scopes only, and links the account with its name and picture', async () => {
+  it('asks for the upload and video list scopes only, and links the account with its name and picture', async () => {
     const t = await setUp()
     const { started, done } = await connect(t)
     const url = new URL(started.data.url)
     expect(url.origin + url.pathname).toBe('https://www.tiktok.com/v2/auth/authorize/')
     expect(url.searchParams.get('client_key')).toBe('client-key')
-    expect(url.searchParams.get('scope')).toBe('user.info.basic,video.upload')
+    expect(url.searchParams.get('scope')).toBe('user.info.basic,video.upload,video.list')
     expect(url.searchParams.get('response_type')).toBe('code')
     expect(url.searchParams.get('redirect_uri')).toBe('https://brandbase.test/connect/tiktok')
     expect(done).toMatchObject({ status: 200, data: { brandId: 'casa', name: 'Casa Vostra' } })
@@ -206,12 +245,12 @@ describe('TikTok', () => {
     })
   })
 
-  it('refuses a sign-in where the person turned the upload scope off', async () => {
+  it('refuses a sign-in where the person turned the upload or the video list scope off', async () => {
     const t = await setUp()
-    t.tiktok.state.scope = 'user.info.basic'
+    t.tiktok.state.scope = 'user.info.basic,video.upload'
     const { done } = await connect(t)
     expect(done).toMatchObject({ status: 502, data: { code: 'PLATFORM' } })
-    expect(done.data.message).toContain('Allow brand base to upload videos')
+    expect(done.data.message).toContain('Allow everything brand base asks for')
     expect(await t.accounts()).toEqual([])
     // The partial grant goes back: nothing is kept that could use it.
     expect(t.tiktok.state.revoked).toEqual(['access:open-casa:1'])
@@ -370,6 +409,68 @@ describe('TikTok', () => {
     })
     expect(door).toMatchObject({ status: 404, data: { code: 'OP_NOT_FOUND' } })
     expect(t.tiktok.uploads).toEqual([])
+  })
+
+  it('shows the account’s public videos with their counts, https links only, and stores none', async () => {
+    const t = await setUp()
+    await connect(t)
+    const res = await t.call('GET', '/brands/casa/tiktok/videos')
+    expect(res).toMatchObject({ status: 200 })
+    expect(res.data.videos).toEqual([
+      {
+        id: '7301',
+        title: 'Fresh pasta, rolled by hand',
+        cover: 'https://p16.tiktokcdn.test/7301.jpeg',
+        url: 'https://www.tiktok.com/@casavostra/video/7301',
+        createdAt: '2025-10-24T10:00:00.000Z',
+        duration: 21,
+        views: 18420,
+        likes: 1204,
+        comments: 64,
+        shares: 27,
+      },
+      {
+        id: '7300',
+        title: 'Sunday roast',
+        cover: null,
+        url: null,
+        createdAt: '2025-10-23T06:13:20.000Z',
+        duration: null,
+        views: 900,
+        likes: null,
+        comments: null,
+        shares: null,
+      },
+    ])
+    // Read live each time: nothing of the videos is kept in the brand's state.
+    expect(JSON.stringify(await t.stateOf('casa'))).not.toContain('7301')
+  })
+
+  it('says to connect TikTok again when the account was connected before videos were asked for', async () => {
+    const t = await setUp()
+    await connect(t)
+    t.tiktok.state.listScope = false
+    expect(await t.call('GET', '/brands/casa/tiktok/videos')).toMatchObject({
+      status: 409,
+      data: { code: 'TIKTOK_RECONNECT' },
+    })
+  })
+
+  it('shows the videos only to a person who reaches the brand, with its TikTok connected', async () => {
+    const t = await setUp()
+    expect(await t.call('GET', '/brands/casa/tiktok/videos')).toMatchObject({
+      status: 409,
+      data: { code: 'TIKTOK_NOT_LINKED' },
+    })
+    await connect(t)
+    // temper is company B's: member does not reach it, and nobody reaches casa's from there.
+    expect(await t.call('GET', '/brands/temper/tiktok/videos')).toMatchObject({ status: 404 })
+    await addPrincipal(t.db, 'b-owner')
+    await setLoadout(t.db, 'b-owner', 'brandbase', ['account.read'])
+    expect(await t.call('GET', '/brands/casa/tiktok/videos', undefined, 'b-owner')).toMatchObject({
+      status: 404,
+    })
+    expect(t.tiktok.calls.filter((c) => c.includes('/video/list/'))).toEqual([])
   })
 
   it('revokes the grant and forgets the account on disconnect, even when the revoke fails', async () => {

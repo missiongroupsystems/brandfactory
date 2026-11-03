@@ -53,7 +53,7 @@ afterEach(() => {
   act(() => resetTikTok())
 })
 
-describe('TikTok on Connections, upload only', () => {
+describe('TikTok on Connections', () => {
   it('offers a real Connect for TikTok alone, and keeps Instagram and Facebook unavailable', async () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { ...window.location, assign })

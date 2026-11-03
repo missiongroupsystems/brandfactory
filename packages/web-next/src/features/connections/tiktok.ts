@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * The brand's own TikTok account on the core, upload only: TikTok's sign-in, the linked account
- * (its name and picture), and planned video posts sent to the account's TikTok inbox as drafts,
- * which the team finishes in the TikTok app. Nothing is posted from Brand Base. Kept in memory
+ * The brand's own TikTok account on the core: TikTok's sign-in, the linked account (its name and
+ * picture), planned video posts sent to the account's TikTok inbox as drafts, which the team
+ * finishes in the TikTok app, and the account's public videos for the Feed. Nothing is posted
+ * from Brand Base. Kept in memory
  * outside React, like `connections-store.ts`, and filled from each brand's state. The static demo
  * never calls these.
  */
@@ -24,6 +25,26 @@ export interface TikTokSend {
   reason: string | null
   updatedAt: string
 }
+
+/** One of the account's public videos, as the server reads it live from TikTok. */
+export interface TikTokVideo {
+  id: string
+  title: string
+  cover: string | null
+  /** The video on TikTok. */
+  url: string | null
+  createdAt: string | null
+  /** Seconds. */
+  duration: number | null
+  views: number | null
+  likes: number | null
+  comments: number | null
+  shares: number | null
+}
+
+/** The account's newest public videos, newest first. Nothing of them is kept. */
+export const tiktokVideos = async (brandId: BrandId) =>
+  (await request<{ videos: TikTokVideo[] }>('GET', `/brands/${brandId}/tiktok/videos`)).videos
 
 /** True when the server has the TikTok app set up (`GET /platforms`). */
 export const tiktokOn = () => remote && platformOn('tiktok')

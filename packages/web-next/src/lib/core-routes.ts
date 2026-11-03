@@ -275,8 +275,8 @@ const ROUTES: Route[] = [
 
 /**
  * The brands' own accounts, which the server holds beside the core (`packages/connect`):
- * Pinterest's sign-in, its boards and pins read live, TikTok's sign-in and the send of a planned
- * video to the brand's TikTok inbox, the brand's Instagram account and Facebook Page (posted to
+ * Pinterest's sign-in, its boards and pins read live, TikTok's sign-in, the send of a planned
+ * video to the brand's TikTok inbox and the account's public videos read live, the brand's Instagram account and Facebook Page (posted to
  * through Make), and forgetting an account. These go to the server as they are, not as moves.
  */
 const ACCOUNT_ROUTES: Array<[method: string, path: RegExp]> = [
@@ -288,6 +288,7 @@ const ACCOUNT_ROUTES: Array<[method: string, path: RegExp]> = [
   ['POST', /^\/brands\/[^/]+\/tiktok\/connect$/],
   ['POST', /^\/tiktok\/callback$/],
   ['DELETE', /^\/brands\/[^/]+\/tiktok$/],
+  ['GET', /^\/brands\/[^/]+\/tiktok\/videos$/],
   ['POST', /^\/brands\/[^/]+\/posts\/[^/]+\/tiktok$/],
   ['GET', /^\/brands\/[^/]+\/posts\/[^/]+\/tiktok$/],
   ['PUT', /^\/brands\/[^/]+\/make\/(instagram|facebook)$/],

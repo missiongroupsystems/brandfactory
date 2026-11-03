@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.61.5** — 2026-11-03 — `fix/tiktok-review-ui`: what a TikTok reviewer sees signed in, on the core, and the Display API scope `video.list`. The TikTok sign-in asks for `video.list` too, and the Feed's TikTok tab shows the connected account's public videos with their views, likes, comments and shares, read live from `GET /brands/:brand/tiktok/videos` and never stored; with no TikTok account connected, the rail has no TikTok tab; an account connected before this asks to connect again. The home page, Terms and Privacy say so. The Feed's empty rows name Instagram and Facebook; a posted post shows no TikTok analytics card; a preview shows no invented likes or comments. 1605 tests: 1343 pass and 262 real-Postgres tests skip on PGlite.
 - **2.61.4** — 2026-11-03 — `fix/tiktok-site-copy`: the public pages before TikTok's review. The home page says brand base is for any brand and free to start, with Get started (no "by invitation"); Terms say how to get an account; Privacy says sign-in, brand data and files are kept with Supabase (since 2.61.2) and the server runs on Fly.io, how long TikTok tokens are kept, that disconnecting asks TikTok to withdraw access and deletes our tokens either way, and how a TikTok creator outside the team asks for deletion; the contact is tech@missiongroup.com. 1598 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; the full run's one failure was a 30 s timeout under load in a pack test this release does not touch, which passes alone.
 - **2.61.3** — 2026-11-03 — `feat/core-no-superuser`: the database is across the internet now, so the pool gives up on a connect that gets no answer after 10 s and probes a quiet connection after 30 s (before, a connect that got no answer waited for ever; reproduced, with a test). The review before destroying `brandbase-db` (Opus and Sonnet), its live checks and its open item (Supabase network restrictions, for R1) are in `docs/executing/supabase-move-plan.md`. 1598 tests: 1336 pass and 262 real-Postgres tests skip on PGlite.
 - **2.61.2** — 2026-11-03 — `feat/core-no-superuser`: the core's data moved from Fly's `brandbase-db` to the Supabase project BrandBase (Postgres 17.11); the server stays on Fly and reaches it on the direct host, checking its certificate against Supabase's root (`packages/core/supabase-ca.crt`, put on the machine by `fly.toml`). All 42 tables the same on both sides, row for row; the start check passes; signed-in pages work. `brandbase-db` stopped, kept to 17 Nov. `docs/executing/supabase-move-plan.md`. 1597 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; those ran on Postgres 17.11 (490 tests in their two files, all pass).
@@ -126,6 +127,39 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.61.5 — 2026-11-03
+
+- **Why.** An audit of the signed-in pages a TikTok reviewer can reach (the test account sees one
+  empty brand, Demo Kitchen): the app must not seem to use TikTok data it has no access for, and
+  its TikTok access was `user.info.basic` and `video.upload` only. The owner then decided to
+  request the Display API's `video.list` in the same review. TikTok wants each scope asked for
+  used in the app and shown in the demo video, so the Feed now shows the account's own videos.
+- **TikTok videos on the Feed** (server, `packages/connect`):
+  - `SCOPES` adds `video.list`. A sign-in without all three is refused and its grant revoked, as
+    before; the words are now "Allow everything brand base asks for on TikTok's screen".
+  - `listVideos` calls `POST /v2/video/list/` (`max_count` 20, one page, no cursor) and keeps the
+    id, the title (else the description), the cover and share links (https only, else null), the
+    time, the length and the four counts (null when TikTok gives none).
+  - `GET /brands/:brand/tiktok/videos` answers `{ videos }`. The account is read as the person
+    (the pack's row rules: another company's brand is 404), the token refreshed by `access()`,
+    and nothing of the videos is stored. No TikTok account: 409 `TIKTOK_NOT_LINKED`. A token
+    without `video.list` (TikTok's `scope_not_authorized`, an account connected before this): 409
+    `TIKTOK_RECONNECT`. Tests: four in `tiktok.test.ts`, and the scope test now expects three.
+- **What, on the core only** (the static demo keeps its pretend TikTok):
+  - Feed rail: TikTok shows only with the brand's TikTok account connected (`railOf`); with none,
+    no "Connect TikTok" promise. Its tab is the account's videos: a 3:4 grid, the views and the
+    length on each cover, the title and the four counts on hover, a click opens the video on
+    TikTok in a new tab. One line each while it loads, when there are none, and when TikTok
+    refuses; `TIKTOK_RECONNECT` shows "Connect TikTok again to show its videos here." with
+    Reconnect TikTok (to Connections). The header shows no totals for TikTok. Tests:
+    `rail-remote.test.ts`, `tiktok-videos.test.tsx`; the route is in `core-routes.ts`.
+  - Home page (Connect step), Terms and Privacy: brand base reads the account's public videos and
+    their counts to show them on the Feed, does not store them, and does not post to TikTok.
+  - Feed rows: "Numbers arrive once the brand's Instagram and Facebook accounts are connected."
+  - A posted post on TikTok shows no empty analytics card.
+  - The phone preview shows no invented likes or comments when a post has no counts.
+- 1605 tests: 1343 pass, 262 skip without a Postgres. Typecheck, lint, format and build pass.
 
 ## 2.61.4 — 2026-11-03
 
