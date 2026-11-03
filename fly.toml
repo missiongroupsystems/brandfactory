@@ -4,11 +4,12 @@
 # owner decides when.
 #
 # Secrets, set with `fly secrets set` (never in this file):
-#   DATABASE_URL           the Fly Postgres app `brandbase-db` (sin), over Fly's private network,
-#                          as the server login `core setup-login` makes: not a superuser, owns
-#                          nothing, holds pack_runtime and pack_server only, no right on a core
-#                          table (docs/executing/core-no-superuser-plan.md, phase 3). The server
-#                          refuses to start on any other login.
+#   DATABASE_URL           the Supabase project BrandBase's Postgres (ap-southeast-1), on its direct
+#                          host over IPv6, `?sslmode=verify-full&sslrootcert=/etc/supabase-ca.crt`
+#                          (the [[files]] entry below), as the server login `core_server`: not a
+#                          superuser, owns nothing, holds pack_runtime and pack_server only, no
+#                          right on a core table (docs/executing/core-no-superuser-plan.md). The
+#                          server refuses to start on any other login.
 #   SUPABASE_JWKS_URL      Passport's project: https://<project>.supabase.co/auth/v1/.well-known/jwks.json
 #   SUPABASE_JWT_ISSUER    Passport's project: https://<project>.supabase.co/auth/v1
 #   SUPABASE_URL, SUPABASE_SERVICE_KEY   for Storage
@@ -65,6 +66,14 @@ kill_timeout   = 300
   AUTH_PROVIDER    = "supabase"
   FILES_PROVIDER   = "supabase"
   CORE_ENVIRONMENT = "production"
+
+# Supabase's root certificate (the dashboard's Database settings, "Download certificate"), which
+# signs its Postgres hosts: DATABASE_URL checks the server against it. "Supabase Root 2021 CA",
+# valid to 26 Apr 2031; when Supabase changes it, replace the file and deploy, or the app cannot
+# connect.
+[[files]]
+  guest_path = "/etc/supabase-ca.crt"
+  local_path = "packages/core/supabase-ca.crt"
 
 [[vm]]
   cpu_kind = "shared"

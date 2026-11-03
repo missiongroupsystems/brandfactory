@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.61.2** — 2026-11-03 — `feat/core-no-superuser`: the core's data moved from Fly's `brandbase-db` to the Supabase project BrandBase (Postgres 17.11); the server stays on Fly and reaches it on the direct host, checking its certificate against Supabase's root (`packages/core/supabase-ca.crt`, put on the machine by `fly.toml`). All 42 tables the same on both sides, row for row; the start check passes; signed-in pages work. `brandbase-db` stopped, kept to 17 Nov. `docs/executing/supabase-move-plan.md`. 1597 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; those ran on Postgres 17.11 (490 tests in their two files, all pass).
 - **2.61.1** — 2026-11-02 — `feat/core-no-superuser`: the review before merge. The core no longer ends its process when a database connection drops, idle (a restart, a failover) or during a call (a network or proxy reset); both reproduced, each with a test. The owner's Fly steps say main is not deployed until they are done, and the script asks about 0011 to 0014, not 0013. A rehearsal on a restored copy of production: the upgrade, the new code, the old code on the migrated copy, and 262 cross-company checks by 12 real people with 0 leaks before and after. 1597 tests, none skipped (Postgres 18 in Docker).
 - **2.61.0** — 2026-11-02 — `feat/core-no-superuser`: the final review's fixes. A pack's migrations run from their own login (`core setup-migrator`, `MIGRATOR_DATABASE_URL`, core migration `0014_migrator_login.sql`, not applied to production): on Supabase SQL in a migration could leave `pack_migrator` for the installer's session and act as the core's owner, past every text check (reproduced). `core migrate` installs on Supabase (it refused every Supabase database over `postgres`'s own `pg_reload_conf`). The owner's Fly steps stage the new secret just before the deploy, not before the migration. The demo scripts run again (broken since 2.58.0). Run on a local Supabase (Postgres 17.6): install, the brandbase pack, calls and 20 escapes, all as planned. 1595 tests, none skipped (Postgres 18 in Docker).
 - **2.60.0** — 2026-11-02 — `feat/core-no-superuser`: the owner's upgrade of Fly's brandbase-db, as a script (`packages/core/scripts/fly-no-superuser.sh`: prepare, check, secret, migrate) and a test that runs it on a Postgres made the old way, with the old code's data and the old code working between the migration and the deploy; `core check-login` runs the server's start check from the CLI. Nothing applied. 1595 tests, none skipped (Postgres 18 in Docker).
@@ -123,6 +124,25 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.61.2 — 2026-11-03
+
+- **Why.** One service fewer to run: Supabase already held sign-in and files, and since 2.61.1 the
+  core needs no superuser. Nobody used the app yet, so the move ran at once.
+- **The move.** The roles made on Supabase as on Fly (passwords as SCRAM verifiers, from the
+  Keychain); the four schemas dumped from Postgres 18 and restored into 17 in one transaction, with
+  the app stopped. Every table has the same rows and contents on both sides (an md5 of each);
+  owners, functions, row rules and privileges are the same. `core check-login` passes; Supabase's
+  API roles reach none of the core's schemas.
+- **The connection.** The direct host over IPv6 (2.9 ms to connect from the Fly machine, against
+  0.6 ms to `brandbase-db`, and 8 ms to the pooler). Supabase signs it with its own root, so
+  `DATABASE_URL` has `sslmode=verify-full&sslrootcert=/etc/supabase-ca.crt`, and `fly.toml` puts
+  the root there. The same image, deployed as v132.
+- **Checked.** `/health`, the start in the log, and in Chrome, signed in: Schedule, Ideas and Feed,
+  every call 200, no console error. The 490 real-Postgres tests pass on Postgres 17.11.
+- **Left.** `brandbase-db` stopped, not destroyed, until 17 Nov (the rollback).
+- 1597 tests: 1335 pass, 262 skip without a Postgres; those two files ran on Postgres 17.11, 490
+  tests, all pass. Typecheck, lint, format and build pass.
 
 ## 2.61.1 — 2026-11-02
 

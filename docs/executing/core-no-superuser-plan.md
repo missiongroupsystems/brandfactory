@@ -392,4 +392,4 @@ backup removes core 0011 to 0014.
 
 ## Open questions
 
-- Moving the data from Fly to Supabase is a separate plan, after this lands.
+- Moving the data from Fly to Supabase: done on 3 Nov 2026, `docs/executing/supabase-move-plan.md`.
