@@ -22,7 +22,7 @@ import {
   type TikTokTokens,
 } from './tiktok'
 
-/** Refresh a TikTok token when less than an hour of its day is left. */
+/** Refresh a TikTok token when less than an hour of its 2 hours is left. */
 const REFRESH_MARGIN_MS = 60 * 60 * 1000
 /** How long the signed storage link TikTok's upload reads from stays good. */
 const READ_TTL_S = 60 * 60
@@ -112,13 +112,19 @@ export function tiktokRoutes(core: CoreDeps, tiktok: TikTokApp | undefined) {
         refreshed.set(seal, next)
         // Scoped to the account: a sign-in with another account meanwhile keeps its own tokens.
         // Every refresh rotates the refresh token, so the new one is the only one that works:
-        // a failed store is tried once more before the request fails.
+        // a failed store is tried once more. If that fails too, the request still goes on with
+        // the new token, which this process keeps; failing it would not save the token, and the
+        // person would read a wrong reason. A restart before the next store means connecting again.
         const store = () =>
           keepTokens(core, who(c), brand, 'tiktok', account.accountId, app.sealTokens(next, seal))
-        await store().catch((err: unknown) => {
-          console.error('tiktok tokens not stored, trying again', brand, err)
-          return store()
-        })
+        await store()
+          .catch((err: unknown) => {
+            console.error('tiktok tokens not stored, trying again', brand, err)
+            return store()
+          })
+          .catch((err: unknown) =>
+            console.error('TIKTOK TOKENS NOT STORED: kept in memory only', brand, err),
+          )
         return next
       })().finally(() => refreshing.delete(seal))
       refreshing.set(seal, running)

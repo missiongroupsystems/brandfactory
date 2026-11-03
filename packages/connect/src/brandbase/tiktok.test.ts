@@ -200,6 +200,30 @@ async function connect(t: T, code = 'code-casa', token = 'member', brand = 'casa
   return { started, state, done }
 }
 
+/** The refreshes TikTok was asked for (the first token call is the sign-in's exchange). */
+const refreshes = (t: T) =>
+  t.tiktok.calls.filter((c) => c === 'POST https://open.tiktokapis.com/v2/oauth/token/').length - 1
+
+/**
+ * Makes the next `n` stores of the account's tokens fail, as a database that is briefly down. A
+ * sequence counts them: a failed store rolls its own transaction back, but not the sequence.
+ */
+async function failTokenStores(t: T, n: number) {
+  await t.db.exec(`
+    create sequence public.fail_stores;
+    grant all on sequence public.fail_stores to public;
+    create function public.fail_store() returns trigger language plpgsql as $f$
+    begin
+      if new.tokens is distinct from old.tokens and nextval('public.fail_stores') <= ${n} then
+        raise exception 'the database is down';
+      end if;
+      return new;
+    end $f$;
+    create trigger fail_store before update on brandbase.accounts
+      for each row execute function public.fail_store();
+  `)
+}
+
 const send = (t: T, post = 'tp1', token = 'member') =>
   t.call('POST', `/brands/casa/posts/${post}/tiktok`, {}, token)
 
@@ -378,6 +402,31 @@ describe('TikTok', () => {
       t.tiktok.calls.filter((c) => c === 'POST https://open.tiktokapis.com/v2/oauth/token/'),
     ).toHaveLength(2)
     expect((await t.accounts())[0]!.tokens).not.toBe(before)
+  })
+
+  it('keeps the new tokens when storing them fails once, refreshing at TikTok only once', async () => {
+    const t = await setUp()
+    await connect(t)
+    await failTokenStores(t, 1)
+    t.setNow(new Date(NOW.getTime() + 23.5 * HOUR))
+    const before = (await t.accounts())[0]!.tokens
+    expect((await send(t)).data).toMatchObject({ status: 'sent' })
+    expect(refreshes(t)).toBe(1)
+    expect((await t.accounts())[0]!.tokens).not.toBe(before)
+  })
+
+  it('still sends when the new tokens cannot be stored at all, and refreshes no second time', async () => {
+    const t = await setUp()
+    await connect(t)
+    await failTokenStores(t, 99)
+    t.setNow(new Date(NOW.getTime() + 23.5 * HOUR))
+    const before = (await t.accounts())[0]!.tokens
+    // TikTok rotated the refresh token: failing the send would not save it, and would say TikTok
+    // refused the video. The process keeps the new tokens for the next request.
+    expect((await send(t)).data).toMatchObject({ status: 'sent' })
+    expect((await t.accounts())[0]!.tokens).toBe(before)
+    expect((await t.call('GET', '/brands/casa/tiktok/videos')).status).toBe(200)
+    expect(refreshes(t)).toBe(1)
   })
 
   it('needs the account linked, and a TikTok post with one uploaded video', async () => {
