@@ -15,6 +15,8 @@ import * as React from 'react'
 import type { BrandId } from '@/data/brands'
 import { loadBrand, onState, platformOn, remote, request } from '@/lib/remote'
 
+import type { TikTokVideo } from './tiktok'
+
 export type MakeKey = 'ig' | 'fb'
 
 export interface MakeAccount {
@@ -81,6 +83,15 @@ export async function linkMake(brandId: BrandId, key: MakeKey, accountId: string
   await request('PUT', `/brands/${brandId}/make/${PLATFORM[key]}`, { accountId, name })
   await loadBrand(brandId)
 }
+
+/**
+ * The newest posts of the brand's Instagram account or Facebook Page linked through our own Meta
+ * app, with their counts, read from Meta each time; nothing of them is kept. The same shape as a
+ * TikTok video, so the Feed shows both in one grid.
+ */
+export const metaPosts = async (brandId: BrandId, key: MakeKey) =>
+  (await request<{ posts: TikTokVideo[] }>('GET', `/brands/${brandId}/meta/${PLATFORM[key]}/posts`))
+    .posts
 
 /** Sends the browser to Facebook's sign-in for the brand; it comes back to `/connect/meta`. */
 export async function connectMeta(brandId: BrandId) {

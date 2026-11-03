@@ -31,7 +31,8 @@ described below; it is not deployed.
   `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands),
   `GET /brands/:brand/tiktok/videos` (the account's newest 20 public videos with their counts).
   `POST /brands/:brand/inbox/:id/meta-reply` and `meta-hide` (answer a comment or a DM that came
-  through Meta, hide a comment), `POST /brands/:brand/meta/connect`, `POST /meta/callback` (the person's Pages and a sealed
+  through Meta, hide a comment), `GET /brands/:brand/meta/:platform/posts` (the Feed's newest
+  posts and counts, read live), `POST /brands/:brand/meta/connect`, `POST /meta/callback` (the person's Pages and a sealed
   choice), `POST /meta/select` (links the Page and its Instagram account, turns the Page's
   webhooks on), `DELETE /brands/:brand/meta`,
   `GET|POST /webhooks/meta` (Meta's webhook: the check when it is saved, and the signed
@@ -149,7 +150,7 @@ The service uses Graph API `v26.0`.
    `pages_manage_metadata` (turns a Page's webhooks on), `publish_video`, `business_management`,
    `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`,
    `instagram_manage_messages`, `instagram_manage_insights`, `pages_messaging`,
-   `pages_manage_engagement`, `pages_read_user_content`, `read_insights`; and `ads_management`
+   `pages_manage_engagement`, `pages_read_user_content`; and `ads_management`
    with `ads_read` when a Page role comes through a business portfolio. Meta has no
    `pages_read_user_engagement`.
 2. Valid OAuth Redirect URI: the web app's `/connect/meta`.

@@ -67,6 +67,8 @@ Read 3 Nov 2026. Each rule names the page, its date and the words that bind us.
 | Tech Provider: an App "whose primary purpose is to enable Users … to access and use Platform"; data only "at the direction of your Client" | Platform Terms §5.b | Each brand's accounts and messages are behind the pack's brand walls; one brand's data is never used for another |
 | "We recommend that your app also enforce the publishing rate limit" | Instagram Content Publishing, 20 Oct 2026 | Not enforced: Meta's own refusal is shown in its words. Read `content_publishing_limit` later if brands near 100 a day |
 | Logos per the Brand Resource Center | Developer Policies §2.4 | The app's Instagram and Facebook marks are to be checked against Meta's brand guide before App Review |
+| Instagram media `impressions` "For media created after July 2, 2024, this metric is deprecated"; `views` replaces it | Instagram Media Insights, developers.facebook.com/documentation/instagram-platform/reference/instagram-media/insights, 11 Sep 2026 | The Feed asks for `views` only |
+| Page and post insights: "By June 15, 2026, a number of the Page Insights metrics will be deprecated"; `post_impressions` "Deprecated above Graph API v25" | Graph API Insights reference, v26.0 | A Page post shows reactions, comments and shares from the post's own fields, no views |
 | "Protect and not transfer, share, or solicit Meta user IDs, access tokens, or app secrets" | Platform Terms §6.a.iv | Page tokens sealed per row (AES-256-GCM), never sent to the browser in the clear, never logged; `appsecret_proof` on each call |
 | "Obtain consent from people before publishing content or taking any other action on their behalf" | Developer Policies §1.7, developers.facebook.com/devpolicy, 3 Feb 2026 | A post goes out only with a person's yes (`post.schedule` stores it, the core uses it once); a reply goes only when a person presses Send |
 | Standard messaging window: "For most user actions, it lasts 24 hours" | Messenger Platform and IG Messaging API policy, developers.facebook.com/documentation/business-messaging/messenger-platform/policy, 28 Sep 2026 | A DM reply after 24 hours is refused in words; no message tags (phase 4) |
@@ -168,9 +170,16 @@ configuration names `pages_read_user_engagement`, which does not exist: it is
    cURL request Meta asks for (`instagram_manage_messages`, `pages_messaging`).
 5. Webhooks on for the Page (`pages_manage_metadata`).
 6. Feed: the account's posts with their views, likes and comments (`instagram_manage_insights`,
-   `read_insights`, `pages_read_engagement`).
+   `pages_read_engagement`). Nothing reads Page insights, so `read_insights` is not asked for.
 
 The webhook's principal (`META_WEBHOOK_AS`) reaches only its own company's brands: every company
 on the operator's list (`make_orgs`) must have that principal's person as a member, or its
 messages are refused (logged, never stored). Only those companies may link Meta
 (`account.make_managed`).
+
+### Phase 5: the Feed's counts (no pack change)
+
+Release with phase 4. Nothing to set. On the test brand, the Feed's Instagram and Facebook tabs
+show the account's newest 20 posts with their counts, read from Meta each time
+(`GET /brands/:brand/meta/:platform/posts`); Make's read-back stays for accounts linked through
+Make.

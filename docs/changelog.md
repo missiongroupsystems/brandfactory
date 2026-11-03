@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.0** — 2026-11-03 — `feat/meta-direct`: the Feed's Instagram and Facebook tabs, for an account linked through our own Meta app, show its newest 20 posts with views, likes, comments and shares read live from Meta and never stored, in place of Make's read-back. No pack change. 1402 tests (264 skipped without a Postgres server).
 - **2.65.0** — 2026-11-03 — `feat/meta-direct`: comments and DMs from the brand's Page and Instagram account, through Meta's webhook, land in the Inbox (migration `0026_meta_inbox.sql`, pack 1.15.0, not applied to production); the team answers them there (a DM within Meta's 24-hour window) and hides a comment. 1396 tests (264 skipped without a Postgres server).
 - **2.64.0** — 2026-11-03 — `feat/meta-direct`: a due Instagram or Facebook job whose account was linked through our own Meta app posts through the Graph API: Instagram photo, carousel, Reel and story; Facebook photo, several photos, Reel and story. Make keeps the accounts linked through it. The composer schedules a Story to the accounts that post one. The core tells a connector whose call a send is. Pack 1.15.0 (the payload names `via`). 1384 tests (262 skipped without a Postgres server).
 - **2.63.0** — 2026-11-03 — `feat/meta-direct`: each brand links its Facebook Page and the Page's Instagram account by Facebook Login for Business (our own Meta app), on Connections and the new `/connect/meta` page; the Page token is sealed to each row, the Page's webhooks turn on, and Disconnect turns them off and forgets both. Owners and admins of a company on the operator's list only. Make stays the path without `META_*`. Pack 1.15.0 (the state says how an account is linked). Not for release without 2.64.0. 1371 tests (262 skipped without a Postgres server).
@@ -132,6 +133,35 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.0 — 2026-11-03
+
+- **Why.** Phase 5 of `docs/executing/meta-direct-plan.md`: counts for the accounts linked
+  through our own Meta app, within what the permissions allow and what Meta still serves.
+- **Server** (`packages/connect/src/brandbase/meta-insights.ts`): `GET
+  /brands/:brand/meta/:platform/posts` reads the account as the person (the brand walls), opens
+  the Page token and answers `{ posts }` in the TikTok videos' shape, with `cache-control:
+  no-store`. Instagram: `/{ig}/media` (likes, comments, permalink, cover) and each post's
+  `views` from `/{id}/insights` (`impressions` is deprecated for media after 2 July 2024); a post
+  whose views do not load keeps its other counts. Facebook: `/{page}/posts` with reactions,
+  comments and shares; no views, as `post_impressions` is deprecated above v25. Links and covers
+  must be https. A dead token is `META_RECONNECT`; an account not linked through Meta is
+  `META_NOT_LINKED`.
+- **Web app:** on the core, the Feed's Instagram or Facebook tab for an account linked through
+  Meta shows those posts in the same grid as TikTok's videos, each opening on the platform; a dead
+  token says "Connect Instagram again to show its posts here." Make's read-back stays for
+  accounts linked through Make. Privacy says the counts are read each time and not stored.
+  Screenshot of the Feed, desktop and phone.
+- **Review** (Opus and Sonnet, code and Meta's docs): the Graph fields and metrics match Meta's
+  current pages. Fixed: a photo showed TikTok's play mark and was read as "Video" (now "Post",
+  no mark); a Page's reactions were called likes (now "reactions"); Meta's rate limit or a dead
+  token in a view read now stops the read instead of showing posts with no views; an account
+  linked another way since the page loaded offers Reconnect; `read_insights` is not asked for, as
+  nothing reads Page insights. Open: on a phone a Facebook post shows no count on its cover (no
+  views); 20 view reads per Feed open, each up to a minute.
+- **Tests:** three in `meta-insights.test.ts` (the counts, `no-store`, the rate limit, a dead
+  token, another company's brand), three in `meta-posts.test.tsx` (the grid, Reconnect, an
+  account linked through Make keeps Make's read-back and asks Meta nothing).
 
 ## 2.65.0 — 2026-11-03
 

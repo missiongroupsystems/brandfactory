@@ -19,7 +19,7 @@ import { useMenu } from '@/components/use-menu'
 import type { BrandId } from '@/data/brands'
 import { BrandLogo } from '@/features/brand/brand-logo'
 import { useConnections } from '@/features/connections/connections-store'
-import { useMakeAccount } from '@/features/connections/make'
+import { metaPosts, useMakeAccount } from '@/features/connections/make'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
 import { tiktokVideos, useTikTokAccount, type TikTokVideo } from '@/features/connections/tiktok'
 import { useBrand } from '@/features/schedule/posts-store'
@@ -168,15 +168,19 @@ function Profile({
   onPick: (p: Platform) => void
 }) {
   const { brand } = useBrand()
-  const accounts = {
-    ig: useMakeAccount(brand.id, 'ig')?.name,
-    fb: useMakeAccount(brand.id, 'fb')?.name,
-    tt: useTikTokAccount(brand.id)?.name,
-  }
+  const ig = useMakeAccount(brand.id, 'ig')
+  const fb = useMakeAccount(brand.id, 'fb')
+  const accounts = { ig: ig?.name, fb: fb?.name, tt: useTikTokAccount(brand.id)?.name }
   const [order, setOrder] = React.useState<Order>('newest')
-  // On the core the TikTok tab is the account's own public videos, read from TikTok.
-  const ownVideos = remote && platform === 'tt'
-  const videos = useTikTokVideos(brand.id, ownVideos)
+  // On the core the TikTok tab is the account's own public videos, read from TikTok; an
+  // Instagram account or Facebook Page linked through our own Meta app shows its own posts, read
+  // from Meta, in place of what Make read back.
+  const ownVideos =
+    remote &&
+    (platform === 'tt' ||
+      (platform === 'ig' && ig?.via === 'meta') ||
+      (platform === 'fb' && fb?.via === 'meta'))
+  const videos = useOwnPosts(brand.id, platform, ownVideos)
   const sum = summaryOf(ledger, platform, now.day)
   // The videos carry their own counts: the header adds none up from a part of them.
   const figures = ownVideos ? [] : figuresOf(sum, platform)
@@ -231,7 +235,7 @@ function Profile({
 
       <div key={platform} className="bb-swap flex flex-col">
         {ownVideos ? (
-          <Videos got={videos} today={now.day} zone={timezoneOf(brand.id)} />
+          <Videos got={videos} platform={platform} today={now.day} zone={timezoneOf(brand.id)} />
         ) : ledger.length === 0 ? (
           <Empty platform={platform} linked={linked(platform)} />
         ) : (
@@ -608,25 +612,37 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
 /** The account's videos as the server last answered for this brand: none yet while it loads. */
 type VideosGot = { videos: TikTokVideo[] } | { error: unknown } | null
 
-/** The brand's TikTok videos, asked of the server each time the tab opens. */
-function useTikTokVideos(brandId: BrandId, on: boolean): VideosGot {
-  const [got, setGot] = React.useState<{ brandId: string; value: VideosGot }>()
+/** The account's own posts, asked of the server each time the tab opens. */
+function useOwnPosts(brandId: BrandId, platform: Platform, on: boolean): VideosGot {
+  const [got, setGot] = React.useState<{ key: string; value: VideosGot }>()
+  const key = `${brandId}:${platform}`
   React.useEffect(() => {
     if (!on) return
     let live = true
-    tiktokVideos(brandId).then(
-      (videos) => live && setGot({ brandId, value: { videos } }),
-      (error: unknown) => live && setGot({ brandId, value: { error } }),
+    const read =
+      platform === 'tt'
+        ? tiktokVideos(brandId)
+        : metaPosts(brandId, platform === 'ig' ? 'ig' : 'fb')
+    read.then(
+      (videos) => live && setGot({ key, value: { videos } }),
+      (error: unknown) => live && setGot({ key, value: { error } }),
     )
     return () => {
       live = false
     }
-  }, [brandId, on])
-  return got?.brandId === brandId ? got.value : null
+  }, [brandId, platform, on, key])
+  return got?.key === key ? got.value : null
 }
 
 /** A line in place of the videos, with the way to fix it when there is one. */
-function VideosLine({ line, reconnect = false }: { line: string; reconnect?: boolean }) {
+function VideosLine({
+  line,
+  reconnect,
+}: {
+  line: string
+  /** The platform to connect again, when that fixes it. */
+  reconnect?: string
+}) {
   return (
     <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-16 max-md:gap-3 max-md:pt-12">
       <span className="text-[15px] leading-normal text-ink-3 max-md:text-[14.5px]">{line}</span>
@@ -635,29 +651,54 @@ function VideosLine({ line, reconnect = false }: { line: string; reconnect?: boo
           href="/brand/connections"
           className="bb-press mt-2 inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page max-md:h-10"
         >
-          Reconnect TikTok
+          Reconnect {reconnect}
         </Link>
       )}
     </div>
   )
 }
 
-/** The TikTok account's public videos as its profile grid: newest first, each opens on TikTok. */
-function Videos({ got, today, zone }: { got: VideosGot; today: string; zone: string }) {
-  if (!got) return <LoadingDots label="Loading TikTok videos" className="py-40" />
+/** The account's own posts as its profile grid: newest first, each opens on the platform. */
+function Videos({
+  got,
+  platform,
+  today,
+  zone,
+}: {
+  got: VideosGot
+  platform: Platform
+  today: string
+  zone: string
+}) {
+  const name = PLATFORM_NAME[platform]
+  const what = platform === 'tt' ? 'videos' : 'posts'
+  if (!got) return <LoadingDots label={`Loading ${name} ${what}`} className="py-40" />
   if ('error' in got) {
-    return got.error instanceof RemoteError && got.error.code === 'TIKTOK_RECONNECT' ? (
-      <VideosLine line="Connect TikTok again to show its videos here." reconnect />
+    const code = got.error instanceof RemoteError ? got.error.code : null
+    // A dead token, or an account linked another way since the page loaded: Connections fixes it.
+    return code === 'TIKTOK_RECONNECT' ||
+      code === 'META_RECONNECT' ||
+      code === 'META_NOT_LINKED' ? (
+      <VideosLine line={`Connect ${name} again to show its ${what} here.`} reconnect={name} />
     ) : (
-      <VideosLine line="TikTok did not send the videos. Try again later." />
+      <VideosLine line={`${name} did not send the ${what}. Try again later.`} />
     )
   }
-  if (got.videos.length === 0) return <VideosLine line="No public videos on TikTok yet." />
+  if (got.videos.length === 0) {
+    return (
+      <VideosLine
+        line={platform === 'tt' ? 'No public videos on TikTok yet.' : `No posts on ${name} yet.`}
+      />
+    )
+  }
   return (
-    <ol aria-label="Videos" className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5">
+    <ol
+      aria-label={platform === 'tt' ? 'Videos' : 'Posts'}
+      className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5"
+    >
       {got.videos.map((v, i) => (
         <li key={v.id} className="bb-rise" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
-          <VideoTile video={v} today={today} zone={zone} />
+          <VideoTile video={v} platform={platform} today={today} zone={zone} />
         </li>
       ))}
     </ol>
@@ -673,13 +714,35 @@ const VIDEO_COUNTS = [
 
 /**
  * A TikTok video's cover at 3:4, as TikTok's grid crops it, with its length top right and its
- * views bottom left. Hover or focus lays its title and its four counts over it. A count of 0, or
- * one TikTok did not give, is left out. A click opens the video on TikTok in a new tab.
+ * views bottom left; an Instagram or Facebook post's the same, as a post. Hover or focus lays its
+ * title and its counts over it. A count of 0, or one the platform did not give, is left out. A
+ * click opens it on the platform in a new tab.
  */
-function VideoTile({ video, today, zone }: { video: TikTokVideo; today: string; zone: string }) {
+function VideoTile({
+  video,
+  platform,
+  today,
+  zone,
+}: {
+  video: TikTokVideo
+  platform: Platform
+  today: string
+  zone: string
+}) {
+  // A Page's count is of all reactions, not likes alone.
   const counts = VIDEO_COUNTS.flatMap(([key, label]) =>
-    video[key] ? [{ key, label, value: video[key] }] : [],
+    video[key]
+      ? [
+          {
+            key,
+            label: key === 'likes' && platform === 'fb' ? 'reactions' : label,
+            value: video[key],
+          },
+        ]
+      : [],
   )
+  const noun = platform === 'tt' ? 'Video' : 'Post'
+  const likes = counts.find((c) => c.key === 'likes')
   const day = video.createdAt ? clockToday(new Date(video.createdAt), zone) : null
   const when = !day
     ? ''
@@ -691,13 +754,15 @@ function VideoTile({ video, today, zone }: { video: TikTokVideo; today: string; 
       ? `${Math.floor(video.duration / 60)}:${String(video.duration % 60).padStart(2, '0')}`
       : null
   const views = video.views ? k(video.views) : null
-  const title = video.title || 'Video'
+  const title = video.title || noun
   return (
     <a
       href={video.url ?? undefined}
       target="_blank"
       rel="noreferrer"
-      aria-label={`Video${when && ` · ${when}`}: ${title}${views ? ` · ${views} views` : ''}`}
+      aria-label={`${noun}${when && ` · ${when}`}: ${title}${views ? ` · ${views} views` : ''}${
+        !views && likes ? ` · ${k(likes.value)} ${likes.label}` : ''
+      }`}
       className="group relative block aspect-[3/4] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none md:hover:-translate-y-0.5"
     >
       <Cover src={video.cover ?? undefined} />
@@ -712,7 +777,7 @@ function VideoTile({ video, today, zone }: { video: TikTokVideo; today: string; 
         <span
           className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[10.5px] ${ON_COVER}`}
         >
-          <PlayIcon />
+          {platform === 'tt' && <PlayIcon />}
           {views}
           <span className="sr-only">views</span>
         </span>

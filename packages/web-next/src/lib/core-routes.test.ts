@@ -185,6 +185,8 @@ describe('the account routes', () => {
     expect(isAccountRoute('GET', '/meta/select')).toBe(false)
     expect(isAccountRoute('POST', '/brands/b1/inbox/m1/meta-reply')).toBe(true)
     expect(isAccountRoute('POST', '/brands/b1/inbox/m1/meta-hide')).toBe(true)
+    expect(isAccountRoute('GET', '/brands/b1/meta/instagram/posts')).toBe(true)
+    expect(isAccountRoute('GET', '/brands/b1/meta/threads/posts')).toBe(false)
     expect(isAccountRoute('PUT', '/brands/b1/pinterest/pins')).toBe(false)
     expect(isAccountRoute('PUT', '/brands/b1/tiktok')).toBe(false)
   })
