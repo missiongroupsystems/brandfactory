@@ -13,30 +13,30 @@ import { SESSION_CLASS } from './session-class'
 const PARTS = [
   {
     title: 'A calendar for each brand',
-    body: 'Posts, stories and shoots by day and week, each with its time and platforms.',
+    body: 'Every post, story and shoot by day or week, with its time and platforms.',
   },
   {
     title: 'A shared moodboard',
-    body: 'Pins from the brand’s Pinterest boards and the ideas the team collects, ready to become posts.',
+    body: 'Pins from the brand’s Pinterest boards and the team’s ideas, ready to turn into posts.',
   },
   {
     title: 'Drafts to TikTok',
-    body: 'A finished video goes to the brand’s TikTok inbox as a draft. The team posts it from the TikTok app.',
+    body: 'Send a finished video to the brand’s TikTok inbox as a draft, then post it from the TikTok app.',
   },
 ]
 
 const TIKTOK_STEPS = [
   {
     title: 'Connect',
-    body: 'A team member connects the brand’s TikTok account through TikTok’s own sign-in. brand base shows the account’s name and picture, so the team sees where videos go, and its public videos with their views, likes, comments and shares on the Feed.',
+    body: 'A team member connects the brand’s TikTok account through TikTok’s own sign-in. Its name and picture show where videos go. The Feed shows its public videos with views, likes, comments and shares.',
   },
   {
     title: 'Send',
-    body: 'On a planned video post, Send to TikTok inbox uploads the video to that account as a draft.',
+    body: 'On a planned video post, Send to TikTok inbox uploads the video to the account as a draft.',
   },
   {
     title: 'Finish in TikTok',
-    body: 'The creator opens the draft in the TikTok app, edits it and posts it. brand base never posts to TikTok by itself.',
+    body: 'The creator opens the draft in the TikTok app, edits it and posts it there; brand base never posts to TikTok by itself.',
   },
 ]
 
@@ -85,9 +85,8 @@ export function Welcome() {
             Plan, make and post for every brand
           </h1>
           <p className="text-[17px] leading-[1.55] text-ink-3 max-md:text-[16px]">
-            brand base is a social media workspace for brands and their marketing teams. A team
-            plans each brand’s posts on one calendar and gets them ready for Instagram, Facebook and
-            TikTok.
+            A social media workspace for brands and their marketing teams. Plan each brand’s posts
+            on one calendar and get them ready for Instagram, Facebook and TikTok.
           </p>
           <Link
             href="/sign-in"
@@ -132,8 +131,7 @@ export function Welcome() {
             ))}
           </ol>
           <p className="max-w-[560px] text-[14px] leading-[1.5] text-ink-3">
-            A connected account can be disconnected at any time in Connections. Disconnecting it
-            deletes its access tokens.
+            Disconnect the account at any time in Connections. This deletes its access tokens.
           </p>
         </section>
 
@@ -145,8 +143,8 @@ export function Welcome() {
             For your team
           </h2>
           <p className="text-[15px] leading-[1.55] text-ink-3">
-            brand base is for any brand and its marketing team, and free to start. Tell us about
-            your brand, and we set up your team and its brands.
+            For any brand and its marketing team, and free to start. Tell us about your brand and we
+            set up your team and its brands.
           </p>
           <a
             href={`mailto:${CONTACT}?subject=brand%20base%20team`}

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.62.2** — 2026-11-03 — `fix/landing-copy`: the public home page's copy is shorter and plainer, with no sentence that starts with the lowercase wordmark. Every TikTok fact stays: TikTok's own sign-in, name and picture, the Feed's public videos and counts, Send to TikTok inbox as a draft, the creator posts in the TikTok app, brand base never posts by itself, disconnecting deletes the tokens; free to start, Get started, Terms and Privacy kept. Text only. 1616 tests: 1354 pass and 262 real-Postgres tests skip on PGlite.
 - **2.62.1** — 2026-11-03 — `fix/tiktok-token-rotation`: TikTok's token rules of 2 Nov (access 2 hours, refresh 180 days, a new refresh token on every refresh): a token store that fails after a refresh is tried once more, and if that fails too the request goes on with the new token kept in memory (tested both ways); comments and README corrected. Privacy also names each inbox send's status and TikTok's reference, kept with the post. From an Opus review against TikTok's guidelines. 1614 tests: 1350 pass and 262 real-Postgres tests skip on PGlite; the full run's two failures were 30 s timeouts under load, and both files pass alone.
 - **2.62.0** — 2026-11-03 — `feat/meta-direct`: Meta's webhook on the server, `GET|POST /webhooks/meta`, so the Meta app's Webhooks settings can be saved. The check answers with `META_WEBHOOK_VERIFY_TOKEN` alone; deliveries need `META_APP_SECRET` too (503 until it is set) and a valid `X-Hub-Signature-256` over the raw body. Nothing is stored yet. No pack change. 1352 tests (262 skipped without a Postgres server).
 - **2.61.5** — 2026-11-03 — `fix/tiktok-review-ui`: what a TikTok reviewer sees signed in, on the core, and the Display API scope `video.list`. The TikTok sign-in asks for `video.list` too, and the Feed's TikTok tab shows the connected account's public videos with their views, likes, comments and shares, read live from `GET /brands/:brand/tiktok/videos` and never stored; with no TikTok account connected, the rail has no TikTok tab; an account connected before this asks to connect again. The home page, Terms and Privacy say so. The Feed's empty rows name Instagram and Facebook; a posted post shows no TikTok analytics card; a preview shows no invented likes or comments. 1605 tests: 1343 pass and 262 real-Postgres tests skip on PGlite.
@@ -129,6 +130,19 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.62.2 — 2026-11-03
+
+- **Why.** The home page a signed-out visitor sees (`welcome.tsx`) is what TikTok's app review
+  films. Its copy was long, and two sentences started with the lowercase "brand base".
+- **What.** Text only, no layout or behaviour change. The hero and "For your team" paragraphs open
+  with what the visitor gets; the three cards, the three TikTok steps and the disconnect line are
+  shorter. The wordmark stays lowercase, and no sentence starts with it. A Sonnet review checked
+  each claim against the code (`tiktok.ts`, `tiktok-routes.ts`, `posted-page.tsx`,
+  `tiktok-inbox.tsx`); its points (keep "where videos go", "Pins from", and the creator opening
+  the draft) are in.
+- 1616 tests: 1354 pass, 262 skip without a Postgres. Typecheck, lint and format pass. Checked in
+  the browser at 1440 and 390 wide.
 
 ## 2.62.1 — 2026-11-03
 
