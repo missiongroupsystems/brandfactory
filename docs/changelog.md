@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.62.5** — 2026-11-03 — `fix/legal-gaps`: Terms say brand base is for business use by people 18 or older, limit liability, and are governed by Singapore law; both pages say how changes are announced; Privacy names Vercel (it serves the website and sees visitors' IP addresses) and says the browser keeps only the sign-in and two choices, with no advertising or tracking cookies. Text only. 757 web tests pass.
 - **2.62.4** — 2026-11-03 — `fix/landing-team-line`: the home page's team section has its line back, "Email us to set up your brand. Free to start.", so Get started says how to get access; "Mission Group" in the footer links to https://www.missiongroup.com. 757 web tests pass.
 - **2.62.3** — 2026-11-03 — `fix/landing-copy-short`: the public home page cut to short lines: the hero says Instagram, Facebook and TikTok on one calendar; each card and TikTok step fits on one phone line; the team section keeps its heading and Get started only. The TikTok facts stay: see the account's videos and stats, send as a draft, post in TikTok, we never post for you, disconnect to delete the tokens. Text only. 757 web tests pass; typecheck, lint and format pass.
 - **2.62.2** — 2026-11-03 — `fix/landing-copy`: the public home page's copy is shorter and plainer, with no sentence that starts with the lowercase wordmark. Every TikTok fact stays: TikTok's own sign-in, name and picture, the Feed's public videos and counts, Send to TikTok inbox as a draft, the creator posts in the TikTok app, brand base never posts by itself, disconnecting deletes the tokens; free to start, Get started, Terms and Privacy kept. Text only. 1616 tests: 1354 pass and 262 real-Postgres tests skip on PGlite.
@@ -132,6 +133,19 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.62.5 — 2026-11-03
+
+`fix/legal-gaps`. The owner asked whether Terms and Privacy were complete. They were enough for TikTok's review but missed common items, now added:
+
+- Terms, Who may use it: for a business, 18 or older.
+- Terms, Liability: no liability for indirect losses, or for a post that goes out late or not at all, as far as the law allows.
+- Terms, Changes and law: the date at the top shows the version; important changes by email; Singapore law.
+- Privacy, Where: Vercel serves the website and sees each visitor's IP address.
+- Privacy, Your browser: the sign-in, the last brand opened and the last accounts picked, in the browser's storage (checked in the code: `lib/remote.ts` and the brand and account pickers); no analytics or tracking in the app.
+- Privacy, Changes: as for Terms.
+
+Not reviewed by a lawyer. The Meta text for Privacy is on `feat/meta-direct` and lands with Meta. Checked on desktop screenshots. 757 web tests pass.
 
 ## 2.62.4 — 2026-11-03
 

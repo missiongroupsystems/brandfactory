@@ -18,8 +18,9 @@ export default function Page() {
       <section>
         <h2>Who may use it</h2>
         <p>
-          People with an account. To get one for your team, write to <Mail />. Keep your password to
-          yourself, and tell us if you think someone else has used your account.
+          People with an account, using it for a business. You must be 18 or older. To get one for
+          your team, write to <Mail />. Keep your password to yourself, and tell us if you think
+          someone else has used your account.
         </p>
       </section>
       <section>
@@ -51,6 +52,21 @@ export default function Page() {
           We work to keep brand base running and correct, but it is provided as it is, and a post
           can fail to go out. We may change or stop the service, and we may close an account that is
           no longer needed.
+        </p>
+      </section>
+      <section>
+        <h2>Liability</h2>
+        <p>
+          As far as the law allows, Mission Group is not liable for indirect or consequential
+          losses, or for a post that goes out late or not at all.
+        </p>
+      </section>
+      <section>
+        <h2>Changes and law</h2>
+        <p>
+          We may update these terms. The date at the top shows the latest version, and we tell
+          account holders by email about any important change. These terms are governed by the laws
+          of Singapore.
         </p>
       </section>
       <section>
