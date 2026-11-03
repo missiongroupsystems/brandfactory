@@ -13,30 +13,30 @@ import { SESSION_CLASS } from './session-class'
 const PARTS = [
   {
     title: 'A calendar for each brand',
-    body: 'Every post, story and shoot by day or week, with its time and platforms.',
+    body: 'Every post, story and shoot.',
   },
   {
     title: 'A shared moodboard',
-    body: 'Pins from the brand’s Pinterest boards and the team’s ideas, ready to turn into posts.',
+    body: 'Pinterest boards and team ideas.',
   },
   {
     title: 'Drafts to TikTok',
-    body: 'Send a finished video to the brand’s TikTok inbox as a draft, then post it from the TikTok app.',
+    body: 'Finished videos, sent as drafts.',
   },
 ]
 
 const TIKTOK_STEPS = [
   {
     title: 'Connect',
-    body: 'A team member connects the brand’s TikTok account through TikTok’s own sign-in. Its name and picture show where videos go. The Feed shows its public videos with views, likes, comments and shares.',
+    body: 'Link the brand’s TikTok to see its videos and stats.',
   },
   {
     title: 'Send',
-    body: 'On a planned video post, Send to TikTok inbox uploads the video to the account as a draft.',
+    body: 'Send a planned video to TikTok as a draft.',
   },
   {
     title: 'Finish in TikTok',
-    body: 'The creator opens the draft in the TikTok app, edits it and posts it there; brand base never posts to TikTok by itself.',
+    body: 'Edit and post it in TikTok. We never post for you.',
   },
 ]
 
@@ -85,8 +85,7 @@ export function Welcome() {
             Plan, make and post for every brand
           </h1>
           <p className="text-[17px] leading-[1.55] text-ink-3 max-md:text-[16px]">
-            A social media workspace for brands and their marketing teams. Plan each brand’s posts
-            on one calendar and get them ready for Instagram, Facebook and TikTok.
+            Instagram, Facebook and TikTok on one calendar.
           </p>
           <Link
             href="/sign-in"
@@ -131,7 +130,7 @@ export function Welcome() {
             ))}
           </ol>
           <p className="max-w-[560px] text-[14px] leading-[1.5] text-ink-3">
-            Disconnect the account at any time in Connections. This deletes its access tokens.
+            Disconnect any time to delete its tokens.
           </p>
         </section>
 
@@ -142,10 +141,6 @@ export function Welcome() {
           >
             For your team
           </h2>
-          <p className="text-[15px] leading-[1.55] text-ink-3">
-            For any brand and its marketing team, and free to start. Tell us about your brand and we
-            set up your team and its brands.
-          </p>
           <a
             href={`mailto:${CONTACT}?subject=brand%20base%20team`}
             className="text-[15px] font-medium text-ink underline decoration-ink-5 underline-offset-4 hover:decoration-ink"

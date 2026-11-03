@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.62.3** — 2026-11-03 — `fix/landing-copy-short`: the public home page cut to short lines: the hero says Instagram, Facebook and TikTok on one calendar; each card and TikTok step fits on one phone line; the team section keeps its heading and Get started only. The TikTok facts stay: see the account's videos and stats, send as a draft, post in TikTok, we never post for you, disconnect to delete the tokens. Text only. 757 web tests pass; typecheck, lint and format pass.
 - **2.62.2** — 2026-11-03 — `fix/landing-copy`: the public home page's copy is shorter and plainer, with no sentence that starts with the lowercase wordmark. Every TikTok fact stays: TikTok's own sign-in, name and picture, the Feed's public videos and counts, Send to TikTok inbox as a draft, the creator posts in the TikTok app, brand base never posts by itself, disconnecting deletes the tokens; free to start, Get started, Terms and Privacy kept. Text only. 1616 tests: 1354 pass and 262 real-Postgres tests skip on PGlite.
 - **2.62.1** — 2026-11-03 — `fix/tiktok-token-rotation`: TikTok's token rules of 2 Nov (access 2 hours, refresh 180 days, a new refresh token on every refresh): a token store that fails after a refresh is tried once more, and if that fails too the request goes on with the new token kept in memory (tested both ways); comments and README corrected. Privacy also names each inbox send's status and TikTok's reference, kept with the post. From an Opus review against TikTok's guidelines. 1614 tests: 1350 pass and 262 real-Postgres tests skip on PGlite; the full run's two failures were 30 s timeouts under load, and both files pass alone.
 - **2.62.0** — 2026-11-03 — `feat/meta-direct`: Meta's webhook on the server, `GET|POST /webhooks/meta`, so the Meta app's Webhooks settings can be saved. The check answers with `META_WEBHOOK_VERIFY_TOKEN` alone; deliveries need `META_APP_SECRET` too (503 until it is set) and a valid `X-Hub-Signature-256` over the raw body. Nothing is stored yet. No pack change. 1352 tests (262 skipped without a Postgres server).
@@ -130,6 +131,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.62.3 — 2026-11-03
+
+`fix/landing-copy-short`. The owner found the home page still too long. Every body text is now one short line:
+
+- Hero: "Instagram, Facebook and TikTok on one calendar."
+- Cards: "Every post, story and shoot.", "Pinterest boards and team ideas.", "Finished videos, sent as drafts."
+- TikTok steps: "Link the brand’s TikTok to see its videos and stats.", "Send a planned video to TikTok as a draft.", "Edit and post it in TikTok. We never post for you."
+- "Disconnect any time to delete its tokens."
+- "For your team" keeps Get started and drops its sentence.
+
+Checked on desktop and phone screenshots. 757 web tests pass.
 
 ## 2.62.2 — 2026-11-03
 
