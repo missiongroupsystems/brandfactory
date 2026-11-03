@@ -157,7 +157,12 @@ export function Welcome() {
         <a href={`mailto:${CONTACT}`} className="hover:text-ink">
           {CONTACT}
         </a>
-        <span>© 2026 Mission Group</span>
+        <span>
+          © 2026{' '}
+          <a href="https://www.missiongroup.com" className="hover:text-ink">
+            Mission Group
+          </a>
+        </span>
       </footer>
     </div>
   )
