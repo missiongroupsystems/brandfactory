@@ -14,6 +14,8 @@ import {
 } from './accounts'
 import { type MakeApp } from './make'
 import { makeRoutes } from './make-routes'
+import { type MetaApp } from './meta'
+import { metaRoutes } from './meta-routes'
 import { type MetaHooks, metaWebhookRoutes } from './meta-webhooks'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
 import { type MakeReadings, readingsRoutes } from './readings'
@@ -30,6 +32,8 @@ export interface Platforms {
   make?: MakeApp
   /** What went out on Instagram and Facebook, as Make reads it back. */
   readings?: MakeReadings
+  /** Instagram and Facebook through our own Meta app: its sign-in, and posting through Graph. */
+  meta?: MetaApp
   /** Meta's webhooks for the brands' Pages and Instagram accounts. */
   metaHooks?: MetaHooks
   pinterest?: PinterestApp
@@ -129,9 +133,11 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
         c.json({
           pinterest: Boolean(platforms.pinterest),
           tiktok: Boolean(platforms.tiktok),
-          // Posting only, through Make: the inbox and the moodboard stay off for both.
-          instagram: Boolean(platforms.make),
-          facebook: Boolean(platforms.make),
+          // Posting, through our own Meta app or Make: the moodboard stays off for both.
+          instagram: Boolean(platforms.meta || platforms.make),
+          facebook: Boolean(platforms.meta || platforms.make),
+          // How Instagram and Facebook connect: Facebook's sign-in, or typed ids for Make.
+          meta: Boolean(platforms.meta),
         }),
       )
 
@@ -140,6 +146,9 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
 
       // Make's hourly read-back of each brand's posts, stories and counts, with its own key.
       .route('/', readingsRoutes(core, platforms.readings))
+
+      // Each brand's Facebook Page and Instagram account, by Facebook's sign-in.
+      .route('/', metaRoutes(core, platforms.meta))
 
       // Meta's webhooks: no person's session, Meta's own signature instead.
       .route('/', metaWebhookRoutes(platforms.metaHooks))

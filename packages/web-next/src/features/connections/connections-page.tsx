@@ -17,7 +17,7 @@ import {
   useConnections,
   type SourceKey,
 } from './connections-store'
-import { makeOn, type MakeKey, unlinkMake, useMakeAccount } from './make'
+import { connectMeta, makeOn, type MakeKey, metaOn, unlinkMake, useMakeAccount } from './make'
 import { MakeSheet } from './make-sheet'
 import { NotAvailable, notAvailable, reasonOf, SHOWN_ON_CORE } from './not-available'
 import { connectTikTok, disconnectTikTok, tiktokOn, useTikTokAccount } from './tiktok'
@@ -47,7 +47,8 @@ const shownGroups = () =>
  * which leaves for Pinterest's own sign-in and comes back to the moodboard to pick the board, and
  * TikTok on the core once the server has its app, which leaves for TikTok's sign-in (inbox drafts,
  * and its videos on the Feed: `tiktok.ts`) and comes back here, and Instagram and Facebook on the core once the server posts
- * through Make, which take the account's id and name in a small sheet (`make.ts`).
+ * through Make, which take the account's id and name in a small sheet (`make.ts`), or leave for
+ * Facebook's sign-in once the server has our own Meta app.
  */
 export function ConnectionsPage() {
   const { brand } = useBrand()
@@ -56,7 +57,12 @@ export function ConnectionsPage() {
   const [making, setMaking] = React.useState<MakeKey | null>(null)
 
   function open(key: SourceKey) {
-    if (makeOn(key)) setMaking(key)
+    if (makeOn(key) && metaOn()) {
+      // A real sign-in: the browser leaves for Facebook and comes back to `/connect/meta`.
+      connectMeta(brand.id).catch((err: unknown) =>
+        report(err instanceof Error && err.message ? err.message : 'That did not work.'),
+      )
+    } else if (makeOn(key)) setMaking(key)
     else if (remote && key === 'pinterest') connect(brand.id, key)
     else if (key === 'tt' && tiktokOn()) {
       // A real sign-in: the browser leaves for TikTok and comes back to `/connect/tiktok`.
@@ -147,7 +153,7 @@ function Row({
               ? tiktok
                 ? 'Videos to the TikTok inbox'
                 : make
-                  ? MAKE_BRINGS[source as MakeKey]
+                  ? (metaOn() ? META_BRINGS : MAKE_BRINGS)[source as MakeKey]
                   : info.brings
               : status === 'attention'
                 ? 'Signed out · sign in again'
@@ -160,7 +166,7 @@ function Row({
       ) : status === 'connected' ? (
         <RowMenu
           name={info.name}
-          reconnect={make ? 'Change' : 'Reconnect'}
+          reconnect={make && !metaOn() ? 'Change' : 'Reconnect'}
           onReconnect={onConnect}
           onDisconnect={() =>
             tiktok || make
@@ -191,6 +197,12 @@ function Row({
 const MAKE_BRINGS: Record<MakeKey, string> = {
   ig: 'Posts and reels',
   fb: 'Posts and reels to the Page',
+}
+
+/** What Instagram and Facebook bring through our own Meta app, Stories included. */
+const META_BRINGS: Record<MakeKey, string> = {
+  ig: 'Posts, reels and stories',
+  fb: 'Posts, reels and stories to the Page',
 }
 
 /** The Make sheet for the brand in the header, with the account it holds now. */

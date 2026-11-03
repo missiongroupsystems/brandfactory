@@ -235,6 +235,7 @@ describe('TikTok', () => {
       tiktok: true,
       instagram: false,
       facebook: false,
+      meta: false,
     })
     const off = await serve({})
     expect((await off.call('GET', '/platforms')).data).toEqual({
@@ -242,6 +243,7 @@ describe('TikTok', () => {
       tiktok: false,
       instagram: false,
       facebook: false,
+      meta: false,
     })
     expect(await off.call('POST', '/brands/casa/tiktok/connect')).toMatchObject({
       status: 503,

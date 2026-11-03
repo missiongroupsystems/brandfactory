@@ -138,11 +138,13 @@ describe('Instagram and Facebook through Make', () => {
     expect((await on.call('GET', '/platforms')).data).toMatchObject({
       instagram: true,
       facebook: true,
+      meta: false,
     })
     const off = await setUp(null)
     expect((await off.call('GET', '/platforms')).data).toMatchObject({
       instagram: false,
       facebook: false,
+      meta: false,
     })
     expect(await link(off, 'instagram', IG_ID, '@casavostra')).toMatchObject({ status: 503 })
   })

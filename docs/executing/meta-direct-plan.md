@@ -78,3 +78,23 @@ never sends one job twice under one yes; a person's retry is a new yes and posts
    fields `messages` and `feed`; Instagram fields `messages` and `comments`.
 5. Later, once the app secret is in the Keychain (`meta`/`app-secret`), set `META_APP_SECRET` the
    same way: deliveries are refused (503) until then, and Meta sends them again for 36 hours.
+
+### Phases 2 and 3: the sign-in and posting (pack 1.15.0, no migration)
+
+Release these two together: before phase 3, a Page linked by the sign-in is still posted to
+through Make, which may hold no connection to it.
+
+
+1. Dani, in the Meta app: add `pages_manage_metadata` to the configuration. Meta needs it to turn
+   a Page's webhooks on (`POST /{page-id}/subscribed_apps`); without it a Page links and posts, and
+   the inbox gets nothing from it (the link answers `webhooks: false` and the server logs it).
+2. Dani: Facebook Login for Business, Settings, Valid OAuth Redirect URIs:
+   `https://branding.missionsystems.ai/connect/meta`. Note the configuration's id. Its access token type must be "User access token": the sign-in reads the person's Pages from `/me/accounts`.
+3. Keychain items (service `meta`): `app-id`, `app-secret`, `config-id`. Set each on Fly through
+   the clipboard, as in phase 1, with `META_REDIRECT_URL=https://branding.missionsystems.ai/connect/meta`.
+   The server stops at start if one of the four is missing, so set them in one `fly secrets set`.
+4. Pack: `core publish packs/brandbase`, `core test brandbase 1.15.0`, `core migrate brandbase
+   1.15.0`, `core promote brandbase 1.15.0` (the state names how each account is linked).
+5. Deploy the server, then the web app.
+6. Connect a test brand on Connections (Instagram, Connect): Facebook's dialog, the Page, back on
+   Connections with both rows connected.

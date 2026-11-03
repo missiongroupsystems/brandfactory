@@ -458,6 +458,7 @@ describe('Pinterest', () => {
       tiktok: false,
       instagram: false,
       facebook: false,
+      meta: false,
     })
   })
 

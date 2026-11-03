@@ -1,4 +1,5 @@
 import { type MakeApp } from './make'
+import { metaApp } from './meta'
 import { type MetaHooks } from './meta-webhooks'
 import { pinterestApp } from './pinterest'
 import { tiktokApp } from './tiktok'
@@ -33,6 +34,16 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
       problems.push('MAKE_READINGS_SECRET: 32 characters or more')
     }
   }
+  // Our own Meta app's sign-in: all four, with the key. The app secret alone belongs to the webhook.
+  const metaKeys = ['META_APP_ID', 'META_APP_SECRET', 'META_CONFIG_ID', 'META_REDIRECT_URL']
+  if (['META_APP_ID', 'META_CONFIG_ID', 'META_REDIRECT_URL'].some((k) => env[k])) {
+    for (const k of [...metaKeys, 'TOKEN_ENCRYPTION_KEY'].filter((k) => !env[k])) {
+      problems.push(`${k}: Meta needs all its variables`)
+    }
+  }
+  if (env.META_REDIRECT_URL && !/^https:\/\//.test(env.META_REDIRECT_URL)) {
+    problems.push('META_REDIRECT_URL: an https address')
+  }
   for (const [name, keys] of Object.entries(GROUPS)) {
     if (!keys.some((k) => env[k])) continue
     for (const k of [...keys, 'TOKEN_ENCRYPTION_KEY'].filter((k) => !env[k])) {
@@ -62,6 +73,15 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
       env.MAKE_READINGS_SECRET && env.MAKE_READINGS_AS
         ? { secret: env.MAKE_READINGS_SECRET, as: env.MAKE_READINGS_AS }
         : undefined,
+    meta: env.META_APP_ID
+      ? metaApp({
+          appId: env.META_APP_ID,
+          appSecret: env.META_APP_SECRET!,
+          configId: env.META_CONFIG_ID!,
+          redirectUrl: env.META_REDIRECT_URL!,
+          masterKey: masterKey!,
+        })
+      : undefined,
     // The webhook stands on its verify token alone, so Meta's check passes before the app secret
     // is set; deliveries need the secret too.
     metaHooks: env.META_WEBHOOK_VERIFY_TOKEN

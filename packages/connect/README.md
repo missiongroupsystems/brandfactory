@@ -30,6 +30,9 @@ described below; it is not deployed.
   `POST /brands/:brand/tiktok/connect`, `POST /tiktok/callback`, `DELETE /brands/:brand/tiktok`,
   `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands),
   `GET /brands/:brand/tiktok/videos` (the account's newest 20 public videos with their counts).
+  `POST /brands/:brand/meta/connect`, `POST /meta/callback` (the person's Pages and a sealed
+  choice), `POST /meta/select` (links the Page and its Instagram account, turns the Page's
+  webhooks on), `DELETE /brands/:brand/meta`,
   `GET|POST /webhooks/meta` (Meta's webhook: the check when it is saved, and the signed
   deliveries; no person's session).
 - **Environment** (`src/brandbase/env.ts`): `TOKEN_ENCRYPTION_KEY`, and `PINTEREST_APP_ID`,
@@ -37,7 +40,10 @@ described below; it is not deployed.
   app's `/connect/pinterest` page. `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,
   `TIKTOK_REDIRECT_URL` (the web app's `/connect/tiktok`), all three or none. `META_WEBHOOK_VERIFY_TOKEN`
   turns the Meta webhook on: alone, it answers Meta's check and refuses deliveries; with
-  `META_APP_SECRET` it takes deliveries whose `X-Hub-Signature-256` holds. `pnpm -F @brandfactory/connect serve` starts it with the core's
+  `META_APP_SECRET` it takes deliveries whose `X-Hub-Signature-256` holds. `META_APP_ID`,
+  `META_APP_SECRET`, `META_CONFIG_ID` (the Facebook Login for Business configuration) and
+  `META_REDIRECT_URL` (the web app's `/connect/meta`), all four or none, turn on Facebook's
+  sign-in for each brand's Page and Instagram account. `pnpm -F @brandfactory/connect serve` starts it with the core's
   own variables too.
 
 ## The brand rule

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.63.0** — 2026-11-03 — `feat/meta-direct`: each brand links its Facebook Page and the Page's Instagram account by Facebook Login for Business (our own Meta app), on Connections and the new `/connect/meta` page; the Page token is sealed to each row, the Page's webhooks turn on, and Disconnect turns them off and forgets both. Owners and admins of a company on the operator's list only. Make stays the path without `META_*`. Pack 1.15.0 (the state says how an account is linked). Not for release without 2.64.0. 1371 tests (262 skipped without a Postgres server).
 - **2.62.1** — 2026-11-03 — `fix/tiktok-token-rotation`: TikTok's token rules of 2 Nov (access 2 hours, refresh 180 days, a new refresh token on every refresh): a token store that fails after a refresh is tried once more, and if that fails too the request goes on with the new token kept in memory (tested both ways); comments and README corrected. Privacy also names each inbox send's status and TikTok's reference, kept with the post. From an Opus review against TikTok's guidelines. 1614 tests: 1350 pass and 262 real-Postgres tests skip on PGlite; the full run's two failures were 30 s timeouts under load, and both files pass alone.
 - **2.62.0** — 2026-11-03 — `feat/meta-direct`: Meta's webhook on the server, `GET|POST /webhooks/meta`, so the Meta app's Webhooks settings can be saved. The check answers with `META_WEBHOOK_VERIFY_TOKEN` alone; deliveries need `META_APP_SECRET` too (503 until it is set) and a valid `X-Hub-Signature-256` over the raw body. Nothing is stored yet. No pack change. 1352 tests (262 skipped without a Postgres server).
 - **2.61.5** — 2026-11-03 — `fix/tiktok-review-ui`: what a TikTok reviewer sees signed in, on the core, and the Display API scope `video.list`. The TikTok sign-in asks for `video.list` too, and the Feed's TikTok tab shows the connected account's public videos with their views, likes, comments and shares, read live from `GET /brands/:brand/tiktok/videos` and never stored; with no TikTok account connected, the rail has no TikTok tab; an account connected before this asks to connect again. The home page, Terms and Privacy say so. The Feed's empty rows name Instagram and Facebook; a posted post shows no TikTok analytics card; a preview shows no invented likes or comments. 1605 tests: 1343 pass and 262 real-Postgres tests skip on PGlite.
@@ -130,6 +131,38 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.63.0 — 2026-11-03
+
+- **Why.** Phase 2 of `docs/executing/meta-direct-plan.md`: the brands' Instagram and Facebook
+  accounts link through our own Meta app, not typed ids.
+- **Server** (`packages/connect/src/brandbase`):
+  - `meta.ts`: the Graph client (v26.0, `appsecret_proof` on every call with a token, POST with a
+    form body, GET and DELETE with a query), the Facebook Login for Business dialog
+    (`config_id`, `response_type=code`, no `scope`), the code to a long-lived user token to
+    `/me/accounts` (Page tokens that do not expire, and each Page's Instagram business account),
+    and the Page's webhooks on and off (`subscribed_apps`).
+  - `meta-routes.ts`: `POST /brands/:brand/meta/connect`, `POST /meta/callback` (the Pages and a
+    sealed ten-minute choice; the Page tokens reach the browser only inside it), `POST
+    /meta/select` (the `facebook` row and the `instagram` row, each with the Page token sealed to
+    it, `details.via = 'meta'`; the Instagram account of a Page linked before goes first, and the
+    old Page's webhooks turn off), `DELETE /brands/:brand/meta` (forgets first, so only an owner or
+    admin reaches Meta, then turns the webhooks off). A Page whose webhooks do not turn on still
+    links (`webhooks: false`, logged): Meta needs `pages_manage_metadata` for that.
+  - `env.ts`: `META_APP_ID`, `META_APP_SECRET`, `META_CONFIG_ID`, `META_REDIRECT_URL` (https), all
+    four or none, with `TOKEN_ENCRYPTION_KEY`. `GET /platforms` says `meta`.
+  - `make-routes.ts`: an id typed for Make over a Meta link makes the account Make's again.
+- **Pack 1.15.0:** `brand.state` gives `via` for the Instagram and Facebook accounts.
+- **Web app:** with `meta` on, Connect on Instagram or Facebook opens Facebook's sign-in; the new
+  `/connect/meta` page links the only Page at once or asks which Page is the brand's; Disconnect of
+  a Meta-linked account forgets the Page and its Instagram account together. The rows say "Posts,
+  reels and stories". Screenshots of the page list and the declined sign-in, desktop and phone.
+- **Review** (Opus and Sonnet): a plain member could turn a Page's webhooks off before the forget
+  refused them; a refused Instagram link could leave the old Page's Instagram row; the old Page
+  stayed subscribed; DELETE sent its token in the body; a Make re-link kept `via: meta`; no https
+  check on the redirect. All fixed, each with a test. Open: a member who cannot link still sees
+  Facebook's screens before the 403; `webhooks: false` is not shown to the person.
+- **Tests:** fourteen in `meta.test.ts`, three in `meta-return.test.tsx`, two in
+  `meta-remote.test.tsx`; the `/platforms` tests expect `meta`.
 ## 2.62.1 — 2026-11-03
 
 - **Why.** An Opus review of the TikTok work against TikTok's published rules (Developers and API

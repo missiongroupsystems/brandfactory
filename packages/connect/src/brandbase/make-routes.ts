@@ -38,7 +38,8 @@ export function makeRoutes(core: CoreDeps, make: MakeApp | undefined) {
         accountId,
         username: name,
         tokens: 'make',
-        details: {},
+        // Typed over an account our own Meta app linked, it is Make's now.
+        details: { via: 'make' },
       })
       return c.json({ accountId, name })
     })
