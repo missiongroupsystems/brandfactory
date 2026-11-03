@@ -141,6 +141,9 @@ export function Welcome() {
           >
             For your team
           </h2>
+          <p className="text-[15px] leading-[1.55] text-ink-3">
+            Email us to set up your brand. Free to start.
+          </p>
           <a
             href={`mailto:${CONTACT}?subject=brand%20base%20team`}
             className="text-[15px] font-medium text-ink underline decoration-ink-5 underline-offset-4 hover:decoration-ink"
