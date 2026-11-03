@@ -1,4 +1,5 @@
 import { type MakeApp } from './make'
+import { type MetaHooks } from './meta-webhooks'
 import { pinterestApp } from './pinterest'
 import { tiktokApp } from './tiktok'
 import { type Platforms } from './routes'
@@ -61,6 +62,14 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
       env.MAKE_READINGS_SECRET && env.MAKE_READINGS_AS
         ? { secret: env.MAKE_READINGS_SECRET, as: env.MAKE_READINGS_AS }
         : undefined,
+    // The webhook stands on its verify token alone, so Meta's check passes before the app secret
+    // is set; deliveries need the secret too.
+    metaHooks: env.META_WEBHOOK_VERIFY_TOKEN
+      ? ({
+          verifyToken: env.META_WEBHOOK_VERIFY_TOKEN,
+          appSecret: env.META_APP_SECRET || undefined,
+        } satisfies MetaHooks)
+      : undefined,
     tiktok: env.TIKTOK_CLIENT_KEY
       ? tiktokApp({
           clientKey: env.TIKTOK_CLIENT_KEY,

@@ -90,7 +90,7 @@ async function readAtMost(res: Response, max: number): Promise<Uint8Array> {
 }
 
 /** The keys compared in constant time, whatever their lengths. */
-function sameKey(given: string | undefined, want: string): boolean {
+export function sameKey(given: string | undefined, want: string): boolean {
   const digest = (s: string) => createHash('sha256').update(s).digest()
   return given !== undefined && timingSafeEqual(digest(given), digest(want))
 }

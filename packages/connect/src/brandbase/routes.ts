@@ -14,6 +14,7 @@ import {
 } from './accounts'
 import { type MakeApp } from './make'
 import { makeRoutes } from './make-routes'
+import { type MetaHooks, metaWebhookRoutes } from './meta-webhooks'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
 import { type MakeReadings, readingsRoutes } from './readings'
 import { type TikTokApp } from './tiktok'
@@ -29,6 +30,8 @@ export interface Platforms {
   make?: MakeApp
   /** What went out on Instagram and Facebook, as Make reads it back. */
   readings?: MakeReadings
+  /** Meta's webhooks for the brands' Pages and Instagram accounts. */
+  metaHooks?: MetaHooks
   pinterest?: PinterestApp
   tiktok?: TikTokApp
 }
@@ -137,6 +140,9 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
 
       // Make's hourly read-back of each brand's posts, stories and counts, with its own key.
       .route('/', readingsRoutes(core, platforms.readings))
+
+      // Meta's webhooks: no person's session, Meta's own signature instead.
+      .route('/', metaWebhookRoutes(platforms.metaHooks))
 
       // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
       .route('/', tiktokRoutes(core, platforms.tiktok))

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.62.0** — 2026-11-03 — `feat/meta-direct`: Meta's webhook on the server, `GET|POST /webhooks/meta`, so the Meta app's Webhooks settings can be saved. The check answers with `META_WEBHOOK_VERIFY_TOKEN` alone; deliveries need `META_APP_SECRET` too (503 until it is set) and a valid `X-Hub-Signature-256` over the raw body. Nothing is stored yet. No pack change. 1352 tests (262 skipped without a Postgres server).
 - **2.61.5** — 2026-11-03 — `fix/tiktok-review-ui`: what a TikTok reviewer sees signed in, on the core, and the Display API scope `video.list`. The TikTok sign-in asks for `video.list` too, and the Feed's TikTok tab shows the connected account's public videos with their views, likes, comments and shares, read live from `GET /brands/:brand/tiktok/videos` and never stored; with no TikTok account connected, the rail has no TikTok tab; an account connected before this asks to connect again. The home page, Terms and Privacy say so. The Feed's empty rows name Instagram and Facebook; a posted post shows no TikTok analytics card; a preview shows no invented likes or comments. 1605 tests: 1343 pass and 262 real-Postgres tests skip on PGlite.
 - **2.61.4** — 2026-11-03 — `fix/tiktok-site-copy`: the public pages before TikTok's review. The home page says brand base is for any brand and free to start, with Get started (no "by invitation"); Terms say how to get an account; Privacy says sign-in, brand data and files are kept with Supabase (since 2.61.2) and the server runs on Fly.io, how long TikTok tokens are kept, that disconnecting asks TikTok to withdraw access and deletes our tokens either way, and how a TikTok creator outside the team asks for deletion; the contact is tech@missiongroup.com. 1598 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; the full run's one failure was a 30 s timeout under load in a pack test this release does not touch, which passes alone.
 - **2.61.3** — 2026-11-03 — `feat/core-no-superuser`: the database is across the internet now, so the pool gives up on a connect that gets no answer after 10 s and probes a quiet connection after 30 s (before, a connect that got no answer waited for ever; reproduced, with a test). The review before destroying `brandbase-db` (Opus and Sonnet), its live checks and its open item (Supabase network restrictions, for R1) are in `docs/executing/supabase-move-plan.md`. 1598 tests: 1336 pass and 262 real-Postgres tests skip on PGlite.
@@ -127,6 +128,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.62.0 — 2026-11-03
+
+- **Why.** Dani set up the Meta app "Mission Brandbase". Its Webhooks settings save only after
+  Meta's check reaches a live endpoint, and the owner wants that before the app secret exists. The
+  plan for the whole integration is `docs/executing/meta-direct-plan.md`.
+- **The webhook** (server, `packages/connect/src/brandbase/meta-webhooks.ts`):
+  - `GET /webhooks/meta` answers `hub.challenge` when `hub.mode` is `subscribe` and
+    `hub.verify_token` equals `META_WEBHOOK_VERIFY_TOKEN` (compared in constant time). A challenge
+    that is not a plain word is refused, so nothing a caller sends is written back as a page.
+  - `POST /webhooks/meta` reads the raw body (5 MB at most: Meta batches up to 1000 changes),
+    checks `X-Hub-Signature-256` (`sha256=` and the HMAC-SHA256 of the bytes with
+    `META_APP_SECRET`, constant time) before it reads JSON, and hands the delivery on. It answers
+    401 for a bad signature, 503 while the secret is not set, 400 for a body that is not a
+    delivery, and 500 when the handler fails, so Meta sends it again (for up to 36 hours). The
+    handler only logs the object and the number of entries for now.
+- **Settings** (`env.ts`): `META_WEBHOOK_VERIFY_TOKEN` alone turns the webhook on;
+  `META_APP_SECRET` beside it turns the deliveries on. Neither is in an all-or-none group.
+- **Tests:** nine in `meta-webhooks.test.ts`, on the core's HTTP door with the account routes.
+- **Release:** `docs/executing/meta-direct-plan.md`, "Phase 1". A review (Opus and Sonnet) found no
+  defect; its test gaps (the 413, a delivery with no verify token) are closed.
 
 ## 2.61.5 — 2026-11-03
 

@@ -30,10 +30,14 @@ described below; it is not deployed.
   `POST /brands/:brand/tiktok/connect`, `POST /tiktok/callback`, `DELETE /brands/:brand/tiktok`,
   `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands),
   `GET /brands/:brand/tiktok/videos` (the account's newest 20 public videos with their counts).
+  `GET|POST /webhooks/meta` (Meta's webhook: the check when it is saved, and the signed
+  deliveries; no person's session).
 - **Environment** (`src/brandbase/env.ts`): `TOKEN_ENCRYPTION_KEY`, and `PINTEREST_APP_ID`,
   `PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL`, all three or none. The redirect is the web
   app's `/connect/pinterest` page. `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,
-  `TIKTOK_REDIRECT_URL` (the web app's `/connect/tiktok`), all three or none. `pnpm -F @brandfactory/connect serve` starts it with the core's
+  `TIKTOK_REDIRECT_URL` (the web app's `/connect/tiktok`), all three or none. `META_WEBHOOK_VERIFY_TOKEN`
+  turns the Meta webhook on: alone, it answers Meta's check and refuses deliveries; with
+  `META_APP_SECRET` it takes deliveries whose `X-Hub-Signature-256` holds. `pnpm -F @brandfactory/connect serve` starts it with the core's
   own variables too.
 
 ## The brand rule
