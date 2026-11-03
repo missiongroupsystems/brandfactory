@@ -5,6 +5,7 @@ import { type Context, Hono } from 'hono'
 import { bound, PACK, readAccount, type Who } from './accounts'
 import { words } from './make'
 import { type MetaApp, MetaError, MetaReconnect } from './meta'
+import { definite } from './meta-post'
 import { viaMeta } from './meta-routes'
 import { type MetaDelivery } from './meta-webhooks'
 
@@ -30,6 +31,8 @@ export interface Batch {
   platform: 'instagram' | 'facebook'
   account: string
   items: Incoming[]
+  /** Our ids of the messages the person deleted on the platform. */
+  removed: string[]
 }
 
 type Json = Record<string, unknown>
@@ -65,12 +68,18 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
     const account = str(entry.id)
     if (!/^[0-9]{1,30}$/.test(account)) continue
     const items: Incoming[] = []
+    const removed: string[] = []
     for (const m of Array.isArray(entry.messaging) ? entry.messaging : []) {
       const e = obj(m)
       const message = obj(e.message)
       const sender = str(obj(e.sender).id)
       const mid = str(message.mid)
       if (!mid || !sender || sender === account || message.is_echo === true) continue
+      // The person deleted it: our copy goes too.
+      if (message.is_deleted === true) {
+        removed.push(idOf(mid))
+        continue
+      }
       const text = str(message.text) || '(a photo, a video or a sticker)'
       items.push({
         id: idOf(mid),
@@ -87,8 +96,14 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
       const v = obj(change.value)
       const from = obj(v.from)
       if (platform === 'facebook') {
-        if (change.field !== 'feed' || v.item !== 'comment' || v.verb !== 'add') continue
+        if (change.field !== 'feed' || v.item !== 'comment') continue
         const comment = str(v.comment_id)
+        // A comment removed on the Page: our copy goes too.
+        if (v.verb === 'remove' && comment) {
+          removed.push(idOf(comment))
+          continue
+        }
+        if (v.verb !== 'add') continue
         if (!comment || str(from.id) === account) continue
         items.push({
           id: idOf(comment),
@@ -115,7 +130,7 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
         })
       }
     }
-    if (items.length > 0) out.push({ platform, account, items })
+    if (items.length > 0 || removed.length > 0) out.push({ platform, account, items, removed })
   }
   return out
 }
@@ -146,7 +161,11 @@ export function inboxHandler(core: CoreDeps, as: string | undefined) {
       } catch (err) {
         // Meta is answered all the same: sending again would not help. The account alone is logged.
         if (!(err instanceof Refused && err.code === 'NOT_FOUND')) throw err
-        console.warn('meta webhook: no brand within reach holds', b.platform, b.account)
+        console.error(
+          'meta webhook: dropped, no brand within reach of META_WEBHOOK_AS holds',
+          b.platform,
+          b.account,
+        )
       }
     }
   }
@@ -206,6 +225,12 @@ export function metaInboxRoutes(core: CoreDeps, meta: MetaApp | undefined) {
     }
   }
 
+  const unsure = (name: string) =>
+    new Refused(
+      502,
+      'PLATFORM',
+      `${name} did not answer. The reply may have gone: check the account before you send it again.`,
+    )
   const said = (err: unknown, name: string) => {
     if (err instanceof MetaReconnect) {
       return new Refused(409, 'META_RECONNECT', `Connect ${name} again on Connections.`)
@@ -273,17 +298,26 @@ export function metaInboxRoutes(core: CoreDeps, meta: MetaApp | undefined) {
             )
           }
         } catch (err) {
-          // Meta said no: nothing went, and the message stays to answer. Any other failure may hide
-          // a reply that went: it leaves the inbox, and the words say to check the account.
-          const refused = err instanceof MetaError || err instanceof MetaReconnect
+          // Meta said no (a stated refusal): nothing went, and the message stays to answer. Any
+          // other failure, Meta's own "unknown" and "try again" included, may hide a reply that
+          // went: it leaves the inbox, and the words say to check the account.
+          const refused = definite(err)
           await move(c, 'inbox.meta_done', {
             brand: h.brand,
             id: h.id,
             status: refused ? 'failed' : 'unknown',
           })
-          throw said(err, h.name)
+          throw refused ? said(err, h.name) : unsure(h.name)
         }
-        await move(c, 'inbox.meta_done', { brand: h.brand, id: h.id, status: 'sent' })
+        // Meta took it: the person sees it sent whatever happens to the record. The record is
+        // tried twice; if both fail, the claim still holds the message for five minutes, and the
+        // log names it.
+        const done = () => move(c, 'inbox.meta_done', { brand: h.brand, id: h.id, status: 'sent' })
+        try {
+          await done().catch(done)
+        } catch (err) {
+          console.error('meta reply: sent, not recorded', h.brand, h.id, (err as Error).message)
+        }
         return c.json({ id: h.id, status: 'sent' })
       })
 

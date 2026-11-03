@@ -1,0 +1,22 @@
+{
+  "name": "account.meta_check",
+  "description": "Says yes when the person may link the brand's Facebook Page and Instagram account through our own Meta app: an owner or admin of a company on the operator's list, as account.link checks. Asked before Facebook's dialog opens, so no one else sees it first. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["facebook"]
+      }
+    }
+  },
+  "before": ["brand.reachable", "account.make_managed"],
+  "internal": true,
+  "returns": "one",
+  "sql": "select jsonb_build_object('brand', :brand::text) as result"
+}

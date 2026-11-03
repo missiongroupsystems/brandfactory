@@ -31,7 +31,7 @@ import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/c
 import { brandToday, dayOf, storyTaken, tooSoon } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
-import { useStoryAccounts } from '@/features/connections/make'
+import { useMakeAccount, useStoryAccounts } from '@/features/connections/make'
 import { NotAvailable } from '@/features/connections/not-available'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
@@ -1284,6 +1284,15 @@ function Accounts({
   // Story on the core, which Make cannot post), the post is planned on every account.
   const stories = useStoryAccounts(brand.id)
   const posters = postersOf(sends, draft.format, stories)
+  // A Reel to the Page through our own Meta app is public: Meta asks that the person is told
+  // (Reels Publishing API, "Sharing Disclosure" and "Privacy / Who can see this?").
+  const fbViaMeta = useMakeAccount(brand.id, 'fb')?.via === 'meta'
+  const reelPublic =
+    remote &&
+    fbViaMeta &&
+    draft.format === 'reel' &&
+    draft.selected.includes('fb') &&
+    draft.connected.includes('fb')
   const planOnly = posters.length === 0
   // An account that cannot take the format (TikTok takes no Story) is never shown.
   const shown = linkedChannels(draft).filter((c) =>
@@ -1390,6 +1399,12 @@ function Accounts({
             Connect an account
           </Link>
         )
+      )}
+      {reelPublic && (
+        <p className="w-full pt-1 text-[12.5px] leading-normal text-ink-4 max-md:pt-3">
+          Who can see this on Facebook: Public. A Reel on a Page is public, and Facebook may show it
+          to people who don&rsquo;t follow the Page.
+        </p>
       )}
     </section>
   )

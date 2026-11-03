@@ -58,6 +58,9 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
   const now = () => core.now().getTime()
   const who = (c: Context): Who => ({ authorization: c.req.header('authorization') })
   const person = (c: Context) => authenticate(core.auth, c.req.header('authorization'))
+  /** One of the pack's internal moves, run as the person. */
+  const metaMove = (c: Context, op: string, input: Record<string, unknown>) =>
+    call(core, { authorization: who(c).authorization, pack: PACK, op, input, internal: true })
   const invalid = () =>
     new Refused(400, 'META_STATE', 'this Facebook link is not valid. Start again.')
 
@@ -67,7 +70,8 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
       .post('/brands/:brand/meta/connect', async (c) => {
         const app = appOf(meta)
         const brand = c.req.param('brand')
-        await readAccount(core, who(c), brand, 'facebook')
+        // Who may link is checked here, before Facebook's dialog, and again when linking.
+        await metaMove(c, 'account.meta_check', { brand, platform: 'facebook' })
         const state = app.sealState({ userId: await person(c), brandId: brand }, now())
         return c.json({ url: app.authorizeUrl(state) })
       })
@@ -116,8 +120,9 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
         if (viaMeta(before) && before.accountId !== page.igUserId) {
           await forgetAccount(core, who(c), brand, 'instagram', before.accountId)
         }
-        // A Page linked before stops sending its webhooks here.
+        // A Page linked before stops sending its webhooks here, and its comments and DMs go.
         if (viaMeta(oldPage) && oldPage.accountId !== page.id) {
+          await metaMove(c, 'inbox.meta_forget', { brand, platform: 'facebook' })
           try {
             const old = app.openToken(oldPage.tokens, bound('facebook', brand, oldPage.accountId))
             await app.unsubscribe(oldPage.accountId, old)
@@ -168,13 +173,7 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
         if (viaMeta(ig)) await forgetAccount(core, who(c), brand, 'instagram', ig.accountId)
         // The comments and DMs that came through the Page go with it, and their senders' ids.
         if (viaMeta(page) || viaMeta(ig)) {
-          await call(core, {
-            authorization: who(c).authorization,
-            pack: PACK,
-            op: 'inbox.meta_forget',
-            input: { brand, platform: 'facebook' },
-            internal: true,
-          })
+          await metaMove(c, 'inbox.meta_forget', { brand, platform: 'facebook' })
         }
         let unsubscribed = false
         if (app && viaMeta(page)) {

@@ -48,7 +48,7 @@ const row = (id: string, kind: 'comment' | 'dm', fromName: string, text: string)
   receivedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
   doneAt: null,
   sentTo: [],
-  external: kind === 'dm' ? { sender: '9001', mid: 'm.1' } : { comment: '1801' },
+  external: true,
 })
 
 const load = () =>

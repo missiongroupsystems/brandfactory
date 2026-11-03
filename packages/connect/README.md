@@ -134,7 +134,7 @@ Replace `https://connect.example.com` with `PUBLIC_BASE_URL`.
 2. Create a configuration with a **User access token** and these permissions:
    `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_content_publish`,
    `instagram_manage_comments`, `instagram_manage_insights`, `pages_manage_posts`,
-   `pages_manage_engagement`, `pages_read_user_engagement`, `publish_video`, and `ads_read`
+   `pages_manage_engagement`, `pages_read_user_engagement`, and `ads_read`
    when the Page role comes through Business Manager.
 3. Put its id in `META_CONFIG_ID`. The dialog sends `config_id` and no `scope`.
 4. Under Valid OAuth Redirect URIs, add `https://connect.example.com/callback/meta`.
@@ -147,7 +147,7 @@ The service uses Graph API `v26.0`.
 
 1. A Facebook Login for Business configuration with a **User access token** and these
    permissions: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`,
-   `pages_manage_metadata` (turns a Page's webhooks on), `publish_video`, `business_management`,
+   `pages_manage_metadata` (turns a Page's webhooks on), `business_management`,
    `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`,
    `instagram_manage_messages`, `instagram_manage_insights`, `pages_messaging`,
    `pages_manage_engagement`, `pages_read_user_content`; and `ads_management`

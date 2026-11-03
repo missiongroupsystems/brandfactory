@@ -14,6 +14,7 @@
           "input": {
             "platform": "instagram",
             "account": "17841400000000001",
+            "removed": [],
             "items": [
               {
                 "id": "meta-c1",
@@ -26,13 +27,14 @@
               }
             ]
           },
-          "expect": { "result": { "brand": "casa", "stored": 1 } }
+          "expect": { "result": { "brand": "casa", "stored": 1, "removed": 0 } }
         },
         {
           "call": "inbox.meta_receive",
           "input": {
             "platform": "instagram",
             "account": "17841400000000001",
+            "removed": [],
             "items": [
               {
                 "id": "meta-c1",
@@ -49,7 +51,7 @@
         },
         {
           "call": "inbox.meta_receive",
-          "input": { "platform": "facebook", "account": "999", "items": [] },
+          "input": { "platform": "facebook", "account": "999", "items": [], "removed": [] },
           "expect": { "status": 404, "code": "NOT_FOUND" }
         },
         {
@@ -116,6 +118,16 @@
           "call": "inbox.meta_forget",
           "input": { "brand": "temper", "platform": "facebook" },
           "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "account.meta_check",
+          "input": { "brand": "temper", "platform": "facebook" },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "account.meta_check",
+          "input": { "brand": "casa", "platform": "facebook" },
+          "expect": { "result": { "brand": "casa" } }
         }
       ]
     }

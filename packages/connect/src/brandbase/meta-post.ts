@@ -15,14 +15,16 @@ import { viaMeta } from './meta-routes'
 
 /**
  * A job's time with Meta, from its start, inside the connector's limit (`META_SEND_MS`, 230 s;
- * every Graph call stops after a minute): waits for Instagram to process the files end by 95 s;
- * the call that publishes starts by 125 s, or nothing is sent; reads after it (a Page video's
- * processing, the permalink) start by 165 s. A send can then never outlast the core's limit and
- * post after the core has called its outcome unknown.
+ * every Graph call stops after a minute, an upload when the publish must start): waits for
+ * Instagram to process the files end by 150 s; the call that publishes starts by 165 s, or nothing
+ * is sent; reads after it (a Page video's processing, the permalink) start by 170 s. A send can
+ * then never outlast the core's limit and post after the core has called its outcome unknown. A
+ * video Instagram takes longer than 150 s to process is not posted: try again with a shorter or
+ * smaller file.
  */
-export const META_WAIT_MS = 95_000
-const PUBLISH_BY_MS = 125_000
-const READ_BY_MS = 165_000
+export const META_WAIT_MS = 150_000
+const PUBLISH_BY_MS = 165_000
+const READ_BY_MS = 170_000
 /** How often a wait asks again. */
 const EVERY_MS = 5_000
 
@@ -51,7 +53,7 @@ export interface MetaSend {
  * Meta refused in a way that proves nothing was posted: a stated error, not Meta's own "unknown"
  * or "try again" (codes 1 and 2, or `is_transient`), and not a lost answer.
  */
-const definite = (err: unknown) =>
+export const definite = (err: unknown) =>
   err instanceof MetaReconnect ||
   (err instanceof MetaError &&
     err.code !== null &&
@@ -149,13 +151,13 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
 
   /** Waits until `ready` says yes; out of time, nothing was posted. */
   async function waitUntil(ready: () => Promise<boolean>) {
+    const slow = () =>
+      new NotSent(`${name} took too long to process the video. Nothing was posted. Try again.`)
     for (;;) {
+      // No read starts past the wait's end, so none can outlast the core's limit.
+      if (now() > until) throw slow()
       if (await ready()) return
-      if (now() + EVERY_MS > until) {
-        throw new NotSent(
-          `${name} took too long to process the video. Nothing was posted. Try again.`,
-        )
-      }
+      if (now() + EVERY_MS > until) throw slow()
       await sleep(EVERY_MS)
     }
   }
@@ -290,7 +292,8 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
         'POST',
       )
       if (late(PUBLISH_BY_MS)) throw tooLate()
-      await s.meta.upload(session.upload_url, token, urls[0]!)
+      // Meta's fetch of the file ends by the time the publish must start.
+      await s.meta.upload(session.upload_url, token, urls[0]!, PUBLISH_BY_MS - (now() - start))
       const finish: Record<string, string> =
         p.format === 'story'
           ? { video_id: session.video_id, upload_phase: 'finish' }

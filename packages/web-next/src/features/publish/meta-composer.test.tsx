@@ -21,13 +21,14 @@ const core = vi.hoisted(() => ({
   loaded: false,
   waiting: [] as Array<(id: string, state: unknown) => void>,
   state: (() => ({})) as () => unknown,
+  facebookVia: 'make',
 }))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   core.state = () => ({
     ...demoAsCore('casa-vostra'),
     instagram: { name: 'casavostra', accountId: '17841400000000001', via: 'meta' },
-    facebook: { name: 'Casa Vostra', accountId: '100000000000001', via: 'make' },
+    facebook: { name: 'Casa Vostra', accountId: '100000000000001', via: core.facebookVia },
   })
   return {
     ...(await original<typeof Remote>()),
@@ -124,5 +125,24 @@ describe('the composer with Instagram through our own Meta app', () => {
     // Facebook stays on the post as planned.
     const patch = requests.find((r) => r.call.startsWith('PATCH '))
     expect((patch!.body as { channels: string[] }).channels).toEqual(['ig', 'fb'])
+  })
+
+  it('says a Reel to a Page linked through Meta is public, as Meta asks', async () => {
+    core.facebookVia = 'meta'
+    act(() => core.waiting.forEach((hydrate) => hydrate('casa-vostra', core.state())))
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getAllByRole('radio', { name: 'Reel' })[0]!)
+    tick('Facebook')
+    expect(screen.getByText(/Who can see this on Facebook: Public/)).toBeInTheDocument()
+    tick('Facebook', false)
+    expect(screen.queryByText(/Who can see this on Facebook/)).toBeNull()
+    core.facebookVia = 'make'
+    act(() => core.waiting.forEach((hydrate) => hydrate('casa-vostra', core.state())))
   })
 })

@@ -195,30 +195,42 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     expect(await t.accounts()).toHaveLength(2)
   })
 
-  it('lets only an owner or admin of a company on the operator’s list link the Page', async () => {
+  it('lets only an owner or admin of a company on the operator’s list start the sign-in, before Facebook’s dialog', async () => {
     const t = await setUp()
-    // A member of the brand's company may start, but not link.
-    const { done } = await signIn(t, 'code-casa', 'member')
-    const linked = await t.call(
+    // A member of the brand's company.
+    expect(await t.call('POST', '/brands/casa/meta/connect', {}, 'member')).toMatchObject({
+      status: 403,
+      data: { code: 'FORBIDDEN' },
+    })
+    // Company B is not on the list: its admin cannot either.
+    expect((await t.call('POST', '/brands/temper/meta/connect', {}, 'both')).status).toBe(403)
+    expect(t.meta.calls).toEqual([])
+    expect(await t.accounts()).toEqual([])
+  })
+
+  it('deletes the old Page’s comments and DMs when the brand switches to another Page', async () => {
+    const t = await setUp()
+    const first = await signIn(t)
+    await t.call(
       'POST',
       '/meta/select',
-      { choice: done.data.choice, pageId: '100001' },
-      'member',
+      { choice: first.done.data.choice, pageId: '100001' },
+      'owner',
     )
-    expect(linked).toMatchObject({ status: 403, data: { code: 'FORBIDDEN' } })
-    // Company B is not on the list: its admin cannot link either.
-    const b = await signIn(t, 'code-casa', 'both', 'temper')
+    await t.db.exec(
+      `insert into brandbase.inbox_messages (id, brand_id, platform, kind, from_name, from_handle, text, received_at, tone, external)
+       values ('meta-old', 'casa', 'fb', 'dm', 'A', '', 'Hi', now(), 'question', '{"sender": "1"}')`,
+    )
+    const second = await signIn(t)
+    await t.call(
+      'POST',
+      '/meta/select',
+      { choice: second.done.data.choice, pageId: '100002' },
+      'owner',
+    )
     expect(
-      (
-        await t.call(
-          'POST',
-          '/meta/select',
-          { choice: b.done.data.choice, pageId: '100001' },
-          'both',
-        )
-      ).status,
-    ).toBe(403)
-    expect(await t.accounts()).toEqual([])
+      await t.db.query(`select id from brandbase.inbox_messages where id = 'meta-old'`),
+    ).toEqual([])
   })
 
   it('refuses a link or a choice finished by anyone but the person who started it', async () => {

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { type MakeApp, type Payload, socialConnector } from './make'
 import { metaApp } from './meta'
 import { metaSender, sendThroughMeta } from './meta-post'
+import { addPrincipal, setLoadout } from '@brandfactory/core/src/registry'
 import { serve } from './test-core'
 
 const SIG = 'A'.repeat(43)
@@ -471,17 +472,17 @@ describe('what a send through Meta answers when it does not post', () => {
       media: [{ kind: 'video', mime: 'video/mp4', bytes: 1, key: MP4 }],
     })
     const g = fakeGraph()
-    // Each status read takes 40 s: the publish would start past its time.
+    // Each status read takes 60 s: the publish would start past its time.
     const clock = { at: 0 }
     const graph = g.app.graph
     const slowRead = {
       ...g.app,
       graph: (async (path: string, params: Record<string, string>, method?: 'GET' | 'POST') => {
-        if (params.fields === 'status_code') clock.at += 40_000
+        if (params.fields === 'status_code') clock.at += 60_000
         return graph(path, params, method)
       }) as typeof graph,
     }
-    // FINISHED arrives at 130 s: in time for the wait, too late for the publish.
+    // FINISHED arrives at 190 s: the wait asked in time, too late for the publish.
     g.state.status = ['IN_PROGRESS', 'IN_PROGRESS', 'FINISHED']
     const got = await sendThroughMeta(
       {
@@ -500,6 +501,92 @@ describe('what a send through Meta answers when it does not post', () => {
       message: 'Instagram took too long to take the files. Nothing was posted. Try again.',
     })
     expect(g.calls.some((c) => c.path.endsWith('media_publish'))).toBe(false)
+  })
+
+  it('ends Meta’s fetch of a Page video by the time the publish must start', async () => {
+    const reel = job({
+      channel: 'fb',
+      account: PAGE,
+      format: 'reel',
+      media: [{ kind: 'video', mime: 'video/mp4', bytes: 1, key: MP4 }],
+    })
+    const g = fakeGraph()
+    const clock = { at: 0 }
+    const limits: number[] = []
+    const upload = g.app.upload
+    const meta = {
+      ...g.app,
+      upload: async (url: string, token: string, file: string, timeoutMs?: number) => {
+        limits.push(timeoutMs!)
+        return upload(url, token, file, timeoutMs)
+      },
+      graph: (async (path: string, params: Record<string, string>, method?: 'GET' | 'POST') => {
+        // The session's start takes 100 s.
+        if (params.upload_phase === 'start') clock.at += 100_000
+        return g.app.graph(path, params, method)
+      }) as typeof g.app.graph,
+    }
+    await sendThroughMeta(
+      {
+        meta,
+        token: TOKEN,
+        sign: async (key) => `https://storage.test/${key}`,
+        now: () => clock.at,
+        sleep: async (ms) => {
+          clock.at += ms
+        },
+      },
+      reel,
+    )
+    expect(limits).toEqual([65_000])
+  })
+
+  it('starts no status read once the wait is over, so none outlasts the core’s limit', async () => {
+    const g = fakeGraph()
+    const clock = { at: 0 }
+    const graph = g.app.graph
+    const reads: number[] = []
+    const meta = {
+      ...g.app,
+      graph: (async (path: string, params: Record<string, string>, method?: 'GET' | 'POST') => {
+        // The first carousel child takes until 160 s.
+        if (method === 'POST' && params.is_carousel_item) clock.at = Math.max(clock.at, 160_000)
+        if (params.fields === 'status_code') reads.push(clock.at)
+        return graph(path, params, method)
+      }) as typeof graph,
+    }
+    const got = await sendThroughMeta(
+      {
+        meta,
+        token: TOKEN,
+        sign: async (key) => `https://storage.test/${key}`,
+        now: () => clock.at,
+        sleep: async (ms) => {
+          clock.at += ms
+        },
+      },
+      job({
+        media: [
+          { kind: 'video', mime: 'video/mp4', bytes: 1, key: MP4 },
+          { kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG },
+        ],
+      }),
+    ).catch((err: Error & { sent?: unknown }) => ({ sent: err.sent }))
+    expect(got).toEqual({ sent: false })
+    expect(reads).toEqual([])
+  })
+
+  it('reads the account as the agent a job runs for, within the agent’s moves', async () => {
+    const t = await setUp()
+    await addPrincipal(t.db, 'owner/bot', 'owner')
+    const send = metaSender(t.core, t.graph.app, files.store.signedReadUrl)
+    const p = job({ media: [{ kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }] })
+    // Without `account.read` in its loadout, nothing is sent, in words.
+    await setLoadout(t.db, 'owner/bot', 'brandbase', ['post.publish_job'])
+    await expect(send(p, 'owner/bot')).rejects.toMatchObject({ sent: false })
+    expect(t.graph.calls).toEqual([])
+    await setLoadout(t.db, 'owner/bot', 'brandbase', ['post.publish_job', 'account.read'])
+    expect(await send(p, 'owner/bot')).toMatchObject({ externalId: expect.stringMatching(/^1790/) })
   })
 
   it('refuses a job for an account linked through Meta while the server has no Meta app', async () => {

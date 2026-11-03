@@ -16,8 +16,8 @@ not set.
   IG username). Each row's `tokens` is the Page token, sealed to that row (`bound(platform, brand,
   account)`). `details` = `{ "via": "meta", "pageId": … }`. A Page token read with a long-lived user
   token does not expire. No new table for accounts.
-- **Payload.** `post.publish_job` adds `via` (`meta` or `make`, from the account's details) and
-  `since` (`post_jobs.scheduled_at`, set only by `post.schedule`), as the Zernio design did.
+- **Payload.** `post.publish_job` adds `via` (`meta` or `make`, from the account's details).
+  Graph takes no idempotency key, so there is no `since`: the core uses a person's yes once.
 - **Incoming.** Comments and DMs from webhooks go into `brandbase.inbox_messages` (exists), with the
   platform's id as a unique key per brand, so Meta's retries store each event once.
 
@@ -141,8 +141,9 @@ Release with phases 2 and 3, or after them.
    Group), `core loadout <owner-id>/meta brandbase inbox.meta_receive`.
 2. `fly secrets set -a brandfactory META_WEBHOOK_AS=<owner-id>/meta` (not a secret, but kept with
    the others).
-3. `core loadout <uid> brandbase all` for every person: the new moves `inbox.meta_read`,
-   `inbox.meta_done`, `inbox.meta_hidden`.
+3. `core loadout <uid> brandbase all` for every person: the new moves `account.meta_check`,
+   `inbox.meta_read`, `inbox.meta_claim`, `inbox.meta_done`, `inbox.meta_hidden`,
+   `inbox.meta_forget`.
 4. On the test brand: send the Page a Messenger message and the Instagram account a DM and a
    comment; each shows in the Inbox within seconds; answer each; hide a comment. Check each on
    the platform. Until the app is Live with Advanced Access, only people with a role on the app
@@ -160,7 +161,9 @@ configuration names `pages_read_user_engagement`, which does not exist: it is
 1. Sign-in: Connections, Connect Instagram, Facebook's dialog, the Page picked, both rows
    connected (`pages_show_list`, `business_management`, `instagram_basic`).
 2. Posting: a photo, a carousel, a Reel and a story scheduled and live on Instagram and on the
-   Page (`instagram_content_publish`, `pages_manage_posts`, `publish_video`).
+   Page (`instagram_content_publish`, `pages_manage_posts`). `publish_video` is not asked for:
+   Meta's Reels and Page Stories docs need only `pages_show_list`, `pages_read_engagement` and
+   `pages_manage_posts`.
 3. Comments: a comment made on Instagram and on the Page shows in the Inbox; the reply shows
    under it on the platform; Hide hides it (`instagram_manage_comments`,
    `pages_read_user_content`, `pages_manage_engagement`).
@@ -183,3 +186,29 @@ Release with phase 4. Nothing to set. On the test brand, the Feed's Instagram an
 show the account's newest 20 posts with their counts, read from Meta each time
 (`GET /brands/:brand/meta/:platform/posts`); Make's read-back stays for accounts linked through
 Make.
+
+### Checks before release (the final review)
+
+1. **Agents that fire posts.** A job runs as the principal that scheduled it; for an account
+   linked through Meta the send reads the account as that principal, so an agent that schedules
+   posts needs `account.read`: `core loadout <agent> brandbase <its moves> account.read`. Without
+   it the job fails in words and nothing is sent.
+2. **The webhook principal's reach.** Every company on the operator's list must have the
+   principal's person as a member, or that company's messages are refused and logged as errors
+   ("dropped, no brand within reach"). Read only:
+   `BEGIN; SET TRANSACTION READ ONLY; select o.org_id, exists (select 1 from brandbase.org_members m where m.org_id = o.org_id and m.user_id = '<owner-id>') as reached from brandbase.make_orgs o; ROLLBACK;`
+   Every row must say `reached = true`.
+3. **Meta fetches our files.** On the test brand, post one photo, one Reel and one large Reel
+   (near Meta's 90 s limit) to both platforms, and check that Meta fetched each signed Supabase
+   link (Meta reads with `facebookexternalhit/1.1`, and refuses files a robots.txt blocks). Keep
+   "Require App Secret" off in the app's settings until this passes; every call already sends
+   `appsecret_proof`.
+4. **Deleted messages.** A Facebook comment removed on the Page and an Instagram DM its writer
+   deletes are deleted here when Meta's webhook says so. Instagram sends no event for a deleted
+   comment, so one stays until the brand disconnects or asks.
+5. **Instagram comments.** In the Webhooks settings, tick Instagram `comments` and `messages` at
+   app level. Instagram sends comments only to apps with Advanced Access for `comments`, so
+   outside brands get no comments until App Review.
+6. **A Reel that takes long.** Instagram's processing must end within 150 s of the send, and
+   the publish must start by 165 s, inside the core's 240 s limit; a longer one is not posted and
+   says to try again with a shorter or smaller file.

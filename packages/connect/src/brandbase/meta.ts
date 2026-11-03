@@ -186,14 +186,14 @@ export function metaApp(config: MetaConfig) {
      * Hands Meta a video to fetch from our storage, for a Page Reel or a Page video story: the
      * `upload_url` (on rupload.facebook.com) that the session's start answered.
      */
-    async upload(uploadUrl: string, token: string, fileUrl: string) {
+    async upload(uploadUrl: string, token: string, fileUrl: string, timeoutMs = 120_000) {
       if (new URL(uploadUrl).hostname !== 'rupload.facebook.com') {
         throw new MetaError('the upload address is not Meta’s', null)
       }
       const res = await doFetch(uploadUrl, {
         method: 'POST',
         headers: { Authorization: `OAuth ${token}`, file_url: fileUrl },
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(Math.min(timeoutMs, 120_000)),
       })
       const body = (await res.json().catch(() => ({}))) as { success?: boolean } & GraphError
       if (body.error) throw new MetaError(body.error.message, body.error.code)

@@ -81,10 +81,12 @@ export default function Page() {
           at the time they choose, and to show the team the comments and messages people send the
           brand&rsquo;s Page and Instagram account, so the team can answer them. It keeps each
           comment and message (its words, the sender&rsquo;s name or username, when it came, and the
-          ids an answer needs) with the brand, and sends only the answer a person on the team
-          writes; it hides a comment only when a person asks. The Feed shows the account&rsquo;s
-          newest posts and their views, likes, comments and shares, read from Meta each time and not
-          stored.
+          ids an answer needs) with the brand, with the answer and who on the team wrote it. It
+          sends only the answer a person on the team writes, and hides a comment only when a person
+          asks. A comment or message is kept until the brand disconnects Facebook or we are asked to
+          delete it; a Facebook comment or an Instagram message its writer deletes is deleted here
+          too. The Feed shows the account&rsquo;s newest posts and their views, likes, comments and
+          shares, read from Meta each time and not stored.
         </p>
         <p>
           To delete what brand base keeps from Facebook and Instagram, disconnect Facebook in

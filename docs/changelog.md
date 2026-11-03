@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.1** — 2026-11-03 — `feat/meta-direct`: the final review's fixes. A reply Meta answered with its own "unknown" or "try again" no longer comes back to be sent twice; who may link Meta is checked before Facebook's dialog (`account.meta_check`); deleted Facebook comments and Instagram DMs are deleted here, and switching Page deletes the old Page's messages; the screens no longer see senders' ids; Instagram may take 150 s to process a video; the upload and every read end inside the core's limit; a Reel to a Page says it is public; `publish_video` is not asked for. Pack 1.15.0. 1409 tests (264 skipped without a Postgres server).
 - **2.66.0** — 2026-11-03 — `feat/meta-direct`: the Feed's Instagram and Facebook tabs, for an account linked through our own Meta app, show its newest 20 posts with views, likes, comments and shares read live from Meta and never stored, in place of Make's read-back. No pack change. 1402 tests (264 skipped without a Postgres server).
 - **2.65.0** — 2026-11-03 — `feat/meta-direct`: comments and DMs from the brand's Page and Instagram account, through Meta's webhook, land in the Inbox (migration `0026_meta_inbox.sql`, pack 1.15.0, not applied to production); the team answers them there (a DM within Meta's 24-hour window) and hides a comment. 1396 tests (264 skipped without a Postgres server).
 - **2.64.0** — 2026-11-03 — `feat/meta-direct`: a due Instagram or Facebook job whose account was linked through our own Meta app posts through the Graph API: Instagram photo, carousel, Reel and story; Facebook photo, several photos, Reel and story. Make keeps the accounts linked through it. The composer schedules a Story to the accounts that post one. The core tells a connector whose call a send is. Pack 1.15.0 (the payload names `via`). 1384 tests (262 skipped without a Postgres server).
@@ -134,6 +135,40 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.66.1 — 2026-11-03
+
+- **Why.** The final review of `feat/meta-direct` (Opus and Sonnet) found no blocker; these are
+  its fixes, each with a test where one can fail.
+- **Replies** (`meta-inbox.ts`): Meta's codes 1 and 2 and `is_transient` after a send mean it may
+  have gone (`meta-post.ts`'s `definite()`, now shared): the message closes as `unknown`. After
+  Meta takes a reply, a failing record is tried again, then logged; the person sees it sent.
+- **Agents:** a job an agent fires reads the account as that agent, so the agent needs
+  `account.read` (tested both ways; release check 1 in the plan).
+- **Webhook:** a delivery for an account no brand within the principal's reach holds is logged as
+  an error with its platform and account; the plan has a read-only check of the principal's
+  companies against the operator's list.
+- **Time** (`meta-post.ts`): Instagram may process for 150 s (was 95 s); the publish starts by
+  165 s; reads after it by 170 s; no status read starts once the wait is over; Meta's fetch of a
+  Page video (`upload`) ends by the time the publish must start. Every path stays inside the
+  core's 240 s.
+- **Retention** (Platform Terms §3.d.i.2): `inbox.meta_receive` takes `removed`: a Page comment
+  removed (`verb: remove`) and an Instagram DM deleted (`is_deleted`) are deleted here; picking
+  another Page deletes the old Page's messages (`inbox.meta_forget`). Privacy says the reply and
+  its writer are kept, and for how long. `brand.state` gives the screens only whether a message
+  came through Meta, never the senders' ids.
+- **Who may link** is checked at `POST /brands/:brand/meta/connect` (`account.meta_check`), before
+  Facebook's dialog.
+- **Composer:** a Reel to a Page linked through Meta says "Who can see this on Facebook: Public",
+  as Meta's Reels Publishing API asks ("Sharing Disclosure", "Privacy / Who can see this?").
+- **Docs:** `publish_video` is not asked for (Meta's Reels and Page Stories docs need
+  `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`); the payload names `via` only;
+  phase 4's loadout lists every new move; release checks for Meta's fetch of our signed links
+  (keep "Require App Secret" off until it passes), Instagram comments at app level with Advanced
+  Access, deleted Instagram comments (no event), and the long Reel limit.
+- **Review** (Sonnet): confirmed the fixes; a status read could still start after the wait and
+  outlast the core's limit (fixed, with a test). Open: the retry of a failed record after a sent
+  reply has no test.
+
 ## 2.66.0 — 2026-11-03
 
 - **Why.** Phase 5 of `docs/executing/meta-direct-plan.md`: counts for the accounts linked
@@ -218,7 +253,7 @@ One line each — full write-ups are under the matching `##` heading further dow
   - `metaSender` reads the brand's account as the job's principal, checks it is the one the
     person approved and was linked through Meta, opens its Page token, and posts.
   - Instagram: a container per file (`STORIES`, `REELS` with `share_to_feed`, carousel items and
-    `CAROUSEL`), a wait every 5 s until each container is `FINISHED` (170 s for the whole job;
+    `CAROUSEL`), a wait every 5 s until each container is `FINISHED` (95 s at first, 150 s since 2.66.1;
     `ERROR` or `EXPIRED` fails it), `media_publish`, then the permalink.
   - Facebook Page: one photo (`/photos`), several (unpublished photos, then `/feed` with
     `attached_media`), a Reel (`video_reels` start, Meta fetches the file on

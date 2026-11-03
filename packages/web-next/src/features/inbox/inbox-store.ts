@@ -61,8 +61,8 @@ interface Row {
   receivedAt: string
   doneAt: string | null
   sentTo: string[]
-  /** Set for a comment or DM that came through Meta's webhook. */
-  external?: object | null
+  /** True for a comment or DM that came through Meta's webhook; its ids stay on the server. */
+  external?: boolean
 }
 
 /**

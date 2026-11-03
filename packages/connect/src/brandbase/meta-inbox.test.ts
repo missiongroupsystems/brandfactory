@@ -42,7 +42,10 @@ const igComment = (id: string, text: string, from = { id: '9002', username: 'gue
  */
 function fakeGraph() {
   const calls: { path: string; params: Record<string, string> }[] = []
-  const state = { fail: null as null | { code: number; message: string }, lost: false }
+  const state = {
+    fail: null as null | { code: number; message: string; is_transient?: boolean },
+    lost: false,
+  }
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input))
     const params = Object.fromEntries(new URLSearchParams(String(init?.body)))
@@ -207,6 +210,9 @@ describe('comments and DMs from Meta', () => {
     // The brand's screens see them.
     const state = await t.stateOf('casa', 'member')
     expect(state.inbox.messages).toHaveLength(2)
+    // The screens learn a message came through Meta, never the ids of the people who sent it.
+    expect(state.inbox.messages[0].external).toBe(true)
+    expect(JSON.stringify(state.inbox.messages)).not.toContain('9001')
   })
 
   it('stores nothing for an account no brand links through Meta, and nothing without its principal', async () => {
@@ -327,6 +333,60 @@ describe('comments and DMs from Meta', () => {
       await t.call('POST', '/ops/brandbase/inbox.reply', { brand: 'casa', id: m!.id, text: 'Yes' }),
     ).toMatchObject({ status: 409, data: { code: 'META_MESSAGE' } })
     expect((await t.call('DELETE', '/brands/casa/meta', undefined, 'owner')).status).toBe(200)
+    expect(await t.inbox()).toEqual([])
+  })
+
+  it('takes a reply Meta answered with its own "unknown" or "try again" out of the inbox, as it may have gone', async () => {
+    const t = await setUp()
+    await t.deliver(igComment('1801', 'Booking for 4?'))
+    await t.deliver(igComment('1802', 'Open late?'))
+    const [a, b] = await t.inbox()
+    t.graph.state.fail = { code: 2, message: 'Service temporarily unavailable' }
+    expect(
+      await t.call('POST', `/brands/casa/inbox/${a!.id}/meta-reply`, { text: 'Yes' }),
+    ).toMatchObject({
+      status: 502,
+      data: { message: expect.stringContaining('may have gone') },
+    })
+    t.graph.state.fail = { code: 9007, message: 'busy', is_transient: true }
+    await t.call('POST', `/brands/casa/inbox/${b!.id}/meta-reply`, { text: 'Yes' })
+    for (const m of await t.inbox()) {
+      expect(m).toMatchObject({ reply_status: 'unknown' })
+      expect(m.done_at).not.toBeNull()
+    }
+  })
+
+  it('deletes a comment removed on the Page and a DM the person deleted', async () => {
+    const t = await setUp()
+    const feed = (verb: string) => ({
+      object: 'page',
+      entry: [
+        {
+          id: PAGE,
+          changes: [
+            {
+              field: 'feed',
+              value: {
+                item: 'comment',
+                verb,
+                comment_id: '555_1',
+                post_id: '555',
+                from: { id: '7002', name: 'Ana' },
+                message: 'Lovely',
+                created_time: 1762000000,
+              },
+            },
+          ],
+        },
+      ],
+    })
+    await t.deliver(feed('add'))
+    await t.deliver(igDm('mid.1', 'A table at 8?'))
+    expect(await t.inbox()).toHaveLength(2)
+    await t.deliver(feed('remove'))
+    const deleted = igDm('mid.1', '') as { entry: { messaging: { message: object }[] }[] }
+    deleted.entry[0]!.messaging[0]!.message = { mid: 'mid.1', is_deleted: true }
+    await t.deliver(deleted)
     expect(await t.inbox()).toEqual([])
   })
 
