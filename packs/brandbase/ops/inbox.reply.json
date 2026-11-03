@@ -21,7 +21,7 @@
       }
     }
   },
-  "before": ["brand.reachable", "inbox.found", "inbox.open"],
+  "before": ["brand.reachable", "inbox.found", "inbox.open", "inbox.not_meta"],
   "returns": "one",
   "sql": "update brandbase.inbox_messages m set reply_text = btrim(:text), reply_status = 'queued', replied_by = :actor, done_at = :now::timestamptz where m.id = :id and m.brand_id = :brand and m.done_at is null returning brandbase.camel(to_jsonb(m)) || jsonb_build_object('receivedAt', brandbase.iso(m.received_at), 'doneAt', brandbase.iso(m.done_at)) as result"
 }

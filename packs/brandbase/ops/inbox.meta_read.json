@@ -1,0 +1,23 @@
+{
+  "name": "inbox.meta_read",
+  "description": "One inbox message with what a reply through our own Meta app needs: its platform's ids, when it came, and whether it is still open. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "inbox.found"],
+  "internal": true,
+  "returns": "one",
+  "sql": "select jsonb_build_object('kind', m.kind, 'platform', m.platform, 'external', m.external, 'receivedAt', brandbase.iso(m.received_at), 'open', m.done_at is null) as result from brandbase.inbox_messages m where m.id = :id and m.brand_id = :brand"
+}

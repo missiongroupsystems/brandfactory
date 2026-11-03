@@ -19,7 +19,15 @@ import { NotAvailable } from '@/features/connections/not-available'
 import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf, remote } from '@/lib/remote'
 
-import { clearNoise, messagesOf, sendReply, sendTo, useInbox } from './inbox-store'
+import {
+  canHide,
+  clearNoise,
+  hideComment,
+  messagesOf,
+  sendReply,
+  sendTo,
+  useInbox,
+} from './inbox-store'
 import {
   ago,
   conversation,
@@ -88,12 +96,13 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   // An account that needs signing in again is linked, but nothing comes through it meanwhile.
   const lapsed = (['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'attention')
 
-  function send(id: string, text: string) {
+  /** The message leaves the list, then `act` sends its reply or hides it. */
+  function leave(id: string, act: () => void) {
     setLeaving((s) => new Set(s).add(id))
     // On a phone the list comes back, so the reply is seen to leave it.
     setSelected(phone ? null : nextAfter(staying, id))
     window.setTimeout(() => {
-      sendReply(brand.id, id, text)
+      act()
       setLeaving((s) => {
         const next = new Set(s)
         next.delete(id)
@@ -101,6 +110,10 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
       })
     }, LEAVE_MS)
   }
+  const send = (id: string, text: string) => leave(id, () => sendReply(brand.id, id, text))
+  /** Hides a comment that came through Meta; none for anything else. */
+  const hide = (m: InboxMessage) =>
+    canHide(brand.id, m) ? () => leave(m.id, () => hideComment(brand.id, m.id)) : undefined
 
   const row = (m: InboxMessage) => (
     <Row
@@ -202,6 +215,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                   data={data}
                   sentTo={routed[current.id]}
                   onSend={(text) => send(current.id, text)}
+                  onHide={hide(current)}
                 />
               </FullScreen>
             ) : (
@@ -217,6 +231,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                     data={data}
                     sentTo={routed[current.id]}
                     onSend={(text) => send(current.id, text)}
+                    onHide={hide(current)}
                   />
                 </div>
               </div>
@@ -450,12 +465,15 @@ function Thread({
   data,
   sentTo: routedTo,
   onSend,
+  onHide,
 }: {
   m: InboxMessage
   brand: Brand
   data: BrandInbox
   sentTo?: string[]
   onSend: (text: string) => void
+  /** Hides a comment on the platform, for one that came through Meta. */
+  onHide?: () => void
 }) {
   const { summary: voice } = useBrandKit(brand.id).voice
   const [picked, setPicked] = React.useState<number | null>(null)
@@ -502,6 +520,15 @@ function Thread({
         </div>
         {/* The post it is about, as a thumbnail at the edge, the way Instagram shows it. */}
         {m.post && <PostPeek m={m} post={m.post} />}
+        {onHide && (
+          <button
+            type="button"
+            onClick={onHide}
+            className="bb-press h-8 shrink-0 rounded-full bg-surface px-3 text-[13px] text-ink-2 hover:bg-tile hover:text-ink"
+          >
+            Hide
+          </button>
+        )}
         {m.tone === 'complaint' && (
           <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
         )}
@@ -577,7 +604,7 @@ function Thread({
                 id={`reply-${m.id}`}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Or write your own"
+                placeholder={m.replies.length > 0 ? 'Or write your own' : 'Write a reply'}
                 rows={2}
                 className={`field-sizing-content max-h-[214px] min-h-[64px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 max-md:max-h-[162px] ${picked === null ? '' : 'bb-rise'}`}
               />

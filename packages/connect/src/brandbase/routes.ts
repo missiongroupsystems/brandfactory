@@ -15,6 +15,7 @@ import {
 import { type MakeApp } from './make'
 import { makeRoutes } from './make-routes'
 import { type MetaApp } from './meta'
+import { inboxHandler, metaInboxRoutes } from './meta-inbox'
 import { metaRoutes } from './meta-routes'
 import { type MetaHooks, metaWebhookRoutes } from './meta-webhooks'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
@@ -151,7 +152,13 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
       .route('/', metaRoutes(core, platforms.meta))
 
       // Meta's webhooks: no person's session, Meta's own signature instead.
-      .route('/', metaWebhookRoutes(platforms.metaHooks))
+      .route(
+        '/',
+        metaWebhookRoutes(platforms.metaHooks, inboxHandler(core, platforms.metaHooks?.as)),
+      )
+
+      // Replies to the comments and DMs the webhook brought, and hiding a comment.
+      .route('/', metaInboxRoutes(core, platforms.meta))
 
       // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
       .route('/', tiktokRoutes(core, platforms.tiktok))

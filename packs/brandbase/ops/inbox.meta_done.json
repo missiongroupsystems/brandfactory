@@ -1,0 +1,26 @@
+{
+  "name": "inbox.meta_done",
+  "description": "What came of a reply through our own Meta app, after inbox.meta_claim: sent, or unknown (the answer was lost: it may have gone, and the person checks the account), takes the message out of the inbox; failed (Meta refused) leaves it there, with the reply kept as typed. Only a claimed reply changes. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "status"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "status": {
+        "enum": ["sent", "failed", "unknown"]
+      }
+    }
+  },
+  "before": ["brand.reachable", "inbox.found"],
+  "internal": true,
+  "returns": "many",
+  "sql": "update brandbase.inbox_messages m set reply_status = :status, done_at = case when :status = 'failed' then null else :now::timestamptz end where m.id = :id and m.brand_id = :brand and m.reply_status = 'queued' returning jsonb_build_object('id', m.id, 'replyStatus', m.reply_status, 'doneAt', brandbase.iso(m.done_at)) as result"
+}

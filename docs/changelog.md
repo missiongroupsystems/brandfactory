@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.65.0** — 2026-11-03 — `feat/meta-direct`: comments and DMs from the brand's Page and Instagram account, through Meta's webhook, land in the Inbox (migration `0026_meta_inbox.sql`, pack 1.15.0, not applied to production); the team answers them there (a DM within Meta's 24-hour window) and hides a comment. 1396 tests (264 skipped without a Postgres server).
 - **2.64.0** — 2026-11-03 — `feat/meta-direct`: a due Instagram or Facebook job whose account was linked through our own Meta app posts through the Graph API: Instagram photo, carousel, Reel and story; Facebook photo, several photos, Reel and story. Make keeps the accounts linked through it. The composer schedules a Story to the accounts that post one. The core tells a connector whose call a send is. Pack 1.15.0 (the payload names `via`). 1384 tests (262 skipped without a Postgres server).
 - **2.63.0** — 2026-11-03 — `feat/meta-direct`: each brand links its Facebook Page and the Page's Instagram account by Facebook Login for Business (our own Meta app), on Connections and the new `/connect/meta` page; the Page token is sealed to each row, the Page's webhooks turn on, and Disconnect turns them off and forgets both. Owners and admins of a company on the operator's list only. Make stays the path without `META_*`. Pack 1.15.0 (the state says how an account is linked). Not for release without 2.64.0. 1371 tests (262 skipped without a Postgres server).
 - **2.62.1** — 2026-11-03 — `fix/tiktok-token-rotation`: TikTok's token rules of 2 Nov (access 2 hours, refresh 180 days, a new refresh token on every refresh): a token store that fails after a refresh is tried once more, and if that fails too the request goes on with the new token kept in memory (tested both ways); comments and README corrected. Privacy also names each inbox send's status and TikTok's reference, kept with the post. From an Opus review against TikTok's guidelines. 1614 tests: 1350 pass and 262 real-Postgres tests skip on PGlite; the full run's two failures were 30 s timeouts under load, and both files pass alone.
@@ -131,6 +132,49 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.65.0 — 2026-11-03
+
+- **Why.** Phase 4 of `docs/executing/meta-direct-plan.md`: the Inbox shows real comments and
+  DMs for a brand linked through our own Meta app.
+- **Pack 1.15.0:** migration `0026_meta_inbox.sql` adds `inbox_messages.external` (the comment's
+  id, or the person a DM came from). New internal moves: `inbox.meta_receive` (the webhook's
+  batches, into the inbox of the brand that holds the account, within the principal's walls,
+  once per Meta id), `inbox.meta_read`, `inbox.meta_done` (sent, or failed and back in the
+  inbox), `inbox.meta_hidden`.
+- **Server** (`packages/connect/src/brandbase/meta-inbox.ts`):
+  - `batchesOf` reads a Page's Messenger messages and `feed` comments, and an Instagram account's
+    DMs and `comments`, leaving out echoes, the brand's own comments, reactions and reads. Our id
+    is made from Meta's, so a delivery Meta sends again is kept once.
+  - The webhook stores them as `META_WEBHOOK_AS`; without it, it only counts them.
+  - `POST /brands/:brand/inbox/:id/meta-reply`: claims the message (`inbox.reply`), then a DM
+    goes from the Page (`POST /{page-id}/messages`, `messaging_type: RESPONSE`, up to 1000 bytes),
+    a comment as a reply (`/{comment}/replies` on Instagram, `/{comment}/comments` on Facebook).
+    A DM more than 24 hours old is refused in words (Meta's standard messaging window); no message
+    tags. Meta's refusal brings the message back to the inbox with the reply kept.
+  - `POST /brands/:brand/inbox/:id/meta-hide`: `hide=true` on Instagram, `is_hidden=true` on
+    Facebook.
+- **Web app:** the Inbox on the core shows these messages beside any the server held before, with
+  their real times; Send goes to Meta; a comment has Hide. With no AI replies for them, the box
+  says "Write a reply". Privacy says what is kept of comments and messages and how to have them
+  deleted. Screenshots of the Inbox, desktop and phone.
+- **Review** (Opus and Sonnet, code and Meta's rules): a reply whose answer was lost came back to
+  the inbox and could be sent twice (now `unknown`: out of the inbox, "check the account"); a
+  server stopping mid-send left a message hidden for ever (the claim, `inbox.meta_claim`, now
+  keeps it in the inbox and frees it after five minutes; column `reply_at`); Hide could overwrite
+  a reply on its way (guarded); a delivery with an impossible time failed for 36 hours (falls
+  back to now); the plain reply move could mark a Meta message answered with nothing sent (rule
+  `inbox.not_meta`); an account no brand holds was dropped silently (rule `account.meta_held`,
+  logged); disconnecting Facebook kept the brand's comments and DMs and their senders' ids, which
+  Platform Terms §3.d.i asks us to delete (`inbox.meta_forget`, run on disconnect; Privacy says
+  so). The README's permission list for the app is corrected (`pages_read_user_content`,
+  `pages_manage_metadata`, `instagram_manage_messages`, `pages_messaging`), and the plan lists
+  what each App Review screencast shows. Open: the UI shows no 24-hour hint before Send; a
+  message's age is computed at load; deleted comments stay until disconnect.
+- **Tests:** eight in `meta-inbox.test.ts` (reading deliveries, storing once and only for a brand
+  in reach, the 24-hour window, a refused reply coming back, a lost answer, a stale claim,
+  hiding, the plain reply move refused, deleting on disconnect, another company's brand), two in
+  `meta-inbox-remote.test.tsx`, two cases in the pack's `tests/meta.json`.
 
 ## 2.64.0 — 2026-11-03
 

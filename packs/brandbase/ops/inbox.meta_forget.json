@@ -1,0 +1,22 @@
+{
+  "name": "inbox.meta_forget",
+  "description": "Deletes the comments and DMs that came through our own Meta app to the brand's Instagram account and Facebook Page, with the ids of the people who sent them: done when the brand disconnects Facebook, as Meta's Platform Terms ask (§3.d.i). Only an owner or admin of a company on the operator's list. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["facebook"]
+      }
+    }
+  },
+  "before": ["brand.reachable", "account.make_managed"],
+  "internal": true,
+  "returns": "one",
+  "sql": "with d as (delete from brandbase.inbox_messages m where m.brand_id = :brand and m.external is not null and m.platform in ('ig', 'fb') returning 1) select jsonb_build_object('deleted', (select count(*) from d)) as result"
+}

@@ -88,6 +88,7 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
       ? ({
           verifyToken: env.META_WEBHOOK_VERIFY_TOKEN,
           appSecret: env.META_APP_SECRET || undefined,
+          as: env.META_WEBHOOK_AS || undefined,
         } satisfies MetaHooks)
       : undefined,
     tiktok: env.TIKTOK_CLIENT_KEY

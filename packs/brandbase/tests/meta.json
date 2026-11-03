@@ -1,0 +1,123 @@
+{
+  "name": "meta",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "owner",
+  "cases": [
+    {
+      "name": "keeps a comment from Meta once in the inbox of the brand holding the account, and refuses an account no brand holds",
+      "steps": [
+        {
+          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
+        },
+        {
+          "call": "inbox.meta_receive",
+          "input": {
+            "platform": "instagram",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "id": "meta-c1",
+                "kind": "comment",
+                "fromName": "guest",
+                "fromHandle": "@guest",
+                "text": "Booking for 4?",
+                "receivedAt": "2026-10-06T03:00:00Z",
+                "external": { "comment": "1801" }
+              }
+            ]
+          },
+          "expect": { "result": { "brand": "casa", "stored": 1 } }
+        },
+        {
+          "call": "inbox.meta_receive",
+          "input": {
+            "platform": "instagram",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "id": "meta-c1",
+                "kind": "comment",
+                "fromName": "guest",
+                "fromHandle": "@guest",
+                "text": "Booking for 4?",
+                "receivedAt": "2026-10-06T03:00:00Z",
+                "external": { "comment": "1801" }
+              }
+            ]
+          },
+          "expect": { "result": { "brand": "casa", "stored": 0 } }
+        },
+        {
+          "call": "inbox.meta_receive",
+          "input": { "platform": "facebook", "account": "999", "items": [] },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "inbox.reply",
+          "input": { "brand": "casa", "id": "meta-c1", "text": "Yes" },
+          "expect": { "status": 409, "code": "META_MESSAGE" }
+        },
+        {
+          "call": "inbox.meta_read",
+          "input": { "brand": "casa", "id": "meta-c1" },
+          "expect": { "result": { "kind": "comment", "platform": "ig", "open": true } }
+        },
+        {
+          "call": "inbox.meta_claim",
+          "input": { "brand": "casa", "id": "meta-c1", "text": "Yes" },
+          "expect": { "length": 1 }
+        },
+        {
+          "call": "inbox.meta_claim",
+          "input": { "brand": "casa", "id": "meta-c1", "text": "Yes" },
+          "expect": { "length": 0 }
+        },
+        {
+          "call": "inbox.meta_hidden",
+          "input": { "brand": "casa", "id": "meta-c1" },
+          "expect": { "length": 0 }
+        },
+        {
+          "call": "inbox.meta_done",
+          "input": { "brand": "casa", "id": "meta-c1", "status": "sent" },
+          "expect": { "length": 1 }
+        },
+        {
+          "call": "inbox.meta_forget",
+          "input": { "brand": "casa", "platform": "facebook" },
+          "expect": { "result": { "deleted": 1 } }
+        }
+      ]
+    },
+    {
+      "name": "each Meta inbox move answers not-found for a brand or a message out of reach",
+      "steps": [
+        {
+          "call": "inbox.meta_read",
+          "input": { "brand": "casa", "id": "nope" },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "inbox.meta_claim",
+          "input": { "brand": "casa", "id": "nope", "text": "Hi" },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "inbox.meta_done",
+          "input": { "brand": "casa", "id": "nope", "status": "sent" },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "inbox.meta_hidden",
+          "input": { "brand": "casa", "id": "nope" },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        },
+        {
+          "call": "inbox.meta_forget",
+          "input": { "brand": "temper", "platform": "facebook" },
+          "expect": { "status": 404, "code": "NOT_FOUND" }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "account.meta_held",
+  "sql": "select exists (select 1 from brandbase.accounts a where a.platform = :platform and a.account_id = :account and a.details ->> 'via' = 'meta') as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "no brand within reach holds this account"
+}

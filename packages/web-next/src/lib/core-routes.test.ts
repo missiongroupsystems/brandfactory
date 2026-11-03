@@ -183,6 +183,8 @@ describe('the account routes', () => {
     expect(isAccountRoute('POST', '/meta/select')).toBe(true)
     expect(isAccountRoute('DELETE', '/brands/b1/meta')).toBe(true)
     expect(isAccountRoute('GET', '/meta/select')).toBe(false)
+    expect(isAccountRoute('POST', '/brands/b1/inbox/m1/meta-reply')).toBe(true)
+    expect(isAccountRoute('POST', '/brands/b1/inbox/m1/meta-hide')).toBe(true)
     expect(isAccountRoute('PUT', '/brands/b1/pinterest/pins')).toBe(false)
     expect(isAccountRoute('PUT', '/brands/b1/tiktok')).toBe(false)
   })

@@ -17,6 +17,11 @@ export interface MetaHooks {
   appSecret?: string
   /** `META_WEBHOOK_VERIFY_TOKEN`: the string typed in the app's Webhooks settings. */
   verifyToken: string
+  /**
+   * `META_WEBHOOK_AS`: the principal that keeps the comments and DMs (an agent of an owner of the
+   * company on the operator's list). Without it, deliveries are acknowledged and only counted.
+   */
+  as?: string
 }
 
 /** One delivery, as Meta sends it: the object type and its changes, possibly batched. */
@@ -38,7 +43,7 @@ export function signedByMeta(raw: Uint8Array, header: string | undefined, appSec
   return timingSafeEqual(Buffer.from(given, 'hex'), want)
 }
 
-/** Until the inbox stores them (phase 4): what came, with no one's words in the log. */
+/** What came, with no one's words in the log: the handler when no store is wired. */
 export async function logDelivery(delivery: MetaDelivery) {
   console.info('meta webhook', delivery.object, delivery.entry.length)
 }

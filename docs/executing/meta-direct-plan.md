@@ -130,3 +130,47 @@ through Make, which may hold no connection to it.
    Connections with both rows connected.
 8. On the test brand: one Instagram photo, one carousel, one Reel and one story; one Facebook photo,
    several photos, one Reel and one story. Check each on the platform before any real brand.
+
+### Phase 4: comments and DMs (pack 1.15.0, migration 0026)
+
+Release with phases 2 and 3, or after them.
+
+1. Make the webhook's principal: `core principal <owner-id>/meta --agent-of <owner-id>` (an owner of Mission
+   Group), `core loadout <owner-id>/meta brandbase inbox.meta_receive`.
+2. `fly secrets set -a brandfactory META_WEBHOOK_AS=<owner-id>/meta` (not a secret, but kept with
+   the others).
+3. `core loadout <uid> brandbase all` for every person: the new moves `inbox.meta_read`,
+   `inbox.meta_done`, `inbox.meta_hidden`.
+4. On the test brand: send the Page a Messenger message and the Instagram account a DM and a
+   comment; each shows in the Inbox within seconds; answer each; hide a comment. Check each on
+   the platform. Until the app is Live with Advanced Access, only people with a role on the app
+   reach it (Meta: "Apps with Standard Access can only send messages to people that have a role
+   on the app", Instagram Messaging, Send a message, 2 Jul 2026).
+
+### App Review: what each permission's screencast shows
+
+Meta's Permissions Reference (developers.facebook.com/docs/permissions/reference, 19 Oct 2026)
+says "Selecting unneeded permissions is a common reason for rejection during app review". The
+list in `packages/connect/README.md` ("Meta for brand base") is what the code uses; Dani's
+configuration names `pages_read_user_engagement`, which does not exist: it is
+`pages_read_user_content`, and `pages_manage_metadata` is missing. Screencasts, on a test brand:
+
+1. Sign-in: Connections, Connect Instagram, Facebook's dialog, the Page picked, both rows
+   connected (`pages_show_list`, `business_management`, `instagram_basic`).
+2. Posting: a photo, a carousel, a Reel and a story scheduled and live on Instagram and on the
+   Page (`instagram_content_publish`, `pages_manage_posts`, `publish_video`).
+3. Comments: a comment made on Instagram and on the Page shows in the Inbox; the reply shows
+   under it on the platform; Hide hides it (`instagram_manage_comments`,
+   `pages_read_user_content`, `pages_manage_engagement`).
+4. Messages: a DM to the Instagram account and a Messenger message to the Page show in the Inbox;
+   the reply arrives in the person's Instagram and Messenger ("Demonstrate your app sending a
+   message to an Instagram user, and … receiving and displaying the sent message"), with the
+   cURL request Meta asks for (`instagram_manage_messages`, `pages_messaging`).
+5. Webhooks on for the Page (`pages_manage_metadata`).
+6. Feed: the account's posts with their views, likes and comments (`instagram_manage_insights`,
+   `read_insights`, `pages_read_engagement`).
+
+The webhook's principal (`META_WEBHOOK_AS`) reaches only its own company's brands: every company
+on the operator's list (`make_orgs`) must have that principal's person as a member, or its
+messages are refused (logged, never stored). Only those companies may link Meta
+(`account.make_managed`).

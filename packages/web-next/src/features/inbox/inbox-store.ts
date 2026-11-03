@@ -50,13 +50,46 @@ function update(brandId: BrandId, fn: (s: BrandInboxState) => BrandInboxState) {
 /** Each brand's people by name: the send-to menu speaks names, the server ids. */
 const personIds: Record<string, Record<string, string>> = {}
 
+/** A message the server keeps, as the brand's state names it. */
+interface Row {
+  id: string
+  platform: 'ig' | 'fb' | 'tt'
+  kind: 'comment' | 'mention' | 'dm'
+  fromName: string
+  fromHandle: string
+  text: string
+  receivedAt: string
+  doneAt: string | null
+  sentTo: string[]
+  /** Set for a comment or DM that came through Meta's webhook. */
+  external?: object | null
+}
+
+/**
+ * Each brand's real comments and DMs from Instagram and Facebook, through our own Meta app. They
+ * carry no AI replies: the team writes its own.
+ */
+const real: Partial<Record<BrandId, InboxMessage[]>> = {}
+
+const fromMeta = (r: Row): InboxMessage => ({
+  id: r.id,
+  platform: r.platform,
+  kind: r.kind,
+  from: { name: r.fromName, handle: r.fromHandle },
+  text: r.text,
+  minutes: Math.max(0, Math.round((Date.now() - Date.parse(r.receivedAt)) / 60_000)),
+  tone: 'question',
+  replies: [],
+})
+
 // The messages themselves are the demo's (the server holds the same, seeded from them, until the
 // platforms' inboxes are read); what the team did with them comes from the server.
 if (remote) {
   onState((brandId, s) => {
     const people = s.inbox.people as { id: string; name: string }[]
-    const rows = s.inbox.messages as { id: string; doneAt: string | null; sentTo: string[] }[]
+    const rows = s.inbox.messages as Row[]
     personIds[brandId] = Object.fromEntries(people.map((p) => [p.name, p.id]))
+    real[brandId as BrandId] = rows.filter((r) => r.external).map(fromMeta)
     update(brandId as BrandId, () => ({
       held: new Set(rows.map((m) => m.id)),
       done: new Set(rows.filter((m) => m.doneAt).map((m) => m.id)),
@@ -79,13 +112,14 @@ export function useInbox(brandId: BrandId): BrandInboxState {
 
 /**
  * The brand's messages. The text is the demo's; on the core only the ones the server holds show,
- * so a real brand does not get the demo's invented messages. A caller reads it under `useInbox`,
+ * so a real brand does not get the demo's invented messages, and the comments and DMs that came
+ * through Meta. A caller reads it under `useInbox`,
  * so it renders again when the server's state arrives.
  */
 export function messagesOf(brandId: BrandId): InboxMessage[] {
   const messages = INBOX_BY_BRAND[brandId]?.messages ?? []
   const held = state[brandId]?.held
-  return remote ? messages.filter((m) => held?.has(m.id)) : messages
+  return remote ? [...messages.filter((m) => held?.has(m.id)), ...(real[brandId] ?? [])] : messages
 }
 
 /** How many real messages still need a reply: the nav's count. Noise does not count. */
@@ -99,10 +133,26 @@ export function markDone(brandId: BrandId, ids: string[]) {
   update(brandId, (s) => ({ ...s, done: new Set([...s.done, ...ids]) }))
 }
 
-/** A reply was sent: it is kept with who sent it, and the message leaves the inbox. */
+const isMeta = (brandId: BrandId, id: string) => (real[brandId] ?? []).some((m) => m.id === id)
+
+/**
+ * A reply was sent: it is kept with who sent it, and the message leaves the inbox. One that came
+ * through Meta goes to Instagram or Facebook; if Meta refuses, the brand reloads and it is back.
+ */
 export function sendReply(brandId: BrandId, id: string, text: string) {
   markDone(brandId, [id])
-  push(brandId, () => request('POST', `/brands/${brandId}/inbox/${id}/reply`, { text }))
+  const path = isMeta(brandId, id) ? 'meta-reply' : 'reply'
+  push(brandId, () => request('POST', `/brands/${brandId}/inbox/${id}/${path}`, { text }))
+}
+
+/** True for a comment that came through Meta: it can be hidden on the platform. */
+export const canHide = (brandId: BrandId, m: InboxMessage) =>
+  m.kind === 'comment' && isMeta(brandId, m.id)
+
+/** Hides the comment on Instagram or Facebook; it leaves the inbox. */
+export function hideComment(brandId: BrandId, id: string) {
+  markDone(brandId, [id])
+  push(brandId, () => request('POST', `/brands/${brandId}/inbox/${id}/meta-hide`))
 }
 
 /** The noise is cleared, all of it at once. */

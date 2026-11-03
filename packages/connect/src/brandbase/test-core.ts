@@ -61,5 +61,5 @@ export async function serve(platforms: Platforms, now = NOW, files?: Files) {
       tokens: string
       details: Record<string, unknown>
     }>('select * from brandbase.accounts order by brand_id, platform')
-  return { ...t, call, stateOf, accounts }
+  return { ...t, app, call, stateOf, accounts }
 }

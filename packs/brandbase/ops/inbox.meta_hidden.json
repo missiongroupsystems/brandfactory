@@ -1,0 +1,23 @@
+{
+  "name": "inbox.meta_hidden",
+  "description": "A comment hidden on Instagram or Facebook through our own Meta app leaves the inbox, with who hid it; one whose reply is on its way is left to that reply. Internal: packages/connect, after Meta hid it.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "inbox.found"],
+  "internal": true,
+  "returns": "many",
+  "sql": "update brandbase.inbox_messages m set reply_status = 'hidden', replied_by = :actor, done_at = coalesce(m.done_at, :now::timestamptz) where m.id = :id and m.brand_id = :brand and m.reply_status is distinct from 'queued' returning jsonb_build_object('id', m.id, 'replyStatus', m.reply_status) as result"
+}

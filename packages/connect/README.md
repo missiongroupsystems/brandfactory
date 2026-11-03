@@ -30,7 +30,8 @@ described below; it is not deployed.
   `POST /brands/:brand/tiktok/connect`, `POST /tiktok/callback`, `DELETE /brands/:brand/tiktok`,
   `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands),
   `GET /brands/:brand/tiktok/videos` (the account's newest 20 public videos with their counts).
-  `POST /brands/:brand/meta/connect`, `POST /meta/callback` (the person's Pages and a sealed
+  `POST /brands/:brand/inbox/:id/meta-reply` and `meta-hide` (answer a comment or a DM that came
+  through Meta, hide a comment), `POST /brands/:brand/meta/connect`, `POST /meta/callback` (the person's Pages and a sealed
   choice), `POST /meta/select` (links the Page and its Instagram account, turns the Page's
   webhooks on), `DELETE /brands/:brand/meta`,
   `GET|POST /webhooks/meta` (Meta's webhook: the check when it is saved, and the signed
@@ -40,7 +41,9 @@ described below; it is not deployed.
   app's `/connect/pinterest` page. `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,
   `TIKTOK_REDIRECT_URL` (the web app's `/connect/tiktok`), all three or none. `META_WEBHOOK_VERIFY_TOKEN`
   turns the Meta webhook on: alone, it answers Meta's check and refuses deliveries; with
-  `META_APP_SECRET` it takes deliveries whose `X-Hub-Signature-256` holds. `META_APP_ID`,
+  `META_APP_SECRET` it takes deliveries whose `X-Hub-Signature-256` holds. `META_WEBHOOK_AS` names
+  the principal that keeps the comments and DMs (an agent of an owner of a company on the
+  operator's list, with `inbox.meta_receive`); without it they are only counted. `META_APP_ID`,
   `META_APP_SECRET`, `META_CONFIG_ID` (the Facebook Login for Business configuration) and
   `META_REDIRECT_URL` (the web app's `/connect/meta`), all four or none, turn on Facebook's
   sign-in for each brand's Page and Instagram account. `pnpm -F @brandfactory/connect serve` starts it with the core's
@@ -138,6 +141,23 @@ Replace `https://connect.example.com` with `PUBLIC_BASE_URL`.
 6. Set the data deletion request URL to `/webhooks/meta/data-deletion`.
 
 The service uses Graph API `v26.0`.
+
+**Meta for brand base** (the core's host, `src/brandbase`; app "Mission Brandbase"):
+
+1. A Facebook Login for Business configuration with a **User access token** and these
+   permissions: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`,
+   `pages_manage_metadata` (turns a Page's webhooks on), `publish_video`, `business_management`,
+   `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`,
+   `instagram_manage_messages`, `instagram_manage_insights`, `pages_messaging`,
+   `pages_manage_engagement`, `pages_read_user_content`, `read_insights`; and `ads_management`
+   with `ads_read` when a Page role comes through a business portfolio. Meta has no
+   `pages_read_user_engagement`.
+2. Valid OAuth Redirect URI: the web app's `/connect/meta`.
+3. Webhooks: `https://brandfactory.fly.dev/webhooks/meta` with `META_WEBHOOK_VERIFY_TOKEN`; Page
+   fields `messages` and `feed`, Instagram fields `messages` and `comments`.
+4. Data deletion: the instructions URL `https://branding.missionsystems.ai/privacy#facebook-and-instagram`.
+   The `/webhooks/meta/deauthorize` and `/data-deletion` routes above are this standalone
+   service's, not brand base's.
 
 **Pinterest** (developers.pinterest.com, My apps, Trial access):
 

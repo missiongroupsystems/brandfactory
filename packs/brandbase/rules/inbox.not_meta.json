@@ -1,0 +1,7 @@
+{
+  "id": "inbox.not_meta",
+  "sql": "select m.external is null as ok from brandbase.inbox_messages m where m.id = :id",
+  "status": 409,
+  "code": "META_MESSAGE",
+  "message": "this message came through Meta: answer it there"
+}

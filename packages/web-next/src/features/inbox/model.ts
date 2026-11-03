@@ -1,4 +1,5 @@
 import type { InboxEarlier, InboxKind, InboxMessage, InboxPlatform } from '@/data/inbox'
+import { remote } from '@/lib/remote'
 
 /** The inbox's one filter: everything, the public comments and mentions, or the DMs. */
 export type InboxFilter = 'all' | 'comments' | 'dms'
@@ -48,14 +49,18 @@ export function conversation(m: InboxMessage): InboxEarlier[] {
   return [...(m.earlier ?? []), { from: 'them', text: m.text, minutes: m.minutes }]
 }
 
-/** The demo's clock: Sunday 11 October 2026, 3pm. Message ages count back from it. */
-const NOW = new Date(2026, 9, 11, 15, 0)
+/**
+ * The demo's clock: Sunday 11 October 2026, 3pm. Message ages count back from it; on the core,
+ * from now.
+ */
+const DEMO_NOW = new Date(2026, 9, 11, 15, 0)
 const DAY = 24 * 60
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** 130 → "Today 12:50 pm"; 1500 → "Saturday 2:00 pm"; a week or more back → "2 Oct 9:15 am". */
 export function stamp(minutes: number): string {
+  const NOW = remote ? new Date() : DEMO_NOW
   const at = new Date(NOW.getTime() - minutes * 60_000)
   const today = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime()
   const day = new Date(at.getFullYear(), at.getMonth(), at.getDate()).getTime()

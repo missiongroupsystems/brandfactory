@@ -1,7 +1,15 @@
 import { Refused } from '@brandfactory/core/src/errors'
-import { authenticate, type CoreDeps } from '@brandfactory/core/src/run'
+import { authenticate, call, type CoreDeps } from '@brandfactory/core/src/run'
 import { type Context, Hono } from 'hono'
-import { type Account, bound, forgetAccount, linkAccount, readAccount, type Who } from './accounts'
+import {
+  type Account,
+  bound,
+  forgetAccount,
+  linkAccount,
+  PACK,
+  readAccount,
+  type Who,
+} from './accounts'
 import { type MetaApp, MetaError, MetaReconnect } from './meta'
 
 function appOf(app: MetaApp | undefined): MetaApp {
@@ -158,6 +166,16 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
         const ig = await readAccount(core, who(c), brand, 'instagram')
         if (viaMeta(page)) await forgetAccount(core, who(c), brand, 'facebook', page.accountId)
         if (viaMeta(ig)) await forgetAccount(core, who(c), brand, 'instagram', ig.accountId)
+        // The comments and DMs that came through the Page go with it, and their senders' ids.
+        if (viaMeta(page) || viaMeta(ig)) {
+          await call(core, {
+            authorization: who(c).authorization,
+            pack: PACK,
+            op: 'inbox.meta_forget',
+            input: { brand, platform: 'facebook' },
+            internal: true,
+          })
+        }
         let unsubscribed = false
         if (app && viaMeta(page)) {
           try {
