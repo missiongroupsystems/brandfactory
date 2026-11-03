@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.61.3** — 2026-11-03 — `feat/core-no-superuser`: the database is across the internet now, so the pool gives up on a connect that gets no answer after 10 s and probes a quiet connection after 30 s (before, a connect that got no answer waited for ever; reproduced, with a test). The review before destroying `brandbase-db` (Opus and Sonnet), its live checks and its open item (Supabase network restrictions, for R1) are in `docs/executing/supabase-move-plan.md`. 1598 tests: 1336 pass and 262 real-Postgres tests skip on PGlite.
 - **2.61.2** — 2026-11-03 — `feat/core-no-superuser`: the core's data moved from Fly's `brandbase-db` to the Supabase project BrandBase (Postgres 17.11); the server stays on Fly and reaches it on the direct host, checking its certificate against Supabase's root (`packages/core/supabase-ca.crt`, put on the machine by `fly.toml`). All 42 tables the same on both sides, row for row; the start check passes; signed-in pages work. `brandbase-db` stopped, kept to 17 Nov. `docs/executing/supabase-move-plan.md`. 1597 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; those ran on Postgres 17.11 (490 tests in their two files, all pass).
 - **2.61.1** — 2026-11-02 — `feat/core-no-superuser`: the review before merge. The core no longer ends its process when a database connection drops, idle (a restart, a failover) or during a call (a network or proxy reset); both reproduced, each with a test. The owner's Fly steps say main is not deployed until they are done, and the script asks about 0011 to 0014, not 0013. A rehearsal on a restored copy of production: the upgrade, the new code, the old code on the migrated copy, and 262 cross-company checks by 12 real people with 0 leaks before and after. 1597 tests, none skipped (Postgres 18 in Docker).
 - **2.61.0** — 2026-11-02 — `feat/core-no-superuser`: the final review's fixes. A pack's migrations run from their own login (`core setup-migrator`, `MIGRATOR_DATABASE_URL`, core migration `0014_migrator_login.sql`, not applied to production): on Supabase SQL in a migration could leave `pack_migrator` for the installer's session and act as the core's owner, past every text check (reproduced). `core migrate` installs on Supabase (it refused every Supabase database over `postgres`'s own `pg_reload_conf`). The owner's Fly steps stage the new secret just before the deploy, not before the migration. The demo scripts run again (broken since 2.58.0). Run on a local Supabase (Postgres 17.6): install, the brandbase pack, calls and 20 escapes, all as planned. 1595 tests, none skipped (Postgres 18 in Docker).
@@ -124,6 +125,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.61.3 — 2026-11-03
+
+- **Why.** The review before destroying `brandbase-db` (Opus and Sonnet) found that the pool had
+  no connect timeout. On Fly's private network a connect always got an answer; to Supabase it
+  crosses the internet, and a connect with no answer held its caller and a pool slot for ever
+  (reproduced against an unreachable address).
+- **Fix.** `src/db.ts`: `connectionTimeoutMillis: 10_000`, and `keepAlive` with a 30 s first probe (the Linux default is two hours). Test: "gives up
+  on a server that takes the connection and never answers, so no call waits for ever" (it fails
+  without the fix).
+- **Checked live** (in the move plan): every page in Chrome, calls recorded on Supabase, the
+  scheduler's 03:56 round, no other app on `brandbase-db`, an offline backup taken.
+- **Open:** Supabase network restrictions, the wall for R1 that Fly's private network gave.
+- 1598 tests: 1336 pass, 262 skip without a Postgres. Typecheck, lint, format and build pass.
 
 ## 2.61.2 — 2026-11-03
 

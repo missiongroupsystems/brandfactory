@@ -224,7 +224,17 @@ export function openPostgres(
     )
   }
   // A connection lives at most half an hour, so statements and plans of old versions go with it.
-  const pool = new pg.Pool({ connectionString: url, max, maxLifetimeSeconds: 1800 })
+  // The database is across the internet (Supabase): a connect that gets no answer fails after
+  // 10 s instead of holding its caller, and its pool slot, for ever; keepalive probes after 30 s
+  // of quiet (the system's own default is two hours) to find one whose other end has gone silent.
+  const pool = new pg.Pool({
+    connectionString: url,
+    max,
+    maxLifetimeSeconds: 1800,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 30_000,
+  })
   // An idle connection that Postgres ends (a restart, a failover, pg_terminate_backend) reaches
   // the pool as an 'error' event; with no listener, Node ends the process. The pool has already
   // dropped that connection, and the next caller gets a new one.

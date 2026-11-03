@@ -1,3 +1,4 @@
+import { type AddressInfo, createServer } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { openPglite, openPostgres } from './db'
 
@@ -21,4 +22,18 @@ describe('a Postgres server', () => {
     // Unnamed statements work there, as before.
     await openPostgres(pooler, 1).close()
   })
+
+  it('gives up on a server that takes the connection and never answers, so no call waits for ever', async () => {
+    // Accepts the connection and stays silent, as a stalled network path does.
+    const silent = createServer(() => {})
+    await new Promise<void>((done) => silent.listen(0, '127.0.0.1', done))
+    const { port } = silent.address() as AddressInfo
+    const db = openPostgres(`postgres://u:p@127.0.0.1:${port}/db`, 1)
+    try {
+      await expect(db.query('select 1')).rejects.toThrow(/timeout/)
+    } finally {
+      await db.close()
+      silent.close()
+    }
+  }, 20_000)
 })

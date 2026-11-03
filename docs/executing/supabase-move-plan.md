@@ -71,7 +71,32 @@ reads the path from the process's working directory, which `pnpm -F` sets to `pa
 deploy. Anything
 written on Supabase since is lost unless copied back.
 
+## The review before destroying `brandbase-db` (3 Nov, Opus and Sonnet)
+
+- **Checked live.** In Chrome, signed in: Schedule (week and month), Ideas (moodboard and current
+  ideas), Feed, Inbox: 51 calls, all 200, no console error. Calls are recorded on Supabase. The
+  scheduler's 03:56 round ran there: 6 `event.tick` and 6 `event.pull` done, the next booked.
+  `claims.calls` is empty (the purge runs). No other Fly app used `brandbase-db`
+  (`brandbase-bubbles` has no database). `postgres` keeps only the creator's ADMIN link to the new
+  roles (no INHERIT, no SET).
+- **Fixed (2.61.3).** The pool had no connect timeout: a connect that got no answer waited for
+  ever, holding its caller and a pool slot (reproduced; on Fly's private network this did not
+  happen). The pool now gives up after 10 s, and probes a quiet connection after 30 s. Test: "gives up on a server that
+  takes the connection and never answers" (it fails without the fix).
+- **Backup.** A `pg_dump -Fc` of the four schemas from Supabase after the move (1.8 MB, 42 tables)
+  is in the owner's `~/Backups/brandbase/`, outside Supabase. Supabase keeps 7 daily backups, but
+  a restore there rolls back sign-in and storage too.
+- **Open: R1 has no wall now.** A pack escape to `core_server` can set that login's password
+  (`docs/executing/core-no-superuser-plan.md`, R1); the wall was a private network, and Supabase's
+  database takes connections from every address. Needs Supabase's network restrictions (an Owner
+  or Admin of the org) limited to the Fly machine's static egress address and the owners'. Only
+  packs we write run today, so this is before outside packs, not before the destroy.
+- **Deploys.** Deploy only from a checkout with this file's commits: main before them has no
+  `[[files]]` entry, so the app would not find `/etc/supabase-ca.crt` and would not start.
+
 ## Phase 4 (left)
 
-1. After 17 Nov 2026, with the owner's yes, destroy `brandbase-db` (app, machine and volume).
+1. Destroy `brandbase-db` (app, machine and volume) with the owner's yes. After that the Rollback
+   section above, `packages/core/scripts/fly-no-superuser.sh` and "The owner's steps for Fly" in
+   the no-superuser plan are history.
 2. Then move this file to `docs/completions/`.
