@@ -145,14 +145,14 @@ export function Welcome() {
             For your team
           </h2>
           <p className="text-[15px] leading-[1.55] text-ink-3">
-            brand base is for any brand and its marketing team. Accounts are by invitation for now:
-            ask for access, and we set up your team and its brands.
+            brand base is for any brand and its marketing team, and free to start. Tell us about
+            your brand, and we set up your team and its brands.
           </p>
           <a
-            href={`mailto:${CONTACT}?subject=brand%20base%20access`}
+            href={`mailto:${CONTACT}?subject=brand%20base%20team`}
             className="text-[15px] font-medium text-ink underline decoration-ink-5 underline-offset-4 hover:decoration-ink"
           >
-            Ask for access
+            Get started
           </a>
         </section>
       </main>

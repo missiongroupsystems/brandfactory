@@ -18,9 +18,8 @@ export default function Page() {
       <section>
         <h2>Who may use it</h2>
         <p>
-          People with an account. For now, accounts are given by invitation; to ask for one, write
-          to <Mail />. Keep your password to yourself, and tell us if you think someone else has
-          used your account.
+          People with an account. To get one for your team, write to <Mail />. Keep your password to
+          yourself, and tell us if you think someone else has used your account.
         </p>
       </section>
       <section>

@@ -38,8 +38,8 @@ export default function Page() {
       <section>
         <h2>Where</h2>
         <p>
-          Sign-in and files are kept with Supabase, in Singapore. The rest is kept in a database on
-          Fly.io, in Singapore.
+          Sign-in, brand data and files are kept with Supabase, in Singapore. The app&rsquo;s server
+          runs on Fly.io, in Singapore.
         </p>
       </section>
       <section>
@@ -55,6 +55,13 @@ export default function Page() {
           the account&rsquo;s TikTok inbox as a draft. The only content it sends to TikTok is the
           video a person on the team chooses to send. It does not post to TikTok and does not read
           the account&rsquo;s videos.
+        </p>
+        <p>
+          The TikTok access tokens are kept, encrypted, while the account is connected, and renewed
+          before they expire for as long as TikTok allows. Disconnecting the account asks TikTok to
+          withdraw brand base&rsquo;s access, and brand base deletes its copy of the tokens either
+          way. If your TikTok account was connected to brand base and you are not on the team that
+          connected it, write to <Mail /> and we delete what we keep for it.
         </p>
       </section>
       <section>

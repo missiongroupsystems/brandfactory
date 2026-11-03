@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.61.4** — 2026-11-03 — `fix/tiktok-site-copy`: the public pages before TikTok's review. The home page says brand base is for any brand and free to start, with Get started (no "by invitation"); Terms say how to get an account; Privacy says sign-in, brand data and files are kept with Supabase (since 2.61.2) and the server runs on Fly.io, how long TikTok tokens are kept, that disconnecting asks TikTok to withdraw access and deletes our tokens either way, and how a TikTok creator outside the team asks for deletion; the contact is tech@missiongroup.com. 1598 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; the full run's one failure was a 30 s timeout under load in a pack test this release does not touch, which passes alone.
 - **2.61.3** — 2026-11-03 — `feat/core-no-superuser`: the database is across the internet now, so the pool gives up on a connect that gets no answer after 10 s and probes a quiet connection after 30 s (before, a connect that got no answer waited for ever; reproduced, with a test). The review before destroying `brandbase-db` (Opus and Sonnet), its live checks and its open item (Supabase network restrictions, for R1) are in `docs/executing/supabase-move-plan.md`. 1598 tests: 1336 pass and 262 real-Postgres tests skip on PGlite.
 - **2.61.2** — 2026-11-03 — `feat/core-no-superuser`: the core's data moved from Fly's `brandbase-db` to the Supabase project BrandBase (Postgres 17.11); the server stays on Fly and reaches it on the direct host, checking its certificate against Supabase's root (`packages/core/supabase-ca.crt`, put on the machine by `fly.toml`). All 42 tables the same on both sides, row for row; the start check passes; signed-in pages work. `brandbase-db` stopped, kept to 17 Nov. `docs/executing/supabase-move-plan.md`. 1597 tests: 1335 pass and 262 real-Postgres tests skip on PGlite; those ran on Postgres 17.11 (490 tests in their two files, all pass).
 - **2.61.1** — 2026-11-02 — `feat/core-no-superuser`: the review before merge. The core no longer ends its process when a database connection drops, idle (a restart, a failover) or during a call (a network or proxy reset); both reproduced, each with a test. The owner's Fly steps say main is not deployed until they are done, and the script asks about 0011 to 0014, not 0013. A rehearsal on a restored copy of production: the upgrade, the new code, the old code on the migrated copy, and 262 cross-company checks by 12 real people with 0 leaks before and after. 1597 tests, none skipped (Postgres 18 in Docker).
@@ -125,6 +126,19 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.61.4 — 2026-11-03
+
+- **Why.** A check of the public pages against TikTok's guidelines before the resubmission
+  ("Apps must not be for private or personal use"; the website must not be a landing or login
+  page; a valid Privacy Policy). Privacy also still named Fly.io after the move to Supabase.
+- **What.** Home page: "free to start", Get started, no "by invitation". Terms: how to get an
+  account. Privacy: data and files with Supabase, the server on Fly.io; TikTok tokens kept encrypted
+  while connected; disconnecting asks TikTok to withdraw access and deletes our tokens either way; a creator outside the team can ask for deletion. Contact:
+  tech@missiongroup.com. Last updated 3 November 2026.
+- 1598 tests: 1335 pass, 262 skip without a Postgres; the full run had one 30 s timeout under load
+  (the pack's row-rules test, untouched here), which passes alone in 4.5 s. Typecheck, lint, format
+  and build pass.
 
 ## 2.61.3 — 2026-11-03
 

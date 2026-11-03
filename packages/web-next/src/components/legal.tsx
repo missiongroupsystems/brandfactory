@@ -5,7 +5,7 @@ import type * as React from 'react'
 export const PUBLIC_PATHS = ['/sign-in', '/terms', '/privacy']
 
 /** The address for questions about these pages and the data brand base keeps. */
-export const CONTACT = 'tech@ebbflowgroup.com'
+export const CONTACT = 'tech@missiongroup.com'
 
 /** A plain page of text in the sign-in page's type: the terms and the privacy policy. */
 export function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
@@ -16,7 +16,7 @@ export function LegalPage({ title, children }: { title: string; children: React.
           brand base
         </Link>
         <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{title}</h1>
-        <p className="text-[13px] text-ink-3">Last updated 1 November 2026</p>
+        <p className="text-[13px] text-ink-3">Last updated 3 November 2026</p>
       </header>
       <div className="flex flex-col gap-6 text-[14.5px] leading-[1.6] text-ink-2 [&_h2]:mb-1.5 [&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-ink [&_li]:ml-4 [&_li]:list-disc [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-1">
         {children}
