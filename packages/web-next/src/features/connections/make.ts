@@ -62,6 +62,20 @@ export function useMakeAccount(brandId: BrandId, key: MakeKey): MakeAccount | nu
   return React.useSyncExternalStore(subscribe, read, read)
 }
 
+/**
+ * The brand's accounts that post Stories: Instagram and Facebook linked through our own Meta app.
+ * Make posts none.
+ */
+export function useStoryAccounts(brandId: BrandId): MakeKey[] {
+  const ig = useMakeAccount(brandId, 'ig')
+  const fb = useMakeAccount(brandId, 'fb')
+  return React.useMemo(
+    () =>
+      metaOn() ? (['ig', 'fb'] as const).filter((k) => (k === 'ig' ? ig : fb)?.via === 'meta') : [],
+    [ig, fb],
+  )
+}
+
 /** Links the brand's account by its id, then reloads the brand, so the composer can post to it. */
 export async function linkMake(brandId: BrandId, key: MakeKey, accountId: string, name: string) {
   await request('PUT', `/brands/${brandId}/make/${PLATFORM[key]}`, { accountId, name })

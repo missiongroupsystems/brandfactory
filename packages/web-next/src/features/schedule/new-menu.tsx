@@ -8,6 +8,7 @@ import { Sheet } from '@/components/sheet'
 import { useMenu } from '@/components/use-menu'
 import type { Format } from '@/data/demo'
 import { useConnections } from '@/features/connections/connections-store'
+import { useStoryAccounts } from '@/features/connections/make'
 import { FORMAT_LABEL } from '@/features/publish/model'
 import { postersOf, sendsOf } from '@/features/publish/publishers'
 import { NewShootForm } from '@/features/shoot/new-shoot'
@@ -36,6 +37,7 @@ export function NewMenu({
 }) {
   const { brand } = useBrand()
   const sends = sendsOf(useConnections(brand.id))
+  const stories = useStoryAccounts(brand.id)
   const [open, setOpen] = React.useState(false)
   const [shoot, setShoot] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
@@ -75,7 +77,7 @@ export function NewMenu({
           className="bb-menu absolute top-11 right-0 z-30 flex w-[200px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
         >
           {FORMATS.map((f) => {
-            const posters = postersOf(sends, f)
+            const posters = postersOf(sends, f, stories)
             // Something posts, but not this: planned on the calendar, never sent.
             const planOnly = sends.length > 0 && posters.length === 0
             return (

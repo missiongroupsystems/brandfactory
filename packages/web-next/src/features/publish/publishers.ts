@@ -35,9 +35,14 @@ export function formatOfParam(word: string | undefined): Format | undefined {
 
 /**
  * Of the accounts that post, those that post this format: TikTok takes no Story, and on the core
- * Make posts no Story at all, so a Story there is planned only.
+ * only an account linked through our own Meta app posts one (`stories`); Make posts none, so a
+ * Story there is planned only.
  */
-export function postersOf(sends: readonly ChannelKey[], format: Format): ChannelKey[] {
-  if (remote && format === 'story') return []
+export function postersOf(
+  sends: readonly ChannelKey[],
+  format: Format,
+  stories: readonly ChannelKey[] = [],
+): ChannelKey[] {
+  if (remote && format === 'story') return sends.filter((k) => stories.includes(k))
   return sends.filter((k) => kindOn(format, k) !== null)
 }

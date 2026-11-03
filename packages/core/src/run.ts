@@ -39,7 +39,16 @@ export interface Connector {
    * with `sent: false` says nothing went out, and `sent: 'maybe'` that it may have; either way
    * its message is for people. Any other error is a failed send.
    */
-  send(input: { pack: string; op: string; payload: unknown }): Promise<unknown>
+  send(input: {
+    pack: string
+    op: string
+    payload: unknown
+    /**
+     * Who the send is for: the principal of the call that fires it. A connector beside the core
+     * may read with it (an internal move run `as` it), under the same walls as the call.
+     */
+    principal: string
+  }): Promise<unknown>
   /** Longest one send may take, in milliseconds; 30 s unless set. */
   timeoutMs?: number
 }

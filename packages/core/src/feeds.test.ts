@@ -14,7 +14,7 @@ function service(answer: (url: URL) => { status?: number; body: unknown }) {
 }
 
 const send = (c: ReturnType<typeof feedConnector>, payload: unknown) =>
-  c.send({ pack: 'p', op: 'o', payload })
+  c.send({ pack: 'p', op: 'o', payload, principal: 'ana' })
 
 describe('the feed connector', () => {
   it('reads every page, sends the key in its header and the query as given', async () => {

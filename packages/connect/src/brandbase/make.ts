@@ -14,7 +14,7 @@ export interface MakeApp {
 }
 
 /** What `post.publish_job` sends: one account's job, as the person approved it. */
-interface Payload {
+export interface Payload {
   brand: string
   job: string
   post: string
@@ -25,10 +25,12 @@ interface Payload {
   /** The brand's Instagram account id or Page id; null when none is linked. */
   account: string | null
   shareToFeed: boolean
+  /** How the account is linked: our own Meta app's sign-in, or typed in for Make. */
+  via: 'meta' | 'make' | null
 }
 
 type File = { missing: true } | Own
-type Own = { kind: string; mime: string; bytes: number | null; key: string }
+export type Own = { kind: string; mime: string; bytes: number | null; key: string }
 
 /** What the Make scenario gets (the plan's contract). */
 export interface MakeRequest {
@@ -55,7 +57,7 @@ export class MayHavePosted extends Error {
 }
 
 const PLATFORM = { ig: 'instagram', fb: 'facebook' } as const
-const NAME: Record<string, string> = {
+export const NAME: Record<string, string> = {
   ig: 'Instagram',
   fb: 'Facebook',
   tt: 'TikTok',
@@ -65,12 +67,18 @@ const NAME: Record<string, string> = {
 
 /** Make answers a Webhook response within 180 s, or `200 Accepted`; a little longer than that. */
 export const MAKE_WAIT_MS = 200_000
+/**
+ * The longest a send through our own Meta app takes: its waits on Meta (`META_WAIT_MS` in
+ * `meta-post.ts`) and the calls around them.
+ */
+export const META_SEND_MS = 230_000
 /** Long enough for Meta to fetch a large video after Make's wait. */
-const READ_TTL_S = 2 * 60 * 60
-const VIDEO = ['video/mp4', 'video/quicktime']
+export const READ_TTL_S = 2 * 60 * 60
+export const VIDEO = ['video/mp4', 'video/quicktime']
 
 /** A platform's words, without the signed storage links they sometimes repeat. */
-const words = (message: string) => message.replace(/https?:\/\/\S+/g, '(the file)').slice(0, 400)
+export const words = (message: string) =>
+  message.replace(/https?:\/\/\S+/g, '(the file)').slice(0, 400)
 
 /** Checks the job against what Make's modules take, and names the request it becomes. */
 function requestOf(p: Payload): Omit<MakeRequest, 'media'> & { files: Own[] } {
@@ -129,18 +137,27 @@ function requestOf(p: Payload): Omit<MakeRequest, 'media'> & { files: Own[] } {
 }
 
 /**
- * The `social` connector: posts each Instagram and Facebook job through Make. Any other account,
- * or Instagram and Facebook while Make is not set up, is refused in words: nothing is ever marked
- * posted that did not go out.
+ * The `social` connector: posts each Instagram and Facebook job through our own Meta app when the
+ * account was linked by its sign-in (`via` is `meta`: `meta-post.ts`, Stories too), and through
+ * Make otherwise. Any other account, or a path the server has not set up, is refused in words:
+ * nothing is ever marked posted that did not go out.
  */
 export function socialConnector(deps: {
   make?: MakeApp
+  /** Our own Meta app's send, as the principal the job runs for (`metaSender`). */
+  meta?: (payload: Payload, principal: string) => Promise<unknown>
   signedReadUrl?: (key: string, ttlSeconds: number) => Promise<string>
 }): Connector {
   return {
-    timeoutMs: MAKE_WAIT_MS + 10_000,
-    async send({ payload }) {
+    timeoutMs: Math.max(MAKE_WAIT_MS, META_SEND_MS) + 10_000,
+    async send({ payload, principal }) {
       const p = payload as Payload
+      if (p.via === 'meta' && (p.channel === 'ig' || p.channel === 'fb')) {
+        if (!deps.meta) {
+          throw new NotSent(`${NAME[p.channel]} is not set up on this server. Connect it again.`)
+        }
+        return deps.meta(p, principal)
+      }
       const { files, ...body } = requestOf(p)
       const name = NAME[p.channel]!
       if (!deps.make) throw new NotSent(`${name} is not set up.`)

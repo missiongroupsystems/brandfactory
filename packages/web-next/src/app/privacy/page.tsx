@@ -68,6 +68,26 @@ export default function Page() {
           connected it, write to <Mail /> and we delete what we keep for it.
         </p>
       </section>
+      <section id="facebook-and-instagram">
+        <h2>Facebook and Instagram</h2>
+        <p>
+          A brand&rsquo;s owner or admin connects its Facebook Page, and the Instagram account
+          linked to it, by signing in with Facebook. brand base keeps the Page&rsquo;s id and name,
+          the Instagram account&rsquo;s id and username, and the Page&rsquo;s access token, which is
+          kept encrypted. It does not keep the person&rsquo;s own Facebook token or profile.
+        </p>
+        <p>
+          It uses them only to publish the posts, Reels and stories a person on the team approves,
+          at the time they choose.
+        </p>
+        <p>
+          To delete what brand base keeps from Facebook and Instagram, disconnect Facebook in
+          Connections: the Page, the Instagram account and the token are deleted at once. Removing
+          brand base in Facebook&rsquo;s settings (Settings &amp; privacy, Business integrations)
+          stops its access. If your Page was connected and you are not on the team that connected
+          it, write to <Mail /> and we delete what we keep for it within 30 days.
+        </p>
+      </section>
       <section>
         <h2>How long</h2>
         <p>

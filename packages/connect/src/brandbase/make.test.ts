@@ -328,7 +328,9 @@ describe('Instagram and Facebook through Make', () => {
         media: [{ kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }],
         account,
         shareToFeed: true,
+        via: 'make',
       },
+      principal: 'owner',
     })
     await expect(send(job('ig', null))).rejects.toMatchObject({
       sent: false,
@@ -363,7 +365,9 @@ describe('Instagram and Facebook through Make', () => {
         media: [{ kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }],
         account: IG_ID,
         shareToFeed: true,
+        via: 'make',
       },
+      principal: 'owner',
     }
     const answer = async (set: Partial<typeof make.state>) => {
       Object.assign(make.state, { status: 200, text: null, throws: null }, set)

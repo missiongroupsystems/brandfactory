@@ -281,6 +281,7 @@
                 "text": "Fresh pasta tonight.",
                 "account": "17841400000000001",
                 "shareToFeed": true,
+                "via": "make",
                 "media": [
                   {
                     "kind": "photo",

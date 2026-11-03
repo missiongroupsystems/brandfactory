@@ -179,7 +179,12 @@ export async function fire(
       timer = setTimeout(() => reject(silent), connector.timeoutMs ?? SEND_TIMEOUT_MS)
     })
     outcome = await Promise.race([
-      connector.send({ pack: content.manifest.name, op: op.name, payload }),
+      connector.send({
+        pack: content.manifest.name,
+        op: op.name,
+        payload,
+        principal: caller.principal,
+      }),
       timeout,
     ]).finally(() => clearTimeout(timer))
   } catch (err) {

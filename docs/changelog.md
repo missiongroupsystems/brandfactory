@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.64.0** — 2026-11-03 — `feat/meta-direct`: a due Instagram or Facebook job whose account was linked through our own Meta app posts through the Graph API: Instagram photo, carousel, Reel and story; Facebook photo, several photos, Reel and story. Make keeps the accounts linked through it. The composer schedules a Story to the accounts that post one. The core tells a connector whose call a send is. Pack 1.15.0 (the payload names `via`). 1384 tests (262 skipped without a Postgres server).
 - **2.63.0** — 2026-11-03 — `feat/meta-direct`: each brand links its Facebook Page and the Page's Instagram account by Facebook Login for Business (our own Meta app), on Connections and the new `/connect/meta` page; the Page token is sealed to each row, the Page's webhooks turn on, and Disconnect turns them off and forgets both. Owners and admins of a company on the operator's list only. Make stays the path without `META_*`. Pack 1.15.0 (the state says how an account is linked). Not for release without 2.64.0. 1371 tests (262 skipped without a Postgres server).
 - **2.62.1** — 2026-11-03 — `fix/tiktok-token-rotation`: TikTok's token rules of 2 Nov (access 2 hours, refresh 180 days, a new refresh token on every refresh): a token store that fails after a refresh is tried once more, and if that fails too the request goes on with the new token kept in memory (tested both ways); comments and README corrected. Privacy also names each inbox send's status and TikTok's reference, kept with the post. From an Opus review against TikTok's guidelines. 1614 tests: 1350 pass and 262 real-Postgres tests skip on PGlite; the full run's two failures were 30 s timeouts under load, and both files pass alone.
 - **2.62.0** — 2026-11-03 — `feat/meta-direct`: Meta's webhook on the server, `GET|POST /webhooks/meta`, so the Meta app's Webhooks settings can be saved. The check answers with `META_WEBHOOK_VERIFY_TOKEN` alone; deliveries need `META_APP_SECRET` too (503 until it is set) and a valid `X-Hub-Signature-256` over the raw body. Nothing is stored yet. No pack change. 1352 tests (262 skipped without a Postgres server).
@@ -130,6 +131,58 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.64.0 — 2026-11-03
+
+- **Why.** Phase 3 of `docs/executing/meta-direct-plan.md`: posting through our own Meta app,
+  Stories included, which Make cannot post.
+- **Core:** `Connector.send` gets `principal`, the principal of the call that fires it, so a
+  connector beside the core reads with an internal move `as` it, under the same walls.
+- **Pack 1.15.0:** `post.publish_job`'s payload names `via` (`meta` or `make`, from the account's
+  details). A yes stored before no longer matches: see the release steps.
+- **Server** (`packages/connect/src/brandbase/meta-post.ts`):
+  - `metaSender` reads the brand's account as the job's principal, checks it is the one the
+    person approved and was linked through Meta, opens its Page token, and posts.
+  - Instagram: a container per file (`STORIES`, `REELS` with `share_to_feed`, carousel items and
+    `CAROUSEL`), a wait every 5 s until each container is `FINISHED` (170 s for the whole job;
+    `ERROR` or `EXPIRED` fails it), `media_publish`, then the permalink.
+  - Facebook Page: one photo (`/photos`), several (unpublished photos, then `/feed` with
+    `attached_media`), a Reel (`video_reels` start, Meta fetches the file on
+    `rupload.facebook.com`, finish with `video_state=PUBLISHED`), a photo story (an unpublished
+    photo, then `photo_stories`), a video story (`video_stories`, the same three steps).
+  - Checks first, in words: JPEG only on Instagram, MP4 or MOV, one file for a story or a Reel, up
+    to 10 in a post, no video in a Facebook post.
+  - Failures: up to the call that publishes, nothing went out (`NotSent`, with Meta's words, or
+    "Connect Instagram again" for a dead token). At that call, a lost answer, Meta's codes 1 and 2
+    or `is_transient`, or an answer without an id say it may have posted (`MayHavePosted`).
+    Graph takes no idempotency key: the core uses a person's yes once, so the core never sends one
+    job twice; a person's retry is a new yes and posts again.
+  - `socialConnector`: `via: meta` goes through Graph (refused in words when the server has no
+    Meta app), anything else through Make as before. Its time limit is 240 s.
+- **Web app:** a Story is offered on, and sent to, the accounts linked through Meta; an account
+  still linked through Make stays on the post as planned. The New menu offers Story the same way.
+- **Time:** the connector's limit is 240 s (under the core's 240 s stop wait). Inside it, waits
+  for Instagram end by 95 s, the call that publishes starts by 125 s or nothing is sent, and the
+  reads after it start by 165 s, so a send never outlasts the core's limit and posts after the
+  core called its outcome unknown.
+- **A Page video goes live after the finish:** the send reads `/{video}?fields=status` until
+  `publishing_phase.status` is `complete`; an error there, or no answer in time, says it may have
+  posted and to check the Page.
+- **Review** (Opus and Sonnet): a send could outlast the core's limit and post afterwards (fixed,
+  as above); a Page Reel or video story was marked live on Meta's hand-over (fixed); a Facebook
+  account ticked from the last post was hidden on a Story yet stayed on it (now shown, with
+  "Make can't post a Story to Facebook"). Open: a job fired by an agent needs `account.read` in
+  the agent's loadout, untested; a yes stored before 1.15.0 no longer matches (release step 4).
+  A second pass (Opus, the fixes and Meta's rules): every write before the publish, and the
+  upload, now also stops at 125 s; a Page video counts as live only when Meta says its
+  publishing is complete; the test of the publish limit now fails without it. Meta's rules are in
+  the plan's table, with each page's date: the Privacy page gains "Facebook and Instagram" (what
+  is kept, what for, how to delete it), which is the deletion instructions URL for the app's
+  settings; `ads_management` and `ads_read` may be needed for a Page reached through a business
+  portfolio; the user token's use for scheduled posts is noted for App Review.
+- **Tests:** eleven in `meta-post.test.ts` (each shape through the scheduler with a fake Graph,
+  each failure's answer, the waits and the time limit), one in `effects.test.ts`, one in
+  `meta-composer.test.tsx`.
 
 ## 2.63.0 — 2026-11-03
 

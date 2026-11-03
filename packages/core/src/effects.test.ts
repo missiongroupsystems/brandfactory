@@ -74,6 +74,20 @@ describe('an effect move', () => {
     expect((await call('note.share', { id: 'n1' }, 'ana-agent')).status).toBe(200)
   })
 
+  it('tells the connector whose call the send is, so it reads under the same walls', async () => {
+    const seen: string[] = []
+    const watching: Connector = {
+      async send(input) {
+        seen.push(input.principal)
+        return simulatedConnector.send(input)
+      },
+    }
+    const { call, approve } = await setup(watching)
+    await approve('note.share', { id: 'n1' })
+    await call('note.share', { id: 'n1' }, 'ana-agent')
+    expect(seen).toEqual(['ana-agent'])
+  })
+
   it('uses up the yes when the send fails, so a retry needs a person again', async () => {
     let fail = true
     const flaky: Connector = {

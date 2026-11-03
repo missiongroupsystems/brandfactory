@@ -31,6 +31,7 @@ import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/c
 import { brandToday, dayOf, storyTaken, tooSoon } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { useStoryAccounts } from '@/features/connections/make'
 import { NotAvailable } from '@/features/connections/not-available'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
@@ -207,6 +208,8 @@ export function Composer({
   // others (TikTok) stay planned only: always offered, never sent.
   // Through Make an account is sent only once the brand has linked it; until then it is planned.
   const sends = sendsOf(links)
+  // The accounts that post a Story: linked through our own Meta app.
+  const stories = useStoryAccounts(brand.id)
   const planOnly = sends.length === 0
   const plans = planOnly
     ? []
@@ -247,7 +250,7 @@ export function Composer({
   React.useEffect(() => {
     if (post || planOnly) return
     // Only the accounts that post this format: a hidden account is never ticked.
-    const usual = postersOf(sends, api.draft.format).filter((k) =>
+    const usual = postersOf(sends, api.draft.format, stories).filter((k) =>
       (publishing as readonly ChannelKey[]).includes(k),
     )
     const last = lastAccounts(brand.id)?.filter((k) => usual.includes(k))
@@ -458,12 +461,13 @@ export function Composer({
   const accountsChanged = sendsTo(active.map((c) => c.key)) !== sendsTo(openedOn)
   // A scheduled post is sent again when its day, its time or its accounts changed.
   const resend = moved || accountsChanged
-  // Planned, not sent: Make cannot post a Story, and the planned-only accounts (TikTok) never go.
-  const planned =
-    planOnly ||
-    (remote &&
-      (draft.format === 'story' ||
-        active.every((c) => !(sends as readonly string[]).includes(c.key))))
+  // The accounts that really post this: set up for posting, and for a Story, linked through our
+  // own Meta app (Make posts no Story).
+  const goes = (key: string) =>
+    (sends as readonly string[]).includes(key) &&
+    (draft.format !== 'story' || (stories as readonly string[]).includes(key))
+  // Planned, not sent: nothing ticked goes, and the planned-only accounts (TikTok) never go.
+  const planned = planOnly || (remote && active.every((c) => !goes(c.key)))
   // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn) are
   // kept on every save, here and on the calendar, not dropped. One the brand no longer uses goes:
   // the core refuses a save that names it.
@@ -584,9 +588,7 @@ export function Composer({
       }
       await request('PATCH', `/brands/${b}/posts/${id}`, content)
       // Only the accounts the server posts to are sent; the planned-only ones stay on the post.
-      const sending = planned
-        ? []
-        : content.channels.filter((k) => (sends as readonly string[]).includes(k))
+      const sending = planned ? [] : content.channels.filter(goes)
       if (send && sending.length === 0) {
         // Planned, not sent: the post is scheduled on the calendar and no job will publish it.
         await request('POST', `/brands/${b}/posts/${id}/mark`, { stage: 'scheduled' })
@@ -1280,22 +1282,30 @@ function Accounts({
   // With at least one account that posts this format, only those show: a planned-only account
   // (TikTok beside Make) is not offered beside one that posts. With none (nothing set up, or a
   // Story on the core, which Make cannot post), the post is planned on every account.
-  const posters = postersOf(sends, draft.format)
+  const stories = useStoryAccounts(brand.id)
+  const posters = postersOf(sends, draft.format, stories)
   const planOnly = posters.length === 0
   // An account that cannot take the format (TikTok takes no Story) is never shown.
   const shown = linkedChannels(draft).filter((c) =>
     planOnly
       ? kindOn(draft.format, c.key) !== null
-      : posters.includes(c.key) || saved.includes(c.key),
+      : posters.includes(c.key) ||
+        saved.includes(c.key) ||
+        // A ticked account that posts, but not a Story (Make): shown, so it can be unticked.
+        (draft.format === 'story' && draft.selected.includes(c.key) && sends.includes(c.key)),
   )
   // On the core beside Instagram and Facebook through Make, a Story is planned, not posted. The
-  // note depends on the format alone, so a tick never moves anything.
-  const storyPlanned = remote && sends.length > 0 && draft.format === 'story'
+  // note depends on the format and the brand's accounts alone, so a tick never moves anything.
+  const storyPlanned = remote && sends.length > 0 && draft.format === 'story' && planOnly
   /** Why an account is planned only, or null when it really posts. */
   const plannedOnly = (key: ChannelKey) =>
-    remote && sends.length > 0 && !sends.includes(key)
-      ? `${NAME[key]} isn’t set up for posting: Schedule plans it on the calendar.`
-      : null
+    !remote || sends.length === 0
+      ? null
+      : !sends.includes(key)
+        ? `${NAME[key]} isn’t set up for posting: Schedule plans it on the calendar.`
+        : draft.format === 'story' && !posters.includes(key)
+          ? `Make can’t post a Story to ${NAME[key]}: Schedule plans it on the calendar.`
+          : null
   return (
     <section
       aria-label="Accounts"
