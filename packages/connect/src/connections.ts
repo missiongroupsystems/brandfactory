@@ -43,7 +43,7 @@ export async function disconnect(
   let revoked = false
   if (provider.revoke) {
     try {
-      // TikTok revokes with the access token, which lasts only 24 hours.
+      // TikTok revokes with the access token, which lasts only 2 hours.
       const expired =
         connection.tokens.expiresAt !== null && connection.tokens.expiresAt <= Date.now()
       const tokens = expired ? await provider.refresh(connection.tokens) : connection.tokens

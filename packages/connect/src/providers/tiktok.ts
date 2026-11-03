@@ -31,8 +31,8 @@ const errorCode = (body: TikTokError): string | null => {
 }
 
 /**
- * TikTok Login Kit for web. The access token lasts 24 hours; the refresh token lasts 365 days
- * and may rotate on each refresh, so the new one must replace the old.
+ * TikTok Login Kit for web. The access token lasts 2 hours; the refresh token lasts 180 days
+ * and rotates on each refresh, so the new one must replace the old.
  */
 export function tiktokProvider(config: Config['tiktok'], fetch: Fetch): Provider {
   async function post<T>(path: string, params: Record<string, string>): Promise<T> {

@@ -45,7 +45,7 @@ export interface TikTokConfig {
 
 export interface TikTokTokens {
   access: string
-  /** Lasts 365 days; TikTok may hand out a new one on each refresh. */
+  /** Lasts 180 days; each refresh hands out a new one, which replaces it (TikTok, 2 Nov 2026). */
   refresh: string
   /** Epoch milliseconds, on the server's clock. */
   expiresAt: number
@@ -132,7 +132,8 @@ interface TokenResponse {
 
 /**
  * TikTok Login Kit for web and the Content Posting API's upload (the creator's inbox). The access
- * token lasts 24 hours; the refresh token 365 days, and a refresh may rotate it.
+ * token lasts 2 hours; the refresh token 180 days, and every refresh rotates it (TikTok's token
+ * management page, 2 Nov 2026).
  */
 export function tiktokApp(config: TikTokConfig) {
   const doFetch = config.fetch ?? fetch

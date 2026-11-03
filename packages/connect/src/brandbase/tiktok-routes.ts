@@ -111,14 +111,14 @@ export function tiktokRoutes(core: CoreDeps, tiktok: TikTokApp | undefined) {
         // below must not leave this process with the old one only.
         refreshed.set(seal, next)
         // Scoped to the account: a sign-in with another account meanwhile keeps its own tokens.
-        await keepTokens(
-          core,
-          who(c),
-          brand,
-          'tiktok',
-          account.accountId,
-          app.sealTokens(next, seal),
-        )
+        // Every refresh rotates the refresh token, so the new one is the only one that works:
+        // a failed store is tried once more before the request fails.
+        const store = () =>
+          keepTokens(core, who(c), brand, 'tiktok', account.accountId, app.sealTokens(next, seal))
+        await store().catch((err: unknown) => {
+          console.error('tiktok tokens not stored, trying again', brand, err)
+          return store()
+        })
         return next
       })().finally(() => refreshing.delete(seal))
       refreshing.set(seal, running)

@@ -152,8 +152,8 @@ The service uses Graph API `v26.0`.
 |                      | Meta                                        | Pinterest                              | TikTok                                                  |
 | -------------------- | ------------------------------------------- | -------------------------------------- | ------------------------------------------------------- |
 | One connection per   | selected Page (with IG business account id) | account                                | account                                                 |
-| Access token         | Page token, no expiry                       | 30 days                                | 24 hours                                                |
-| Refresh              | Health check; error 190 sets `needs_reauth` | Refresh token, 60 days, renewed on use | Refresh token, 365 days, rotates: the new one is stored |
+| Access token         | Page token, no expiry                       | 30 days                                | 2 hours                                                 |
+| Refresh              | Health check; error 190 sets `needs_reauth` | Refresh token, 60 days, renewed on use | Refresh token, 180 days, rotates: the new one is stored |
 | Revoke on disconnect | No                                          | No                                     | Yes, then delete                                        |
 | PKCE                 | No                                          | No                                     | No (mobile and desktop only)                            |
 
