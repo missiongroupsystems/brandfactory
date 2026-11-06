@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openPostgres, type Db } from './db'
-import { loadEnv } from './env'
+import { loadCliEnv } from './env'
 import { Refused } from './errors'
 import { applyPackMigrations, LOGIN_ROLES, migrateCore, setupLogin } from './migrate'
 import { readPack, type PackContent } from './pack'
@@ -68,7 +68,7 @@ async function supabaseLogin(email: string) {
 
 /** The person (or agent) the session belongs to, verified as the server verifies a call. */
 async function actor(token = readToken()) {
-  return authenticate(loadEnv().auth, `Bearer ${token}`)
+  return authenticate(loadCliEnv().auth, `Bearer ${token}`)
 }
 
 async function withDb<T>(fn: (db: Db) => Promise<T>): Promise<T> {
@@ -187,7 +187,7 @@ export async function main(argv: string[]) {
       })
     case 'promote':
       return withDb(async (db) => {
-        const environment = option(args, '--env') ?? loadEnv().environment
+        const environment = option(args, '--env') ?? loadCliEnv().environment
         const [pack, version] = args
         if (!pack || !version) throw new Error(USAGE)
         await promote(db, { actor: await actor(), environment, pack, version })
@@ -207,7 +207,7 @@ export async function main(argv: string[]) {
         let names = ops
         if (ops.length === 1 && ops[0] === 'all') {
           // Every move of the version live in this environment, and none when nothing is live.
-          const environment = loadEnv().environment
+          const environment = loadCliEnv().environment
           const live = await liveVersion(db, environment, pack)
           if (!live) throw new Error(`${pack} has no live version in ${environment}`)
           names = Object.keys(live.content.ops)

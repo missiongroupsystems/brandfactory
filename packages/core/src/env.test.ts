@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadEnv } from './env'
+import { loadCliEnv, loadEnv } from './env'
 
 describe('the environment', () => {
   it('runs on the dev sign-in locally, with PGlite or a database on this machine', () => {
@@ -102,5 +102,18 @@ describe('the environment', () => {
     expect(
       loadEnv({ ...prod, MISSION_EVENTS_URL: 'https://e.example.com' }).missionEvents?.url,
     ).toBe('https://e.example.com')
+  })
+
+  it('lets the command line reach a remote database with the Supabase sign-in alone', () => {
+    // The CLI serves no files and signs no agents, so their settings are the server's only.
+    const remote = {
+      DATABASE_URL: 'postgres://u:p@db.example.com:5432/x',
+      AUTH_PROVIDER: 'supabase',
+      SUPABASE_JWKS_URL: 'https://x.supabase.co/auth/v1/.well-known/jwks.json',
+      CORE_ENVIRONMENT: 'production',
+    }
+    expect(loadCliEnv(remote).environment).toBe('production')
+    expect(() => loadEnv(remote)).toThrow(/FILES_SECRET/)
+    expect(() => loadCliEnv({ DATABASE_URL: remote.DATABASE_URL })).toThrow(/dev sign-in/)
   })
 })

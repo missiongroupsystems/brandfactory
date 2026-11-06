@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.2** — 2026-11-06 — `feat/meta-direct`: the `core` command line runs against the Supabase database again. It read the server's settings to check a sign-in, and on a remote database those demand the files and agent secrets; it now reads only the sign-in and the live pointer (`loadCliEnv`), and still refuses the dev sign-in there. 458 core tests (264 skipped without a Postgres server).
 - **2.66.1** — 2026-11-03 — `feat/meta-direct`: the final review's fixes. A reply Meta answered with its own "unknown" or "try again" no longer comes back to be sent twice; who may link Meta is checked before Facebook's dialog (`account.meta_check`); deleted Facebook comments and Instagram DMs are deleted here, and switching Page deletes the old Page's messages; the screens no longer see senders' ids; Instagram may take 150 s to process a video; the upload and every read end inside the core's limit; a Reel to a Page says it is public; `publish_video` is not asked for. Pack 1.15.0. 1409 tests (264 skipped without a Postgres server).
 - **2.66.0** — 2026-11-03 — `feat/meta-direct`: the Feed's Instagram and Facebook tabs, for an account linked through our own Meta app, show its newest 20 posts with views, likes, comments and shares read live from Meta and never stored, in place of Make's read-back. No pack change. 1402 tests (264 skipped without a Postgres server).
 - **2.65.0** — 2026-11-03 — `feat/meta-direct`: comments and DMs from the brand's Page and Instagram account, through Meta's webhook, land in the Inbox (migration `0026_meta_inbox.sql`, pack 1.15.0, not applied to production); the team answers them there (a DM within Meta's 24-hour window) and hides a comment. 1396 tests (264 skipped without a Postgres server).
@@ -138,6 +139,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.2 — 2026-11-06
+
+- **Why.** The first pack release since the move to Supabase stopped at `core publish`: "the dev
+  sign-in is refused in production". A remote `DATABASE_URL` makes the run production, and the
+  CLI's `actor()` called the server's `loadEnv`, which then also needs `FILES_SECRET`, Supabase
+  files and `AGENT_SECRET`. Before the move the CLI reached `brandbase-db` through a tunnel on
+  localhost, so the dev sign-in passed.
+- **Change** (`packages/core/src/env.ts`, `cli.ts`): `loadCliEnv` reads the sign-in and
+  `CORE_ENVIRONMENT` with the same rule (no dev sign-in on a remote database or in production);
+  `loadEnv` builds on it. The CLI needs `AUTH_PROVIDER=supabase`, `SUPABASE_JWKS_URL` and
+  `CORE_ENVIRONMENT=production`, and a `core login <email>` (with `SUPABASE_URL`,
+  `SUPABASE_ANON_KEY`, `CORE_PASSWORD`).
+- **Review** (Sonnet): clean; the server's settings are unchanged.
 
 ## 2.66.1 — 2026-11-03
 

@@ -41,11 +41,12 @@ function isLocal(url: string): boolean {
 }
 
 /**
- * Reads the environment. Production is `NODE_ENV=production` or a database that is not on this
- * machine: there the dev sign-in (the token is the user id) and a pinned clock are refused, so a
+ * The sign-in and the live pointer, the only settings the command line needs: it checks a session
+ * as the server does, and serves no files. Production is `NODE_ENV=production` or a database that
+ * is not on this machine: there the dev sign-in (the token is the user id) is refused, so a
  * missing variable cannot open a deployment.
  */
-export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
+export function loadCliEnv(env: NodeJS.ProcessEnv = process.env) {
   const databaseUrl = env.DATABASE_URL || undefined
   const remote = databaseUrl ? !isLocal(databaseUrl) : false
   const production = env.NODE_ENV === 'production' || remote
@@ -54,10 +55,30 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
     throw new Error(`AUTH_PROVIDER is dev or supabase, not ${provider}`)
   }
   if (production && provider === 'dev') throw new Error('the dev sign-in is refused in production')
-  if (production && env.PIN_NOW) throw new Error('a pinned clock is refused in production')
   if (provider === 'supabase' && !env.SUPABASE_JWKS_URL) {
     throw new Error('AUTH_PROVIDER=supabase needs SUPABASE_JWKS_URL')
   }
+  const auth: AuthProvider =
+    provider === 'supabase'
+      ? supabaseAuth({
+          jwksUrl: env.SUPABASE_JWKS_URL!,
+          issuer: env.SUPABASE_JWT_ISSUER,
+          audience: env.SUPABASE_JWT_AUDIENCE ?? 'authenticated',
+        })
+      : devAuth()
+  return {
+    databaseUrl,
+    production,
+    provider,
+    auth,
+    environment: env.CORE_ENVIRONMENT ?? 'local',
+  }
+}
+
+/** Reads the environment for the server: `loadCliEnv`'s rules, and a pinned clock is refused in production too. */
+export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
+  const { databaseUrl, production, provider, auth, environment } = loadCliEnv(env)
+  if (production && env.PIN_NOW) throw new Error('a pinned clock is refused in production')
   const prepare = env.DATABASE_PREPARE || 'off'
   if (prepare !== 'on' && prepare !== 'off') {
     throw new Error(`DATABASE_PREPARE is on or off, not ${prepare}`)
@@ -109,15 +130,8 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
     databaseUrl,
     prepare: prepare === 'on',
     pgliteDir: env.PGLITE_DIR ?? '.data/core',
-    environment: env.CORE_ENVIRONMENT ?? 'local',
-    auth:
-      provider === 'supabase'
-        ? supabaseAuth({
-            jwksUrl: env.SUPABASE_JWKS_URL!,
-            issuer: env.SUPABASE_JWT_ISSUER,
-            audience: env.SUPABASE_JWT_AUDIENCE ?? 'authenticated',
-          })
-        : devAuth(),
+    environment,
+    auth,
     now: () => pinned ?? new Date(),
     corsOrigins: (env.CORS_ALLOWED_ORIGINS ?? '')
       .split(',')
