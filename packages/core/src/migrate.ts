@@ -193,7 +193,8 @@ export async function migrateCore(db: Db) {
   // Postgres's own rule, which 0001 broke for roles it found (0010): only a superuser reads or
   // writes server files or reloads the configuration. Without a superuser only the core's roles
   // and their members are the core's to answer for: Supabase itself gives `postgres`
-  // pg_reload_conf, and no role but its superuser can take it back.
+  // pg_reload_conf, and no role but its superuser can take it back. A member with ADMIN alone
+  // (Supabase's own grant of each role to `postgres`) cannot act as the role, so it is not one.
   const servers = await db.query<{ role: string; proname: string }>(
     `select distinct r.rolname as role, p.proname
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace, pg_roles r
@@ -203,7 +204,8 @@ export async function migrateCore(db: Db) {
        and has_function_privilege(r.oid, p.oid, 'execute')
        and ($1 or r.rolname like 'pack\\_%' or (r.rolname <> current_user and exists (
          select 1 from pg_auth_members m join pg_roles g on g.oid = m.roleid
-         where m.member = r.oid and g.rolname like 'pack\\_%')))`,
+         where m.member = r.oid and g.rolname like 'pack\\_%'
+           and (m.inherit_option or m.set_option))))`,
     [me?.rolsuper ?? false],
   )
   if (servers.length > 0) {

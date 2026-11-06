@@ -117,6 +117,25 @@ describe.skipIf(!url)('on a real Postgres', () => {
       // the install answers for the core's roles, not for the installer's own grants.
       await superuser.exec(`grant execute on function pg_reload_conf() to ${owner}`)
       expect(await migrateCore(managed)).toContain('0014_migrator_login.sql')
+      // Supabase also grants each role its `postgres` made back to it with ADMIN alone, beside
+      // pg_reload_conf, and `postgres` is not the login that migrates later. A member with ADMIN
+      // alone cannot act as the role, so the migrate goes on; one that can is refused.
+      const bystander = `bystander_${randomUUID().slice(0, 8)}`
+      await superuser.exec(
+        `create role ${bystander} nologin;
+         grant pack_runtime, pack_admin, pack_migrator to ${bystander}
+           with admin true, inherit false, set false;
+         grant execute on function pg_reload_conf() to ${bystander}`,
+      )
+      try {
+        expect(await migrateCore(managed)).toEqual([])
+        await superuser.exec(`grant pack_runtime to ${bystander} with set true`)
+        await expect(migrateCore(managed)).rejects.toThrow(`${bystander} pg_reload_conf`)
+      } finally {
+        await superuser.exec(
+          `revoke execute on function pg_reload_conf() from ${bystander}; drop role ${bystander}`,
+        )
+      }
       // A pack's migrations run from their own login. SQL in one that leaves pack_migrator for
       // the session's login, its words hidden from the text checks, lands on a role that reads no
       // core table and records no core migration.

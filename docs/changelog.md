@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.3** — 2026-11-06 — `feat/meta-direct`: `core migrate` runs on Supabase again. Its check for roles that can call `pg_reload_conf` counted Supabase's own manage-only grant of each pack role to `postgres`, which cannot act as the role; it now counts only members that can. Production: three install-time grants to `postgres` were taken back. 1412 tests (264 skipped without a Postgres server; 38 of 38 on Postgres 17).
 - **2.66.2** — 2026-11-06 — `feat/meta-direct`: the `core` command line runs against the Supabase database again. It read the server's settings to check a sign-in, and on a remote database those demand the files and agent secrets; it now reads only the sign-in and the live pointer (`loadCliEnv`), and still refuses the dev sign-in there. 458 core tests (264 skipped without a Postgres server).
 - **2.66.1** — 2026-11-03 — `feat/meta-direct`: the final review's fixes. A reply Meta answered with its own "unknown" or "try again" no longer comes back to be sent twice; who may link Meta is checked before Facebook's dialog (`account.meta_check`); deleted Facebook comments and Instagram DMs are deleted here, and switching Page deletes the old Page's messages; the screens no longer see senders' ids; Instagram may take 150 s to process a video; the upload and every read end inside the core's limit; a Reel to a Page says it is public; `publish_video` is not asked for. Pack 1.15.0. 1409 tests (264 skipped without a Postgres server).
 - **2.66.0** — 2026-11-03 — `feat/meta-direct`: the Feed's Instagram and Facebook tabs, for an account linked through our own Meta app, show its newest 20 posts with views, likes, comments and shares read live from Meta and never stored, in place of Make's read-back. No pack change. 1402 tests (264 skipped without a Postgres server).
@@ -139,6 +140,29 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.3 — 2026-11-06
+
+- **Why.** `core migrate brandbase 1.15.0` stopped at its own check: "a role that is not a
+  superuser can call a superuser's function (postgres pg_reload_conf)". Supabase gives its
+  `postgres` `pg_reload_conf`, and only its superuser can take it back. The check counts a role
+  other than the one migrating that is a member of a pack role. `postgres` installed the core,
+  so at install it was exempt; the CLI now migrates as `core_login`, and this was the first pack
+  migrate since the move.
+- **Production** (run by the owner as `postgres`, 6 Nov): `REVOKE pack_admin, pack_migrator,
+  pack_runtime FROM postgres GRANTED BY postgres`, the grants migrations 0001 and 0004 made to
+  their installer. Not enough alone: `supabase_admin` also grants each pack role to `postgres`
+  with ADMIN only, and we cannot remove that.
+- **Change** (`packages/core/src/migrate.ts`): the check counts a membership only with INHERIT or
+  SET, the options that let a member act as the role. With ADMIN alone a member cannot.
+  On production the check now finds no role.
+- **Test** (`postgres.test.ts`, on Postgres 17): a role with ADMIN-only pack roles and
+  `pg_reload_conf` lets the migrate go on; given SET, it is refused. Without the change the test
+  fails with the production error.
+- **Review** (Sonnet): clean. A member with ADMIN alone has none of the role's rights and cannot
+  SET to it; if it grants itself SET or INHERIT, the next migrate refuses again. Behaviour on a
+  superuser (Fly) is unchanged. Noted, not changed: memberships through another role are not
+  followed, as before.
 
 ## 2.66.2 — 2026-11-06
 
