@@ -11,6 +11,10 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **2.65.0** — 2026-11-03 — `feat/meta-direct`: comments and DMs from the brand's Page and Instagram account, through Meta's webhook, land in the Inbox (migration `0026_meta_inbox.sql`, pack 1.15.0, not applied to production); the team answers them there (a DM within Meta's 24-hour window) and hides a comment. 1396 tests (264 skipped without a Postgres server).
 - **2.64.0** — 2026-11-03 — `feat/meta-direct`: a due Instagram or Facebook job whose account was linked through our own Meta app posts through the Graph API: Instagram photo, carousel, Reel and story; Facebook photo, several photos, Reel and story. Make keeps the accounts linked through it. The composer schedules a Story to the accounts that post one. The core tells a connector whose call a send is. Pack 1.15.0 (the payload names `via`). 1384 tests (262 skipped without a Postgres server).
 - **2.63.0** — 2026-11-03 — `feat/meta-direct`: each brand links its Facebook Page and the Page's Instagram account by Facebook Login for Business (our own Meta app), on Connections and the new `/connect/meta` page; the Page token is sealed to each row, the Page's webhooks turn on, and Disconnect turns them off and forgets both. Owners and admins of a company on the operator's list only. Make stays the path without `META_*`. Pack 1.15.0 (the state says how an account is linked). Not for release without 2.64.0. 1371 tests (262 skipped without a Postgres server).
+- **2.62.5** — 2026-11-03 — `fix/legal-gaps`: Terms say brand base is for business use by people 18 or older, limit liability, and are governed by Singapore law; both pages say how changes are announced; Privacy names Vercel (it serves the website and sees visitors' IP addresses) and says the browser keeps only the sign-in and two choices, with no advertising or tracking cookies. Text only. 757 web tests pass.
+- **2.62.4** — 2026-11-03 — `fix/landing-team-line`: the home page's team section has its line back, "Email us to set up your brand. Free to start.", so Get started says how to get access; "Mission Group" in the footer links to https://www.missiongroup.com. 757 web tests pass.
+- **2.62.3** — 2026-11-03 — `fix/landing-copy-short`: the public home page cut to short lines: the hero says Instagram, Facebook and TikTok on one calendar; each card and TikTok step fits on one phone line; the team section keeps its heading and Get started only. The TikTok facts stay: see the account's videos and stats, send as a draft, post in TikTok, we never post for you, disconnect to delete the tokens. Text only. 757 web tests pass; typecheck, lint and format pass.
+- **2.62.2** — 2026-11-03 — `fix/landing-copy`: the public home page's copy is shorter and plainer, with no sentence that starts with the lowercase wordmark. Every TikTok fact stays: TikTok's own sign-in, name and picture, the Feed's public videos and counts, Send to TikTok inbox as a draft, the creator posts in the TikTok app, brand base never posts by itself, disconnecting deletes the tokens; free to start, Get started, Terms and Privacy kept. Text only. 1616 tests: 1354 pass and 262 real-Postgres tests skip on PGlite.
 - **2.62.1** — 2026-11-03 — `fix/tiktok-token-rotation`: TikTok's token rules of 2 Nov (access 2 hours, refresh 180 days, a new refresh token on every refresh): a token store that fails after a refresh is tried once more, and if that fails too the request goes on with the new token kept in memory (tested both ways); comments and README corrected. Privacy also names each inbox send's status and TikTok's reference, kept with the post. From an Opus review against TikTok's guidelines. 1614 tests: 1350 pass and 262 real-Postgres tests skip on PGlite; the full run's two failures were 30 s timeouts under load, and both files pass alone.
 - **2.62.0** — 2026-11-03 — `feat/meta-direct`: Meta's webhook on the server, `GET|POST /webhooks/meta`, so the Meta app's Webhooks settings can be saved. The check answers with `META_WEBHOOK_VERIFY_TOKEN` alone; deliveries need `META_APP_SECRET` too (503 until it is set) and a valid `X-Hub-Signature-256` over the raw body. Nothing is stored yet. No pack change. 1352 tests (262 skipped without a Postgres server).
 - **2.61.5** — 2026-11-03 — `fix/tiktok-review-ui`: what a TikTok reviewer sees signed in, on the core, and the Display API scope `video.list`. The TikTok sign-in asks for `video.list` too, and the Feed's TikTok tab shows the connected account's public videos with their views, likes, comments and shares, read live from `GET /brands/:brand/tiktok/videos` and never stored; with no TikTok account connected, the rail has no TikTok tab; an account connected before this asks to connect again. The home page, Terms and Privacy say so. The Feed's empty rows name Instagram and Facebook; a posted post shows no TikTok analytics card; a preview shows no invented likes or comments. 1605 tests: 1343 pass and 262 real-Postgres tests skip on PGlite.
@@ -325,6 +329,48 @@ One line each — full write-ups are under the matching `##` heading further dow
   Facebook's screens before the 403; `webhooks: false` is not shown to the person.
 - **Tests:** fourteen in `meta.test.ts`, three in `meta-return.test.tsx`, two in
   `meta-remote.test.tsx`; the `/platforms` tests expect `meta`.
+## 2.62.5 — 2026-11-03
+
+`fix/legal-gaps`. The owner asked whether Terms and Privacy were complete. They were enough for TikTok's review but missed common items, now added:
+
+- Terms, Who may use it: for a business, 18 or older.
+- Terms, Liability: no liability for indirect losses, or for a post that goes out late or not at all, as far as the law allows.
+- Terms, Changes and law: the date at the top shows the version; important changes by email; Singapore law.
+- Privacy, Where: Vercel serves the website and sees each visitor's IP address.
+- Privacy, Your browser: the sign-in, the last brand opened and the last accounts picked, in the browser's storage (checked in the code: `lib/remote.ts` and the brand and account pickers); no analytics or tracking in the app.
+- Privacy, Changes: as for Terms.
+
+Not reviewed by a lawyer. The Meta text for Privacy is on `feat/meta-direct` and lands with Meta. Checked on desktop screenshots. 757 web tests pass.
+
+## 2.62.4 — 2026-11-03
+
+`fix/landing-team-line`. The owner wanted a line with Get started that says how to get access. "For your team" now reads "Email us to set up your brand. Free to start." above Get started, which opens an email to the team. "Mission Group" in the footer links to the group's website. Checked on a phone screenshot. 757 web tests pass.
+
+## 2.62.3 — 2026-11-03
+
+`fix/landing-copy-short`. The owner found the home page still too long. Every body text is now one short line:
+
+- Hero: "Instagram, Facebook and TikTok on one calendar."
+- Cards: "Every post, story and shoot.", "Pinterest boards and team ideas.", "Finished videos, sent as drafts."
+- TikTok steps: "Link the brand’s TikTok to see its videos and stats.", "Send a planned video to TikTok as a draft.", "Edit and post it in TikTok. We never post for you."
+- "Disconnect any time to delete its tokens."
+- "For your team" keeps Get started and drops its sentence.
+
+Checked on desktop and phone screenshots. 757 web tests pass.
+
+## 2.62.2 — 2026-11-03
+
+- **Why.** The home page a signed-out visitor sees (`welcome.tsx`) is what TikTok's app review
+  films. Its copy was long, and two sentences started with the lowercase "brand base".
+- **What.** Text only, no layout or behaviour change. The hero and "For your team" paragraphs open
+  with what the visitor gets; the three cards, the three TikTok steps and the disconnect line are
+  shorter. The wordmark stays lowercase, and no sentence starts with it. A Sonnet review checked
+  each claim against the code (`tiktok.ts`, `tiktok-routes.ts`, `posted-page.tsx`,
+  `tiktok-inbox.tsx`); its points (keep "where videos go", "Pins from", and the creator opening
+  the draft) are in.
+- 1616 tests: 1354 pass, 262 skip without a Postgres. Typecheck, lint and format pass. Checked in
+  the browser at 1440 and 390 wide.
+
 ## 2.62.1 — 2026-11-03
 
 - **Why.** An Opus review of the TikTok work against TikTok's published rules (Developers and API

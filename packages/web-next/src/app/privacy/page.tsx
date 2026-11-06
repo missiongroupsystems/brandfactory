@@ -39,7 +39,8 @@ export default function Page() {
         <h2>Where</h2>
         <p>
           Sign-in, brand data and files are kept with Supabase, in Singapore. The app&rsquo;s server
-          runs on Fly.io, in Singapore.
+          runs on Fly.io, in Singapore. The website is served by Vercel, which sees each
+          visitor&rsquo;s IP address to deliver it.
         </p>
       </section>
       <section>
@@ -103,6 +104,20 @@ export default function Page() {
           We keep a brand&rsquo;s content while its team uses brand base for that brand, and a
           person&rsquo;s account while they use it. When either ends, we delete it on request, or
           when it is no longer needed.
+        </p>
+      </section>
+      <section>
+        <h2>Your browser</h2>
+        <p>
+          brand base keeps your sign-in, the last brand you opened and the accounts you last picked
+          in your browser&rsquo;s storage. It uses no advertising or tracking cookies.
+        </p>
+      </section>
+      <section>
+        <h2>Changes</h2>
+        <p>
+          When this policy changes, the date at the top changes too. We tell account holders by
+          email about any important change.
         </p>
       </section>
       <section>

@@ -13,30 +13,30 @@ import { SESSION_CLASS } from './session-class'
 const PARTS = [
   {
     title: 'A calendar for each brand',
-    body: 'Posts, stories and shoots by day and week, each with its time and platforms.',
+    body: 'Every post, story and shoot.',
   },
   {
     title: 'A shared moodboard',
-    body: 'Pins from the brand’s Pinterest boards and the ideas the team collects, ready to become posts.',
+    body: 'Pinterest boards and team ideas.',
   },
   {
     title: 'Drafts to TikTok',
-    body: 'A finished video goes to the brand’s TikTok inbox as a draft. The team posts it from the TikTok app.',
+    body: 'Finished videos, sent as drafts.',
   },
 ]
 
 const TIKTOK_STEPS = [
   {
     title: 'Connect',
-    body: 'A team member connects the brand’s TikTok account through TikTok’s own sign-in. brand base shows the account’s name and picture, so the team sees where videos go, and its public videos with their views, likes, comments and shares on the Feed.',
+    body: 'Link the brand’s TikTok to see its videos and stats.',
   },
   {
     title: 'Send',
-    body: 'On a planned video post, Send to TikTok inbox uploads the video to that account as a draft.',
+    body: 'Send a planned video to TikTok as a draft.',
   },
   {
     title: 'Finish in TikTok',
-    body: 'The creator opens the draft in the TikTok app, edits it and posts it. brand base never posts to TikTok by itself.',
+    body: 'Edit and post it in TikTok. We never post for you.',
   },
 ]
 
@@ -85,9 +85,7 @@ export function Welcome() {
             Plan, make and post for every brand
           </h1>
           <p className="text-[17px] leading-[1.55] text-ink-3 max-md:text-[16px]">
-            brand base is a social media workspace for brands and their marketing teams. A team
-            plans each brand’s posts on one calendar and gets them ready for Instagram, Facebook and
-            TikTok.
+            Instagram, Facebook and TikTok on one calendar.
           </p>
           <Link
             href="/sign-in"
@@ -132,8 +130,7 @@ export function Welcome() {
             ))}
           </ol>
           <p className="max-w-[560px] text-[14px] leading-[1.5] text-ink-3">
-            A connected account can be disconnected at any time in Connections. Disconnecting it
-            deletes its access tokens.
+            Disconnect any time to delete its tokens.
           </p>
         </section>
 
@@ -145,8 +142,7 @@ export function Welcome() {
             For your team
           </h2>
           <p className="text-[15px] leading-[1.55] text-ink-3">
-            brand base is for any brand and its marketing team, and free to start. Tell us about
-            your brand, and we set up your team and its brands.
+            Email us to set up your brand. Free to start.
           </p>
           <a
             href={`mailto:${CONTACT}?subject=brand%20base%20team`}
@@ -161,7 +157,12 @@ export function Welcome() {
         <a href={`mailto:${CONTACT}`} className="hover:text-ink">
           {CONTACT}
         </a>
-        <span>© 2026 Mission Group</span>
+        <span>
+          © 2026{' '}
+          <a href="https://www.missiongroup.com" className="hover:text-ink">
+            Mission Group
+          </a>
+        </span>
       </footer>
     </div>
   )
