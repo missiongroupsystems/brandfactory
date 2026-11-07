@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.5** — 2026-11-07 — `feat/meta-direct`: a Meta test that ran past CI's 30-second limit is now five tests; no production code changes. 1424 tests by count (264 skipped).
 - **2.66.4** — 2026-11-07 — `feat/meta-direct`: the review's fixes before real Meta use. Facebook's sign-in link asks for a code outright (`override_default_response_type`). A cut emoji or a NUL in a message no longer fails a delivery, and a batch that can never be stored no longer holds back the rest. A Page's webhooks turn on only when a delivery could be kept, and the person is told if not. Comments, DMs and replies stay out of the call log (pack 1.15.1), so Disconnect deletes them as the privacy page says. The composer holds a Story to one file, and JPEG on Instagram. 1420 tests (264 skipped without a Postgres server).
 - **2.66.3** — 2026-11-06 — `feat/meta-direct`: `core migrate` runs on Supabase again. Its check for roles that can call `pg_reload_conf` counted Supabase's own manage-only grant of each pack role to `postgres`, which cannot act as the role; it now counts only members that can. Production: three install-time grants to `postgres` were taken back. 1412 tests (264 skipped without a Postgres server; 38 of 38 on Postgres 17).
 - **2.66.2** — 2026-11-06 — `feat/meta-direct`: the `core` command line runs against the Supabase database again. It read the server's settings to check a sign-in, and on a remote database those demand the files and agent secrets; it now reads only the sign-in and the live pointer (`loadCliEnv`), and still refuses the dev sign-in there. 458 core tests (264 skipped without a Postgres server).
@@ -141,6 +142,16 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.5 — 2026-11-07
+
+- **Why.** The test added in 2.66.4 for when a Page's webhooks turn on built five servers in one
+  test. It passed on the Mac and timed out at 30 seconds in CI.
+- **What changed.** It is now five tests with the same setups and the same expected results. No
+  production code changed.
+- **Tests:** 1424 by count (264 skipped without a Postgres server). `meta.test.ts` was rerun (20
+  pass), with typecheck and lint; the full suite was not rerun. CI's build step was already failing
+  on Turbopack's Google Fonts error at a89bf81, and this does not change that.
 
 ## 2.66.4 — 2026-11-07
 

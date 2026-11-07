@@ -206,7 +206,7 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     expect(await t.accounts()).toHaveLength(2)
   })
 
-  it('turns the webhooks on only when messages can be kept, so Meta never delivers what is lost', async () => {
+  describe('turns the webhooks on only when messages can be kept, so Meta never delivers what is lost', () => {
     const pick = async (t: T) => {
       const { done } = await signIn(t)
       const picked = await t.call(
@@ -227,29 +227,35 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     }
     const off = { webhooks: false, subscribed: false, unsubscribed: true, linked: 2 }
 
-    // No agent named.
-    expect(await pick(await setUp(null))).toEqual(off)
+    it('stops the webhooks when no agent is named', async () => {
+      expect(await pick(await setUp(null))).toEqual(off)
+    })
 
-    // No app secret: every delivery would be refused, and Meta would unsubscribe the Page.
-    expect(await pick(await setUp(AGENT, ''))).toEqual(off)
+    it('stops the webhooks with no app secret: Meta would unsubscribe a Page whose deliveries are refused', async () => {
+      expect(await pick(await setUp(AGENT, ''))).toEqual(off)
+    })
 
-    // An agent that may not keep messages.
-    const noMove = await setUp()
-    await setLoadout(noMove.db, AGENT, 'brandbase', ['brand.state'])
-    expect(await pick(noMove)).toEqual(off)
+    it('stops the webhooks when the agent may not keep messages', async () => {
+      const noMove = await setUp()
+      await setLoadout(noMove.db, AGENT, 'brandbase', ['brand.state'])
+      expect(await pick(noMove)).toEqual(off)
+    })
 
-    // An agent of a person outside the brand's company.
-    const noReach = await setUp('stranger/meta')
-    await addPrincipal(noReach.db, 'stranger')
-    await addPrincipal(noReach.db, 'stranger/meta', 'stranger')
-    await setLoadout(noReach.db, 'stranger/meta', 'brandbase', ['inbox.meta_receive'])
-    expect(await pick(noReach)).toEqual(off)
+    it('stops the webhooks when the agent belongs to a person outside the brand’s company', async () => {
+      const noReach = await setUp('stranger/meta')
+      await addPrincipal(noReach.db, 'stranger')
+      await addPrincipal(noReach.db, 'stranger/meta', 'stranger')
+      await setLoadout(noReach.db, 'stranger/meta', 'brandbase', ['inbox.meta_receive'])
+      expect(await pick(noReach)).toEqual(off)
+    })
 
-    expect(await pick(await setUp())).toEqual({
-      webhooks: true,
-      subscribed: true,
-      unsubscribed: false,
-      linked: 2,
+    it('turns the webhooks on when the agent can keep messages', async () => {
+      expect(await pick(await setUp())).toEqual({
+        webhooks: true,
+        subscribed: true,
+        unsubscribed: false,
+        linked: 2,
+      })
     })
   })
 
