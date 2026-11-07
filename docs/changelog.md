@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.6** — 2026-11-08 — `feat/meta-direct`: the second Meta review's fixes. Instagram's server errors (-1, -2) say a post or reply may have gone, not that nothing went. The webhook answers Meta 200 for a batch Postgres refuses as data (`BAD_INPUT`, `CONFLICT`). A Page whose new Instagram account is refused still gets its webhooks. Server only, no pack change. 1425 tests (264 skipped).
 - **2.66.5** — 2026-11-07 — `feat/meta-direct`: a Meta test that ran past CI's 30-second limit is now five tests; no production code changes. 1424 tests by count (264 skipped).
 - **2.66.4** — 2026-11-07 — `feat/meta-direct`: the review's fixes before real Meta use. Facebook's sign-in link asks for a code outright (`override_default_response_type`). A cut emoji or a NUL in a message no longer fails a delivery, and a batch that can never be stored no longer holds back the rest. A Page's webhooks turn on only when a delivery could be kept, and the person is told if not. Comments, DMs and replies stay out of the call log (pack 1.15.1), so Disconnect deletes them as the privacy page says. The composer holds a Story to one file, and JPEG on Instagram. 1420 tests (264 skipped without a Postgres server).
 - **2.66.3** — 2026-11-06 — `feat/meta-direct`: `core migrate` runs on Supabase again. Its check for roles that can call `pg_reload_conf` counted Supabase's own manage-only grant of each pack role to `postgres`, which cannot act as the role; it now counts only members that can. Production: three install-time grants to `postgres` were taken back. 1412 tests (264 skipped without a Postgres server; 38 of 38 on Postgres 17).
@@ -142,6 +143,29 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.6 — 2026-11-08
+
+- **Why.** A second review of the Meta code (Opus and Sonnet, against Meta's documents) before
+  the first real login. It found no blocker; these three would hurt a real brand.
+- **What changed.**
+  - `meta-post.ts`: `definite` counts only codes above 2 that are not transient. Instagram's -1
+    ("server error, try again") and -2 (timeout) can come after a post went live, so a publish or
+    an Inbox reply that fails this way now says it may have gone, and a person does not post it
+    twice. A few stated refusals under -1 and -2 now say this too, which is the safe side.
+  - `meta-inbox.ts`: `BAD_INPUT` and `CONFLICT` join `NOT_FOUND` and `VALIDATION` as refusals
+    the webhook logs and answers 200. A refusal of the principal itself (removed, or its loadout
+    without the move) still answers an error, so a fix within the hour stores what Meta resends.
+  - `meta-routes.ts`: when `/meta/select` cannot link the Page's Instagram account (another brand
+    holds it), the Page, already linked, still gets its webhooks, then the refusal is answered.
+    Before, its comments and DMs never came.
+  - `meta-direct-plan.md`: which webhook refusals are dropped and which Meta resends.
+- **Not fixed, on purpose.** The wait for a slow Reel, Reconnect from Make breaking waiting
+  approvals, the brand's own Instagram replies coming back, large numeric ids, and the carousel
+  cap of 10 wait for the real test.
+- **Tests:** 1425 by count (264 skipped without a Postgres server). Typecheck, lint and format
+  clean. Each new test fails without its fix. `next build` was not run; CI's build step already
+  fails on Turbopack's Google Fonts error. Nothing here has run against real Meta.
 
 ## 2.66.5 — 2026-11-07
 

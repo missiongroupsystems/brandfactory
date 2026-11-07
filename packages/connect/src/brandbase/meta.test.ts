@@ -386,6 +386,10 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
       ['casa', 'facebook', '100001'],
       ['osteria', 'instagram', '17841400000000001'],
     ])
+    // The Page linked all the same, so its comments and DMs still come.
+    expect(
+      t.meta.calls.some((c) => c.method === 'POST' && c.path === '/100001/subscribed_apps'),
+    ).toBe(true)
   })
 
   it('makes an account Make’s again when its id is typed in for Make', async () => {

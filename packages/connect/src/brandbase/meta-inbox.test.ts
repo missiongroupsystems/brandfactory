@@ -255,6 +255,17 @@ describe('comments and DMs from Meta', () => {
     expect((await t.inbox()).map((m) => m.text)).toEqual(['Stored'])
   })
 
+  it('answers Meta when Postgres refuses the data itself, as a resend is refused the same way', async () => {
+    const t = await setUp()
+    await t.db.exec(`
+      create function pg_temp.refuse() returns trigger language plpgsql as $$
+      begin raise exception 'bad value' using errcode = '22023'; end $$;
+      create trigger refuse before insert on brandbase.inbox_messages
+        for each row execute function pg_temp.refuse();`)
+    expect((await t.deliver(igDm('mid.1', 'Hi'))).status).toBe(200)
+    expect(await t.inbox()).toEqual([])
+  })
+
   it('still fails a delivery it could store later, so Meta sends it again', async () => {
     const t = await setUp()
     await setLoadout(t.db, AGENT, 'brandbase', ['brand.state'])

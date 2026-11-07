@@ -391,6 +391,8 @@ describe('what a send through Meta answers when it does not post', () => {
     for (const [fail, sent] of [
       ['lost', 'maybe'],
       [{ code: 2, message: 'Service temporarily unavailable' }, 'maybe'],
+      [{ code: -1, message: 'Instagram server error. Try again' }, 'maybe'],
+      [{ code: -2, message: 'Timeout' }, 'maybe'],
       [{ code: 9007, message: 'busy', transient: true }, 'maybe'],
       [{ code: 9, message: 'Application request limit reached' }, false],
     ] as const) {
