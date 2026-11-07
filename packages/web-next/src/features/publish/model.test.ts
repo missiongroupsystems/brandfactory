@@ -368,8 +368,16 @@ describe('what Make can post to Instagram and Facebook', () => {
     expect(makeBlockers('reel', ['fb'], [jpg])).toEqual(['A Reel takes one video.'])
   })
 
-  it('leaves Stories, other accounts and files of no known type to the server', () => {
-    expect(makeBlockers('story', ['ig'], [png])).toEqual([])
+  it('holds a Story to what Meta takes, before it can fail at its time', () => {
+    expect(makeBlockers('story', ['ig', 'fb'], [jpg])).toEqual([])
+    expect(makeBlockers('story', ['ig'], [mp4])).toEqual([])
+    expect(makeBlockers('story', ['fb'], [png])).toEqual([])
+    expect(makeBlockers('story', ['ig'], [png])).toEqual(['Instagram takes JPEG photos only.'])
+    expect(makeBlockers('story', ['fb'], [jpg, jpg])).toEqual(['A story takes one photo or video.'])
+    expect(makeBlockers('story', ['tt'], [jpg, jpg])).toEqual([])
+  })
+
+  it('leaves other accounts and files of no known type to the server', () => {
     expect(makeBlockers('carousel', ['tt'], [png])).toEqual([])
     expect(makeBlockers('carousel', ['ig'], [sample])).toEqual([])
   })

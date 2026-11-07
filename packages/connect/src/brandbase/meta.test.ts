@@ -1,3 +1,4 @@
+import { addPrincipal, setLoadout } from '@brandfactory/core/src/registry'
 import { describe, expect, it } from 'vitest'
 import { platformsFromEnv } from './env'
 import { metaApp } from './meta'
@@ -71,9 +72,17 @@ function fakeMeta() {
 
 type T = Awaited<ReturnType<typeof setUp>>
 
-async function setUp() {
+const AGENT = 'owner/meta'
+
+/** The server as released: the webhook's agent is set and may keep messages. */
+async function setUp(as: string | null = AGENT, appSecret: string | undefined = 'app-secret') {
   const meta = fakeMeta()
-  const t = await serve({ meta: meta.app })
+  const t = await serve({
+    meta: meta.app,
+    metaHooks: { verifyToken: 'v', appSecret, as: as ?? undefined },
+  })
+  await addPrincipal(t.db, AGENT, 'owner')
+  await setLoadout(t.db, AGENT, 'brandbase', ['inbox.meta_receive'])
   return { ...t, meta }
 }
 
@@ -95,6 +104,8 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
       client_id: 'app-id',
       config_id: 'config-1',
       response_type: 'code',
+      // A configuration's default answer is a token in the address; the server needs a code.
+      override_default_response_type: 'true',
       redirect_uri: 'https://brandbase.test/connect/meta',
     })
     expect(url.searchParams.has('scope')).toBe(false)
@@ -193,6 +204,53 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     )
     expect(picked).toMatchObject({ status: 200, data: { webhooks: false } })
     expect(await t.accounts()).toHaveLength(2)
+  })
+
+  it('turns the webhooks on only when messages can be kept, so Meta never delivers what is lost', async () => {
+    const pick = async (t: T) => {
+      const { done } = await signIn(t)
+      const picked = await t.call(
+        'POST',
+        '/meta/select',
+        { choice: done.data.choice, pageId: '100001' },
+        'owner',
+      )
+      const sent = (method: string) =>
+        t.meta.calls.some((c) => c.method === method && c.path.endsWith('/subscribed_apps'))
+      return {
+        webhooks: picked.data.webhooks,
+        subscribed: sent('POST'),
+        // A Page subscribed before stops too.
+        unsubscribed: sent('DELETE'),
+        linked: (await t.accounts()).length,
+      }
+    }
+    const off = { webhooks: false, subscribed: false, unsubscribed: true, linked: 2 }
+
+    // No agent named.
+    expect(await pick(await setUp(null))).toEqual(off)
+
+    // No app secret: every delivery would be refused, and Meta would unsubscribe the Page.
+    expect(await pick(await setUp(AGENT, ''))).toEqual(off)
+
+    // An agent that may not keep messages.
+    const noMove = await setUp()
+    await setLoadout(noMove.db, AGENT, 'brandbase', ['brand.state'])
+    expect(await pick(noMove)).toEqual(off)
+
+    // An agent of a person outside the brand's company.
+    const noReach = await setUp('stranger/meta')
+    await addPrincipal(noReach.db, 'stranger')
+    await addPrincipal(noReach.db, 'stranger/meta', 'stranger')
+    await setLoadout(noReach.db, 'stranger/meta', 'brandbase', ['inbox.meta_receive'])
+    expect(await pick(noReach)).toEqual(off)
+
+    expect(await pick(await setUp())).toEqual({
+      webhooks: true,
+      subscribed: true,
+      unsubscribed: false,
+      linked: 2,
+    })
   })
 
   it('lets only an owner or admin of a company on the operator’s list start the sign-in, before Facebook’s dialog', async () => {

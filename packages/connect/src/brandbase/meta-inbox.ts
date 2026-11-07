@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { Refused } from '@brandfactory/core/src/errors'
-import { call, type CoreDeps } from '@brandfactory/core/src/run'
+import { call, clean, type CoreDeps } from '@brandfactory/core/src/run'
 import { type Context, Hono } from 'hono'
 import { bound, PACK, readAccount, type Who } from './accounts'
 import { words } from './make'
@@ -37,7 +37,11 @@ export interface Batch {
 
 type Json = Record<string, unknown>
 const obj = (v: unknown): Json => (v && typeof v === 'object' ? (v as Json) : {})
-const str = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '')
+/** Meta's text as Postgres can keep it: no NUL, and no half of an emoji. */
+const str = (v: unknown) =>
+  typeof v === 'string' ? clean(v) : typeof v === 'number' ? String(v) : ''
+/** The first characters of a text; a cut can go through an emoji, so it is cleaned after. */
+const cut = (text: string, max: number) => clean(text.slice(0, max))
 
 /** Our id for Meta's: the same for every delivery of it, and within the moves' pattern. */
 const idOf = (metaId: string) =>
@@ -48,7 +52,7 @@ function isoOf(value: unknown, now: number) {
   const n = typeof value === 'number' ? value : Number(value)
   const at = new Date(n < 1e12 ? n * 1000 : n)
   // A time no date can hold is Meta's mistake: the message still lands, at the time it came.
-  if (!Number.isFinite(n) || n <= 0 || Number.isNaN(at.getTime()))
+  if (!Number.isFinite(n) || n <= 0 || Number.isNaN(at.getTime()) || at.getUTCFullYear() > 9999)
     return new Date(now).toISOString()
   return at.toISOString()
 }
@@ -86,7 +90,7 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
         kind: 'dm',
         fromName: platform === 'instagram' ? 'Instagram user' : 'Facebook user',
         fromHandle: '',
-        text: text.slice(0, 8000),
+        text: cut(text, 8000),
         receivedAt: isoOf(e.timestamp, now),
         external: { sender, mid },
       })
@@ -108,9 +112,9 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
         items.push({
           id: idOf(comment),
           kind: 'comment',
-          fromName: str(from.name).slice(0, 200) || 'Facebook user',
+          fromName: cut(str(from.name), 200) || 'Facebook user',
           fromHandle: '',
-          text: (str(v.message) || '(a photo or a sticker)').slice(0, 8000),
+          text: cut(str(v.message) || '(a photo or a sticker)', 8000),
           receivedAt: isoOf(v.created_time, now),
           external: { comment, post: str(v.post_id) },
         })
@@ -118,13 +122,13 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
         if (change.field !== 'comments') continue
         const comment = str(v.comment_id) || str(v.id)
         if (!comment || str(from.id) === account) continue
-        const username = str(from.username).slice(0, 199)
+        const username = cut(str(from.username), 199)
         items.push({
           id: idOf(comment),
           kind: 'comment',
           fromName: username || 'Instagram user',
           fromHandle: username ? `@${username}` : '',
-          text: (str(v.text) || '(a photo or a sticker)').slice(0, 8000),
+          text: cut(str(v.text) || '(a photo or a sticker)', 8000),
           receivedAt: isoOf(entry.time, now),
           external: { comment, post: str(obj(v.media).id) },
         })
@@ -139,7 +143,10 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
  * The webhook's handler once comments and DMs are kept: each batch goes to `inbox.meta_receive`,
  * run as the principal the settings name (`META_WEBHOOK_AS`), so the pack's walls still apply and
  * an account no brand within its reach holds stores nothing. Without it, deliveries are only
- * counted in the log.
+ * counted in the log; `/meta/select` does not subscribe a Page then.
+ *
+ * Only a failure that can pass answers Meta with an error. Meta unsubscribes a Page after an hour
+ * of errors (Messenger Platform, Webhooks), so what can never be stored is logged and left behind.
  */
 export function inboxHandler(core: CoreDeps, as: string | undefined) {
   return async (delivery: MetaDelivery) => {
@@ -160,12 +167,10 @@ export function inboxHandler(core: CoreDeps, as: string | undefined) {
         })
       } catch (err) {
         // Meta is answered all the same: sending again would not help. The account alone is logged.
-        if (!(err instanceof Refused && err.code === 'NOT_FOUND')) throw err
-        console.error(
-          'meta webhook: dropped, no brand within reach of META_WEBHOOK_AS holds',
-          b.platform,
-          b.account,
-        )
+        if (!(err instanceof Refused && (err.code === 'NOT_FOUND' || err.code === 'VALIDATION'))) {
+          throw err
+        }
+        console.error('meta webhook: dropped', err.code, b.platform, b.account)
       }
     }
   }

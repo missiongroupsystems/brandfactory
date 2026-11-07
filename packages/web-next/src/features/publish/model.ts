@@ -222,23 +222,29 @@ export interface MediaFile {
  * What Instagram and Facebook cannot take through Make's modules (docs/executing/
  * make-publishing-plan.md), for the accounts a post is really sent to: Instagram photos are JPEG,
  * one video on Instagram is a Reel, a Facebook post takes photos only, and a Reel is one video.
+ * A Story, which only our own Meta app posts, is one file.
  * A file whose type its address does not show is left to the server's own check.
  */
 export function makeBlockers(format: Format, sending: ChannelKey[], media: MediaFile[]): string[] {
   const out: string[] = []
   const ig = sending.includes('ig')
   const fb = sending.includes('fb')
-  if ((!ig && !fb) || media.length === 0 || format === 'story') return out
+  if ((!ig && !fb) || media.length === 0) return out
   const videos = media.filter((m) => m.video)
+  const notJpeg = media.some((m) => {
+    const ext = /\.([a-z0-9]{1,5})$/i.exec(m.src.split(/[?#]/)[0]!)?.[1]?.toLowerCase()
+    return !m.video && ext !== undefined && ext !== 'jpg' && ext !== 'jpeg'
+  })
+  if (format === 'story') {
+    if (media.length !== 1) out.push('A story takes one photo or video.')
+    if (ig && notJpeg) out.push('Instagram takes JPEG photos only.')
+    return out
+  }
   if (format === 'reel') {
     if (media.length !== 1 || videos.length !== 1) out.push('A Reel takes one video.')
     return out
   }
   if (ig) {
-    const notJpeg = media.some((m) => {
-      const ext = /\.([a-z0-9]{1,5})$/i.exec(m.src.split(/[?#]/)[0]!)?.[1]?.toLowerCase()
-      return !m.video && ext !== undefined && ext !== 'jpg' && ext !== 'jpeg'
-    })
     if (notJpeg) out.push('Instagram takes JPEG photos only.')
     if (media.length === 1 && videos.length === 1) {
       out.push('Instagram posts a single video as a Reel: make it a Reel.')

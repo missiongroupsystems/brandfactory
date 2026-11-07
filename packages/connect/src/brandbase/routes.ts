@@ -150,7 +150,7 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
       .route('/', readingsRoutes(core, platforms.readings))
 
       // Each brand's Facebook Page and Instagram account, by Facebook's sign-in.
-      .route('/', metaRoutes(core, platforms.meta))
+      .route('/', metaRoutes(core, platforms.meta, platforms.metaHooks))
 
       // Meta's webhooks: no person's session, Meta's own signature instead.
       .route(

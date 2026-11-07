@@ -51,8 +51,9 @@ export async function logDelivery(delivery: MetaDelivery) {
 /**
  * `GET /webhooks/meta` answers the check Meta makes when the webhook is saved; `POST` takes the
  * changes. A body whose signature does not hold is refused before it is read as JSON. The answer
- * is 200 once the delivery is handled; a failure answers 500, so Meta sends it again (for up to
- * 36 hours), and the handler stores each change once.
+ * is 200 once the delivery is handled; a failure answers an error, so Meta sends it again, and the
+ * handler stores each change once. After an hour of errors Meta unsubscribes the Page: connecting
+ * it again subscribes it.
  */
 export function metaWebhookRoutes(
   hooks: MetaHooks | undefined,

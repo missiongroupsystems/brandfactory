@@ -115,8 +115,12 @@ export const finishMeta = (code: string, state: string) =>
 
 /** Links the Page picked, with its Instagram account, then reloads the brand. */
 export async function pickPage(brandId: BrandId, choice: string, pageId: string) {
-  await request('POST', '/meta/select', { choice, pageId })
+  const { webhooks } = await request<{ webhooks?: boolean }>('POST', '/meta/select', {
+    choice,
+    pageId,
+  })
   await loadBrand(brandId).catch(() => undefined)
+  return { webhooks }
 }
 
 /**

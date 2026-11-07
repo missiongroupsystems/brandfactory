@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -22,12 +22,13 @@ const core = vi.hoisted(() => ({
   waiting: [] as Array<(id: string, state: unknown) => void>,
   state: (() => ({})) as () => unknown,
   facebookVia: 'make',
+  instagramVia: 'meta',
 }))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   core.state = () => ({
     ...demoAsCore('casa-vostra'),
-    instagram: { name: 'casavostra', accountId: '17841400000000001', via: 'meta' },
+    instagram: { name: 'casavostra', accountId: '17841400000000001', via: core.instagramVia },
     facebook: { name: 'Casa Vostra', accountId: '100000000000001', via: core.facebookVia },
   })
   return {
@@ -76,6 +77,12 @@ beforeEach(() => {
   vi.setSystemTime(DEMO_CLOCK)
   resetConnections()
   resetIdeas()
+  // A test that changed how the accounts are linked cannot leak it, even when it fails.
+  if (core.instagramVia !== 'meta' || core.facebookVia !== 'make') {
+    core.instagramVia = 'meta'
+    core.facebookVia = 'make'
+    act(() => core.waiting.forEach((hydrate) => hydrate('casa-vostra', core.state())))
+  }
   sent.mockClear()
   requests.length = 0
 })
@@ -127,6 +134,36 @@ describe('the composer with Instagram through our own Meta app', () => {
     expect((patch!.body as { channels: string[] }).channels).toEqual(['ig', 'fb'])
   })
 
+  it('holds a Story to the rules of the accounts that really send it', async () => {
+    const png = async () => {
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer />
+          </Loaded>
+        </BrandProvider>,
+      )
+      fireEvent.click(screen.getAllByRole('radio', { name: 'Story' })[0]!)
+      fireEvent.change(document.querySelector<HTMLInputElement>('input[type="file"]')!, {
+        target: { files: [new File(['x'], 'story.png', { type: 'image/png' })] },
+      })
+      await act(async () => undefined)
+      tick('Instagram')
+      tick('Facebook')
+    }
+    const jpegOnly = () => screen.queryAllByText('Instagram takes JPEG photos only.')
+    await png()
+    expect(jpegOnly().length).toBeGreaterThan(0)
+    cleanup()
+
+    // Instagram through Make only plans the Story: its JPEG rule does not hold the Page's back.
+    core.instagramVia = 'make'
+    core.facebookVia = 'meta'
+    act(() => core.waiting.forEach((hydrate) => hydrate('casa-vostra', core.state())))
+    await png()
+    expect(jpegOnly()).toEqual([])
+  })
+
   it('says a Reel to a Page linked through Meta is public, as Meta asks', async () => {
     core.facebookVia = 'meta'
     act(() => core.waiting.forEach((hydrate) => hydrate('casa-vostra', core.state())))
@@ -142,7 +179,5 @@ describe('the composer with Instagram through our own Meta app', () => {
     expect(screen.getByText(/Who can see this on Facebook: Public/)).toBeInTheDocument()
     tick('Facebook', false)
     expect(screen.queryByText(/Who can see this on Facebook/)).toBeNull()
-    core.facebookVia = 'make'
-    act(() => core.waiting.forEach((hydrate) => hydrate('casa-vostra', core.state())))
   })
 })

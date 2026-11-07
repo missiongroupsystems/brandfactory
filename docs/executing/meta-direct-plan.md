@@ -104,7 +104,9 @@ Read 3 Nov 2026. Each rule names the page, its date and the words that bind us.
    `https://brandfactory.fly.dev/webhooks/meta`, the same verify token, Verify and save. Page
    fields `messages` and `feed`; Instagram fields `messages` and `comments`.
 5. Later, once the app secret is in the Keychain (`meta`/`app-secret`), set `META_APP_SECRET` the
-   same way: deliveries are refused (503) until then, and Meta sends them again for 36 hours.
+   same way: deliveries are refused (503) until then. Meta sends a failed delivery again, and
+   after an hour of failures it unsubscribes the Page (Messenger Platform, Webhooks), so a Page
+   connects only once this is set.
 
 ### Phases 2 and 3: the sign-in and posting (pack 1.15.0, no migration)
 
@@ -127,28 +129,56 @@ through Make, which may hold no connection to it.
 5. Pack: `core publish packs/brandbase`, `core test brandbase 1.15.0`, `core migrate brandbase
    1.15.0`, `core promote brandbase 1.15.0` (the state names how each account is linked; the
    payload names `via`). This applies 0024 and 0025 too if 1.14.0 never reached production.
-6. Deploy the server, then the web app.
-7. Connect a test brand on Connections (Instagram, Connect): Facebook's dialog, the Page, back on
-   Connections with both rows connected.
-8. On the test brand: one Instagram photo, one carousel, one Reel and one story; one Facebook photo,
+6. `core loadout <uid> brandbase all` for every person (not the agents): Connect calls
+   `account.meta_check`, new in 1.15.0, and a person without it sees "account.meta_check is not in
+   the loadout" (found on 6 Nov).
+7. Deploy the server, then the web app.
+8. Connect a test brand on Connections (Instagram, Connect): Facebook's dialog, the Page, back on
+   Connections with both rows connected. Before phase 4 the Page links and can post, and the page
+   says its comments and DMs will not reach the Inbox; continue to Connections from there.
+9. On the test brand: one Instagram photo, one carousel, one Reel and one story; one Facebook photo,
    several photos, one Reel and one story. Check each on the platform before any real brand.
 
 ### Phase 4: comments and DMs (pack 1.15.0, migration 0026)
 
-Release with phases 2 and 3, or after them.
+Release before the first Page links. `/meta/select` turns a Page's webhooks on only when the
+principal can keep its messages, and says so if not; a Page linked earlier connects again.
 
 1. Make the webhook's principal: `core principal <owner-id>/meta --agent-of <owner-id>` (an owner of Mission
    Group), `core loadout <owner-id>/meta brandbase inbox.meta_receive`.
 2. `fly secrets set -a brandfactory META_WEBHOOK_AS=<owner-id>/meta` (not a secret, but kept with
    the others).
-3. `core loadout <uid> brandbase all` for every person: the new moves `account.meta_check`,
+3. Done in phase 2, step 6 (`core loadout <uid> brandbase all`): the new moves `account.meta_check`,
    `inbox.meta_read`, `inbox.meta_claim`, `inbox.meta_done`, `inbox.meta_hidden`,
    `inbox.meta_forget`.
 4. On the test brand: send the Page a Messenger message and the Instagram account a DM and a
    comment; each shows in the Inbox within seconds; answer each; hide a comment. Check each on
-   the platform. Until the app is Live with Advanced Access, only people with a role on the app
+   the platform. An Instagram account must allow Connected Tools (Settings, Messages, Allow
+   Access to Messages), or its DMs do not arrive. An Instagram comment may not arrive before App
+   Review (check 5 below). Until the app is Live with Advanced Access, only people with a role on the app
    reach it (Meta: "Apps with Standard Access can only send messages to people that have a role
    on the app", Instagram Messaging, Send a message, 2 Jul 2026).
+
+### The review's fixes (pack 1.15.1, no migration)
+
+1. `core publish packs/brandbase`, `core test brandbase 1.15.1`, `core migrate brandbase 1.15.1`,
+   `core promote brandbase 1.15.1`. The pack keeps comments, DMs and replies out of
+   `packs.op_calls` from here on.
+2. `fly deploy` the server, then merge to main for the web app.
+3. Run phase 4, steps 1 and 2, in that order: the loadout first. A principal without the move
+   answers Meta 403, and an hour of that unsubscribes the Page.
+4. Check that no earlier words are kept. Read only:
+   `BEGIN; SET TRANSACTION READ ONLY; select op, version, count(*) from packs.op_calls where (op = 'inbox.meta_receive' and input ? 'items' and input ->> 'items' <> '(secret)') or (op = 'inbox.meta_claim' and input ? 'text' and input ->> 'text' <> '(secret)') group by op, version; ROLLBACK;`
+   Expect no rows: `META_WEBHOOK_AS` was not set while 1.15.0 was live, so the webhook called
+   neither move. Rows need a separate delete, with the owner's yes.
+
+**If Meta sends a Webhooks Disabled alert, or a person writes that the Inbox is off:** fix the
+cause, then connect each affected brand again in Connections. That subscribes the Page again.
+Messages sent while it was off do not come back.
+
+**What stays only in the log:** a batch the webhook cannot store answers Meta 200 and logs
+`meta webhook: dropped`. This also happens when the principal's person leaves a company or is
+deactivated. Search the Fly logs for that line after any change to those people.
 
 ### App Review: what each permission's screencast shows
 

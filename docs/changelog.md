@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.4** — 2026-11-07 — `feat/meta-direct`: the review's fixes before real Meta use. Facebook's sign-in link asks for a code outright (`override_default_response_type`). A cut emoji or a NUL in a message no longer fails a delivery, and a batch that can never be stored no longer holds back the rest. A Page's webhooks turn on only when a delivery could be kept, and the person is told if not. Comments, DMs and replies stay out of the call log (pack 1.15.1), so Disconnect deletes them as the privacy page says. The composer holds a Story to one file, and JPEG on Instagram. 1420 tests (264 skipped without a Postgres server).
 - **2.66.3** — 2026-11-06 — `feat/meta-direct`: `core migrate` runs on Supabase again. Its check for roles that can call `pg_reload_conf` counted Supabase's own manage-only grant of each pack role to `postgres`, which cannot act as the role; it now counts only members that can. Production: three install-time grants to `postgres` were taken back. 1412 tests (264 skipped without a Postgres server; 38 of 38 on Postgres 17).
 - **2.66.2** — 2026-11-06 — `feat/meta-direct`: the `core` command line runs against the Supabase database again. It read the server's settings to check a sign-in, and on a remote database those demand the files and agent secrets; it now reads only the sign-in and the live pointer (`loadCliEnv`), and still refuses the dev sign-in there. 458 core tests (264 skipped without a Postgres server).
 - **2.66.1** — 2026-11-03 — `feat/meta-direct`: the final review's fixes. A reply Meta answered with its own "unknown" or "try again" no longer comes back to be sent twice; who may link Meta is checked before Facebook's dialog (`account.meta_check`); deleted Facebook comments and Instagram DMs are deleted here, and switching Page deletes the old Page's messages; the screens no longer see senders' ids; Instagram may take 150 s to process a video; the upload and every read end inside the core's limit; a Reel to a Page says it is public; `publish_video` is not asked for. Pack 1.15.0. 1409 tests (264 skipped without a Postgres server).
@@ -140,6 +141,25 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.4 — 2026-11-07
+
+**Why.** A review of the Meta code before any real login. All tests use a fake Meta, so the review compared each call with Meta's documents and looked for failures a fake cannot show.
+
+**Change.**
+
+- `meta.ts`: the sign-in link sends `override_default_response_type=true`. Meta's document requires it in its SDK example and does not mention it in the manual flow, so only a real login proves it is needed.
+- `meta-inbox.ts`: text is cleaned after each cut (no NUL, no half of an emoji); a time past year 9999 lands as now. A batch refused `VALIDATION` or `NOT_FOUND` is logged and left behind, because Meta unsubscribes a Page after an hour of errors. A failure that can pass still answers an error.
+- `meta-routes.ts`: `/meta/select` tests an empty `inbox.meta_receive` as `META_WEBHOOK_AS`, and needs `META_APP_SECRET`. On a definite no the Page links, is unsubscribed and answers `webhooks: false`; `/connect/meta` says so.
+- Pack 1.15.1: `secret` on `inbox.meta_receive` (`items`) and `inbox.meta_claim` (`text`).
+- `model.ts`, `composer.tsx`: a Story that is really sent takes one file, and JPEG on Instagram.
+- `meta-direct-plan.md`: Meta's one-hour unsubscribe, the release order, the repair (connect again), Instagram's Connected Tools setting, and the loadout step moved to phase 2.
+
+**Not fixed, on purpose.** Slow-video limits wait for real processing times. Reconnect's effect on waiting posts and the order of writes in a refused link are not changed. A dropped batch is only a log line.
+
+**Test.** Typecheck, lint and format clean. 1420 tests (264 skipped without a Postgres server). `next build` fails on this machine, on `a89bf81` too, with a Turbopack Google Fonts error; `next build --webpack` passes. The branch where the probe's failure is not a definite no has no test. Nothing here has run against real Meta.
+
+**Review.** Opus and Sonnet independently on the diff; a fresh Sonnet on the fixes to their findings. No blocker. Their confirmed findings are fixed.
 
 ## 2.66.3 — 2026-11-06
 

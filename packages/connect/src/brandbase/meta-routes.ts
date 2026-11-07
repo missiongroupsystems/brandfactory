@@ -11,6 +11,7 @@ import {
   type Who,
 } from './accounts'
 import { type MetaApp, MetaError, MetaReconnect } from './meta'
+import { type MetaHooks } from './meta-webhooks'
 
 function appOf(app: MetaApp | undefined): MetaApp {
   if (!app) throw new Refused(503, 'PLATFORM_OFF', 'Facebook and Instagram are not set up')
@@ -52,15 +53,42 @@ export const viaMeta = (account: Account | null): account is Account =>
  * picked as the brand's `facebook` row and its Instagram account as the `instagram` row, each with
  * the Page token sealed to its row, and turns the Page's webhooks on. Linking and forgetting are
  * the pack's account moves run as the person: only an owner or admin of a company on the
- * operator's list (`account.make_managed`).
+ * operator's list (`account.make_managed`). The Page's webhooks turn on only when a delivery could
+ * be kept: Meta does not send again what was answered with a 200, and it unsubscribes a Page after
+ * an hour of errors.
  */
-export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
+export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: MetaHooks) {
   const now = () => core.now().getTime()
   const who = (c: Context): Who => ({ authorization: c.req.header('authorization') })
   const person = (c: Context) => authenticate(core.auth, c.req.header('authorization'))
   /** One of the pack's internal moves, run as the person. */
   const metaMove = (c: Context, op: string, input: Record<string, unknown>) =>
     call(core, { authorization: who(c).authorization, pack: PACK, op, input, internal: true })
+  /**
+   * Whether a delivery for this Page could be kept: the signature can be checked, and an empty
+   * delivery passes as the webhook's principal. `no` is a definite no; `unknown` is a failure that
+   * says nothing about the setup, such as a lost database connection.
+   */
+  const canKeepMessages = async (brand: string, account: string) => {
+    if (!hooks?.appSecret || !hooks.as) {
+      console.error('meta: META_APP_SECRET or META_WEBHOOK_AS is not set', brand)
+      return 'no'
+    }
+    try {
+      await call(core, {
+        authorization: undefined,
+        as: hooks.as,
+        internal: true,
+        pack: PACK,
+        op: 'inbox.meta_receive',
+        input: { platform: 'facebook', account, items: [], removed: [] },
+      })
+      return 'yes'
+    } catch (err) {
+      console.error('meta: could not check the Page’s messages', brand, (err as Error).message)
+      return err instanceof Refused && err.status < 500 ? 'no' : 'unknown'
+    }
+  }
   const invalid = () =>
     new Refused(400, 'META_STATE', 'this Facebook link is not valid. Start again.')
 
@@ -143,12 +171,15 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined) {
           })
         }
         // Linked either way: without the webhooks only the inbox misses this Page.
-        let webhooks = true
+        const keeps = await canKeepMessages(brand, page.id)
+        let webhooks = keeps === 'yes'
         try {
-          await app.subscribe(page.id, page.token)
+          if (webhooks) await app.subscribe(page.id, page.token)
+          // A Page subscribed before must stop too: what Meta delivers now would be lost.
+          else if (keeps === 'no') await app.unsubscribe(page.id, page.token)
         } catch (err) {
           webhooks = false
-          console.error('meta: the Page webhooks did not turn on', brand, (err as Error).message)
+          console.error('meta: the Page webhooks did not change', brand, (err as Error).message)
         }
         return c.json({
           brandId: brand,

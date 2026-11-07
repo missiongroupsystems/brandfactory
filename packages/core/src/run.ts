@@ -408,7 +408,8 @@ const LOG_INPUT_MAX = 16_000
 const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g
 
 /** Text jsonb can hold: no NUL, and no half of a surrogate pair. */
-const clean = (text: string) => text.replaceAll('\u0000', '').replace(LONE_SURROGATE, '\ufffd')
+export const clean = (text: string) =>
+  text.replaceAll('\u0000', '').replace(LONE_SURROGATE, '\ufffd')
 
 function cleaned(value: unknown): unknown {
   if (typeof value === 'string') return clean(value)

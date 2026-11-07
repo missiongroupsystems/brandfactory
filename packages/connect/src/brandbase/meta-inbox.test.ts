@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { addPrincipal, setLoadout } from '@brandfactory/core/src/registry'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { metaApp } from './meta'
 import { batchesOf } from './meta-inbox'
 import { type MetaDelivery } from './meta-webhooks'
@@ -224,6 +224,66 @@ describe('comments and DMs from Meta', () => {
     const off = await setUp(null)
     expect((await off.deliver(igDm('mid.1', 'Hi'))).status).toBe(200)
     expect(await off.inbox()).toEqual([])
+  })
+
+  it('stores a message with words Postgres cannot keep, so one message never holds a delivery back', async () => {
+    const t = await setUp()
+    // A NUL, and an emoji the 8000-character cut goes through the middle of.
+    const cut = `${'a'.repeat(7999)}😀`
+    expect((await t.deliver(igDm('mid.nul', 'Hi\u0000there'))).status).toBe(200)
+    expect((await t.deliver(igDm('mid.cut', cut))).status).toBe(200)
+    expect((await t.deliver(igComment('c.cut', cut))).status).toBe(200)
+    const texts = (await t.inbox()).map((m) => m.text)
+    expect(texts).toContain('Hithere')
+    expect(texts.filter((x) => x === `${'a'.repeat(7999)}\ufffd`)).toHaveLength(2)
+  })
+
+  it('stores what it can when a part of a delivery can never be stored', async () => {
+    const t = await setUp()
+    // More than the move takes for one account: Meta sending it again would only fail again.
+    const big = {
+      id: IG,
+      messaging: Array.from({ length: 1001 }, (_, i) => ({
+        sender: { id: '9001' },
+        timestamp: NOW.getTime(),
+        message: { mid: `mid.${i}`, text: 'Hi' },
+      })),
+    }
+    const good = igDm('mid.good', 'Stored').entry[0]!
+    const res = await t.deliver({ object: 'instagram', entry: [big, good] })
+    expect(res.status).toBe(200)
+    expect((await t.inbox()).map((m) => m.text)).toEqual(['Stored'])
+  })
+
+  it('still fails a delivery it could store later, so Meta sends it again', async () => {
+    const t = await setUp()
+    await setLoadout(t.db, AGENT, 'brandbase', ['brand.state'])
+    expect((await t.deliver(igDm('mid.1', 'Hi'))).status).toBe(403)
+    await setLoadout(t.db, AGENT, 'brandbase', ['inbox.meta_receive'])
+    expect((await t.deliver(igDm('mid.1', 'Hi'))).status).toBe(200)
+    expect(await t.inbox()).toHaveLength(1)
+  })
+
+  it('keeps no one’s words or ids in the call log, so a disconnect deletes them all', async () => {
+    const t = await setUp()
+    await t.deliver(igDm('mid.1', 'SECRET-DM-TEXT', '90017'))
+    const [m] = await t.inbox()
+    await t.call(
+      'POST',
+      `/brands/casa/inbox/${m!.id}/meta-reply`,
+      { text: 'SECRET-REPLY' },
+      'owner',
+    )
+    await vi.waitFor(async () => {
+      const ops = await t.db.query<{ op: string }>('select op from packs.op_calls')
+      expect(ops.map((o) => o.op)).toEqual(
+        expect.arrayContaining(['inbox.meta_receive', 'inbox.meta_claim']),
+      )
+    })
+    const log = JSON.stringify(await t.db.query('select * from packs.op_calls'))
+    expect(log).not.toContain('SECRET-DM-TEXT')
+    expect(log).not.toContain('90017')
+    expect(log).not.toContain('SECRET-REPLY')
   })
 
   it('answers a DM from the Page within 24 hours, once, and refuses after', async () => {

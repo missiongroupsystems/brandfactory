@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
+import { CONTACT } from '@/components/legal'
 import type { BrandId } from '@/data/brands'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -45,9 +46,13 @@ export function MetaReturn({
   const pick = React.useCallback(
     (got: Found, pageId: string) => {
       setPicking(true)
-      pickPage(got.brandId, got.choice, pageId).then(() => {
+      pickPage(got.brandId, got.choice, pageId).then(({ webhooks }) => {
         setBrandId(got.brandId)
-        router.replace('/brand/connections')
+        if (webhooks === false) {
+          setError(
+            `Facebook is connected and can post, but its comments and DMs will not reach the Inbox yet. Write to ${CONTACT} to turn them on.`,
+          )
+        } else router.replace('/brand/connections')
       }, fail)
     },
     [fail, router, setBrandId],

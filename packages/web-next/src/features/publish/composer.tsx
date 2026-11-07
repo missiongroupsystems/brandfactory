@@ -504,7 +504,7 @@ export function Composer({
     ...(remote && !planned
       ? makeBlockers(
           draft.format,
-          active.map((c) => c.key).filter((k) => (sends as readonly string[]).includes(k)),
+          active.map((c) => c.key).filter(goes),
           media.map((m) => ({ src: m.src, video: isVideo(m.src) })),
         )
       : []),

@@ -24,5 +24,6 @@
   "before": ["brand.reachable", "inbox.found", "inbox.open"],
   "internal": true,
   "returns": "many",
-  "sql": "update brandbase.inbox_messages m set reply_text = btrim(:text), reply_status = 'queued', replied_by = :actor, reply_at = :now::timestamptz where m.id = :id and m.brand_id = :brand and m.done_at is null and (m.reply_status is distinct from 'queued' or m.reply_at < :now::timestamptz - interval '5 minutes') returning jsonb_build_object('id', m.id) as result"
+  "sql": "update brandbase.inbox_messages m set reply_text = btrim(:text), reply_status = 'queued', replied_by = :actor, reply_at = :now::timestamptz where m.id = :id and m.brand_id = :brand and m.done_at is null and (m.reply_status is distinct from 'queued' or m.reply_at < :now::timestamptz - interval '5 minutes') returning jsonb_build_object('id', m.id) as result",
+  "secret": ["text"]
 }

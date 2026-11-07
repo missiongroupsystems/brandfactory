@@ -10,6 +10,7 @@ const replace = vi.hoisted(() => vi.fn())
 const requests = vi.hoisted(() => [] as { call: string; body: unknown }[])
 const pages = vi.hoisted(() => ({
   list: [] as { id: string; name: string; igUsername: string | null }[],
+  webhooks: true,
 }))
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
@@ -17,6 +18,7 @@ vi.mock('@/lib/remote', async (original) => ({
   request: async (method: string, path: string, body?: unknown) => {
     requests.push({ call: `${method} ${path}`, body })
     if (path === '/meta/callback') return { brandId: 'casa', choice: 'sealed', pages: pages.list }
+    if (path === '/meta/select') return { webhooks: pages.webhooks }
     return {}
   },
   loadBrand: async () => ({}),
@@ -27,6 +29,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }))
 beforeEach(() => {
   requests.length = 0
   replace.mockClear()
+  pages.webhooks = true
 })
 
 describe('the page Facebook returns to', () => {
@@ -54,6 +57,15 @@ describe('the page Facebook returns to', () => {
       call: 'POST /meta/select',
       body: { choice: 'sealed', pageId: '1002' },
     })
+  })
+
+  it('says so when the Page links but its comments and DMs will not reach the Inbox', async () => {
+    pages.list = [{ id: '1001', name: 'Casa Vostra', igUsername: 'casavostra' }]
+    pages.webhooks = false
+    render(<MetaReturn code="c" state="s" declined={null} />)
+    expect(await screen.findByText(/will not reach the Inbox/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to Connections' })).toBeInTheDocument()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('shows Facebook’s reason when the sign-in was declined, and sends no code', () => {

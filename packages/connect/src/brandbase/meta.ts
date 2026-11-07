@@ -111,6 +111,8 @@ export function metaApp(config: MetaConfig) {
         state,
         config_id: config.configId,
         response_type: 'code',
+        // A configuration's default answer can be a token in the address; the server needs a code.
+        override_default_response_type: 'true',
       })
       return `${DIALOG}?${params}`
     },
