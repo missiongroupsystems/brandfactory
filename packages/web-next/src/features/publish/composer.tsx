@@ -436,6 +436,17 @@ export function Composer({
   // The day and the time the post opened on: a save that keeps them is not a move.
   // Save keeps them; Reschedule shows once either changes.
   const [openedAt] = React.useState({ date, time })
+  // What the post held as it opened: a change since then is lost by leaving, so leaving asks.
+  const holding = () =>
+    JSON.stringify([
+      draft.format,
+      draft.caption,
+      media.map((m) => m.src),
+      date,
+      time,
+      activeChannels(draft).map((c) => c.key),
+    ])
+  const [openedHolding] = React.useState(holding)
   const moved = date !== openedAt.date || time !== openedAt.time
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
@@ -496,8 +507,15 @@ export function Composer({
       : []),
     ...blockers(draft, { tiktokDraft: remote }),
     ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
-    // A draft can sit on a day that has since passed: a schedule needs a day ahead.
-    ...(when === 'schedule' && date && date < brandToday(brand.id) ? ['Pick a day ahead.'] : []),
+    // A draft can sit on a day that has since passed: a schedule needs a day ahead. A failed
+    // post is sent again by a new day, so the line says that is the way to retry it.
+    ...(when === 'schedule' && date && date < brandToday(brand.id)
+      ? [
+          post?.stage === 'failed'
+            ? `It failed on ${dayLabel(date)}. Pick a new day to send it again.`
+            : `${dayLabel(date)} has passed: pick a new day.`,
+        ]
+      : []),
     // Later today is fine; a time already gone would go out at once.
     ...(when === 'schedule' && tooSoon(brand.id, date, time) ? ['Pick a time ahead.'] : []),
     // What Make's Instagram and Facebook modules cannot post, before the server says so at its time.
@@ -971,9 +989,11 @@ export function Composer({
   const whenText = when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`
   const moreText = moreSummary(draft, labels, media)
   const moreNeeds = active.some((c) => summaryOf(draft, extra)[c.key].needs)
+  const unsaved = !readOnly && !waiting && holding() !== openedHolding
 
   return (
     <div className="flex flex-col gap-6">
+      <LeaveGuard unsaved={unsaved} />
       <header className="flex flex-col gap-2">
         {/* A post that exists says where it is; a new one is new, as its title says. */}
         {post && (
@@ -1253,6 +1273,70 @@ function Dialog({
   )
 }
 
+/**
+ * Leaving with changes not saved asks first: a link in the app opens a question on the page,
+ * never a browser dialog; a reload or a closed tab gets the browser's own question, the only one
+ * it allows there.
+ */
+function LeaveGuard({ unsaved }: { unsaved: boolean }) {
+  const router = useRouter()
+  const [to, setTo] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    if (!unsaved) return
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || a.target === '_blank' || a.hasAttribute('download')) return
+      const url = new URL(a.href, window.location.href)
+      if (url.origin !== window.location.origin) return
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return
+      // Before the link's own handler, which would leave at once.
+      e.preventDefault()
+      e.stopPropagation()
+      setTo(url.pathname + url.search + url.hash)
+    }
+    const onUnload = (e: BeforeUnloadEvent) => e.preventDefault()
+    document.addEventListener('click', onClick, true)
+    window.addEventListener('beforeunload', onUnload)
+    return () => {
+      document.removeEventListener('click', onClick, true)
+      window.removeEventListener('beforeunload', onUnload)
+    }
+  }, [unsaved])
+  if (!to) return null
+  return (
+    <Dialog title="Leave this post?" onClose={() => setTo(null)}>
+      <div className="flex flex-col gap-4">
+        <h2 className="font-display text-[20px] tracking-[-0.02em]">Leave this post?</h2>
+        <p className="text-[14px] text-ink-3">
+          Your changes are not saved. Press Save draft first to keep them.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const next = to
+              setTo(null)
+              router.push(next)
+            }}
+            className="flex h-9 items-center rounded-full px-4 text-[13px] font-medium text-fail-ink transition-colors hover:bg-(--fail-soft)"
+          >
+            Leave without saving
+          </button>
+          <button
+            type="button"
+            onClick={() => setTo(null)}
+            className="bb-press flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
+          >
+            Keep editing
+          </button>
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 const STAGE_LABEL: Record<Stage, string> = {
   draft: 'Draft',
   scheduled: 'Scheduled',
@@ -1286,7 +1370,9 @@ function Accounts({
   const posters = postersOf(sends, draft.format, stories)
   // A Reel to the Page through our own Meta app is public: Meta asks that the person is told
   // (Reels Publishing API, "Sharing Disclosure" and "Privacy / Who can see this?").
-  const fbViaMeta = useMakeAccount(brand.id, 'fb')?.via === 'meta'
+  const ig = useMakeAccount(brand.id, 'ig')
+  const fb = useMakeAccount(brand.id, 'fb')
+  const fbViaMeta = fb?.via === 'meta'
   const reelPublic =
     remote &&
     fbViaMeta &&
@@ -1346,7 +1432,14 @@ function Accounts({
             type="button"
             role="checkbox"
             aria-checked={on}
-            title={planned ?? handleOn(brand.handle, brand.name, c.key)}
+            title={
+              planned ??
+              handleOn(
+                ig ? `@${ig.name.replace(/^@+/, '')}` : brand.handle,
+                fb?.name ?? brand.name,
+                c.key,
+              )
+            }
             onClick={() => toggleChannel(c.key)}
             className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:bg-transparent max-md:px-0 max-md:text-[15px] ${on ? 'bg-ink text-page max-md:text-ink' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--line-strong)] hover:text-ink max-md:text-ink max-md:shadow-none'}`}
           >
@@ -1726,9 +1819,10 @@ function Content({
             {leftOut}
           </span>
         )}
-        {/* A Reel is a video: a photo in one is said in a line, not refused (the demo's ideas
-            start a reel from a photo). */}
-        {draft.format === 'reel' && media.some((m) => !isVideo(m.src)) && (
+        {/* A Reel is a video: in the demo a photo in one is said in a line, not refused (the
+            demo's ideas start a reel from a photo). On the core the blocker at the button says
+            it, so the line is not said twice. */}
+        {!remote && draft.format === 'reel' && media.some((m) => !isVideo(m.src)) && (
           <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
             <span className="size-1.5 shrink-0 rounded-full bg-ink" />A Reel is a video: this is a
             photo.

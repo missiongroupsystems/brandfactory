@@ -306,6 +306,26 @@ export function monthPlace(
   }
 }
 
+/**
+ * Where a day lands in the week and day views: the month that owns its Monday, the week of that
+ * Monday, and its column. The month view takes the day's own month.
+ */
+export function datePlace(
+  view: 'month' | 'week' | 'day',
+  date: string,
+): { offset: number; week: number; day: number } {
+  const own = monthOf(date)
+  if (view === 'month') return { ...monthPlace('month', own.year, own.month), day: weekdayOf(date) }
+  const home = monthAt(0)
+  const monday = mondayOf(date)
+  const m = monthOf(monday)
+  return {
+    offset: (m.year - home.year) * 12 + m.month - home.month,
+    week: mondays(m.year, m.month).indexOf(monday),
+    day: weekdayOf(date),
+  }
+}
+
 /** The year of the brand's first post in its weeks, or this year's when none is earlier. */
 export function firstPostYear(weeks: Week[], today = todayDate()): number {
   const first = weeks

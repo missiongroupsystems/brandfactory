@@ -310,7 +310,9 @@ describe('the composer on the API', () => {
           </Loaded>
         </BrandProvider>,
       )
-      expect(screen.getAllByText('Pick a day ahead.').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Tue 13 Oct has passed: pick a new day.').length).toBeGreaterThan(
+        0,
+      )
       fireEvent.click(send())
       expect(sent).not.toHaveBeenCalled()
     } finally {

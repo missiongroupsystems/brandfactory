@@ -210,7 +210,7 @@ function TurnRow({
 function AttachedRow({ attached }: { attached: Attached[] }) {
   const brandId = useBrand().brand.id as BrandId
   // A turn stored before the picture rode along looks it up; the store's load redraws it.
-  useIdeas(brandId)
+  useIdeas(brandId, true)
   return (
     <ul aria-label="Attached" className="flex flex-wrap justify-end gap-1.5 pt-1">
       {attached.map((a) => (
@@ -351,7 +351,7 @@ function Composer({
   // The composer is keyed by brand: a switch starts it over, ticks and all.
   const [ids, setIds] = React.useState<string[]>([])
   // The moodboard comes with the brand's state: the button and the tray follow its load.
-  useIdeas(brandId)
+  useIdeas(brandId, true)
   const posts = moodboardPosts(brandId)
   const attached = ids.flatMap((id) => posts.find((p) => p.id === id) ?? [])
   const root = React.useRef<HTMLDivElement>(null)

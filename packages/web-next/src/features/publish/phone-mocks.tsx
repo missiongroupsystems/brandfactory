@@ -4,6 +4,7 @@ import { isVideo } from '@/components/media'
 import { ProfilePicture } from '@/components/profile-picture'
 import type { Format, Post } from '@/data/demo'
 import { useBrandKit } from '@/features/brand/brand-store'
+import { useMakeAccount } from '@/features/connections/make'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
@@ -214,6 +215,18 @@ function Scrims({ top = 22, bottom = 46 }: { top?: number; bottom?: number }) {
   )
 }
 
+/**
+ * The brand as the platform shows it: on the core, the Instagram account or Facebook Page the
+ * post really goes to, never the handle typed when the brand was made. Nothing linked keeps the
+ * brand's own handle and name.
+ */
+function useShownBrand(channel: 'ig' | 'fb') {
+  const { brand } = useBrand()
+  const linked = useMakeAccount(brand.id, channel)?.name.trim().replace(/^@+/, '')
+  if (!linked) return brand
+  return channel === 'ig' ? { ...brand, handle: `@${linked}` } : { ...brand, name: linked }
+}
+
 /** Two letters for a brand's avatar: "Casa Vostra" → CV, "Willow" → W. */
 function initials(name: string): string {
   return name
@@ -418,7 +431,7 @@ function InstagramReel({
   people: People
   counts?: Counts
 }) {
-  const { brand } = useBrand()
+  const brand = useShownBrand('ig')
   const short = clip(text, 52)
   return (
     <span className="absolute inset-0 bg-(--pc-black) text-(--pc-white)">
@@ -525,7 +538,7 @@ function InstagramPost({
 }) {
   const likes = countOf(counts, 'likes', '2,418')
   const comments = countOf(counts, 'comments', '86')
-  const { brand } = useBrand()
+  const brand = useShownBrand('ig')
   const short = clip(text, 50)
   return (
     <span className="absolute inset-0 flex flex-col bg-(--pc-black) text-(--pc-ig-dark-text)">
@@ -1008,7 +1021,7 @@ function FacebookReel({
   text: string
   counts?: Counts
 }) {
-  const { brand } = useBrand()
+  const brand = useShownBrand('fb')
   const short = clip(text, 46)
   return (
     <span className="absolute inset-0 bg-(--pc-black) text-(--pc-white)">
@@ -1144,7 +1157,7 @@ function FacebookPost({
   text: string
   counts?: Counts
 }) {
-  const { brand } = useBrand()
+  const brand = useShownBrand('fb')
   const short = clip(text, 68)
   const action = (label: string, icon: ReactNode) => (
     <span className="flex items-center gap-[3px]">
@@ -1244,7 +1257,7 @@ function FacebookPost({
 /* ---------- Stories (Instagram and Facebook) ---------- */
 
 function Story({ channel, media }: { channel: 'ig' | 'fb'; media: MockMedia }) {
-  const { brand } = useBrand()
+  const brand = useShownBrand(channel)
   return (
     <span className="absolute inset-0 text-(--pc-white)">
       <Photo media={media} />

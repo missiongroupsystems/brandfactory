@@ -96,7 +96,7 @@ describe('a posted post on the core', () => {
     ).toBeNull()
     expect(screen.queryByRole('button', { name: /^(Schedule|Post on|Save|Save draft)/ })).toBeNull()
     expect(screen.queryByText('Pick a channel.')).toBeNull()
-    expect(screen.queryByText('Pick a day ahead.')).toBeNull()
+    expect(screen.queryByText(/has passed|Pick a new day/)).toBeNull()
   })
 
   it('shows the cover of a video as a still, with no note about it: the frame says enough', () => {

@@ -176,69 +176,69 @@ export function InsightsPage({ view, on }: { view?: InsightsView; on?: Platform 
 
         <Feed on={platform} onPick={(p) => go(tab, p)} />
 
-        <div className="mt-16 flex flex-col border-b border-line max-md:mt-10">
-          {SECTIONS.map((v, i) => {
-            const on = open === v
-            const sum = sums?.[v]
-            return (
-              <section
-                key={v}
-                ref={(el) => {
-                  rows.current[v] = el
-                }}
-                className="bb-rise scroll-mt-24 border-t border-line"
-                style={{ animationDelay: `${200 + i * 60}ms` }}
-              >
-                <button
-                  type="button"
-                  aria-expanded={on}
-                  onClick={() => go(on ? 'feed' : v)}
-                  className="group flex h-[68px] w-full items-center gap-5 text-left max-md:h-16 max-md:gap-3"
+        {/* The rows are the demo's figures. On the core no brand has numbers yet, whatever it
+            has connected, so the rows are not shown at all rather than promise numbers that do
+            not come. */}
+        {data && hub && (
+          <div className="mt-16 flex flex-col border-b border-line max-md:mt-10">
+            {SECTIONS.map((v, i) => {
+              const on = open === v
+              const sum = sums?.[v]
+              return (
+                <section
+                  key={v}
+                  ref={(el) => {
+                    rows.current[v] = el
+                  }}
+                  className="bb-rise scroll-mt-24 border-t border-line"
+                  style={{ animationDelay: `${200 + i * 60}ms` }}
                 >
-                  <span className="w-[112px] shrink-0 font-display text-[20px] tracking-[-0.02em] max-md:w-auto max-md:text-[18px]">
-                    {SECTION_LABEL[v]}
-                  </span>
-                  {sum ? (
-                    <span className="flex min-w-0 flex-1 items-baseline gap-2 text-[13.5px] text-ink-3">
-                      <span className="font-display text-[15px] font-semibold tracking-[-0.02em] text-ink tabular-nums max-md:text-[14px]">
-                        {sum.figure}
-                      </span>
-                      <span>{sum.unit}</span>
-                      <span className="text-ink-4 max-md:hidden">·</span>
-                      <span className="truncate max-md:hidden">{sum.note}</span>
+                  <button
+                    type="button"
+                    aria-expanded={on}
+                    onClick={() => go(on ? 'feed' : v)}
+                    className="group flex h-[68px] w-full items-center gap-5 text-left max-md:h-16 max-md:gap-3"
+                  >
+                    <span className="w-[112px] shrink-0 font-display text-[20px] tracking-[-0.02em] max-md:w-auto max-md:text-[18px]">
+                      {SECTION_LABEL[v]}
                     </span>
-                  ) : (
-                    <span className="flex-1" />
-                  )}
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors duration-200 group-hover:bg-surface group-hover:text-ink">
-                    <ChevronIcon open={on} size={11} />
-                  </span>
-                </button>
-                <Fold open={on}>
-                  <div className="pt-3 pb-14">
-                    {kept === v &&
-                      (!data || !hub ? (
-                        <p className="text-[15px] text-ink-3">
-                          Numbers arrive once the brand&apos;s Instagram and Facebook accounts are
-                          connected.
-                        </p>
-                      ) : v === 'overview' ? (
-                        <div className="flex flex-col gap-5">
-                          {/* The month the figures cover, said once, where they are. */}
-                          <span className={EYEBROW}>{data.period}</span>
-                          <Overview data={data} hub={hub} />
-                        </div>
-                      ) : v === 'sentiment' ? (
-                        <SentimentView sentiment={hub.sentiment} />
-                      ) : (
-                        <Creators creators={data.creators} />
-                      ))}
-                  </div>
-                </Fold>
-              </section>
-            )
-          })}
-        </div>
+                    {sum ? (
+                      <span className="flex min-w-0 flex-1 items-baseline gap-2 text-[13.5px] text-ink-3">
+                        <span className="font-display text-[15px] font-semibold tracking-[-0.02em] text-ink tabular-nums max-md:text-[14px]">
+                          {sum.figure}
+                        </span>
+                        <span>{sum.unit}</span>
+                        <span className="text-ink-4 max-md:hidden">·</span>
+                        <span className="truncate max-md:hidden">{sum.note}</span>
+                      </span>
+                    ) : (
+                      <span className="flex-1" />
+                    )}
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors duration-200 group-hover:bg-surface group-hover:text-ink">
+                      <ChevronIcon open={on} size={11} />
+                    </span>
+                  </button>
+                  <Fold open={on}>
+                    <div className="pt-3 pb-14">
+                      {kept === v &&
+                        (v === 'overview' ? (
+                          <div className="flex flex-col gap-5">
+                            {/* The month the figures cover, said once, where they are. */}
+                            <span className={EYEBROW}>{data.period}</span>
+                            <Overview data={data} hub={hub} />
+                          </div>
+                        ) : v === 'sentiment' ? (
+                          <SentimentView sentiment={hub.sentiment} />
+                        ) : (
+                          <Creators creators={data.creators} />
+                        ))}
+                    </div>
+                  </Fold>
+                </section>
+              )
+            })}
+          </div>
+        )}
       </main>
     </div>
   )

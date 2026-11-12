@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createBubbles } from './app'
 import { Gateway } from './gateway'
 import { Runtime } from './runtime'
@@ -271,6 +271,27 @@ describe('a turn with Bubbles', () => {
     const { turn } = await setup([{ type: 'turn/end', data: { reason: { kind: 'error' } } }])
     const { events } = await turn('Hello')
     expect(events.map((e) => e.event)).toEqual(['status', 'status', 'error', 'done'])
+  })
+
+  it('logs why the runtime ended a turn, so a failure in production can be read', async () => {
+    // The runtime's own words: production logged only "turn ended error", and the cause was lost.
+    const why = '400: {"message":"Provider returned error","code":400}'
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { turn } = await setup([
+        {
+          type: 'turn/end',
+          data: { reason: { kind: 'error', error: { message: why, code: 'INVALID_REQUEST' } } },
+        },
+      ])
+      const { events } = await turn('Hello')
+      expect(events[2]!.data).toMatchObject({ code: 'TURN_FAILED' })
+      expect(logged.mock.calls.map((c) => String(c[0]))).toContainEqual(
+        `bubbles: turn ended error: INVALID_REQUEST ${why}`,
+      )
+    } finally {
+      logged.mockRestore()
+    }
   })
 
   it('shows what was written before an answer was cut off, and says it was cut off', async () => {

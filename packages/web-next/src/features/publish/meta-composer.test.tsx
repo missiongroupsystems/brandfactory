@@ -8,6 +8,7 @@ import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import type * as Remote from '@/lib/remote'
 
 import { Composer } from './composer'
+import { JPEG_ONLY } from './model'
 
 // The composer on the core with our own Meta app: Instagram linked by its sign-in posts Stories;
 // Facebook, still linked through Make, posts none.
@@ -151,7 +152,7 @@ describe('the composer with Instagram through our own Meta app', () => {
       tick('Instagram')
       tick('Facebook')
     }
-    const jpegOnly = () => screen.queryAllByText('Instagram takes JPEG photos only.')
+    const jpegOnly = () => screen.queryAllByText(JPEG_ONLY)
     await png()
     expect(jpegOnly().length).toBeGreaterThan(0)
     cleanup()

@@ -494,7 +494,9 @@ export function PostedPost({ v }: { v: PostedView }) {
         )}
         {on && <OnAccount v={v} on={on} setOn={setOn} read={read} />}
         {/* On the core brand base reads no TikTok analytics: no empty card promises them. */}
-        {!(remote && on === 'tt') && <Analytics key={on} v={v} on={on} />}
+        {/* On the core no account's post numbers are connected yet: the empty bars are the
+            demo's only, never a chart with no data under a live post. */}
+        {!remote && <Analytics key={on} v={v} on={on} />}
       </div>
     </div>
   )

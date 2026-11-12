@@ -62,7 +62,7 @@ describe('a new post for a brand in another timezone', () => {
       </BrandProvider>,
     )
     expect(screen.getByRole('button', { name: /^Sat 31 Oct, 18:00/ })).toBeInTheDocument()
-    expect(screen.queryByText('Pick a day ahead.')).toBeNull()
+    expect(screen.queryByText(/has passed/)).toBeNull()
     expect(screen.queryByText('Pick a time ahead.')).toBeNull()
     // The grid greys by the brand's clock too: its today is open, the day before is not.
     fireEvent.click(screen.getByRole('button', { name: /^Sat 31 Oct, 18:00/ }))

@@ -15,12 +15,13 @@ import { dayNumber, MONTH_SHORT, monthOf, todayDate, weekdayOf } from '@/lib/dat
 import { setCalendarPlace, useCalendarPlace, type CalendarMode } from './calendar-view'
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
-import { FailedPill } from './failed-menu'
+import { FailedPill, onlyFailed } from './failed-menu'
 import { MoreMenu } from './filter-menu'
 import { LookAgenda } from './look-a'
 import { NewMenu } from './new-menu'
 import {
   dateOf,
+  datePlace,
   firstPostYear,
   monthAt,
   monthPlace,
@@ -33,7 +34,7 @@ import {
   withYear,
 } from './month'
 import { TitleMonthPicker, type MonthPick } from './month-picker'
-import { storyTaken } from './move-post'
+import { dayOf, storyTaken } from './move-post'
 import { useBrand } from './posts-store'
 import { storiesOf } from './stories'
 import { StoryPanel } from './story-panel'
@@ -118,6 +119,24 @@ export function SchedulePage() {
         : `${WEEKDAY[weekdayOf(current)]} ${dayNumber(current)} ${short(current)}`,
     view === 'day' ? current : last,
   )
+  /**
+   * The stage filter. Filtered to the failed posts, the calendar goes to the latest one when none
+   * is in sight, so the filter never shows an empty week while a failed post sits in another.
+   */
+  function setStages(next: typeof stages) {
+    const days = failed.map((p) => dayOf(plain, p.id)).filter((d): d is string => d !== null)
+    const inSight = (d: string) =>
+      view === 'month'
+        ? monthOf(d).year === monthAt(offset).year && monthOf(d).month === monthAt(offset).month
+        : view === 'week'
+          ? d >= start && d <= end
+          : d === current
+    const latest = days.sort().at(-1)
+    if (onlyFailed(next) && latest && !days.some(inSight)) {
+      return setCalendarPlace({ stages: next, ...datePlace(view, latest) })
+    }
+    setCalendarPlace({ stages: next })
+  }
   const here = todayPlace(view)
   const atToday =
     offset === here.offset &&
@@ -215,7 +234,7 @@ export function SchedulePage() {
           onNewPost={newPost}
           shootDay={shootDay}
           onOpenStories={setStoryDay}
-          onStages={(s) => setCalendarPlace({ stages: s })}
+          onStages={setStages}
           onLayers={setLayers}
         />
       </div>
@@ -237,11 +256,7 @@ export function SchedulePage() {
             </button>
           )}
           {/* What needs someone sits with the title, as a line of text, not among the controls. */}
-          <FailedPill
-            posts={failed}
-            stages={stages}
-            onChange={(s) => setCalendarPlace({ stages: s })}
-          />
+          <FailedPill posts={failed} stages={stages} onChange={setStages} />
         </div>
         <div className="relative flex flex-wrap items-center gap-2">
           <div className="w-[216px]">
@@ -260,7 +275,7 @@ export function SchedulePage() {
           <MoreMenu
             stages={stages}
             layers={layers}
-            onStages={(s) => setCalendarPlace({ stages: s })}
+            onStages={setStages}
             onLayers={setLayers}
             shootDay={view === 'day' ? shootDay : undefined}
           />

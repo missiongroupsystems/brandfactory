@@ -191,23 +191,31 @@ export class Gateway {
     res.writeHead(upstream.status, {
       'content-type': upstream.headers.get('content-type') ?? 'text/event-stream',
     })
-    // OpenRouter charges only for an answer.
-    if (!upstream.ok) this.charge(-hold)
+    if (!upstream.ok) {
+      // OpenRouter charges only for an answer. Its refusal is short JSON: logged, then passed on.
+      this.charge(-hold)
+      const text = await upstream.text()
+      console.error(`bubbles: model request failed ${upstream.status}: ${short(text)}`)
+      return res.end(text)
+    }
     if (!upstream.body) return res.end()
     const answer = Readable.fromWeb(upstream.body as never)
-    answer.on('error', () => res.destroy())
-    if (upstream.ok) {
-      // The answer's last event states what it cost; that replaces the hold.
-      const cost = costReader()
-      answer.on('data', (chunk: Buffer) => {
-        const usd = cost.read(chunk)
-        if (usd === undefined) return
-        this.charge(usd - hold)
-        console.info(
-          `bubbles: model request $${usd.toFixed(4)}, today $${this.spentToday.toFixed(2)} of $${this.opts.dailyUsd}`,
-        )
-      })
-    }
+    answer.on('error', (err) => {
+      console.error(`bubbles: model answer broke off: ${short(String(err))}`)
+      res.destroy()
+    })
+    // The answer's last event states what it cost; that replaces the hold. A host that fails
+    // after the answer started says so in an `error` event, with the status already 200.
+    const events = answerReader()
+    answer.on('data', (chunk: Buffer) => {
+      const { usd, error } = events.read(chunk)
+      if (error) console.error(`bubbles: model answer failed: ${short(error)}`)
+      if (usd === undefined) return
+      this.charge(usd - hold)
+      console.info(
+        `bubbles: model request $${usd.toFixed(4)}, today $${this.spentToday.toFixed(2)} of $${this.opts.dailyUsd}`,
+      )
+    })
     answer.pipe(res)
   }
 
@@ -235,33 +243,45 @@ export class Gateway {
   }
 }
 
-/** Finds `usage.cost` in a streamed answer, across chunks; gives it once. */
-function costReader() {
+/** Reads a streamed answer across chunks: `usage.cost` once, and any `error` event. */
+function answerReader() {
   let rest = ''
   let found = false
   return {
-    read(chunk: Buffer): number | undefined {
-      if (found) return undefined
+    read(chunk: Buffer): { usd?: number; error?: string } {
+      const out: { usd?: number; error?: string } = {}
       const lines = (rest + chunk.toString()).split('\n')
       rest = lines.pop() ?? ''
       for (const line of lines) {
-        if (!line.startsWith('data:') || !line.includes('"usage"')) continue
+        if (!line.startsWith('data:')) continue
+        const usage = !found && line.includes('"usage"')
+        if (!usage && !line.includes('"error"')) continue
+        let event: { usage?: { cost?: unknown }; error?: unknown }
         try {
-          const cost = (JSON.parse(line.slice(5)) as { usage?: { cost?: unknown } }).usage?.cost
-          if (typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
-            found = true
-            return cost
-          }
+          event = JSON.parse(line.slice(5)) as typeof event
         } catch {
-          // Not a whole event: no cost in it.
+          // Not a whole event: nothing in it.
+          continue
+        }
+        if (event.error !== undefined) out.error = JSON.stringify(event.error)
+        const cost = event.usage?.cost
+        if (usage && typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
+          found = true
+          out.usd = cost
         }
       }
-      return undefined
+      return out
     },
   }
 }
 
+/** Error text for the log: one line and short, so no prompt or answer is copied into it. */
+export function short(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 300)
+}
+
 function refuse(res: ServerResponse, status: number, message: string) {
+  console.warn(`bubbles: gateway refused ${status}: ${message}`)
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(JSON.stringify({ error: { message } }))
 }

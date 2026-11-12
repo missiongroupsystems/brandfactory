@@ -353,16 +353,21 @@ function patch(brandId: BrandId, id: string, fields: Partial<IdeaCard>) {
   }))
 }
 
-export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number } {
+export function useIdeas(
+  brandId: BrandId,
+  /** The screen shows the moodboard's pins: Ideas and Bubbles. Other pages never ask Pinterest. */
+  pins = false,
+): BrandIdeasState & { target: number } {
   const s = React.useSyncExternalStore(
     subscribe,
     () => state[brandId] ?? EMPTY,
     () => state[brandId] ?? EMPTY,
   )
-  // A brand on screen reads its live Pinterest board, if it has one and has not read it yet.
+  // A brand whose pins are on screen reads its live Pinterest board, if it has one and has not
+  // read it yet.
   React.useEffect(() => {
-    if (remote) readLiveBoard(brandId)
-  }, [brandId, s])
+    if (remote && pins) readLiveBoard(brandId)
+  }, [brandId, s, pins])
   return { ...s, target: demoOf(IDEAS_BY_BRAND, brandId)?.target ?? 0 }
 }
 

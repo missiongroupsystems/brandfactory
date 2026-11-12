@@ -90,6 +90,8 @@ export function IdeatePage({ view: initial }: { view?: View }) {
   const [picked, setView] = React.useState<View | null>(null)
   const view = picked ?? initial ?? 'board'
   const [toast, setToast] = React.useState<string | null>(null)
+  // New idea opened the moodboard: it says what to pick there, until the view changes.
+  const [fromNew, setFromNew] = React.useState(false)
 
   React.useEffect(() => {
     if (!toast) return
@@ -106,6 +108,7 @@ export function IdeatePage({ view: initial }: { view?: View }) {
 
   /** The view goes in the URL too, so the browser's Back from an idea lands on the same view. */
   function choose(v: View) {
+    setFromNew(false)
     setView(v)
     router.replace(v === 'ideas' ? IDEAS_HREF : '/ideate', { scroll: false })
   }
@@ -140,9 +143,16 @@ export function IdeatePage({ view: initial }: { view?: View }) {
         className="bb-swap mx-auto w-full max-w-[1440px] px-10 pb-16 max-md:px-4"
       >
         {view === 'ideas' ? (
-          <Ideas slots={slots} onToast={setToast} onNew={() => choose('board')} />
+          <Ideas
+            slots={slots}
+            onToast={setToast}
+            onNew={() => {
+              choose('board')
+              setFromNew(true)
+            }}
+          />
         ) : (
-          <Board onPlanned={planned} />
+          <Board onPlanned={planned} hint={fromNew} />
         )}
       </main>
 
@@ -192,7 +202,7 @@ function Ideas({
   onNew: () => void
 }) {
   const { brand, weeks, byId, addIdeaToCalendar } = useBrand()
-  const { ideas, suggesting, target } = useIdeas(brand.id)
+  const { ideas, suggesting, target } = useIdeas(brand.id, true)
   const router = useRouter()
   // Picking ideas to shoot together: null while the cards open their pages.
   const [picking, setPicking] = React.useState<string[] | null>(null)
@@ -318,6 +328,7 @@ function Ideas({
             >
               <PlusIcon size={14} />
               <span className="text-[13px] font-medium">New idea</span>
+              <span className="text-[12px]">Starts from the moodboard</span>
             </button>
           </li>
         </ul>
@@ -725,9 +736,16 @@ const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
  * TikTok saves. Each source connects in a short mock step (no backend). Tap posts to pick them; a
  * bar then plans an idea from them.
  */
-function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
+function Board({
+  onPlanned,
+  hint = false,
+}: {
+  onPlanned: (id: string) => void
+  /** Came from New idea: a line says how an idea starts here. */
+  hint?: boolean
+}) {
   const { brand } = useBrand()
-  const { sources } = useIdeas(brand.id)
+  const { sources } = useIdeas(brand.id, true)
   const { references } = moodboardOf(brand.id)
   const boards = boardsOf(brand.id)
   const [filter, setFilter] = React.useState<string>('all')
@@ -876,6 +894,11 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {hint && picked.length === 0 && (
+        <p className="bb-rise text-[14px] text-ink-2">
+          Pick one or more posts below, then press Plan idea from this.
+        </p>
+      )}
       {/* The top row stays in view: the folders, or, once posts are picked, what to do with them. */}
       <div
         ref={top}

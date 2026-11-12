@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { type AddressInfo } from 'node:net'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Gateway, type GatewayOptions } from './gateway'
 
 const servers: { close(): unknown }[] = []
@@ -177,6 +177,47 @@ describe('the model gateway', () => {
     const g2 = await gateway({ upstream: refused.url, holdUsd: 0.05 })
     expect((await ask(g2, g2.pass().token, ok)).status).toBe(400)
     expect(g2.spentToday).toBe(0)
+  })
+
+  it('logs why a model request failed: its own refusal, the host’s, or an error mid-answer', async () => {
+    // Production logged nothing for these, so a failed turn could not be read back.
+    const refusal = '{"error":{"message":"Provider returned error","code":400}}'
+    const answers = [
+      { status: 400, body: refusal },
+      { status: 200, body: 'data: {"choices":[],"error":{"code":502,"message":"host down"}}\n\n' },
+    ]
+    const host = createServer((req, res) => {
+      req.resume()
+      const a = answers.shift()!
+      res.writeHead(a.status, { 'content-type': 'text/event-stream' })
+      res.end(a.body)
+    })
+    await new Promise<void>((done) => host.listen(0, '127.0.0.1', done))
+    servers.push(host)
+    const g = await gateway({
+      upstream: `http://127.0.0.1:${(host.address() as AddressInfo).port}`,
+    })
+    const { token } = g.pass()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warns = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const refused = await ask(g, token, ok)
+      expect(refused.status).toBe(400)
+      expect(await refused.text()).toBe(refusal)
+      await (await ask(g, token, ok)).text()
+      await (await ask(g, token, { ...ok, stream: false })).text()
+      const lines = [...errors.mock.calls, ...warns.mock.calls].map((c) => String(c[0]))
+      expect(lines).toEqual([
+        `bubbles: model request failed 400: ${refusal}`,
+        'bubbles: model answer failed: {"code":502,"message":"host down"}',
+        'bubbles: gateway refused 400: requests must stream',
+      ])
+      // Never the key, and never the person's words.
+      expect(lines.join('\n')).not.toMatch(/the-real-key|hi/)
+    } finally {
+      errors.mockRestore()
+      warns.mockRestore()
+    }
   })
 
   it('starts each UTC day with a fresh budget', async () => {

@@ -143,6 +143,18 @@ export function DayView({
               />
             </React.Fragment>
           ))}
+          {/* Midnight closes the day: a post late in the last hour still sits inside a ruled hour. */}
+          <span
+            className="font-mono text-[10px] text-ink-4 tabular-nums"
+            style={{ position: 'absolute', top: hours.length * HOUR_H - 6, left: 0 }}
+          >
+            00:00
+          </span>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-0 left-16 border-t border-(--cal-line)"
+            style={{ top: hours.length * HOUR_H }}
+          />
           {best !== null && (
             <div
               className="pointer-events-none absolute right-0 left-16 rounded-[10px] bg-(--insight-wash) shadow-[inset_2px_0_0_var(--insight-4)]"

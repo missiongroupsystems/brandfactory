@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { type Gateway, type Pass } from './gateway'
+import { type Gateway, type Pass, short } from './gateway'
 import { type Attached, type Said, turnText } from './prompt'
 import { type Runtime, type RuntimeEvent, type RuntimeOptions } from './runtime'
 
@@ -175,6 +175,7 @@ export class Turns {
     emit({ event: 'status', data: { phase: 'thinking' } })
     const calls = new Map<string, { tool: string; input: unknown }>()
     let failed: string | null = null
+    let why = ''
     let said = false
     try {
       await live.runtime.prompt(
@@ -185,13 +186,22 @@ export class Turns {
           for (const o of out) emit(o)
           if (out.some((o) => o.event === 'text' || o.event === 'tool_call')) said = true
           if (e.type === 'turn/end') {
-            const kind = (e.data.reason as { kind?: string } | undefined)?.kind
-            if (kind !== 'completed') failed = kind ?? 'unknown'
+            const reason = e.data.reason as
+              | { kind?: string; error?: { code?: unknown; message?: unknown } }
+              | undefined
+            if (reason?.kind !== 'completed') {
+              failed = reason?.kind ?? 'unknown'
+              // The runtime's own words for why, such as the model host's refusal.
+              why = [reason?.error?.code, reason?.error?.message].filter(Boolean).join(' ')
+            }
           }
         },
       )
       if (failed) {
-        console.error('bubbles: turn ended', failed, live.runtime.tail())
+        console.error(
+          `bubbles: turn ended ${failed}${why ? `: ${short(why)}` : ''}`,
+          live.runtime.tail(),
+        )
         const steps = live.pass.requests >= this.opts.gateway.maxRequests
         if (this.opts.gateway.overBudget) return emit(OVER_BUDGET)
         emit({
