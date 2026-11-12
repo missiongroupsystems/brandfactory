@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
@@ -34,9 +34,12 @@ describe('The feed on the core', () => {
     expect(screen.getByRole('status', { name: 'Loading posts' })).toBeInTheDocument()
     expect(screen.queryByText(demo.period)).toBeNull()
     expect(screen.queryByText(demo.kpis[0]!.value)).toBeNull()
-    // The rows under the grid say why they are empty.
-    fireEvent.click(screen.getByRole('button', { name: /^Overview/ }))
-    expect(screen.getByText(/^Numbers arrive once/)).toBeInTheDocument()
+    // The rows under the grid have no source on the core, whatever is connected: they are not
+    // shown, and no line promises numbers that do not come.
+    for (const name of ['Overview', 'Sentiment', 'Creators']) {
+      expect(screen.queryByRole('button', { name: new RegExp(`^${name}`) })).toBeNull()
+    }
+    expect(screen.queryByText(/^Numbers arrive once/)).toBeNull()
     expect(screen.queryByRole('region', { name: 'The month in numbers' })).toBeNull()
   })
 })

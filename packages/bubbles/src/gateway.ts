@@ -188,20 +188,26 @@ export class Gateway {
       this.charge(-hold)
       throw err
     }
+    if (!upstream.ok) {
+      // OpenRouter charges only for an answer. Its refusal is logged, then passed on with its code
+      // and message only: the runtime puts what it got in its own error, which is logged too.
+      this.charge(-hold)
+      // A body of another shape is neither logged nor passed on: it could quote the request.
+      const refusal = errorOf(await upstream.text()) ?? { code: upstream.status }
+      console.error(`bubbles: model request failed ${upstream.status}: ${why(refusal)}`)
+      res.writeHead(upstream.status, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ error: { message: refusal.message, code: refusal.code } }))
+    }
     res.writeHead(upstream.status, {
       'content-type': upstream.headers.get('content-type') ?? 'text/event-stream',
     })
-    if (!upstream.ok) {
-      // OpenRouter charges only for an answer. Its refusal is short JSON: logged, then passed on.
-      this.charge(-hold)
-      const text = await upstream.text()
-      console.error(`bubbles: model request failed ${upstream.status}: ${short(text)}`)
-      return res.end(text)
-    }
     if (!upstream.body) return res.end()
     const answer = Readable.fromWeb(upstream.body as never)
     answer.on('error', (err) => {
-      console.error(`bubbles: model answer broke off: ${short(String(err))}`)
+      // A runtime that went away (a stopped turn) aborts the answer on purpose: that is not the
+      // host failing. The gateway's own wait for an answer still logs when it runs out.
+      if (!abort.signal.aborted)
+        console.error(`bubbles: model answer broke off: ${short(String(err))}`)
       res.destroy()
     })
     // The answer's last event states what it cost; that replaces the hold. A host that fails
@@ -209,7 +215,7 @@ export class Gateway {
     const events = answerReader()
     answer.on('data', (chunk: Buffer) => {
       const { usd, error } = events.read(chunk)
-      if (error) console.error(`bubbles: model answer failed: ${short(error)}`)
+      if (error) console.error(`bubbles: model answer failed: ${error}`)
       if (usd === undefined) return
       this.charge(usd - hold)
       console.info(
@@ -263,7 +269,7 @@ function answerReader() {
           // Not a whole event: nothing in it.
           continue
         }
-        if (event.error !== undefined) out.error = JSON.stringify(event.error)
+        if (event.error !== undefined && event.error !== null) out.error = why(event.error)
         const cost = event.usage?.cost
         if (usage && typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
           found = true
@@ -275,9 +281,46 @@ function answerReader() {
   }
 }
 
-/** Error text for the log: one line and short, so no prompt or answer is copied into it. */
+/**
+ * Error text for the log: one line, at most 300 characters. It only cuts the text: an error
+ * message that quotes the request still shows what it quotes.
+ */
 export function short(text: string): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, 300)
+}
+
+interface HostError {
+  code?: unknown
+  message?: unknown
+  metadata?: { provider_name?: unknown }
+}
+
+/** The `error` of a host's JSON refusal, or nothing when the body is not one. */
+function errorOf(text: string): HostError | null {
+  try {
+    const error = (JSON.parse(text) as { error?: unknown } | null)?.error
+    if (typeof error === 'string') return { message: error }
+    return error && typeof error === 'object' ? (error as HostError) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A host's error for the log: its code, its message and the host, nothing else. The rest can
+ * hold the person's words (OpenRouter's moderation refusal quotes the flagged input in
+ * `metadata`, and a host's raw error may too).
+ */
+function why(error: unknown): string {
+  if (!error || typeof error !== 'object') return short(String(error))
+  const e = error as HostError
+  const host = e.metadata?.provider_name
+  return short(
+    [e.code, e.message, typeof host === 'string' ? `(${host})` : undefined]
+      .filter((x) => x !== undefined && x !== null && x !== '')
+      .map(String)
+      .join(' '),
+  )
 }
 
 function refuse(res: ServerResponse, status: number, message: string) {

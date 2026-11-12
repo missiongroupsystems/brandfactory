@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.66.7** — 2026-11-12 — `fix/qa-round`: the QA round on the live site. Leaving a post with changes not saved asks first; the preview names the linked Instagram account and Facebook Page; the JPEG and past-day lines say how to fix them; the failed filter goes to the failed post; the day view closes at 00:00; the Feed's empty rows and a posted post's empty Analytics are not shown on the core; an unknown address has its own page; New idea says it starts from the moodboard; Pinterest is read only where pins show; Bubbles logs why a turn failed, without the host's quoted input. No pack change. 1710 tests (264 skipped, 2 timed out under load and pass alone).
 - **2.66.6** — 2026-11-08 — `feat/meta-direct`: the second Meta review's fixes. Instagram's server errors (-1, -2) say a post or reply may have gone, not that nothing went. The webhook answers Meta 200 for a batch Postgres refuses as data (`BAD_INPUT`, `CONFLICT`). A Page whose new Instagram account is refused still gets its webhooks. Server only, no pack change. 1425 tests (264 skipped).
 - **2.66.5** — 2026-11-07 — `feat/meta-direct`: a Meta test that ran past CI's 30-second limit is now five tests; no production code changes. 1424 tests by count (264 skipped).
 - **2.66.4** — 2026-11-07 — `feat/meta-direct`: the review's fixes before real Meta use. Facebook's sign-in link asks for a code outright (`override_default_response_type`). A cut emoji or a NUL in a message no longer fails a delivery, and a batch that can never be stored no longer holds back the rest. A Page's webhooks turn on only when a delivery could be kept, and the person is told if not. Comments, DMs and replies stay out of the call log (pack 1.15.1), so Disconnect deletes them as the privacy page says. The composer holds a Story to one file, and JPEG on Instagram. 1420 tests (264 skipped without a Postgres server).
@@ -143,6 +144,57 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.66.7 — 2026-11-12
+
+- **Why.** A QA pass on branding.missionsystems.ai (the core) found these, one line each.
+- **What changed.**
+  - `composer.tsx`, `LeaveGuard`: a link out of a post with changes not saved opens "Leave this
+    post?" on the page (Leave without saving, Keep editing); a reload or a closed tab gets the
+    browser's question. What the post holds is taken at the person's first press or key, since
+    the composer settles itself after it opens (the last post's accounts, the brand's state).
+    Save draft, Schedule, Unschedule and Delete leave with no question. The browser's Back is not
+    asked about: Next's router owns it.
+  - `phone-mocks.tsx`, `composer.tsx`: the preview and the account chip name the linked Instagram
+    account and Facebook Page, not the handle typed when the brand was made.
+  - `model.ts`: `JPEG_ONLY`, "Instagram takes JPEG photos only: save the photo as a JPEG, or untick
+    Instagram." The list at the button now wraps, so the end of a long line shows.
+  - `composer.tsx`: a draft on a day gone by says "Tue 13 Oct has passed: pick a new day."; a
+    failed one, "It failed on Thu 29 Oct. Pick a new day to send it again."
+  - `composer.tsx`: "A Reel is a video: this is a photo." shows unless the lines at the button
+    already say "A Reel takes one video." (`REEL_ONE_VIDEO`).
+  - `schedule-page.tsx`, `month.ts` (`datePlace`): the failed filter, with no failed post in
+    view, goes to the latest failed post (the chip, the phone filters and More).
+  - `day-view.tsx`: a 00:00 line closes the day, so a 23:45 post sits inside a ruled hour.
+  - `insights-page.tsx`: Overview, Sentiment and Creators are not shown when there are no
+    figures, which on the core is always; no line promises numbers that do not come.
+  - `posted.tsx`: a posted post's Analytics card shows in the demo only.
+  - `app/not-found.tsx`: the app's header, "Not found" and Back to Schedule.
+  - `ideate-page.tsx`: the New idea tile says "Starts from the moodboard", and the moodboard says
+    what to pick until the view changes.
+  - `ideas-store.ts`: `useIdeas(brand, pins)` reads Pinterest only for Ideas, an idea, a shoot,
+    Bubbles, and a calendar tile whose idea takes its cover from a pin. Before, every page asked,
+    against Trial's 1,000 reads a day for every brand.
+  - `bubbles/gateway.ts`, `turns.ts`: why a model request or a turn failed is logged: the
+    gateway's refusals, the host's status with its error code, message and host, an error in the
+    stream, a broken stream, and the runtime's own code and message. Nothing else of the host's
+    body is logged or passed on (OpenRouter's moderation refusal quotes the flagged words).
+- **Not known, on purpose.** Why Bubbles' turns end in error. Production logs only "turn ended
+  error"; the next deploy's log says why. A host's or the runtime's error message is logged as it
+  comes, cut to 300 characters, and could quote a request.
+- **Not fixed.** The phone's one line at the button still cuts a long line. A 23:45 card hangs
+  below the 00:00 line. A shared brief shows no live pin (it never did).
+- **Tests:** 1710 by count: 1444 pass, 264 skipped without a Postgres server, and 2 timed out
+  at 30 s (`connect` `tiktok.test.ts`, `core` `packs.test.ts`), files this release does not touch
+  that pass alone. A first full run under a load average near 170 timed out 42 tests in 11 files;
+  each of those files passes alone. Typecheck, lint, format, `next build` and `next build
+  --webpack` pass. The new tests fail without their fixes. Screenshots of each fix, in the demo
+  and against a local fake core, are on the branch `qa-screens/fix-qa-round`.
+- **Review.** Sonnet on the whole diff, a fresh Sonnet on the fixes, then a third on the last two.
+  Confirmed and fixed: an untouched new post asked (the last accounts), Pinterest not read for a
+  shoot and for calendar covers, a host body of another shape logged whole, a stopped turn
+  logged as a broken stream, and the Reel line missing on a planned-only brand and on an
+  unchanged scheduled post.
 
 ## 2.66.6 — 2026-11-08
 

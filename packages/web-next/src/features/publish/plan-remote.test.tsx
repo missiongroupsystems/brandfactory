@@ -170,6 +170,13 @@ describe('planning a post on the core, with no account connected', () => {
     expect(within(preview).queryByText(/preview shows once/)).toBeNull()
   })
 
+  it('says a Reel holds a photo: nothing is sent, so no blocker says it instead', () => {
+    // The draft as a Reel: its one file is a photo.
+    open({ ...draft, format: 'reel' })
+    expect(screen.getByText('A Reel is a video: this is a photo.')).toBeInTheDocument()
+    expect(screen.queryByText('A Reel takes one video.')).toBeNull()
+  })
+
   it('offers Schedule, not "Publish now": nothing goes out yet', () => {
     open(draft)
     expect(screen.queryByRole('radio', { name: 'Publish now' })).toBeNull()

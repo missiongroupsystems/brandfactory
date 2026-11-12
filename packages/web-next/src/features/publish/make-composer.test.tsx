@@ -272,6 +272,8 @@ describe('the composer with Instagram through Make', () => {
     fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
     fireEvent.click(screen.getByRole('button', { name: /^Tomorrow / }))
     expect(screen.getAllByText('A Reel takes one video.').length).toBeGreaterThan(0)
+    // Said once: the line under the media that says the same goes while the blocker says it.
+    expect(screen.queryByText('A Reel is a video: this is a photo.')).toBeNull()
     expect(screen.queryByText(/Choose who can watch/)).toBeNull()
   })
 })

@@ -108,7 +108,8 @@ const COLUMN = 'max-w-[680px]'
 
 function CallSheet({ shoot }: { shoot: Shoot }) {
   const { brand } = useBrand()
-  const { ideas } = useIdeas(brand.id)
+  // The ideas' covers and the shots shot like a post can be live Pinterest pins.
+  const { ideas } = useIdeas(brand.id, true)
   // A shoot just planned from Ideate opens with its details out: it still needs a name and a day.
   const [editing, setEditing] = React.useState(shoot.title === 'New shoot')
   const cards = shoot.ideaIds.flatMap((id) => ideas.find((i) => i.id === id) ?? [])

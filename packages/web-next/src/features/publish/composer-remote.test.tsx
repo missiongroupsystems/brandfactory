@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import * as React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -319,6 +319,52 @@ describe('the composer on the API', () => {
       setToday(DEMO_TODAY)
     }
   })
+
+  it('says a failed post on a day gone by is sent again by a new day', () => {
+    // On the core a failed post is not sent at once: a new day is how it goes out again.
+    const pasta = { ...POSTS.find((p) => p.id === 'pasta')!, stage: 'failed' as const }
+    setToday('2026-10-20')
+    vi.setSystemTime(new Date('2026-10-20T02:00:00Z'))
+    try {
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer post={pasta} />
+          </Loaded>
+        </BrandProvider>,
+      )
+      expect(
+        screen.getAllByText('It failed on Tue 13 Oct. Pick a new day to send it again.').length,
+      ).toBeGreaterThan(0)
+      expect(screen.queryByText(/has passed/)).toBeNull()
+    } finally {
+      setToday(DEMO_TODAY)
+    }
+  })
+
+  it('lets a post opened from the core go without a question when nothing was changed', async () => {
+    // The brand's state arrives after the page opens: nothing it fills in counts as a change.
+    // A scheduled post, a draft and a carousel draft: one of each the calendar opens.
+    for (const id of ['ravioli', 'pasta', 'five-pastas']) {
+      const post = POSTS.find((p) => p.id === id)!
+      render(
+        <BrandProvider>
+          <a href="/ideate">Ideas</a>
+          <Loaded>
+            <Composer post={post} />
+          </Loaded>
+        </BrandProvider>,
+      )
+      await act(async () => undefined)
+      // A press on the page that changes nothing: what the post holds is still what it opened on.
+      fireEvent.pointerDown(document.querySelector('header')!)
+      const followed = fireEvent.click(screen.getByRole('link', { name: 'Ideas' }))
+      expect({ post: post.id, followed }).toEqual({ post: post.id, followed: true })
+      expect(screen.queryByText('Leave this post?')).toBeNull()
+      cleanup()
+    }
+    // Three posts rendered in one test: more than the default 5 s under a loaded machine.
+  }, 30_000)
 
   it('schedules later today, and asks for a time ahead once that time has gone', () => {
     const draft = POSTS.find((p) => p.id === 'five-pastas')!

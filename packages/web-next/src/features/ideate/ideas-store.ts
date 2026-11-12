@@ -355,7 +355,10 @@ function patch(brandId: BrandId, id: string, fields: Partial<IdeaCard>) {
 
 export function useIdeas(
   brandId: BrandId,
-  /** The screen shows the moodboard's pins: Ideas and Bubbles. Other pages never ask Pinterest. */
+  /**
+   * The screen shows the moodboard's pins: Ideas, an idea, a shoot and Bubbles. Other pages never
+   * ask Pinterest, against its limit of 1,000 reads a day for every brand together.
+   */
   pins = false,
 ): BrandIdeasState & { target: number } {
   const s = React.useSyncExternalStore(
@@ -363,13 +366,29 @@ export function useIdeas(
     () => state[brandId] ?? EMPTY,
     () => state[brandId] ?? EMPTY,
   )
-  // A brand whose pins are on screen reads its live Pinterest board, if it has one and has not
-  // read it yet.
-  React.useEffect(() => {
-    if (remote && pins) readLiveBoard(brandId)
-  }, [brandId, s, pins])
+  useLivePins(brandId, pins)
   return { ...s, target: demoOf(IDEAS_BY_BRAND, brandId)?.target ?? 0 }
 }
+
+/**
+ * A brand whose pins are on screen reads its live Pinterest board, if it has one and has not
+ * read it yet. The brand's state can name the board after the screen opens, so a new state
+ * tries again.
+ */
+function useLivePins(brandId: BrandId, on: boolean) {
+  const s = React.useSyncExternalStore(
+    subscribe,
+    () => state[brandId] ?? EMPTY,
+    () => state[brandId] ?? EMPTY,
+  )
+  React.useEffect(() => {
+    if (remote && on) readLiveBoard(brandId)
+  }, [brandId, s, on])
+}
+
+/** An idea whose cover is a live pin: its tile shows that pin, so the board is read for it. */
+const coverIsPin = (card: Pick<IdeaCard, 'image' | 'inspiration'> | undefined) =>
+  card !== undefined && !card.image && card.inspiration.some((id) => id.startsWith('pin-'))
 
 /** Any brand's ideas by id, for a page that a link opens with only the id (a shared brief). */
 export function useIdeasById(): Map<string, { brandId: BrandId; card: IdeaCard }> {
@@ -399,6 +418,7 @@ export function useCoverOfHook(brandId: BrandId, hook: string): string | undefin
   const card =
     ideas.find((i) => i.hook === hook) ??
     demoOf(IDEAS_BY_BRAND, brandId)?.moments.find((m) => m.seed.hook === hook)?.seed
+  useLivePins(brandId, coverIsPin(card))
   return card ? coverOf(brandId, card) : undefined
 }
 
@@ -410,6 +430,7 @@ export function useCoverOfPost(
   const { ideas } = useIdeas(brandId)
   const byHook = useCoverOfHook(brandId, post.hook)
   const own = ideas.find((i) => i.postId === post.id)
+  useLivePins(brandId, coverIsPin(own))
   return own ? coverOf(brandId, own) : byHook
 }
 

@@ -182,9 +182,24 @@ describe('the model gateway', () => {
   it('logs why a model request failed: its own refusal, the host’s, or an error mid-answer', async () => {
     // Production logged nothing for these, so a failed turn could not be read back.
     const refusal = '{"error":{"message":"Provider returned error","code":400}}'
+    // OpenRouter's moderation refusal quotes the flagged words: they never reach the log or the
+    // runtime, whose own error is logged too.
+    const flagged = JSON.stringify({
+      error: {
+        code: 403,
+        message: 'Input was flagged',
+        metadata: { reasons: ['x'], flagged_input: 'the secret menu', provider_name: 'together' },
+      },
+    })
     const answers = [
       { status: 400, body: refusal },
-      { status: 200, body: 'data: {"choices":[],"error":{"code":502,"message":"host down"}}\n\n' },
+      { status: 403, body: flagged },
+      // A body that is no error object at all, which could echo the request.
+      { status: 500, body: 'upstream said: the secret menu' },
+      {
+        status: 200,
+        body: 'data: {"choices":[],"error":{"code":502,"message":"host down","metadata":{"raw":"the secret menu"}}}\n\n',
+      },
     ]
     const host = createServer((req, res) => {
       req.resume()
@@ -204,19 +219,57 @@ describe('the model gateway', () => {
       const refused = await ask(g, token, ok)
       expect(refused.status).toBe(400)
       expect(await refused.text()).toBe(refusal)
-      await (await ask(g, token, ok)).text()
+      const moderated = await ask(g, token, ok)
+      expect(moderated.status).toBe(403)
+      const passedOn = await moderated.text()
+      expect(JSON.parse(passedOn)).toEqual({ error: { message: 'Input was flagged', code: 403 } })
+      const odd = await ask(g, token, ok)
+      expect(odd.status).toBe(500)
+      expect(odd.headers.get('content-type')).toBe('application/json')
+      expect(JSON.parse(await odd.text())).toEqual({ error: { code: 500 } })
+      const streamed = await (await ask(g, token, ok)).text()
       await (await ask(g, token, { ...ok, stream: false })).text()
       const lines = [...errors.mock.calls, ...warns.mock.calls].map((c) => String(c[0]))
       expect(lines).toEqual([
-        `bubbles: model request failed 400: ${refusal}`,
-        'bubbles: model answer failed: {"code":502,"message":"host down"}',
+        'bubbles: model request failed 400: 400 Provider returned error',
+        'bubbles: model request failed 403: 403 Input was flagged (together)',
+        'bubbles: model request failed 500: 500',
+        'bubbles: model answer failed: 502 host down',
         'bubbles: gateway refused 400: requests must stream',
       ])
-      // Never the key, and never the person's words.
-      expect(lines.join('\n')).not.toMatch(/the-real-key|hi/)
+      // Never the key, and never the person's words. The answer itself still reaches the
+      // runtime whole.
+      expect(lines.join('\n')).not.toMatch(/the-real-key|secret menu|"hi"/)
+      expect(streamed).toContain('the secret menu')
     } finally {
       errors.mockRestore()
       warns.mockRestore()
+    }
+  })
+
+  it("logs a model answer that broke off, and ends the runtime's answer too", async () => {
+    const host = createServer((req, res) => {
+      req.resume()
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write('data: {"choices":[{"delta":{"content":"Casa"}}]}\n\n', () => res.destroy())
+    })
+    await new Promise<void>((done) => host.listen(0, '127.0.0.1', done))
+    servers.push(host)
+    const g = await gateway({
+      upstream: `http://127.0.0.1:${(host.address() as AddressInfo).port}`,
+    })
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const res = await ask(g, g.pass().token, ok)
+      await expect(res.text()).rejects.toThrow()
+      await vi.waitFor(() =>
+        expect(errors.mock.calls.map((c) => String(c[0]))).toContainEqual(
+          expect.stringMatching(/^bubbles: model answer broke off: \S/),
+        ),
+      )
+      expect(errors.mock.calls.join('\n')).not.toContain('Casa')
+    } finally {
+      errors.mockRestore()
     }
   })
 

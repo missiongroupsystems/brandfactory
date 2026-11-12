@@ -218,6 +218,13 @@ export interface MediaFile {
   video: boolean
 }
 
+/** A Reel with no video, or with more than one file. */
+export const REEL_ONE_VIDEO = 'A Reel takes one video.'
+
+/** A PNG or another photo type on Instagram, with the two ways to fix it. */
+export const JPEG_ONLY =
+  'Instagram takes JPEG photos only: save the photo as a JPEG, or untick Instagram.'
+
 /**
  * What Instagram and Facebook cannot take through Make's modules (docs/executing/
  * make-publishing-plan.md), for the accounts a post is really sent to: Instagram photos are JPEG,
@@ -225,10 +232,6 @@ export interface MediaFile {
  * A Story, which only our own Meta app posts, is one file.
  * A file whose type its address does not show is left to the server's own check.
  */
-/** A PNG or another photo type on Instagram, with the two ways to fix it. */
-export const JPEG_ONLY =
-  'Instagram takes JPEG photos only: save the photo as a JPEG, or untick Instagram.'
-
 export function makeBlockers(format: Format, sending: ChannelKey[], media: MediaFile[]): string[] {
   const out: string[] = []
   const ig = sending.includes('ig')
@@ -245,7 +248,7 @@ export function makeBlockers(format: Format, sending: ChannelKey[], media: Media
     return out
   }
   if (format === 'reel') {
-    if (media.length !== 1 || videos.length !== 1) out.push('A Reel takes one video.')
+    if (media.length !== 1 || videos.length !== 1) out.push(REEL_ONE_VIDEO)
     return out
   }
   if (ig) {

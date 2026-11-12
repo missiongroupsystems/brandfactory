@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type { BrandId } from '@/data/brands'
 import { boardsOf, referencesOf } from '@/data/ideas'
 import { BrandProvider } from '@/features/schedule/posts-store'
 import { RemoteError, type BrandState } from '@/lib/remote'
@@ -13,7 +14,7 @@ import {
   useConnections,
 } from '@/features/connections/connections-store'
 
-import { useIdeas } from './ideas-store'
+import { useCoverOfHook, useIdeas } from './ideas-store'
 
 // On the core, with a server whose Pinterest app is set up (`GET /platforms` said so). Meta and
 // TikTok have no app yet. The ideas and connections stores' state listeners are kept, so a test
@@ -82,7 +83,7 @@ describe('the moodboard’s Pinterest on the core', () => {
       pinterest: { username: 'brand.pins' },
       moodboard: { boards: [], posts: [] },
     })
-    const { result } = renderHook(() => useIdeas('carlitos'))
+    const { result } = renderHook(() => useIdeas('carlitos', true))
     expect(result.current.sources.pinterest).toBe(true)
     await waitFor(() => expect(boardsOf('carlitos').map((b) => b.name)).toEqual(['Tacos']))
     expect(boardsOf('carlitos')[0]!.pins[0]).toMatchObject({
@@ -120,6 +121,58 @@ describe('the moodboard’s Pinterest on the core', () => {
     expect(boardsOf('carlitos')).toEqual([])
   })
 
+  it('is not read on a page that shows no pins, such as Schedule', async () => {
+    // Every page reads the brand's ideas (the calendar's idea tiles, Connections): before, each
+    // one asked Pinterest too, against a Trial limit of 1,000 reads a day for every brand.
+    // A brand no other test reads, so no earlier read stands in for this one.
+    const sello = 'sello' as BrandId
+    answers['/brands/sello/pinterest/pins'] = { boards: [] }
+    hydrate.fn('sello', {
+      brand: { id: 'sello', name: 'Sello' },
+      ideas: [],
+      connections: [{ key: 'pinterest', status: 'connected' }],
+      pinterest: { username: 'sello.pins' },
+      moodboard: { boards: [], posts: [] },
+    })
+    renderHook(() => [useIdeas(sello), useConnections(sello)])
+    await new Promise((r) => setTimeout(r, 0))
+    expect(sends.some(([, path]) => path.endsWith('/pinterest/pins'))).toBe(false)
+    renderHook(() => useIdeas(sello, true))
+    await waitFor(() =>
+      expect(sends.filter(([, path]) => path === '/brands/sello/pinterest/pins')).toHaveLength(1),
+    )
+  })
+
+  it('is read for a calendar tile whose idea takes its cover from a pin, and for that alone', async () => {
+    const sello = 'sello-tile' as BrandId
+    answers['/brands/sello-tile/pinterest/pins'] = {
+      boards: [{ id: '5', name: 'Tacos', url: 'https://www.pinterest.com/s/tacos/', pins: [PIN] }],
+    }
+    const idea = (id: string, hook: string, inspiration: string[]) => ({
+      id,
+      format: 'reel',
+      hook,
+      status: 'idea',
+      source: { kind: 'team' },
+      inspiration,
+      shots: [],
+    })
+    hydrate.fn(sello, {
+      brand: { id: sello, name: 'Sello' },
+      ideas: [idea('own', 'Our own photo', []), idea('pinned', 'Tacos at dusk', ['pin-p1'])],
+      connections: [{ key: 'pinterest', status: 'connected' }],
+      pinterest: { username: 'sello.pins' },
+      moodboard: { boards: [], posts: [] },
+    })
+    const pins = () => sends.filter(([, path]) => path === '/brands/sello-tile/pinterest/pins')
+    renderHook(() => useCoverOfHook(sello, 'Our own photo'))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(pins()).toHaveLength(0)
+    const { result } = renderHook(() => useCoverOfHook(sello, 'Tacos at dusk'))
+    await waitFor(() => expect(result.current).toBe(PIN.image))
+    expect(pins()).toHaveLength(1)
+  })
+
   it('keeps Pinterest off without an account, and off again when its sign-in has died', async () => {
     // A connection with no account behind it (stored before 1.7.0): off, and Pinterest is not asked.
     hydrate.fn('casa-vostra', {
@@ -129,7 +182,9 @@ describe('the moodboard’s Pinterest on the core', () => {
       pinterest: null,
       moodboard: { boards: [], posts: [] },
     })
-    expect(renderHook(() => useIdeas('casa-vostra')).result.current.sources.pinterest).toBe(false)
+    expect(renderHook(() => useIdeas('casa-vostra', true)).result.current.sources.pinterest).toBe(
+      false,
+    )
     expect(sends.some(([, path]) => path.endsWith('/pinterest/pins'))).toBe(false)
 
     // A board, but a dead token: the source goes off, so its setup offers Connect again.
@@ -146,7 +201,7 @@ describe('the moodboard’s Pinterest on the core', () => {
       moodboard: { boards: [], posts: [] },
     })
     await waitFor(() =>
-      expect(renderHook(() => useIdeas('casa-vostra')).result.current.sources.pinterest).toBe(
+      expect(renderHook(() => useIdeas('casa-vostra', true)).result.current.sources.pinterest).toBe(
         false,
       ),
     )
@@ -168,6 +223,10 @@ describe('the moodboard’s Pinterest on the core', () => {
       renderHook(() => [useConnections('temper').pinterest, useAccountName('temper', 'pinterest')])
         .result.current
     expect(read()).toEqual(['connected', '@tech2450'])
+    // Connections shows the account, not its pins: Pinterest is read where the moodboard shows.
+    await new Promise((r) => setTimeout(r, 0))
+    expect(sends.some(([, path]) => path.endsWith('/temper/pinterest/pins'))).toBe(false)
+    renderHook(() => useIdeas('temper', true))
     await waitFor(() => expect(boardsOf('temper')).toHaveLength(1))
 
     disconnect('temper', 'pinterest')
@@ -191,7 +250,7 @@ describe('a board read on its way', () => {
       pinterest: { username: 'temper.pins' },
       moodboard: { boards: [], posts: [] },
     })
-    renderHook(() => useIdeas('temper'))
+    renderHook(() => useIdeas('temper', true))
     await waitFor(() =>
       expect(sends.some(([, p]) => p.endsWith('/temper/pinterest/pins'))).toBe(true),
     )

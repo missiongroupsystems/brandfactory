@@ -59,6 +59,7 @@ import {
   lengthFor,
   linkedChannels,
   makeBlockers,
+  REEL_ONE_VIDEO,
   parseTime,
   EARLIEST_POST,
   PRIVACY,
@@ -433,10 +434,14 @@ export function Composer({
   const created = React.useRef(false)
   // Sent and on the way back to the calendar: a second press in that moment sends nothing.
   const submitted = React.useRef(false)
+  // Saved, sent or deleted, and on the way out: leaving loses nothing, so it asks nothing.
+  const [left, setLeft] = React.useState(false)
   // The day and the time the post opened on: a save that keeps them is not a move.
   // Save keeps them; Reschedule shows once either changes.
   const [openedAt] = React.useState({ date, time })
-  // What the post held as it opened: a change since then is lost by leaving, so leaving asks.
+  // What the post held before the person first touched it: a change since then is lost by
+  // leaving, so leaving asks. It is taken at the first touch, not as the page opens, since the
+  // composer settles itself after it opens (the last post's accounts, the format of the media).
   const holding = () =>
     JSON.stringify([
       draft.format,
@@ -446,7 +451,10 @@ export function Composer({
       time,
       activeChannels(draft).map((c) => c.key),
     ])
-  const [openedHolding] = React.useState(holding)
+  const [openedHolding, setOpenedHolding] = React.useState<string | null>(null)
+  const touched = () => {
+    if (openedHolding === null) setOpenedHolding(holding())
+  }
   const moved = date !== openedAt.date || time !== openedAt.time
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
@@ -695,6 +703,7 @@ export function Composer({
     // that nothing is sent. A scheduled post moved goes back to the calendar either way.
     if (how === 'slot' && (!planned || post?.stage === 'scheduled')) {
       submitted.current = true
+      setLeft(true)
       const word = post?.stage !== 'scheduled' ? 'Scheduled for' : moved ? 'Moved to' : 'Saved for'
       report(`${word} ${dayLabel(date)}, ${time}`)
       router.push('/')
@@ -736,6 +745,7 @@ export function Composer({
     }
     remember()
     submitted.current = true
+    setLeft(true)
     report(`${keeps ? 'Saved for' : 'Draft saved for'} ${dayLabel(date)}, ${time}`)
     router.push('/')
   }
@@ -755,6 +765,7 @@ export function Composer({
     setWaiting(null)
     if (refused !== null) return
     submitted.current = true
+    setLeft(true)
     quietly(() => setStage(post.id, 'draft'))
     // Back to the calendar, as Schedule, Reschedule and Save draft go. No Undo: scheduling it
     // again is a new send, which the post page's Schedule makes on purpose.
@@ -774,6 +785,7 @@ export function Composer({
     setWaiting(null)
     if (refused !== null) return
     submitted.current = true
+    setLeft(true)
     // Gone on purpose: the page goes back to the calendar, not to "not in the demo".
     leaving.add(post.id)
     router.push('/')
@@ -810,11 +822,13 @@ export function Composer({
     ...(emptyNote && empty ? ['Nothing to save yet: add a photo or a caption.'] : []),
     ...(oneAction && !resend ? (unsaveable && !readOnly ? ['Pick an account.'] : []) : blocked),
   ]
+  // The full list wraps, so a line's fix at its end is read (the JPEG line names two); the
+  // phone's one line stays one line.
   const hint = (all: boolean) =>
     reasons.slice(0, all ? undefined : 1).map((b) => (
-      <span key={b} className="flex min-w-0 items-center gap-1.5">
-        <span className="size-1.5 shrink-0 rounded-full bg-ink" />
-        <span className="min-w-0 truncate">{b}</span>
+      <span key={b} className={`flex min-w-0 gap-1.5 ${all ? 'items-start' : 'items-center'}`}>
+        <span className={`size-1.5 shrink-0 rounded-full bg-ink ${all ? 'mt-[7px]' : ''}`} />
+        <span className={`min-w-0 ${all ? '' : 'truncate'}`}>{b}</span>
       </span>
     ))
   /** The send button: what it does and where, never what stops it. */
@@ -989,10 +1003,17 @@ export function Composer({
   const whenText = when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`
   const moreText = moreSummary(draft, labels, media)
   const moreNeeds = active.some((c) => summaryOf(draft, extra)[c.key].needs)
-  const unsaved = !readOnly && !waiting && holding() !== openedHolding
+  const unsaved =
+    !readOnly && !waiting && !left && openedHolding !== null && holding() !== openedHolding
 
   return (
-    <div className="flex flex-col gap-6">
+    // Capture runs before the touched control's own handler, so the snapshot is from before it.
+    <div
+      className="flex flex-col gap-6"
+      onPointerDownCapture={touched}
+      onKeyDownCapture={touched}
+      onDropCapture={touched}
+    >
       <LeaveGuard unsaved={unsaved} />
       <header className="flex flex-col gap-2">
         {/* A post that exists says where it is; a new one is new, as its title says. */}
@@ -1086,6 +1107,7 @@ export function Composer({
             pickFormat={pickFormat}
             formatLocked={post !== undefined}
             perAccountAsked={perAccountAsked}
+            reelRefused={reasons.includes(REEL_ONE_VIDEO)}
           />
           {/* What a post often changes stays in view; the rest folds into More options. */}
           <KeyDetails>
@@ -1524,6 +1546,7 @@ function Content({
   leftOut,
   room,
   perAccountAsked,
+  reelRefused,
 }: {
   api: PublishDraftApi
   media: Shot[]
@@ -1539,6 +1562,8 @@ function Content({
   formatLocked: boolean
   /** A caption per account was asked for in More options. */
   perAccountAsked: boolean
+  /** The lines at the button already say a Reel takes one video. */
+  reelRefused: boolean
 }) {
   const { draft, update } = api
   const active = activeChannels(draft)
@@ -1819,10 +1844,10 @@ function Content({
             {leftOut}
           </span>
         )}
-        {/* A Reel is a video: in the demo a photo in one is said in a line, not refused (the
-            demo's ideas start a reel from a photo). On the core the blocker at the button says
-            it, so the line is not said twice. */}
-        {!remote && draft.format === 'reel' && media.some((m) => !isVideo(m.src)) && (
+        {/* A Reel is a video: a photo in one is said in a line, not refused (the demo's ideas
+            start a reel from a photo). When an account that really posts refuses it, the
+            blocker at the button says so, and the line is not said twice. */}
+        {!reelRefused && draft.format === 'reel' && media.some((m) => !isVideo(m.src)) && (
           <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
             <span className="size-1.5 shrink-0 rounded-full bg-ink" />A Reel is a video: this is a
             photo.

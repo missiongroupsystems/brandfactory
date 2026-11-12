@@ -7,6 +7,8 @@ import { DEMO_TODAY, setToday } from '@/lib/dates'
 
 import {
   archiveFor,
+  dateOf,
+  datePlace,
   monthAt,
   monthRows,
   monthTitle,
@@ -151,5 +153,26 @@ describe('the calendar title', () => {
     expect(withYear('27 Apr – 3 May', '2026-05-03', '2026-10-22')).toBe('27 Apr – 3 May')
     expect(withYear('27 Apr – 3 May', '2025-05-03', '2026-10-22')).toBe('27 Apr – 3 May 2025')
     expect(withYear('28 Dec – 3 Jan', '2027-01-03', '2026-10-22')).toBe('28 Dec – 3 Jan 2027')
+  })
+})
+
+describe('where a day lands on the calendar', () => {
+  it('opens the week and the day views on the day itself, across a month’s edge', () => {
+    // Today is Tue 6 Oct: October's weeks start on Mon 5 Oct, so Thu 1 Oct is September's.
+    expect(datePlace('week', '2026-10-29')).toEqual({ offset: 0, week: 3, day: 3 })
+    expect(datePlace('day', '2026-11-01')).toEqual({ offset: 0, week: 3, day: 6 })
+    expect(datePlace('week', '2026-10-01')).toEqual({ offset: -1, week: 3, day: 3 })
+    // Every day of a year, back and forward: the place found is the day.
+    for (let i = -200; i <= 200; i++) {
+      const date = new Date(Date.UTC(2026, 9, 6 + i)).toISOString().slice(0, 10)
+      const { offset, week, day } = datePlace('day', date)
+      expect(dateOf(offset, week, day)).toBe(date)
+    }
+  })
+
+  it('opens the month view on the day’s own month', () => {
+    expect(datePlace('month', '2026-10-01')).toMatchObject({ offset: 0, day: 3 })
+    expect(datePlace('month', '2026-11-01')).toMatchObject({ offset: 1 })
+    expect(monthAt(datePlace('month', '2026-03-31').offset)).toEqual({ year: 2026, month: 2 })
   })
 })

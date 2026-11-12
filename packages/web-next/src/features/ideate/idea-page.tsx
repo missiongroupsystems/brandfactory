@@ -56,7 +56,14 @@ import {
   type Slot,
   useRename,
 } from './idea-parts'
-import { editIdea, keepSuggestion, setDay, skipSuggestion, type IdeaEdit } from './ideas-store'
+import {
+  editIdea,
+  keepSuggestion,
+  setDay,
+  skipSuggestion,
+  useIdeas,
+  type IdeaEdit,
+} from './ideas-store'
 import { useSortable, type Sortable } from './sortable'
 
 const HAIR = 'border-(--cal-line)'
@@ -489,6 +496,8 @@ function Idea({ slot }: { slot: Slot }) {
     [slot.card, shoot],
   )
   const rename = useRename(card)
+  // An idea's references and the posts offered beside them include the live Pinterest pins.
+  useIdeas(brand.id, true)
   const refs = refsOf(brand.id, card)
   const stages = stagesOf(refs, card, slot, weeks, plan.time)
   const stage = (key: StageKey) => stages.find((s) => s.key === key)!

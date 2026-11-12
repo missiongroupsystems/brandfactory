@@ -115,6 +115,13 @@ describe('a posted post on the core', () => {
     expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
   })
 
+  it('shows no Analytics card: no account’s post numbers reach the core yet', () => {
+    // The demo's grey bars under "Unavailable" read as a broken chart under a live post.
+    open(posted)
+    expect(screen.queryByRole('region', { name: 'Analytics' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unavailable' })).toBeNull()
+  })
+
   it('lists no facts when it went out with none', () => {
     open(posted)
     expect(screen.queryByText(/^(Collaborators|Tagged|Location|Labels)$/)).toBeNull()
@@ -256,8 +263,8 @@ describe('a posted post from the calendar, on the core', () => {
     const link = screen.getByRole('link', { name: 'Open on Instagram' })
     expect(link).toHaveAttribute('href', 'https://www.instagram.com/p/C1/')
     expect(link).toHaveAttribute('target', '_blank')
-    // The collaborator reaches the analytics preview too.
-    expect(screen.getByText('Reach by account')).toBeInTheDocument()
+    // No analytics preview on the core: no account's post numbers reach it yet.
+    expect(screen.queryByText('Reach by account')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
