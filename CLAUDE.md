@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Users: none yet.
+
+The owner's rules for all projects (replies, production, UI, visual tests, mobile, review) are in
+the user-level `~/.claude/CLAUDE.md`. The cloud environment's setup script writes that file.
+
 ## Communication: Simplified Technical English
 
 Write all messages to the user in Simplified Technical English (ASD-STE100
@@ -119,6 +124,8 @@ per-package `environment` and `alias`, and the workspace form keeps them.
 - `core`'s `postgres.test.ts` runs only when `CORE_TEST_PG_URL` names a throwaway Postgres
   (see `packages/core/README.md`); PGlite ignores `statement_timeout` and runs one statement at a
   time.
+- For a visual test of a change that touches both modes, test the static demo and the core mode
+  (`NEXT_PUBLIC_CORE_URL`).
 
 ## Conventions
 
