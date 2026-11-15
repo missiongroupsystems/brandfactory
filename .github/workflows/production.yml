@@ -1,0 +1,132 @@
+name: Production
+
+# The steps on production that need the database or Fly, run from GitHub so that no one's computer
+# is needed: a cloud session starts this workflow and reads its log (docs/cloud-sessions.md).
+#
+#   check    read only: the server's health, the live pack version, and how each Instagram and
+#            Facebook account is linked
+#   release  the pack: publish, test, migrate, promote `version`, then people's loadouts follow it
+#   deploy   the server (`fly deploy`), then its health
+#
+# Secrets and variables live in the GitHub environment `production` (Settings, Environments):
+#   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
+#              RELEASE_PASSWORD (the sign-in of the person a promote acts for), FLY_API_TOKEN
+#              (`fly tokens create deploy -a brandfactory`)
+#   variables  RELEASE_EMAIL (that person's email), SUPABASE_ANON_KEY (the project's public key)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to run
+        required: true
+        type: choice
+        options: [check, release, deploy]
+      version:
+        description: The pack version to release (release only), e.g. 1.16.0
+        required: false
+        type: string
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    name: ${{ inputs.task }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      REF: qcxikcauwonrbftqiitp
+      AUTH_PROVIDER: supabase
+      CORE_ENVIRONMENT: production
+      SUPABASE_URL: https://qcxikcauwonrbftqiitp.supabase.co
+      SUPABASE_JWKS_URL: https://qcxikcauwonrbftqiitp.supabase.co/auth/v1/.well-known/jwks.json
+      SUPABASE_JWT_ISSUER: https://qcxikcauwonrbftqiitp.supabase.co/auth/v1
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: pnpm/action-setup@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The session pooler (IPv4), with Supabase's own root, as the CLI reaches it from anywhere.
+      - name: Database logins
+        if: inputs.task != 'deploy'
+        env:
+          LOGIN_PW: ${{ secrets.CORE_LOGIN_PASSWORD }}
+          MIGRATOR_PW: ${{ secrets.CORE_MIGRATOR_PASSWORD }}
+        run: |
+          url() {
+            node -e 'const [u, p, r, ca] = process.argv.slice(1); process.stdout.write(`postgres://${u}.${r}:${encodeURIComponent(p)}@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=${ca}`)' "$1" "$2" "$REF" "$GITHUB_WORKSPACE/packages/core/supabase-ca.crt"
+          }
+          login=$(url core_login "$LOGIN_PW")
+          migrator=$(url core_migrator "$MIGRATOR_PW")
+          echo "::add-mask::$login"
+          echo "::add-mask::$migrator"
+          echo "DATABASE_URL=$login" >> "$GITHUB_ENV"
+          echo "MIGRATOR_DATABASE_URL=$migrator" >> "$GITHUB_ENV"
+
+      - name: Check
+        if: inputs.task == 'check'
+        working-directory: packages/core
+        run: |
+          curl -fsS https://brandfactory.fly.dev/health && echo
+          node -e '
+          const { Client } = require("pg")
+          const c = new Client({ connectionString: process.env.DATABASE_URL })
+          ;(async () => {
+            await c.connect()
+            const live = await c.query("select version from packs.live_version($1, $2)", ["production", "brandbase"])
+            console.log(`brandbase live in production: ${live.rows[0]?.version ?? "none"}`)
+            const accounts = await c.query(`select brand_id, platform, coalesce(details ->> $1, $2) as via
+              from brandbase.accounts where platform in ($3, $4) order by 1, 2`, ["via", "make", "instagram", "facebook"])
+            if (accounts.rows.length > 0) console.table(accounts.rows)
+            else console.log("no account rows readable from this login")
+            await c.end()
+          })().catch((e) => { console.error(e.message); process.exit(1) })'
+
+      - name: Release
+        if: inputs.task == 'release'
+        working-directory: packages/core
+        env:
+          VERSION: ${{ inputs.version }}
+          RELEASE_EMAIL: ${{ vars.RELEASE_EMAIL }}
+          CORE_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          manifest=$(node -p "require('../../packs/brandbase/manifest.json').version")
+          [ "$VERSION" = "$manifest" ] || { echo "main has brandbase $manifest, not $VERSION"; exit 1; }
+          core() { pnpm -s exec tsx src/cli.ts "$@"; }
+          core login "$RELEASE_EMAIL"
+          unset CORE_PASSWORD
+          core publish ../../packs/brandbase
+          core test brandbase "$VERSION"
+          core migrate brandbase "$VERSION"
+          pnpm -s exec tsx scripts/loadouts.ts before brandbase > "$RUNNER_TEMP/before.json"
+          core promote brandbase "$VERSION"
+          pnpm -s exec tsx scripts/loadouts.ts after brandbase "$RUNNER_TEMP/before.json"
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: inputs.task == 'deploy'
+
+      - name: Deploy
+        if: inputs.task == 'deploy'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --remote-only -a brandfactory
+          for i in $(seq 1 20); do curl -fsS https://brandfactory.fly.dev/health && echo && exit 0; sleep 6; done
+          echo "the server did not answer /health"; exit 1

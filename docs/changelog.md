@@ -159,13 +159,16 @@ One line each — full write-ups are under the matching `##` heading further dow
   posts, re-sends a scheduled post's waiting jobs on Save, and hides what cannot reach Meta.
 - **Review.** Three adversarial passes; the first two found eight defects, all fixed with tests,
   and the third was clean.
-- **Release.** `docs/completions/post-options-plan.md`, "Release": publish, test, migrate and
-  promote 1.16.0, set every loadout again (`core loadout <uid> brandbase all`), `fly deploy`, the
-  web app from `main`. Check that the brand's Instagram row has `details.via = 'meta'`.
-- **Tests:** 1705 by count: 1438 pass, 266 skipped without a Postgres server, and 1 fails only on
-  this machine's Node 22 (`packages/core/src/text.test.ts` compares Unicode tables; the repo pins
-  Node 24.13.0, and this change does not touch `packages/core/src`). Typecheck, lint, format and
-  the web build pass.
+- **Release.** The new workflow **Production** (`.github/workflows/production.yml`,
+  `docs/cloud-sessions.md`) runs the release from GitHub, so a cloud session needs no one's
+  computer: `release` 1.16.0 (people's loadouts follow it), `deploy`, and `check` (how each
+  Instagram and Facebook account is linked). `scripts/test-pg.sh` runs the core's tests on the
+  image's Postgres 16.
+- **Tests:** 1705 by count: 1438 pass and 266 are skipped without a Postgres server; on Node 22
+  `packages/core/src/text.test.ts` failed (it compares Unicode tables; the repo pins 24.13.0), and
+  on Node 24.13.0 it passes. `scripts/test-pg.sh` ran the core's 726 tests on Postgres 16, all
+  pass. Typecheck, lint, format and the web build pass.
+
 ## 2.66.6 — 2026-11-08
 
 - **Why.** A second review of the Meta code (Opus and Sonnet, against Meta's documents) before

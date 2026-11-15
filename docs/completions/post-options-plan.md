@@ -38,8 +38,8 @@ job's outcome may carry a `note`, kept in `post_jobs.error`.
 
 ## Release (production)
 
-`scripts/release-2.67.0.sh` runs steps 1, 2, 3 and 5 from the owner's Mac (the database takes
-no connection from a cloud session).
+The workflow **Production** runs steps 1 and 2 (`release`, version 1.16.0) and 3 (`deploy`), and
+5 (`check`): `docs/cloud-sessions.md`.
 
 Any order is safe: an old server ignores the new payload fields, an old pack sends none, a job
 with no people or comment keeps its old payload (and so its yes), and the web app's new route
