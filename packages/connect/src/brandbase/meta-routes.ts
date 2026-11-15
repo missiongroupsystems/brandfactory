@@ -162,13 +162,20 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
             )
           }
         }
+        // A refused Instagram account (another brand holds it) is answered after the webhooks
+        // below: the Page is this brand's now, and its comments and DMs must still come.
+        let refusal: unknown = null
         if (page.igUserId) {
-          await linkAccount(core, who(c), brand, 'instagram', {
-            accountId: page.igUserId,
-            username: page.igUsername ?? page.name,
-            tokens: app.sealToken(page.token, bound('instagram', brand, page.igUserId)),
-            details: { via: 'meta', pageId: page.id },
-          })
+          try {
+            await linkAccount(core, who(c), brand, 'instagram', {
+              accountId: page.igUserId,
+              username: page.igUsername ?? page.name,
+              tokens: app.sealToken(page.token, bound('instagram', brand, page.igUserId)),
+              details: { via: 'meta', pageId: page.id },
+            })
+          } catch (err) {
+            refusal = err
+          }
         }
         // Linked either way: without the webhooks only the inbox misses this Page.
         const keeps = await canKeepMessages(brand, page.id)
@@ -181,6 +188,7 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
           webhooks = false
           console.error('meta: the Page webhooks did not change', brand, (err as Error).message)
         }
+        if (refusal) throw refusal
         return c.json({
           brandId: brand,
           page: page.name,

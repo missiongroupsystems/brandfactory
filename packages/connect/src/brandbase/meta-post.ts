@@ -51,15 +51,12 @@ export interface MetaSend {
 
 /**
  * Meta refused in a way that proves nothing was posted: a stated error, not Meta's own "unknown"
- * or "try again" (codes 1 and 2, or `is_transient`), and not a lost answer.
+ * or "try again" (codes 1 and 2, Instagram's server errors and timeouts -1 and -2, or
+ * `is_transient`), and not a lost answer.
  */
 export const definite = (err: unknown) =>
   err instanceof MetaReconnect ||
-  (err instanceof MetaError &&
-    err.code !== null &&
-    err.code !== 1 &&
-    err.code !== 2 &&
-    !err.transient)
+  (err instanceof MetaError && err.code !== null && err.code > 2 && !err.transient)
 
 /** The post as Graph takes it, checked first: nothing goes to Meta that it would refuse. */
 function checked(p: Payload) {

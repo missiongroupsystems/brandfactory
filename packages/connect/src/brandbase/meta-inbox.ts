@@ -140,6 +140,14 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
 }
 
 /**
+ * Refusals of a batch that a resend gets again: no brand within reach holds the account (also when
+ * the principal's person left the company or is deactivated), or Postgres refused the data itself
+ * (a bad value, a row that conflicts). A refusal of the principal itself (removed, or its loadout
+ * without the move) is not here: a fix within the hour stores what Meta sends again.
+ */
+const NEVER_STORED = new Set(['NOT_FOUND', 'VALIDATION', 'BAD_INPUT', 'CONFLICT'])
+
+/**
  * The webhook's handler once comments and DMs are kept: each batch goes to `inbox.meta_receive`,
  * run as the principal the settings name (`META_WEBHOOK_AS`), so the pack's walls still apply and
  * an account no brand within its reach holds stores nothing. Without it, deliveries are only
@@ -167,9 +175,7 @@ export function inboxHandler(core: CoreDeps, as: string | undefined) {
         })
       } catch (err) {
         // Meta is answered all the same: sending again would not help. The account alone is logged.
-        if (!(err instanceof Refused && (err.code === 'NOT_FOUND' || err.code === 'VALIDATION'))) {
-          throw err
-        }
+        if (!(err instanceof Refused && NEVER_STORED.has(err.code))) throw err
         console.error('meta webhook: dropped', err.code, b.platform, b.account)
       }
     }

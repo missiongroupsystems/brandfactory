@@ -178,7 +178,9 @@ Messages sent while it was off do not come back.
 
 **What stays only in the log:** a batch the webhook cannot store answers Meta 200 and logs
 `meta webhook: dropped`. This also happens when the principal's person leaves a company or is
-deactivated. Search the Fly logs for that line after any change to those people.
+deactivated. A principal that is removed, or loses `inbox.meta_receive` from its loadout, answers
+Meta 403 instead, so Meta sends again: fix it within the hour, or Meta unsubscribes the Pages
+(see the alert above). Search the Fly logs for these lines after any change to those people.
 
 ### App Review: what each permission's screencast shows
 

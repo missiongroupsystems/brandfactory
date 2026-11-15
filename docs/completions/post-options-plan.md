@@ -38,6 +38,9 @@ job's outcome may carry a `note`, kept in `post_jobs.error`.
 
 ## Release (production)
 
+`scripts/release-2.67.0.sh` runs steps 1, 2, 3 and 5 from the owner's Mac (the database takes
+no connection from a cloud session).
+
 Any order is safe: an old server ignores the new payload fields, an old pack sends none, a job
 with no people or comment keeps its old payload (and so its yes), and the web app's new route
 answers nothing until the server has it.
