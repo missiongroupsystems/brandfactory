@@ -298,6 +298,7 @@ const ACCOUNT_ROUTES: Array<[method: string, path: RegExp]> = [
   ['DELETE', /^\/brands\/[^/]+\/meta$/],
   ['POST', /^\/brands\/[^/]+\/inbox\/[^/]+\/meta-(reply|hide)$/],
   ['GET', /^\/brands\/[^/]+\/meta\/(instagram|facebook)\/posts$/],
+  ['GET', /^\/brands\/[^/]+\/posts\/[^/]+\/collaborators$/],
 ]
 
 /** Whether a route is one of the accounts' routes on the server. */

@@ -7,7 +7,7 @@ import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
-import { collabHeader, type ChannelKey, type Shot, type Tag } from './model'
+import { collabHeader, frameRatio, type ChannelKey, type Crop, type Shot, type Tag } from './model'
 import {
   Carousel,
   Dots,
@@ -511,6 +511,22 @@ function InstagramNav({ on }: { on: 'home' | 'reels' }) {
   )
 }
 
+/** The box tags sit in: the crop's frame, letterboxed as `Framed` draws it, or the whole area. */
+function TagLayer({ crop, children }: { crop: Crop | null; children: ReactNode }) {
+  if (!crop) return <>{children}</>
+  const ratio = frameRatio(crop)
+  return (
+    <span className="pointer-events-none absolute inset-0 flex items-center justify-center [container-type:size]">
+      <span
+        className="relative"
+        style={{ aspectRatio: ratio, width: `min(100%, ${ratio * 100}cqh)` }}
+      >
+        {children}
+      </span>
+    </span>
+  )
+}
+
 /** Instagram's feed in dark mode: the app bar, the post with its carousel's dots, the tab bar. */
 function InstagramPost({
   media,
@@ -549,25 +565,28 @@ function InstagramPost({
       </span>
       <span className="relative min-h-0 w-full flex-1">
         <Photo media={media} slides />
-        {/* Tags show as a tap reveals them, so the preview says who is where. */}
-        {people.tags.map(
-          (t) =>
-            t.at && (
-              <span
-                key={t.handle}
-                className="absolute flex -translate-x-1/2 flex-col items-center"
-                style={{
-                  left: `${Math.min(80, Math.max(20, t.at.x * 100))}%`,
-                  top: `${t.at.y * 100}%`,
-                }}
-              >
-                <span className="size-0 border-x-[3px] border-b-[3px] border-x-transparent border-b-black/80" />
-                <span className="rounded-[3px] bg-black/80 px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-white">
-                  {t.handle.slice(1)}
+        {/* Tags show as a tap reveals them, so the preview says who is where: on a cropped photo,
+            inside its frame, as the tag editor and Instagram place them. */}
+        <TagLayer crop={media.shots[0]?.crop ?? null}>
+          {people.tags.map(
+            (t) =>
+              t.at && (
+                <span
+                  key={t.handle}
+                  className="absolute flex -translate-x-1/2 flex-col items-center"
+                  style={{
+                    left: `${Math.min(80, Math.max(20, t.at.x * 100))}%`,
+                    top: `${t.at.y * 100}%`,
+                  }}
+                >
+                  <span className="size-0 border-x-[3px] border-b-[3px] border-x-transparent border-b-black/80" />
+                  <span className="rounded-[3px] bg-black/80 px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-white">
+                    {t.handle.slice(1)}
+                  </span>
                 </span>
-              </span>
-            ),
-        )}
+              ),
+          )}
+        </TagLayer>
         {people.tags.length > 0 && (
           <span className="absolute bottom-[6px] left-[6px] flex size-[13px] items-center justify-center rounded-full bg-black/70 text-white">
             {PERSON(7)}

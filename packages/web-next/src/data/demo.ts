@@ -50,6 +50,10 @@ export interface Post {
   error?: string
   /** The account it failed on, which the fix reconnects. */
   failedOn?: 'ig' | 'tt' | 'yt' | 'li' | 'fb'
+  /** On the core: the accounts whose send waits for its time (a scheduled job). */
+  waiting?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
+  /** On the core: what an account said about a post it took (a first comment that failed). */
+  notes?: string[]
   /** The accounts it goes to, once someone picked them in the composer. */
   channels?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
   /** The idea tile it was planned from, kept so taking it back to an idea restores that tile. */

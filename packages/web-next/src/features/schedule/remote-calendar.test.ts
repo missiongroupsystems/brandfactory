@@ -315,3 +315,28 @@ describe('the best time to post, from the brand posts that went out', () => {
     expect(times.best).toBe('15:00')
   })
 })
+
+describe('a post’s jobs on the calendar', () => {
+  it('names the accounts whose send waits, and keeps a live job’s note, never as a failure', () => {
+    const { posts } = calendarOf(
+      'casa-vostra',
+      state([
+        post({
+          id: 'p1',
+          channels: ['ig', 'fb'],
+          stage: 'scheduled',
+          jobs: [
+            { channel: 'ig', status: 'scheduled', error: null },
+            { channel: 'fb', status: 'live', error: 'The first comment did not go out.' },
+          ],
+        }),
+        post({ id: 'p2', stage: 'scheduled', jobs: [] }),
+      ]),
+    )
+    const [p1, p2] = posts
+    expect(p1).toMatchObject({ waiting: ['ig'], notes: ['The first comment did not go out.'] })
+    expect(p1!.error).toBeUndefined()
+    // Marked scheduled by hand: nothing waits.
+    expect(p2!.waiting).toBeUndefined()
+  })
+})

@@ -27,6 +27,12 @@ export interface Payload {
   shareToFeed: boolean
   /** How the account is linked: our own Meta app's sign-in, or typed in for Make. */
   via: 'meta' | 'make' | null
+  /** Instagram only, not a Story: the accounts invited as collaborators, without the `@`. */
+  collaborators?: unknown
+  /** Instagram only, not a Story: each file's tags, in the files' order, as the composer kept them. */
+  tags?: unknown
+  /** Not a Story: the comment posted on the post once it is live; empty for none. */
+  comment?: unknown
 }
 
 type File = { missing: true } | Own

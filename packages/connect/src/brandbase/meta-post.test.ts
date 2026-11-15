@@ -81,6 +81,17 @@ function fakeGraph() {
       return json({ status_code: state.status.length > 1 ? state.status.shift() : state.status[0] })
     }
     if (path === `/${IG}/media_publish`) return json({ id: `1790${id()}` })
+    if (/^\/(1790\d+|100000000000001_\w+|v9)\/comments$/.test(path))
+      return json({ id: `cm${id()}` })
+    if (/^\/1790\d+\/collaborators$/.test(path)) {
+      return json({
+        data: [
+          { id: '1', username: 'chef.antonio', invite_status: 'Accepted' },
+          { id: '2', username: 'giulia.cooks', invite_status: 'Pending' },
+          { id: '3', username: 'nope', invite_status: 'Declined' },
+        ],
+      })
+    }
     if (/^\/1790\d+$/.test(path)) {
       return json({ permalink: `https://www.instagram.com/p/${path.slice(1)}/` })
     }
@@ -161,6 +172,7 @@ async function planned(
   format: 'carousel' | 'reel' | 'story',
   media: string[],
   channels: string[],
+  draft?: object,
 ) {
   const made = await t.call(
     'POST',
@@ -182,10 +194,10 @@ async function planned(
     src: src(m, m.endsWith('.mp4')),
     kind: m.endsWith('.mp4') ? 'video' : 'photo',
   }))
-  await t.db.query(`update brandbase.posts set media = $2 where id = $1`, [
-    id,
-    JSON.stringify(items),
-  ])
+  await t.db.query(
+    `update brandbase.posts set media = $2, draft = coalesce($3, draft) where id = $1`,
+    [id, JSON.stringify(items), draft ? JSON.stringify(draft) : null],
+  )
   const sent = await t.call(
     'POST',
     '/ops/brandbase/post.schedule',
@@ -391,6 +403,8 @@ describe('what a send through Meta answers when it does not post', () => {
     for (const [fail, sent] of [
       ['lost', 'maybe'],
       [{ code: 2, message: 'Service temporarily unavailable' }, 'maybe'],
+      [{ code: -1, message: 'Instagram server error. Try again' }, 'maybe'],
+      [{ code: -2, message: 'Timeout' }, 'maybe'],
       [{ code: 9007, message: 'busy', transient: true }, 'maybe'],
       [{ code: 9, message: 'Application request limit reached' }, false],
     ] as const) {
@@ -597,5 +611,213 @@ describe('what a send through Meta answers when it does not post', () => {
       sent: false,
       message: 'Instagram is not set up on this server. Connect it again.',
     })
+  })
+})
+
+describe('the people and the first comment of a post sent through Meta', () => {
+  const job = (over: Partial<Payload> = {}): Payload => ({
+    brand: 'casa',
+    job: 'p:ig',
+    post: 'p',
+    channel: 'ig',
+    format: 'carousel',
+    text: 'Hi',
+    media: [{ kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }],
+    account: IG,
+    shareToFeed: true,
+    via: 'meta',
+    ...over,
+  })
+  const send = (g: ReturnType<typeof fakeGraph>, p: Payload) =>
+    sendThroughMeta(
+      { meta: g.app, token: TOKEN, sign: async (key) => `https://storage.test/${key}` },
+      p,
+    )
+  const photo = { kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }
+  const video = { kind: 'video', mime: 'video/mp4', bytes: 1, key: MP4 }
+  const containers = (g: ReturnType<typeof fakeGraph>) =>
+    g.calls.filter((c) => c.method === 'POST' && c.path === `/${IG}/media`).map((c) => c.params)
+
+  it('invites the collaborators and tags each person at their spot on a single photo', async () => {
+    const g = fakeGraph()
+    await send(
+      g,
+      job({
+        collaborators: ['chef.antonio', '@Giulia.Cooks'],
+        tags: [[{ handle: '@chef.antonio', at: { x: 0.25, y: 0.75 } }]],
+      }),
+    )
+    const [c] = containers(g)
+    expect(JSON.parse(c!.collaborators!)).toEqual(['chef.antonio', 'giulia.cooks'])
+    expect(JSON.parse(c!.user_tags!)).toEqual([{ username: 'chef.antonio', x: 0.25, y: 0.75 }])
+  })
+
+  it('puts a carousel’s tags on each photo and its collaborators on the carousel, and a Reel’s tags by name only', async () => {
+    const g = fakeGraph()
+    await send(
+      g,
+      job({
+        media: [photo, photo, video],
+        collaborators: ['chef.antonio'],
+        tags: [
+          [],
+          [{ handle: '@giulia.cooks', at: { x: 0.5, y: 0.1 } }],
+          [{ handle: '@x', at: null }],
+        ],
+      }),
+    )
+    const [first, second, third, carousel] = containers(g)
+    expect(first!.user_tags).toBeUndefined()
+    expect(JSON.parse(second!.user_tags!)).toEqual([{ username: 'giulia.cooks', x: 0.5, y: 0.1 }])
+    // A video inside a carousel takes no tags.
+    expect(third!.user_tags).toBeUndefined()
+    expect(first!.collaborators).toBeUndefined()
+    expect(JSON.parse(carousel!.collaborators!)).toEqual(['chef.antonio'])
+
+    const r = fakeGraph()
+    await send(
+      r,
+      job({
+        format: 'reel',
+        media: [video],
+        collaborators: ['chef.antonio'],
+        tags: [[{ handle: '@giulia.cooks', at: null }]],
+      }),
+    )
+    const [reel] = containers(r)
+    expect(JSON.parse(reel!.user_tags!)).toEqual([{ username: 'giulia.cooks' }])
+    expect(JSON.parse(reel!.collaborators!)).toEqual(['chef.antonio'])
+  })
+
+  it('sends no people on a Story or to Facebook, and none when the post has none', async () => {
+    const g = fakeGraph()
+    await send(
+      g,
+      job({ format: 'story', collaborators: ['a'], tags: [[{ handle: '@a', at: null }]] }),
+    )
+    await send(g, job({}))
+    for (const c of containers(g)) {
+      expect(c.collaborators).toBeUndefined()
+      expect(c.user_tags).toBeUndefined()
+    }
+    const f = fakeGraph()
+    await send(
+      f,
+      job({
+        channel: 'fb',
+        account: PAGE,
+        collaborators: ['a'],
+        tags: [[{ handle: '@a', at: null }]],
+      }),
+    )
+    expect(f.calls.some((c) => 'collaborators' in c.params || 'user_tags' in c.params)).toBe(false)
+  })
+
+  it('refuses a name Instagram cannot read, or too many people, before anything goes to Meta', async () => {
+    const g = fakeGraph()
+    await expect(send(g, job({ collaborators: ['chef antonio'] }))).rejects.toThrow(
+      'Instagram cannot read the account name “chef antonio”',
+    )
+    await expect(send(g, job({ collaborators: ['a', 'b', 'c', 'd'] }))).rejects.toThrow(
+      'up to 3 collaborators',
+    )
+    const many = Array.from({ length: 21 }, (_, i) => ({ handle: `@p${i}`, at: { x: 0, y: 0 } }))
+    await expect(send(g, job({ tags: [many] }))).rejects.toThrow('up to 20 tags')
+    expect(g.calls).toEqual([])
+  })
+
+  it('posts the first comment once the post is live, on Instagram and on the Page', async () => {
+    const g = fakeGraph()
+    const ig = await send(g, job({ comment: 'Book at casavostra.sg' }))
+    const fb = await send(g, job({ channel: 'fb', account: PAGE, comment: 'Book now' }))
+    const comments = g.calls.filter((c) => c.path.endsWith('/comments'))
+    expect(comments.map((c) => [c.path, c.params.message])).toEqual([
+      [`/${ig.externalId}/comments`, 'Book at casavostra.sg'],
+      [`/${fb.externalId}/comments`, 'Book now'],
+    ])
+    expect('note' in ig).toBe(false)
+    // The comment goes after the publish.
+    const order = g.calls.map((c) => c.path)
+    expect(order.indexOf(`/${IG}/media_publish`)).toBeLessThan(
+      order.indexOf(`/${ig.externalId}/comments`),
+    )
+  })
+
+  it('keeps the post live with a note when the first comment fails, and posts none on a Story', async () => {
+    // One container (1), then the publish (17902): the comment on 17902 is refused.
+    const g = fakeGraph()
+    g.state.fail[`POST /17902/comments`] = { code: 10, message: 'Permission denied' }
+    const out = await send(g, job({ comment: 'Hi there' }))
+    expect(out).toMatchObject({
+      externalId: '17902',
+      note: 'The post is live, but the first comment did not go out. Add it on Instagram. Instagram: Permission denied',
+    })
+    const story = fakeGraph()
+    await send(story, job({ format: 'story', comment: 'Hi' }))
+    expect(story.calls.some((c) => c.path.endsWith('/comments'))).toBe(false)
+  })
+})
+
+describe('the collaborators’ invites of a post that went out', () => {
+  it('reads where each invite stands from Instagram once the post is live, and none before', async () => {
+    const t = await setUp()
+    await planned(t, 'p1', 'carousel', [JPG], ['ig'], {
+      details: { collab: ['@chef.antonio', '@giulia.cooks', '@nope'] },
+    })
+    const before = await t.call('GET', '/brands/casa/posts/p1/collaborators')
+    expect(before).toEqual({ status: 200, data: { collaborators: [] } })
+    expect(t.graph.calls).toEqual([])
+
+    await due(t)
+    const sent = t.graph.calls.find((c) => c.path === `/${IG}/media`)!
+    expect(JSON.parse(sent.params.collaborators!)).toEqual(['chef.antonio', 'giulia.cooks', 'nope'])
+    const after = await t.call('GET', '/brands/casa/posts/p1/collaborators')
+    expect(after).toEqual({
+      status: 200,
+      data: {
+        collaborators: [
+          { handle: '@chef.antonio', status: 'accepted' },
+          { handle: '@giulia.cooks', status: 'pending' },
+          { handle: '@nope', status: 'declined' },
+        ],
+      },
+    })
+    const read = t.graph.calls.at(-1)!
+    expect(read.path).toMatch(/^\/1790\d+\/collaborators$/)
+  })
+
+  it('answers not-found for a brand the person does not reach', async () => {
+    const t = await setUp()
+    const res = await t.call('GET', '/brands/temper/posts/p1/collaborators')
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('the payload a post with no people or comment sends', () => {
+  it('has none of the three keys, so a yes given before they existed still matches', async () => {
+    const t = await setUp()
+    const seen: Record<string, unknown>[] = []
+    const social = t.core.connectors!.social!
+    t.core.connectors = {
+      social: {
+        ...social,
+        send: (req: Parameters<typeof social.send>[0]) => {
+          seen.push(req.payload as Record<string, unknown>)
+          return social.send(req)
+        },
+      },
+    }
+    await planned(t, 'p1', 'carousel', [JPG], ['ig', 'fb'])
+    await planned(t, 's1', 'story', [JPG2], ['ig'], {
+      details: { collab: ['@a'], comment: 'Hi' },
+      shots: [{ crop: null, tags: [{ handle: '@a', at: null }] }],
+    })
+    await due(t)
+    expect(seen).toHaveLength(3)
+    for (const payload of seen) {
+      expect(Object.keys(payload)).not.toContain('collaborators')
+      expect(Object.keys(payload)).not.toContain('tags')
+      expect(Object.keys(payload)).not.toContain('comment')
+    }
   })
 })

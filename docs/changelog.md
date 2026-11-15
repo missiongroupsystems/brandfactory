@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.67.0** — 2026-11-15 — `claude/clever-sagan-fyed6e`: every option on the post page reaches Meta or is hidden. Instagram gets the collaborators, each photo's tags and the first comment (pack 1.16.0, no migration; a new internal move `post.ig_media`, so loadouts need setting again); the posted view shows where each collaborator's invite stands, read live; a crop goes out as cut; Save on a scheduled post sends its waiting jobs again with a new yes (a plain Save was refused at its time); Location, the AI label and Facebook's audience are hidden on the live app. 1705 tests by count (1438 pass, 266 skipped without a Postgres server, 1 fails only on Node 22: `text.test.ts`, pinned to Node 24.13.0).
+- **2.66.6** — 2026-11-08 — `feat/meta-direct`: the second Meta review's fixes. Instagram's server errors (-1, -2) say a post or reply may have gone, not that nothing went. The webhook answers Meta 200 for a batch Postgres refuses as data (`BAD_INPUT`, `CONFLICT`). A Page whose new Instagram account is refused still gets its webhooks. Server only, no pack change. 1425 tests (264 skipped).
 - **2.66.5** — 2026-11-07 — `feat/meta-direct`: a Meta test that ran past CI's 30-second limit is now five tests; no production code changes. 1424 tests by count (264 skipped).
 - **2.66.4** — 2026-11-07 — `feat/meta-direct`: the review's fixes before real Meta use. Facebook's sign-in link asks for a code outright (`override_default_response_type`). A cut emoji or a NUL in a message no longer fails a delivery, and a batch that can never be stored no longer holds back the rest. A Page's webhooks turn on only when a delivery could be kept, and the person is told if not. Comments, DMs and replies stay out of the call log (pack 1.15.1), so Disconnect deletes them as the privacy page says. The composer holds a Story to one file, and JPEG on Instagram. 1420 tests (264 skipped without a Postgres server).
 - **2.66.3** — 2026-11-06 — `feat/meta-direct`: `core migrate` runs on Supabase again. Its check for roles that can call `pg_reload_conf` counted Supabase's own manage-only grant of each pack role to `postgres`, which cannot act as the role; it now counts only members that can. Production: three install-time grants to `postgres` were taken back. 1412 tests (264 skipped without a Postgres server; 38 of 38 on Postgres 17).
@@ -142,6 +144,53 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.67.0 — 2026-11-15
+
+- **Why.** On the live app the post page let a person set collaborators, tags, a first comment, a
+  location, a crop, an AI label and a Facebook audience, and none of them reached Meta: the job's
+  payload had the caption, the files and "Also show in the feed" only. A Save on a scheduled post
+  kept the old yes, so its job was refused at its time. Reproduced on a local core first.
+- **What changed.** See `docs/completions/post-options-phases-1-to-1.md`. Pack 1.16.0
+  (`post.publish_job`'s payload adds `collaborators`, `tags`, `comment` only when set, so waiting
+  jobs keep their yes; a live job keeps the connector's note; new internal move `post.ig_media`).
+  `meta-post.ts` sends `collaborators`, `user_tags` and the first comment; `meta-collabs.ts` reads
+  each invite's state. The web app cuts a crop before it sends, places tags on the photo as it
+  posts, re-sends a scheduled post's waiting jobs on Save, and hides what cannot reach Meta.
+- **Review.** Three adversarial passes; the first two found eight defects, all fixed with tests,
+  and the third was clean.
+- **Release.** The new workflow **Production** (`.github/workflows/production.yml`,
+  `docs/cloud-sessions.md`) runs the release from GitHub, so a cloud session needs no one's
+  computer: `release` 1.16.0 (people's loadouts follow it), `deploy`, and `check` (how each
+  Instagram and Facebook account is linked). `scripts/test-pg.sh` runs the core's tests on the
+  image's Postgres 16.
+- **Tests:** 1705 by count: 1438 pass and 266 are skipped without a Postgres server; on Node 22
+  `packages/core/src/text.test.ts` failed (it compares Unicode tables; the repo pins 24.13.0), and
+  on Node 24.13.0 it passes. `scripts/test-pg.sh` ran the core's 726 tests on Postgres 16, all
+  pass. Typecheck, lint, format and the web build pass.
+
+## 2.66.6 — 2026-11-08
+
+- **Why.** A second review of the Meta code (Opus and Sonnet, against Meta's documents) before
+  the first real login. It found no blocker; these three would hurt a real brand.
+- **What changed.**
+  - `meta-post.ts`: `definite` counts only codes above 2 that are not transient. Instagram's -1
+    ("server error, try again") and -2 (timeout) can come after a post went live, so a publish or
+    an Inbox reply that fails this way now says it may have gone, and a person does not post it
+    twice. A few stated refusals under -1 and -2 now say this too, which is the safe side.
+  - `meta-inbox.ts`: `BAD_INPUT` and `CONFLICT` join `NOT_FOUND` and `VALIDATION` as refusals
+    the webhook logs and answers 200. A refusal of the principal itself (removed, or its loadout
+    without the move) still answers an error, so a fix within the hour stores what Meta resends.
+  - `meta-routes.ts`: when `/meta/select` cannot link the Page's Instagram account (another brand
+    holds it), the Page, already linked, still gets its webhooks, then the refusal is answered.
+    Before, its comments and DMs never came.
+  - `meta-direct-plan.md`: which webhook refusals are dropped and which Meta resends.
+- **Not fixed, on purpose.** The wait for a slow Reel, Reconnect from Make breaking waiting
+  approvals, the brand's own Instagram replies coming back, large numeric ids, and the carousel
+  cap of 10 wait for the real test.
+- **Tests:** 1425 by count (264 skipped without a Postgres server). Typecheck, lint and format
+  clean. Each new test fails without its fix. `next build` was not run; CI's build step already
+  fails on Turbopack's Google Fonts error. Nothing here has run against real Meta.
 
 ## 2.66.5 — 2026-11-07
 

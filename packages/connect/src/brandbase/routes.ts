@@ -16,6 +16,7 @@ import { type MakeApp } from './make'
 import { makeRoutes } from './make-routes'
 import { type MetaApp } from './meta'
 import { inboxHandler, metaInboxRoutes } from './meta-inbox'
+import { metaCollabRoutes } from './meta-collabs'
 import { metaInsightsRoutes } from './meta-insights'
 import { metaRoutes } from './meta-routes'
 import { type MetaHooks, metaWebhookRoutes } from './meta-webhooks'
@@ -163,6 +164,9 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
 
       // The newest posts of each account linked through Meta, with their counts, for the Feed.
       .route('/', metaInsightsRoutes(core, platforms.meta))
+
+      // Where each collaborator's invite on a post that went out on Instagram stands.
+      .route('/', metaCollabRoutes(core, platforms.meta))
 
       // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
       .route('/', tiktokRoutes(core, platforms.tiktok))

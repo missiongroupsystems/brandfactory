@@ -1,0 +1,314 @@
+{
+  "name": "post-options",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "owner",
+  "cases": [
+    {
+      "name": "an Instagram job sends the post's collaborators, each photo's tags in order and the first comment, and a live job keeps the connector's note",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "sealed",
+            "details": {
+              "via": "meta"
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              },
+              {
+                "src": "/photos/b.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@chef.antonio", "@giulia.cooks"],
+                "comment": "  Book at casavostra.sg  ",
+                "location": "Robertson Quay"
+              },
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": []
+                },
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@chef.antonio",
+                      "at": {
+                        "x": 0.25,
+                        "y": 0.5
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig"]
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "expect": {
+            "result": {
+              "payload": {
+                "via": "meta",
+                "collaborators": ["chef.antonio", "giulia.cooks"],
+                "tags": [
+                  [],
+                  [
+                    {
+                      "handle": "@chef.antonio",
+                      "at": {
+                        "x": 0.25,
+                        "y": 0.5
+                      }
+                    }
+                  ]
+                ],
+                "comment": "Book at casavostra.sg"
+              }
+            }
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-08T10:00:00Z",
+          "answer": {
+            "externalId": "17890000000000001",
+            "note": "The post is live. The first comment did not go out."
+          }
+        },
+        {
+          "sql": "select status, error from brandbase.post_jobs where id = 'p1:ig'",
+          "expect": {
+            "rows": [
+              {
+                "status": "live",
+                "error": "The post is live. The first comment did not go out."
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.ig_media",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "result": [
+              {
+                "mediaId": "17890000000000001"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.ig_media",
+          "as": "b-owner",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a Story sends no people or comment, and a Facebook job sends the comment only",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "sealed",
+            "details": {
+              "via": "meta"
+            }
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "sealed",
+            "details": {
+              "via": "meta"
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Tonight",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@chef.antonio"],
+                "comment": "Hi"
+              },
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@chef.antonio",
+                      "at": null
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "when": "slot",
+            "channels": ["ig"]
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "s1:ig"
+          },
+          "expect": {
+            "result": {
+              "payload": {
+                "format": "story",
+                "via": "meta"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "format": "carousel",
+            "hook": "Pasta",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["fb"],
+            "draft": {
+              "details": {
+                "collab": ["@chef.antonio"],
+                "comment": "Book now"
+              },
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@chef.antonio",
+                      "at": null
+                    }
+                  ]
+                }
+              ]
+            },
+            "caption": "Pasta tonight."
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "when": "slot",
+            "channels": ["fb"]
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "f1:fb"
+          },
+          "expect": {
+            "result": {
+              "payload": {
+                "comment": "Book now"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.ig_media",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "length": 0
+          }
+        }
+      ]
+    }
+  ]
+}

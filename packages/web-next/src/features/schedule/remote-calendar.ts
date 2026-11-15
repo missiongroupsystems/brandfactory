@@ -111,6 +111,11 @@ export function readingsOf(p: ServerPost): Post['readings'] {
 
 export function postOf(p: ServerPost): Post {
   const failed = p.jobs.find((j) => j.status === 'failed')
+  const waiting = p.jobs
+    .filter((j) => j.status === 'scheduled')
+    .map((j) => j.channel as NonNullable<Post['waiting']>[number])
+  // A live job's error is a note, not a failure: the post went out.
+  const notes = p.jobs.flatMap((j) => (j.status === 'live' && j.error ? [j.error] : []))
   return {
     id: p.id,
     format: p.format,
@@ -131,6 +136,8 @@ export function postOf(p: ServerPost): Post {
       error: failed.error ?? 'It did not go out.',
       failedOn: failed.channel as Post['failedOn'],
     }),
+    ...(waiting.length > 0 && { waiting }),
+    ...(notes.length > 0 && { notes }),
   }
 }
 

@@ -51,15 +51,12 @@ export interface MetaSend {
 
 /**
  * Meta refused in a way that proves nothing was posted: a stated error, not Meta's own "unknown"
- * or "try again" (codes 1 and 2, or `is_transient`), and not a lost answer.
+ * or "try again" (codes 1 and 2, Instagram's server errors and timeouts -1 and -2, or
+ * `is_transient`), and not a lost answer.
  */
 export const definite = (err: unknown) =>
   err instanceof MetaReconnect ||
-  (err instanceof MetaError &&
-    err.code !== null &&
-    err.code !== 1 &&
-    err.code !== 2 &&
-    !err.transient)
+  (err instanceof MetaError && err.code !== null && err.code > 2 && !err.transient)
 
 /** The post as Graph takes it, checked first: nothing goes to Meta that it would refuse. */
 function checked(p: Payload) {
@@ -99,6 +96,64 @@ function checked(p: Payload) {
   return { name, files }
 }
 
+/** An Instagram username as Graph takes it: no `@`, lowercase letters, digits, `.` and `_`. */
+const USERNAME = /^[a-z0-9._]{1,30}$/
+
+/** Instagram takes up to 3 collaborators on a post and up to 20 tags on one photo or Reel. */
+const COLLAB_MAX = 3
+const TAG_MAX = 20
+
+/** The account's own handle, read the same way as a typed one. */
+const handle = (typed: unknown) =>
+  typeof typed === 'string' ? typed.trim().replace(/^@/, '').toLowerCase() : ''
+
+/** One file's tags as Graph's `user_tags` takes them: a spot on a photo, the name alone on a Reel. */
+type UserTag = { username: string; x?: number; y?: number }
+
+/**
+ * The people of an Instagram post as Graph takes them, checked first: Instagram refuses the whole
+ * post for a name it cannot read, so a bad one stops the send before anything goes out.
+ */
+function peopleOf(p: Payload, files: Own[]) {
+  const collaborators = (Array.isArray(p.collaborators) ? p.collaborators : []).map(handle)
+  const tags = (Array.isArray(p.tags) ? p.tags : []).map((list, i): UserTag[] => {
+    if (!Array.isArray(list) || !files[i]) return []
+    return list.map((t: unknown) => {
+      const tag = (t ?? {}) as { handle?: unknown; at?: unknown }
+      const at = (tag.at ?? null) as { x?: unknown; y?: unknown } | null
+      const username = handle(tag.handle)
+      // A spot is a fraction of the photo, 0 to 1 across and down; a video has none.
+      const spot = (v: unknown) =>
+        typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.5
+      if (files[i]!.kind === 'video') return { username }
+      return { username, x: spot(at?.x), y: spot(at?.y) }
+    })
+  })
+  const bad = [...collaborators, ...tags.flat().map((t) => t.username)].find(
+    (u) => !USERNAME.test(u),
+  )
+  if (bad !== undefined) {
+    throw new NotSent(
+      `Instagram cannot read the account name “${bad || '(empty)'}”. Fix it, then retry.`,
+    )
+  }
+  if (collaborators.length > COLLAB_MAX) {
+    throw new NotSent(`Instagram takes up to ${COLLAB_MAX} collaborators on a post.`)
+  }
+  if (tags.some((t) => t.length > TAG_MAX)) {
+    throw new NotSent(`Instagram takes up to ${TAG_MAX} tags on one photo.`)
+  }
+  return { collaborators: [...new Set(collaborators)], tags }
+}
+
+/** The extra fields of one Instagram container: its collaborators and its tags, when it has any. */
+function extras(collaborators: string[], tags: UserTag[] | undefined): Record<string, string> {
+  return {
+    ...(collaborators.length > 0 && { collaborators: JSON.stringify(collaborators) }),
+    ...(tags && tags.length > 0 && { user_tags: JSON.stringify(tags) }),
+  }
+}
+
 /**
  * Posts one Instagram or Facebook job through the Graph API with the brand's Page token: an
  * Instagram photo, carousel, Reel or story (containers, a wait while Instagram processes each
@@ -109,6 +164,11 @@ function checked(p: Payload) {
  */
 export async function sendThroughMeta(s: MetaSend, p: Payload) {
   const { name, files } = checked(p)
+  const people =
+    p.channel === 'ig' && p.format !== 'story'
+      ? peopleOf(p, files)
+      : { collaborators: [], tags: [] as UserTag[][] }
+  const comment = typeof p.comment === 'string' && p.format !== 'story' ? p.comment.trim() : ''
   const now = s.now ?? Date.now
   const sleep = s.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
   const start = now()
@@ -209,6 +269,23 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
     }
   }
 
+  /**
+   * The first comment, on the post once it is live. The post stays live whatever happens here, so
+   * a failure is a note on the job, never a failed send.
+   */
+  async function firstComment(id: string): Promise<string | undefined> {
+    if (!comment) return undefined
+    const missed = `The post is live, but the first comment did not go out. Add it on ${name}.`
+    if (late(READ_BY_MS)) return missed
+    try {
+      await call<{ id?: string }>(`/${id}/comments`, { message: comment }, 'POST')
+      return undefined
+    } catch (err) {
+      console.error(`meta: ${name} first comment failed`, (err as Error).message)
+      return err instanceof MetaError ? `${missed} ${name}: ${words(err.message)}` : missed
+    }
+  }
+
   const urls = await Promise.all(files.map((f) => s.sign(f.key)))
 
   try {
@@ -240,14 +317,20 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
           ...source(0),
           caption: p.text ?? '',
           share_to_feed: String(p.shareToFeed !== false),
+          ...extras(people.collaborators, people.tags[0]),
         })
       } else if (files.length === 1) {
-        id = await container({ ...source(0), caption: p.text ?? '' })
+        id = await container({
+          ...source(0),
+          caption: p.text ?? '',
+          ...extras(people.collaborators, people.tags[0]),
+        })
       } else {
         const children: string[] = []
         for (let i = 0; i < files.length; i++) {
+          // A carousel's tags sit on each photo; a video inside one takes none.
           const kind: Record<string, string> =
-            files[i]!.kind === 'video' ? { media_type: 'VIDEO' } : {}
+            files[i]!.kind === 'video' ? { media_type: 'VIDEO' } : extras([], people.tags[i])
           children.push(await container({ ...source(i), ...kind, is_carousel_item: 'true' }))
         }
         for (const [i, child] of children.entries()) {
@@ -257,6 +340,7 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
           media_type: 'CAROUSEL',
           children: children.join(','),
           caption: p.text ?? '',
+          ...extras(people.collaborators, undefined),
         })
       }
       // Every container is processed before it publishes, photos too.
@@ -265,8 +349,9 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
         () => call<{ id?: string }>(`/${ig}/media_publish`, { creation_id: id }, 'POST'),
         (a) => a.id,
       )
+      const note = await firstComment(mediaId)
       const permalink = await linkOf(mediaId, 'permalink')
-      return { externalId: mediaId, ...(permalink && { permalink }) }
+      return { externalId: mediaId, ...(permalink && { permalink }), ...(note && { note }) }
     }
 
     const page = p.account!
@@ -337,8 +422,9 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
         (a) => a.id,
       )
     }
+    const note = await firstComment(postId)
     const permalink = p.format === 'story' ? undefined : await linkOf(postId, 'permalink_url')
-    return { externalId: postId, ...(permalink && { permalink }) }
+    return { externalId: postId, ...(permalink && { permalink }), ...(note && { note }) }
   } catch (err) {
     if (err instanceof NotSent || err instanceof MayHavePosted) throw err
     // Before the call that publishes: nothing went out.
