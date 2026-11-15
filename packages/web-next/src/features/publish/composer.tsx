@@ -36,11 +36,13 @@ import { NotAvailable } from '@/features/connections/not-available'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
-import { demoOf, newId, quietly, remote, report, request, sent } from '@/lib/remote'
+import { demoOf, loadBrand, newId, quietly, remote, report, request, sent } from '@/lib/remote'
 import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
+import { cutPhoto, knownCut } from './cut'
+import { useInvites } from './invites'
 import { DriveGlyph, DrivePicker, trap } from './drive-picker'
 import { DropZone } from './drop-zone'
 import {
@@ -144,6 +146,11 @@ const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]
  * publish rules live in `model.ts`; this page reads them. UI only: the send is simulated.
  */
 /** The composer's own fields, as it keeps them with a post on the server. */
+type Shots = NonNullable<KeptDraft['shots']>
+
+/** How a save sends: now, at the slot, its waiting jobs again (`again`), or not at all. */
+type Send = 'now' | 'slot' | 'again' | null
+
 interface KeptDraft {
   overrides?: Draft['overrides']
   youtubeTitle?: string | null
@@ -160,7 +167,12 @@ interface KeptDraft {
     igShareToFeed: boolean
     ttSound: Sound
   }
-  shots?: Pick<Shot, 'crop' | 'tags'>[]
+  /**
+   * Each file's crop and tags. A cropped photo is sent as its cut (the post's media, kept as
+   * `cut`); `original` is the whole photo it was cut from, which the editor opens again while the
+   * post's file is still that cut.
+   */
+  shots?: (Pick<Shot, 'crop' | 'tags'> & { original?: string; cut?: string })[]
 }
 
 export function Composer({
@@ -272,7 +284,13 @@ export function Composer({
     media: (post?.images ?? []).map((src, i) => {
       const shot = shotOf(src)
       const was = keptDraft.shots?.[i]
-      return was ? { ...shot, crop: was.crop, tags: was.tags } : shot
+      if (!was) return shot
+      // A cut photo opens on the whole photo, with the cut it has remembered for the next save.
+      if (was.original && was.crop && was.cut === src) {
+        knownCut(was.original, was.crop, src)
+        return { ...shotOf(was.original), crop: was.crop, tags: was.tags }
+      }
+      return { ...shot, crop: was.crop, tags: was.tags }
     }),
     note: null,
   }))
@@ -544,7 +562,7 @@ export function Composer({
    * composer holds is kept with it, then it is sent. The stage then comes from the send's jobs,
    * never from a hand mark, so "Publish now" is posted once each account says so.
    */
-  function toServer(id: string, isNew: boolean, send: 'now' | 'slot' | null) {
+  function toServer(id: string, isNew: boolean, send: Send) {
     // Resolves to the server's refusal in words, or null once everything is stored.
     const b = brand.id
     // A Story has no caption, and its box is hidden: words typed before are not sent. An existing
@@ -571,10 +589,20 @@ export function Composer({
         details,
         labels,
         extra,
-        shots: media.map((m) => ({ crop: m.crop, tags: m.tags })),
+        shots: media.map((m) => ({ crop: m.crop, tags: m.tags }) as Shots[number]),
       },
     }
     return sent(b, async () => {
+      // A cropped photo goes out as the preview shows it: its cut, made and uploaded once.
+      const files = await Promise.all(
+        media.map((m) => (m.crop && !isVideo(m.src) ? cutPhoto(b, m.src, m.crop) : m.src)),
+      )
+      content.media = files.map((src) => mediaItem(src))
+      content.draft.shots = media.map((m, i) => ({
+        crop: m.crop,
+        tags: m.tags,
+        ...(files[i] !== m.src && { original: m.src, cut: files[i] }),
+      }))
       if (isNew) {
         await request('POST', `/brands/${b}/posts`, {
           id,
@@ -582,11 +610,26 @@ export function Composer({
           hook: newHook(),
           ...(send !== 'now' && { day, time }),
         })
-      } else if (send === 'slot' || (send === null && moved)) {
+      } else if (send === 'slot' || (send !== 'now' && moved)) {
         // A plain save that keeps the day and the time is a PATCH alone, not a move.
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
       }
       await request('PATCH', `/brands/${b}/posts/${id}`, content)
+      if (send === 'again') {
+        // A saved change to a scheduled post: its waiting sends again, at their slot, with a new
+        // yes. The others are left as they are.
+        const waits: string[] = post?.waiting ?? []
+        const again = content.channels.filter((c) => waits.includes(c))
+        if (again.length > 0) {
+          await request(
+            'POST',
+            `/brands/${b}/posts/${id}/send`,
+            { when: 'slot', channels: again },
+            { 'idempotency-key': sendKey.current },
+          )
+        }
+        return
+      }
       // Only the accounts the server posts to are sent; the planned-only ones stay on the post.
       const sending = planned ? [] : content.channels.filter(goes)
       if (send && sending.length === 0) {
@@ -644,7 +687,7 @@ export function Composer({
    * On the API, a save or a send waits for the server: only a stored change moves on. A refusal
    * keeps the composer open with everything in it, and the app's message line says why.
    */
-  async function stored(stage: Stage, send: 'now' | 'slot' | null): Promise<boolean> {
+  async function stored(stage: Stage, send: Send): Promise<boolean> {
     // From what the server stored, not from the calendar, which a reload may not have reached yet.
     // A create sent again is safe: the server returns the post its id already names.
     const isNew = !post && !created.current
@@ -655,7 +698,11 @@ export function Composer({
     setWaiting(null)
     if (refused !== null) return false
     created.current = true
-    if (send) sendKey.current = ''
+    if (send) {
+      sendKey.current = ''
+      // The calendar learns the post's jobs from the server: the next Save reads what waits.
+      void loadBrand(brand.id).catch(() => undefined)
+    }
     return true
   }
 
@@ -712,7 +759,17 @@ export function Composer({
     if (empty) return setEmptyNote(true)
     if (unsaveable || waiting || submitted.current) return
     if (remote) {
-      if (!(await stored(keeps ? post.stage : 'draft', null))) return
+      // A person's yes covers exactly what a job sends, so a scheduled post's change goes with a
+      // new yes: its jobs are sent again at their slot. Without it the job is refused at its time.
+      // One too close to its time keeps the old send (a PATCH alone), as before.
+      // Only the sends that wait are sent again: a post marked scheduled by hand has none and
+      // stays planned, and no waiting job is ever dropped by a save.
+      const again =
+        post?.stage === 'scheduled' &&
+        (post.waiting?.length ?? 0) > 0 &&
+        !tooSoon(brand.id, date, time)
+      if (again) sendKey.current ||= newId()
+      if (!(await stored(keeps ? post.stage : 'draft', again ? 'again' : null))) return
     } else {
       toCalendar(keeps ? post.stage : 'draft')
     }
@@ -772,6 +829,13 @@ export function Composer({
     })
     report(fromCard ? 'Deleted: the idea is back on its day' : 'Deleted')
   }
+  // A posted post's collaborators, with where each Instagram invite stands, read from Instagram.
+  const invites = useInvites(
+    brand.id,
+    remote && post?.stage === 'posted' && (keptDraft.details?.collab ?? []).length > 0
+      ? post.id
+      : null,
+  )
   if (phase !== 'compose') {
     return (
       <Outcomes
@@ -841,17 +905,18 @@ export function Composer({
     </button>
   )
   // A scheduled post whose day, time and accounts are as they were: Save is the one button. It
-  // keeps the stage and sends nothing (a PATCH alone), so a time already past does not stop it.
+  // keeps the stage, and on the core sends the jobs again at their slot with a new yes (a PATCH
+  // alone when the time is too close).
   // Once one of them changes, the send takes its place: Reschedule, or Save and send.
   const saveMain = (
     <button
       type="button"
       aria-disabled={unsaveable}
-      aria-busy={waiting === 'save'}
+      aria-busy={waiting !== null}
       onClick={saveDraft}
       className={`flex h-10 min-w-0 shrink-0 items-center justify-center rounded-full px-5 text-[14px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:flex-1 ${unsaveable ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
     >
-      {waiting === 'save' ? 'Saving…' : 'Save'}
+      {waiting !== null ? 'Saving…' : 'Save'}
     </button>
   )
   // A scheduled post has no second save button beside its one action.
@@ -896,6 +961,7 @@ export function Composer({
           caption: kept?.caption || captions[post.id] || '',
           // Only what was kept with the post: no demo venue stands in for a location it never had.
           collabs: keptDraft.details?.collab ?? [],
+          invites,
           tagged: taggedIn(media),
           location: keptDraft.details?.location ?? '',
           labels: keptDraft.labels ?? [],
@@ -1512,6 +1578,8 @@ function Content({
   // A caption the marketer wrote is improved, not replaced; an empty box or a draft gets a draft.
   const typed = draft.caption.trim() !== '' && !drafts.includes(draft.caption)
   const improved = typed ? improveCaption(draft.caption, demoOf(HASHTAGS, brand.id) ?? []) : null
+  // Nothing to write: an empty box and no prepared drafts (a brand outside the demo's data).
+  const aiIdle = !writing && !typed && drafts.length === 0
   const aiLabel = writing
     ? 'Writing…'
     : !typed
@@ -1740,7 +1808,7 @@ function Content({
           typed before the format changed are kept with the post. */}
       <div ref={captionBox} hidden={story} className="flex flex-col gap-2 [&[hidden]]:hidden">
         {/* The tabs, once a caption differs per account, and the AI draft. */}
-        {(perAccount || aiLabel !== 'Looks good') && (
+        {(perAccount || (aiLabel !== 'Looks good' && !aiIdle)) && (
           <div className="flex items-center justify-between gap-3">
             {perAccount ? (
               <div
@@ -1771,7 +1839,7 @@ function Content({
             ) : (
               <span />
             )}
-            {aiLabel !== 'Looks good' && (
+            {aiLabel !== 'Looks good' && !aiIdle && (
               <button
                 type="button"
                 onClick={writeWithAI}
@@ -2181,7 +2249,9 @@ function Details({
   const spot = api.draft.format === 'carousel' && media.some((m) => !isVideo(m.src))
   const tagged = taggedIn(media)
   const rows: Array<{ key: keyof typeof DETAIL_ON; label: string; to: ChannelKey[] }> = [
-    { key: 'location', label: 'Location', to: for_(DETAIL_ON.location) },
+    // On the core no place reaches Instagram or Facebook (it takes a Facebook place id, and the
+    // search needs Meta's review): the row is hidden until it does.
+    { key: 'location', label: 'Location', to: remote ? [] : for_(DETAIL_ON.location) },
     { key: 'comment', label: 'First comment', to: story ? [] : for_(DETAIL_ON.comment) },
     { key: 'tags', label: 'Tag people', to: story ? [] : for_(DETAIL_ON.tags) },
     { key: 'collab', label: 'Collaborators', to: story ? [] : for_(DETAIL_ON.collab) },
@@ -2259,6 +2329,14 @@ function Details({
       />
     ),
   }
+  // A collaborator is an invite: each account accepts it in Instagram before its name shows.
+  const collabNote =
+    details.collab.length > 0 ? (
+      <p className="text-[12.5px] leading-[1.45] text-ink-3 max-md:text-[13.5px]">
+        Instagram invites them when the post goes out. Each name shows on the post once that account
+        accepts.
+      </p>
+    ) : null
   return (
     <section aria-label={part === 'main' ? 'Details' : 'More details'} className="flex flex-col">
       {/* Label beside the field on a desktop; above it on a phone. */}
@@ -2269,21 +2347,27 @@ function Details({
             className={`grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4 ${part === 'main' ? 'last:border-b-0 last:pb-0' : ''}`}
           >
             <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">{r.label}</span>
-            <div className="flex min-w-0 flex-col gap-1.5">{control[r.key]}</div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              {control[r.key]}
+              {r.key === 'collab' && collabNote}
+            </div>
           </div>
         ))}
         {part === 'rest' && (
           <>
-            <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
-              <span className="text-[13px] max-md:text-[14px]">AI-generated label</span>
-              <span className="flex max-md:justify-end">
-                <Switch
-                  label="AI-generated label"
-                  checked={details.aiLabel}
-                  onChange={(aiLabel) => setDetails({ ...details, aiLabel })}
-                />
-              </span>
-            </div>
+            {/* The Graph API takes no AI label: on the core the switch would send nothing. */}
+            {!remote && (
+              <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
+                <span className="text-[13px] max-md:text-[14px]">AI-generated label</span>
+                <span className="flex max-md:justify-end">
+                  <Switch
+                    label="AI-generated label"
+                    checked={details.aiLabel}
+                    onChange={(aiLabel) => setDetails({ ...details, aiLabel })}
+                  />
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4">
               <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">Labels</span>
               <Chips
@@ -2319,8 +2403,8 @@ function PersonGlyph({ size = 11 }: { size?: number }) {
 
 /**
  * Tags placed on the photos: a tap on a spot asks for the account there, and a tag's cross takes
- * it off. The photo shows in a feed post's 4:5, as Instagram does, so a tag sits where it will.
- * Each change is kept at once; Done only closes.
+ * it off. The photo shows as it will post (its crop, or its own shape), so a tag's spot is where
+ * Instagram puts it. Each change is kept at once; Done only closes.
  */
 function TagEditor({
   phone,
@@ -2340,6 +2424,18 @@ function TagEditor({
   const form = React.useRef<HTMLFormElement>(null)
   const people = peopleOf(useBrand().brand.id, 'tag')
   const shot = media[index]!
+  // The photo as it will post: its crop's shape, or its own. A tag's spot is a fraction of that
+  // photo, as Instagram reads it, so the frame is never cut to a shape the post does not have.
+  const [own, setOwn] = React.useState<Record<string, number>>({})
+  React.useEffect(() => {
+    if (shot.crop || own[shot.src] !== undefined) return
+    let on = true
+    void ratioOf(shot.src).then((r) => on && setOwn((o) => ({ ...o, [shot.src]: r })))
+    return () => {
+      on = false
+    }
+  }, [shot.src, shot.crop, own])
+  const ratio = shot.crop ? frameRatio(shot.crop) : (own[shot.src] ?? 4 / 5)
   // The account box takes the typing as soon as it opens at the tapped spot.
   React.useEffect(() => {
     if (pending) form.current?.querySelector('input')?.focus()
@@ -2371,7 +2467,8 @@ function TagEditor({
         role="img"
         aria-label="The photo: tap where someone is to tag them"
         onPointerUp={place}
-        className={`relative mx-auto aspect-[4/5] w-full max-w-[340px] overflow-hidden rounded-[12px] bg-tile select-none ${full ? '' : 'cursor-crosshair'}`}
+        style={{ aspectRatio: ratio, maxWidth: `min(340px, ${Math.round(425 * ratio)}px)` }}
+        className={`relative mx-auto w-full overflow-hidden rounded-[12px] bg-tile select-none ${full ? '' : 'cursor-crosshair'}`}
       >
         <ShotView shot={shot} sizes="680px" />
         {shot.tags.map(
@@ -2709,7 +2806,8 @@ function summaryOf(
       text: `${extra.ytVisibility} · ${draft.madeForKids ? 'Made for kids' : 'Not for kids'}`,
       needs: false,
     },
-    fb: { text: `Audience: ${extra.fbAudience}`, needs: false },
+    // On the core a Page post goes to the Page's whole audience: nothing to choose.
+    fb: { text: remote ? 'Page post' : `Audience: ${extra.fbAudience}`, needs: false },
     li: { text: `Visible to ${extra.liVisibility.toLowerCase()}`, needs: false },
     ig: {
       text:
@@ -2755,6 +2853,20 @@ function PerAccount({
         {active.map((c) => {
           const s = summary[c.key]
           const on = open === c.key
+          // A row with nothing to set is a line, not a fold: a Page post on the core, a feed post.
+          const bare = (remote && c.key === 'fb') || (c.key === 'ig' && draft.format === 'carousel')
+          if (bare) {
+            return (
+              <div
+                key={c.key}
+                className="flex min-h-12 items-center gap-3 border-b border-(--cal-line) last:border-b-0"
+              >
+                <PlatformLogo platform={c.key} size={14} />
+                <span className="text-[14px] font-medium">{c.name}</span>
+                <span className="flex-1 text-[13px] text-ink-3">{s.text}</span>
+              </div>
+            )
+          }
           return (
             <div key={c.key} className="border-b border-(--cal-line) last:border-b-0">
               <button

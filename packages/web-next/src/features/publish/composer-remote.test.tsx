@@ -26,7 +26,11 @@ const bodies: Array<{ call: string; body: unknown }> = []
 // The brand's state, as the core sends it, once the test begins.
 const core = vi.hoisted(() => ({ loaded: false, fbText: '' as string, storyToday: false }))
 // What the composer says on the app's message line, and where it goes after.
-const told = vi.hoisted(() => ({ report: vi.fn(), push: vi.fn() }))
+const told = vi.hoisted(() => ({
+  report: vi.fn(),
+  push: vi.fn(),
+  load: vi.fn(async () => undefined),
+}))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   return {
@@ -39,6 +43,7 @@ vi.mock('@/lib/remote', async (original) => {
       return {}
     },
     push: vi.fn(),
+    loadBrand: told.load,
     report: told.report,
     // The demo brand's posts, as the core sends them: on the core no store starts with the demo's.
     onState: (hydrate: (id: string, state: unknown) => void) => {
@@ -151,7 +156,29 @@ describe('the composer on the API', () => {
     expect(sent).toHaveBeenCalledTimes(1)
   })
 
-  it('saves a scheduled post as it is: its stage kept, a PATCH alone, nothing sent or moved', async () => {
+  it('saves a scheduled post with a new yes: its waiting sends go again at their slot', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={{ ...crust, waiting: ['ig'] }} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(schedule())
+    await land(null)
+    // A yes covers exactly what a job sends: without the send, the change is refused at 12:00.
+    expect(requests).toEqual([
+      'PATCH /brands/casa-vostra/posts/ravioli',
+      'POST /brands/casa-vostra/posts/ravioli/send',
+    ])
+    const send = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    expect(send?.body).toEqual({ when: 'slot', channels: ['ig'] })
+    expect(told.report).toHaveBeenCalledWith('Saved for Thu 8 Oct, 12:00')
+    // The brand reloads after a send, so the next Save in this tab knows what waits.
+    expect(told.load).toHaveBeenCalledWith('casa-vostra')
+  })
+
+  it('saves a post marked scheduled by hand as a PATCH alone: nothing waits, so nothing is sent', async () => {
     render(
       <BrandProvider>
         <Loaded>
@@ -159,10 +186,26 @@ describe('the composer on the API', () => {
         </Loaded>
       </BrandProvider>,
     )
+    told.load.mockClear()
     fireEvent.click(schedule())
     await land(null)
     expect(requests).toEqual(['PATCH /brands/casa-vostra/posts/ravioli'])
-    expect(told.report).toHaveBeenCalledWith('Saved for Thu 8 Oct, 12:00')
+    expect(told.load).not.toHaveBeenCalled()
+  })
+
+  it('never marks a scheduled post on Save, so its waiting job is not dropped', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={{ ...crust, channels: ['ig', 'tt'], waiting: ['tt'] }} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(schedule())
+    await land(null)
+    expect(requests.some((r) => r.endsWith('/mark'))).toBe(false)
+    const send = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    expect((send?.body as { channels: string[] }).channels).toEqual(['tt'])
   })
 
   it('sends a scheduled post again when an account is added: a PATCH alone makes no job', async () => {
@@ -187,7 +230,7 @@ describe('the composer on the API', () => {
     render(
       <BrandProvider>
         <Loaded>
-          <Composer post={{ ...crust, channels: ['ig', 'tt'] }} />
+          <Composer post={{ ...crust, channels: ['ig', 'tt'], waiting: ['ig', 'tt'] }} />
         </Loaded>
       </BrandProvider>,
     )
@@ -198,7 +241,9 @@ describe('the composer on the API', () => {
     await land(null)
     const patch = bodies.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/ravioli')
     expect((patch?.body as { channels: string[] }).channels).toEqual(['ig', 'tt'])
-    expect(requests.some((r) => r.endsWith('/send'))).toBe(false)
+    // Sent again to the same accounts, as Schedule sends them.
+    const send = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    expect((send?.body as { channels: string[] }).channels).toEqual(['ig', 'tt'])
   })
 
   it('saves a scheduled post whose time has passed: a save sends nothing out', async () => {

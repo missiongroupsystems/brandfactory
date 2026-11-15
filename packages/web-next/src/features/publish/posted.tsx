@@ -11,6 +11,7 @@ import { asOf, bodyOf, k, openOn, readingOn, type ReadingOn } from '@/features/p
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
+import { withInvite, type Invite } from './invites'
 import { CHANNELS, FORMAT_LABEL, type ChannelKey, type Shot } from './model'
 import { TypeBadge } from './preview-media'
 import { ShotView } from './shot'
@@ -36,6 +37,8 @@ export interface PostedView {
   at: string
   caption: string
   collabs: string[]
+  /** Where each collaborator's Instagram invite stands, once read; none on the demo. */
+  invites?: Invite[] | null
   tagged: string[]
   location: string
   labels: string[]
@@ -145,10 +148,12 @@ function Caption({ text, lines }: { text: string; lines: number }) {
 /** The small facts kept with the post: who, where, which labels. Empty ones are left out. */
 function factsOf(v: PostedView): Array<{ label: string; value: string }> {
   return [
-    { label: 'Collaborators', value: v.collabs.join(', ') },
+    { label: 'Collaborators', value: v.collabs.map((c) => withInvite(c, v.invites)).join(', ') },
     { label: 'Tagged', value: v.tagged.join(', ') },
-    { label: 'Location', value: v.location },
+    // On the core no location reaches Meta, so one kept from before is not shown as posted.
+    { label: 'Location', value: remote ? '' : v.location },
     { label: 'Labels', value: v.labels.join(', ') },
+    { label: 'Note', value: (v.post.notes ?? []).join(' ') },
   ].filter((f) => f.value)
 }
 

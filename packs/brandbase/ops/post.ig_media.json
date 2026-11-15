@@ -1,0 +1,23 @@
+{
+  "name": "post.ig_media",
+  "description": "The Instagram media id a post went out as, or nothing when its Instagram job is not live. Internal: for packages/connect only, which reads the collaborators' invites from Instagram with it.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "internal": true,
+  "returns": "many",
+  "sql": "select jsonb_build_object('mediaId', j.external_id) as result from brandbase.post_jobs j where j.post_id = :id and j.brand_id = :brand and j.channel = 'ig' and j.status = 'live' and j.external_id is not null"
+}

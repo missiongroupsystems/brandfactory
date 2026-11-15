@@ -250,7 +250,8 @@ describe('a posted post from the calendar, on the core', () => {
     expect(screen.getByText('Fri 16 Oct, 19:00')).toBeInTheDocument()
     expect(screen.getByText(/Book a table\./)).toBeInTheDocument()
     expect(screen.getByText('Collaborators').nextSibling).toHaveTextContent('@giulia.cooks')
-    expect(screen.getByText('Location').nextSibling).toHaveTextContent('Club Street')
+    // No location reaches Meta from the core: one kept from before is not shown as posted.
+    expect(screen.queryByText('Location')).toBeNull()
     expect(screen.getByText('Labels').nextSibling).toHaveTextContent('F1 weekend')
     expect(screen.queryByText('Tagged')).toBeNull()
     const link = screen.getByRole('link', { name: 'Open on Instagram' })
@@ -261,6 +262,16 @@ describe('a posted post from the calendar, on the core', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
+  })
+
+  it('says what an account noted about a post it took: a first comment that did not go out', () => {
+    const note = 'The post is live, but the first comment did not go out. Add it on Instagram.'
+    load('casa-vostra-ig-note', {
+      hook: 'Pasta night',
+      marked: 'posted',
+      jobs: [{ channel: 'ig', status: 'live', error: note, permalink: null }],
+    })
+    expect(screen.getByText('Note').nextSibling).toHaveTextContent(note)
   })
 
   it('lists the people tagged on its photos, once each', () => {
