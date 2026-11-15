@@ -4,7 +4,7 @@ name: Production
 # is needed: a cloud session starts this workflow and reads its log (docs/cloud-sessions.md).
 #
 #   check    read only: the server's health, the live pack version, and how each Instagram and
-#            Facebook account is linked
+#            Facebook account is linked (read as the release person, through the server)
 #   release  the pack: publish, test, migrate, promote `version`, then people's loadouts follow it
 #   deploy   the server (`fly deploy`), then its health
 #
@@ -78,10 +78,16 @@ jobs:
           echo "DATABASE_URL=$login" >> "$GITHUB_ENV"
           echo "MIGRATOR_DATABASE_URL=$migrator" >> "$GITHUB_ENV"
 
+      # Read only. The accounts are read as the release person through the server, as the app reads
+      # them: the database login cannot see them past the row rules.
       - name: Check
         if: inputs.task == 'check'
         working-directory: packages/core
+        env:
+          RELEASE_EMAIL: ${{ vars.RELEASE_EMAIL }}
+          CORE_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
         run: |
+          set -euo pipefail
           curl -fsS https://brandfactory.fly.dev/health && echo
           node -e '
           const { Client } = require("pg")
@@ -90,11 +96,28 @@ jobs:
             await c.connect()
             const live = await c.query("select version from packs.live_version($1, $2)", ["production", "brandbase"])
             console.log(`brandbase live in production: ${live.rows[0]?.version ?? "none"}`)
-            const accounts = await c.query(`select brand_id, platform, coalesce(details ->> $1, $2) as via
-              from brandbase.accounts where platform in ($3, $4) order by 1, 2`, ["via", "make", "instagram", "facebook"])
-            if (accounts.rows.length > 0) console.table(accounts.rows)
-            else console.log("no account rows readable from this login")
             await c.end()
+          })().catch((e) => { console.error(e.message); process.exit(1) })'
+          pnpm -s exec tsx src/cli.ts login "$RELEASE_EMAIL" >/dev/null
+          unset CORE_PASSWORD
+          node -e '
+          const token = JSON.parse(require("fs").readFileSync(require("os").homedir() + "/.config/brandbase-core/session.json", "utf8")).token
+          const call = async (op, input) => {
+            const res = await fetch("https://brandfactory.fly.dev/ops/brandbase/" + op, {
+              method: "POST",
+              headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+              body: JSON.stringify(input),
+            })
+            if (!res.ok) throw new Error(op + " answered " + res.status)
+            return res.json()
+          }
+          ;(async () => {
+            const rows = []
+            for (const b of await call("brand.list", {})) {
+              const state = await call("brand.state", { brand: b.id })
+              rows.push({ brand: b.id, instagram: state.instagram?.via ?? "none", facebook: state.facebook?.via ?? "none" })
+            }
+            console.table(rows)
           })().catch((e) => { console.error(e.message); process.exit(1) })'
 
       - name: Release
