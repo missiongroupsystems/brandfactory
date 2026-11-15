@@ -96,15 +96,21 @@ function checked(p: Payload) {
   return { name, files }
 }
 
+/** Names in a sentence: "@a", "@a and @b", "@a, @b and @c". */
+const namesIn = (names: string[]) =>
+  names.length <= 1
+    ? (names[0] ?? 'the account')
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+
 /** An Instagram username as Graph takes it: no `@`, lowercase letters, digits, `.` and `_`. */
-const USERNAME = /^[a-z0-9._]{1,30}$/
+export const USERNAME = /^[a-z0-9._]{1,30}$/
 
 /** Instagram takes up to 3 collaborators on a post and up to 20 tags on one photo or Reel. */
 const COLLAB_MAX = 3
 const TAG_MAX = 20
 
 /** The account's own handle, read the same way as a typed one. */
-const handle = (typed: unknown) =>
+export const handle = (typed: unknown) =>
   typeof typed === 'string' ? typed.trim().replace(/^@/, '').toLowerCase() : ''
 
 /** One file's tags as Graph's `user_tags` takes them: a spot on a photo, the name alone on a Reel. */
@@ -431,7 +437,27 @@ export async function sendThroughMeta(s: MetaSend, p: Payload) {
     if (err instanceof MetaReconnect) {
       throw new NotSent(`Connect ${name} again on Connections, then retry.`)
     }
-    if (err instanceof MetaError) throw new NotSent(`${name}: ${words(err.message)}`)
+    if (err instanceof MetaError) {
+      // A tag or an invite of an account the API cannot see (private, or no such name) refuses
+      // the whole post: say what to do, with the names Meta gave.
+      const unreachable = /cannot be accessed:\s*(.+)$/i.exec(err.message)?.[1]
+      if (unreachable) {
+        const names = unreachable
+          .split(/,\s*/)
+          .map(
+            (n) =>
+              `@${n
+                .trim()
+                .replace(/^@/, '')
+                .replace(/[.\s]+$/, '')}`,
+          )
+          .filter((n) => n !== '@')
+        throw new NotSent(
+          `Instagram could not reach ${namesIn(names)}. It tags and invites public accounts only. Remove the account or ask them to switch to public, then retry.`,
+        )
+      }
+      throw new NotSent(`${name}: ${words(err.message)}`)
+    }
     console.error(`meta: ${name} send failed before publishing`, (err as Error).message)
     throw new NotSent(`${name} did not answer. Nothing was posted. Try again.`)
   }

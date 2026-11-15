@@ -41,6 +41,7 @@ import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
+import { PublicNote } from './account-check'
 import { cutPhoto, knownCut } from './cut'
 import { useInvites } from './invites'
 import { DriveGlyph, DrivePicker, trap } from './drive-picker'
@@ -2350,6 +2351,10 @@ function Details({
             <div className="flex min-w-0 flex-col gap-1.5">
               {control[r.key]}
               {r.key === 'collab' && collabNote}
+              {/* Instagram tags and invites public accounts only: a hint, never a block. */}
+              {r.key === 'collab' && <PublicNote brandId={brand.id} handles={details.collab} />}
+              {/* While the tag editor is open, it shows the line itself. */}
+              {r.key === 'tags' && !tagging && <PublicNote brandId={brand.id} handles={tagged} />}
             </div>
           </div>
         ))}
@@ -2422,7 +2427,8 @@ function TagEditor({
   const [pending, setPending] = React.useState<{ x: number; y: number } | null>(null)
   const [typed, setTyped] = React.useState('')
   const form = React.useRef<HTMLFormElement>(null)
-  const people = peopleOf(useBrand().brand.id, 'tag')
+  const brandId = useBrand().brand.id
+  const people = peopleOf(brandId, 'tag')
   const shot = media[index]!
   // The photo as it will post: its crop's shape, or its own. A tag's spot is a fraction of that
   // photo, as Instagram reads it, so the frame is never cut to a shape the post does not have.
@@ -2536,6 +2542,9 @@ function TagEditor({
           ? `${TAG_MAX} tags is the most a photo takes.`
           : 'Tap the photo where someone is to tag them.'}
       </p>
+      <div className="text-center">
+        <PublicNote brandId={brandId} handles={shot.tags.map((t) => t.handle)} />
+      </div>
       {photos.length > 1 && (
         <div className={`flex justify-center gap-1.5 ${STRIP}`}>
           {photos.map((i) => (
