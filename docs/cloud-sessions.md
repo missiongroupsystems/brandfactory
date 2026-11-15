@@ -14,6 +14,30 @@ environment is `brandfactory` (personal).
 - **A test sign-in** for those tests, in the variables `QA_EMAIL` and `QA_PASSWORD` (the owner
   sets them in the environment's settings; a session never asks for them in chat).
 
+## Browser tests on the live app
+
+`scripts/live-signin.mjs` signs in with `QA_EMAIL` and `QA_PASSWORD` and saves the browser's
+state, so a test starts signed in. It never prints the password.
+
+```bash
+node scripts/live-signin.mjs                       # saves ~/.cache/brandbase/live-state.json
+node scripts/live-signin.mjs --shot schedule.png   # also a screenshot of the Schedule page
+```
+
+A test then opens the saved state:
+
+```js
+const context = await browser.newContext({
+  storageState: `${process.env.HOME}/.cache/brandbase/live-state.json`,
+})
+```
+
+- The state holds a session token. It is written outside the repository, readable by its owner
+  only (`LIVE_STATE` names another path). Never commit it or attach it.
+- `LIVE_URL` points the script at another deployment, such as a Vercel preview.
+- The sign-in expires: when a test lands on `/sign-in`, run the script again.
+- The test sign-in reaches real brands. Save drafts, not sends, and delete what a test made.
+
 ## What a session cannot do, and what does it instead
 
 A session reaches the internet through an HTTPS proxy only: no Postgres connection to Supabase,
