@@ -37,7 +37,7 @@ The web app deploys from `main` on Vercel.
 
 ## The workflow's settings
 
-In GitHub: Settings, Environments, `production`.
+In GitHub: Settings, Environments, `core-production` (Vercel owns `Production`).
 
 - Secrets: `CORE_LOGIN_PASSWORD` and `CORE_MIGRATOR_PASSWORD` (Keychain service
   `brandbase-supabase-db`), `RELEASE_PASSWORD` (the sign-in of the person a promote acts for),

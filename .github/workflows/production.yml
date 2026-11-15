@@ -8,7 +8,7 @@ name: Production
 #   release  the pack: publish, test, migrate, promote `version`, then people's loadouts follow it
 #   deploy   the server (`fly deploy`), then its health
 #
-# Secrets and variables live in the GitHub environment `production` (Settings, Environments):
+# Secrets and variables live in the GitHub environment `core-production` (Settings, Environments):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
 #              RELEASE_PASSWORD (the sign-in of the person a promote acts for), FLY_API_TOKEN
 #              (`fly tokens create deploy -a brandfactory`)
@@ -38,7 +38,7 @@ jobs:
   production:
     name: ${{ inputs.task }}
     runs-on: ubuntu-latest
-    environment: production
+    environment: core-production
     timeout-minutes: 30
     env:
       REF: qcxikcauwonrbftqiitp
