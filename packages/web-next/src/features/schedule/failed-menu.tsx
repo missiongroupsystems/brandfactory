@@ -80,7 +80,7 @@ export function FailedPill({ posts }: { posts: Post[] }) {
         onClick={() => (one ? router.push(`/post/${posts[0]!.id}`) : setOpen((o) => !o))}
         className={`bb-pop flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium whitespace-nowrap text-fail-ink transition-colors hover:bg-(--fail-soft) ${open ? 'bg-(--fail-soft)' : ''}`}
       >
-        <span className="size-1.5 rounded-full bg-fail" />
+        <span className="bb-beacon size-1.5 rounded-full bg-fail" />
         {posts.length} failed
       </button>
       {open && (

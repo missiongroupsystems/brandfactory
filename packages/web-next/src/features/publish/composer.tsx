@@ -136,6 +136,14 @@ const MEDIA_RULE: Record<Format, string> = {
 
 type WhenChoice = 'now' | 'schedule'
 
+/** How a failed post says so, while the owner picks (`?banner=a|b|c`). */
+type NoteLook = 'a' | 'b' | 'c' | null
+const noSubscribe = () => () => undefined
+function noteLookOf(): NoteLook {
+  const l = new URLSearchParams(window.location.search).get('banner')
+  return l === 'a' || l === 'b' || l === 'c' ? l : null
+}
+
 /** Which accounts a detail is sent to. A detail with none of them selected stays hidden. */
 const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]> = {
   comment: ['ig', 'fb'],
@@ -322,8 +330,14 @@ export function Composer({
   )
   // Where a new post starts, worked out once: the day and the time belong together.
   const [slot] = React.useState(() => nextSlot(brand.id, times))
+  const [pastFail] = React.useState(() => {
+    const day = post?.stage === 'failed' ? dayOf(weeks, post.id) : null
+    return !!day && day < brandToday(brand.id)
+  })
   const [date, setDate] = React.useState<string>(() => {
     const day = (post && dayOf(weeks, post.id)) || start?.day || slot.date
+    // A failed post's day has gone: it opens on the next free slot, so Schedule works at once.
+    if (pastFail) return slot.date
     // A Story from the New menu, with no day of its own, starts on the first day with no story
     // out, as a Story picked in the composer moves to one.
     if (post || start?.day || start?.format !== 'story') return day
@@ -332,6 +346,7 @@ export function Composer({
     return free
   })
   const [time, setTime] = React.useState(() => {
+    if (pastFail) return slot.time
     if (post?.slot.split(', ')[1]) return post.slot.split(', ')[1]!
     if (start?.time) return start.time
     // A day from the calendar with no hour: the brand's best time on it, or what is left of it.
@@ -469,6 +484,7 @@ export function Composer({
   const sendKey = React.useRef('')
   /** The post this page saved last: the one a live send follows. */
   const [sentId, setSentId] = React.useState<string | null>(null)
+  const noteLook = React.useSyncExternalStore(noSubscribe, noteLookOf, () => null)
   // Post now was pressed while something stopped it: the line under the buttons says what.
   const [nowAsked, setNowAsked] = React.useState(false)
   // A new post the server has stored: from then on a save moves it instead of making it.
@@ -1139,6 +1155,25 @@ export function Composer({
       ),
     },
   }
+  // A failed post on the core, said quietly (looks A, B, C): why, the fix, and the way out.
+  const quietFail = remote && post?.stage === 'failed' && noteLook !== null
+  const failReason = quietFail && (
+    <>
+      <span>{failedWhy?.text ?? post?.error}</span>
+      {failedWhy?.connect && (
+        <ConnectLink label={failedAll.length === 1 ? `Connect ${failedName}` : 'Connect'} />
+      )}
+    </>
+  )
+  const draftsLink = quietFail && !partlyOut && (
+    <button
+      type="button"
+      onClick={() => void unschedule()}
+      className="font-medium text-ink transition-colors hover:text-ink-2"
+    >
+      Move to drafts
+    </button>
+  )
   const whenText = when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`
   const moreText = moreSummary(draft, labels, media)
   const moreNeeds = active.some((c) => summaryOf(draft, extra)[c.key].needs)
@@ -1149,9 +1184,18 @@ export function Composer({
         {/* A post that exists says where it is; a new one is new, as its title says. */}
         {post && (
           <span className="flex items-center justify-between gap-3">
-            <span className="rounded-full bg-surface px-2 py-[2px] text-[12px] font-medium text-ink-2">
-              {STAGE_LABEL[post.stage]}
-            </span>
+            {quietFail && noteLook === 'c' ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 py-[2px] text-[12px] font-medium text-fail-ink">
+                <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
+                Not posted
+              </span>
+            ) : quietFail && noteLook === 'a' ? (
+              <span />
+            ) : (
+              <span className="rounded-full bg-surface px-2 py-[2px] text-[12px] font-medium text-ink-2">
+                {STAGE_LABEL[post.stage]}
+              </span>
+            )}
             {!readOnly && (
               <PostMenu
                 onUnschedule={
@@ -1166,6 +1210,26 @@ export function Composer({
         <h1 className="font-display text-[34px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
           {post ? post.hook : 'New post'}
         </h1>
+        {quietFail && noteLook === 'c' && (
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-[14px] text-ink-3">
+            {failReason}
+            {draftsLink && <span aria-hidden="true">·</span>}
+            {draftsLink}
+          </p>
+        )}
+        {quietFail && noteLook === 'a' && (
+          <p
+            role="alert"
+            className="bb-alert flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-[14px] text-ink-3"
+          >
+            <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
+            <span className="font-medium text-fail-ink">Not posted · {post!.slot}</span>
+            <span aria-hidden="true">·</span>
+            {failReason}
+            {draftsLink && <span aria-hidden="true">·</span>}
+            {draftsLink}
+          </p>
+        )}
       </header>
       {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-line bg-page px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] md:hidden">
@@ -1177,17 +1241,38 @@ export function Composer({
         <div className="flex items-center gap-2">{actions}</div>
       </div>
 
-      {post?.stage === 'failed' && (
+      {quietFail && noteLook === 'b' && (
         <div
           role="alert"
-          className={`flex items-center gap-3 rounded-[14px] px-4 py-3 transition-colors max-md:flex-wrap ${reconnected ? 'bg-(--insight-1) shadow-[inset_0_0_0_1px_var(--insight-2)]' : 'bg-(--fail-soft) shadow-[inset_0_0_0_1px_var(--fail-line)]'}`}
+          className="bb-alert flex items-center gap-3 rounded-[18px] bg-page px-5 py-4 shadow-[0_0_0_1px_var(--line)] max-md:flex-wrap"
+        >
+          <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
+          <span className="flex flex-1 flex-col gap-0.5 text-[13.5px] leading-[1.4]">
+            <span className="font-medium text-ink">Not posted on {post!.slot}</span>
+            <span className="flex flex-wrap items-center gap-x-1.5 text-ink-3">{failReason}</span>
+          </span>
+          {!partlyOut && (
+            <button
+              type="button"
+              onClick={() => void unschedule()}
+              className="h-9 shrink-0 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-11 max-md:w-full"
+            >
+              Move to drafts
+            </button>
+          )}
+        </div>
+      )}
+      {post?.stage === 'failed' && !quietFail && (
+        <div
+          role="alert"
+          className={`bb-alert flex items-center gap-3 rounded-[14px] px-4 py-3 transition-colors max-md:flex-wrap ${reconnected ? 'bg-(--insight-1) shadow-[inset_0_0_0_1px_var(--insight-2)]' : 'bg-(--fail-soft) shadow-[inset_0_0_0_1px_var(--fail-line)]'}`}
         >
           {reconnected ? (
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-(--insight-5) text-page">
               <CheckIcon size={8} strokeWidth={2.4} />
             </span>
           ) : (
-            <span className="ml-1.5 size-2 shrink-0 rounded-full bg-fail shadow-[0_0_0_3px_color-mix(in_oklab,var(--fail)_18%,transparent)]" />
+            <span className="bb-beacon ml-1.5 size-2 shrink-0 rounded-full bg-fail" />
           )}
           <span className="flex flex-1 flex-col text-[13px] leading-[1.35] max-md:basis-[calc(100%-36px)]">
             <span className={`font-medium ${reconnected ? 'text-ink' : 'text-fail-ink'}`}>
