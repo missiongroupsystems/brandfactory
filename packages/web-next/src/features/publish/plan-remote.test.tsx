@@ -173,8 +173,8 @@ describe('planning a post on the core, with no account connected', () => {
   it('offers Schedule, not "Post now": nothing goes out yet', () => {
     open(draft)
     expect(screen.queryByRole('radio', { name: 'Publish now' })).toBeNull()
-    // Nothing would be sent now either: the menu that offers Post now is not there.
-    expect(screen.queryByRole('button', { name: 'Other ways to send' })).toBeNull()
+    // Nothing would be sent now either: there is no Post now.
+    expect(screen.queryByRole('button', { name: 'Post now' })).toBeNull()
     const send = screen.getAllByRole('button', { name: /^Schedule/ })[0]!
     expect(send).toHaveAttribute('aria-disabled', 'false')
     expect(send).toHaveTextContent(/^Schedule$/)

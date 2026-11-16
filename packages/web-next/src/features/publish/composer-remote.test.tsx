@@ -611,9 +611,8 @@ describe('posting now on the core', () => {
         </Loaded>
       </BrandProvider>,
     )
-    fireEvent.click(screen.getAllByRole('button', { name: 'Other ways to send' })[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Post now' }))
-    fireEvent.click(screen.getAllByRole('button', { name: /^Post now/ })[0]!)
+    // Post now: the quiet button beside the main one, which sends at once.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Post now' })[0]!)
   }
 
   it('sends the post now, then follows each account until its job answers', async () => {
@@ -672,5 +671,31 @@ describe('posting now on the core', () => {
     await land(null)
     expect(screen.queryByText('An old refusal.')).toBeNull()
     expect(screen.getAllByText('Sending').length).toBeGreaterThan(0)
+  })
+})
+
+describe('a failed post on the core', () => {
+  it('says why in plain words, links to Connections, and clears to a draft in one press', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer
+            post={{ ...crust, stage: 'failed', error: 'no connector social', failedOn: 'ig' }}
+          />
+        </Loaded>
+      </BrandProvider>,
+    )
+    const banner = screen.getByRole('alert')
+    expect(within(banner).getByText('Instagram is not set up for posting yet.')).toBeInTheDocument()
+    expect(within(banner).queryByText('no connector social')).toBeNull()
+    expect(within(banner).getByRole('link', { name: /Connect Instagram/ })).toHaveAttribute(
+      'href',
+      '/brand/connections',
+    )
+    fireEvent.click(within(banner).getByRole('button', { name: 'Move to drafts' }))
+    await land(null)
+    const mark = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/mark')
+    expect(mark?.body).toEqual({ stage: 'draft' })
+    expect(told.report).toHaveBeenCalledWith('Moved to drafts')
   })
 })

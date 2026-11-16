@@ -13,9 +13,9 @@ import { useShoots } from '@/features/shoot/shoots-store'
 import { dayNumber, MONTH_SHORT, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 
 import { setCalendarPlace, useCalendarPlace, type CalendarMode } from './calendar-view'
-import { itemsOf } from './calendar-items'
+import { ALL_STAGES, itemsOf } from './calendar-items'
 import { DayView } from './day-view'
-import { FailedPill } from './failed-menu'
+import { FailedPill, onlyFailed } from './failed-menu'
 import { MoreMenu } from './filter-menu'
 import { LookAgenda } from './look-a'
 import { NewMenu } from './new-menu'
@@ -57,6 +57,12 @@ export function SchedulePage() {
   const failed = posts.filter((p) => p.stage === 'failed')
   const place = useCalendarPlace()
   const { view, offset, week, day, stages } = place
+  // "Only failed" with none left (fixed, or another brand): the calendar shows everything again.
+  const noneFailed = failed.length === 0
+  const failedOnly = onlyFailed(stages)
+  React.useEffect(() => {
+    if (noneFailed && failedOnly) setCalendarPlace({ stages: ALL_STAGES })
+  }, [noneFailed, failedOnly])
   const [layers, setLayers] = React.useState(DEFAULT_LAYERS)
 
   /** A month cut from the brand's weeks, or drawn on its own where the weeks do not reach. */
@@ -237,11 +243,7 @@ export function SchedulePage() {
             </button>
           )}
           {/* What needs someone sits with the title, as a line of text, not among the controls. */}
-          <FailedPill
-            posts={failed}
-            stages={stages}
-            onChange={(s) => setCalendarPlace({ stages: s })}
-          />
+          <FailedPill posts={failed} />
         </div>
         <div className="relative flex flex-wrap items-center gap-2">
           <div className="w-[216px]">

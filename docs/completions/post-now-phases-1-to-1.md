@@ -6,9 +6,10 @@ Plan: `post-now-plan.md`. Version 2.69.0. No server or pack change.
 
 ### What changed
 
-- `composer.tsx`: the small menu beside the main button (`NowMenu`) shows on the live app too. Its
-  item reads "Post now" ("Schedule instead" once picked), and the main button then reads "Post now"
-  with the accounts' logos. Not offered for a planned-only post or one that cannot change.
+- `composer.tsx`: a quiet "Post now" button beside the main one, on the live app and in the demo,
+  picked by the owner from three options (a "Now" chip in the day row, a Schedule / Now switch, a
+  button); the demo's menu on the main button is gone. Not offered for a planned-only post or one
+  that cannot change.
 - The send: Post now saves the post and sends it with `when: 'now'`; the calendar keeps it
   Scheduled until its accounts answer.
 - The outcome page follows the post's real jobs: the brand reloads every 4 s while an account is
@@ -17,6 +18,14 @@ Plan: `post-now-plan.md`. Version 2.69.0. No server or pack change.
   "Not posted" with a cross, and "2 accounts need you." On the live app the demo's "Reconnect and
   retry" and "Edit post" are not shown: a failed post is retried from its own page.
 - `remote-calendar.ts`: each post carries its jobs by account (`sends`).
+- The outcome page draws nothing over the phones: under each, the account and a dot and a word, and
+  for a failure one short line in plain words (`reasons.ts`: "Not set up yet", "Needs connecting
+  again", "No answer: try again soon"), with "Connect ↗" to the Connections page where that is the
+  fix.
+- A failed post: its banner says why in plain words, for every account it failed on, with the same
+  link, and "Move to drafts" clears it in one press. On the calendar, "N failed" opens the one post,
+  or a short list of them on any week; nothing shows when none failed, so another brand no longer
+  shows "None failed". An "only failed" filter clears itself once none is left.
 - The demo's word "Publish now" became "Post now"; the demo still sends on its timer.
 
 ### Verified
