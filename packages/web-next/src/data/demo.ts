@@ -54,6 +54,8 @@ export interface Post {
   waiting?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
   /** On the core: what an account said about a post it took (a first comment that failed). */
   notes?: string[]
+  /** On the core: each account's send as its job stands, with the job's error when it failed. */
+  sends?: Partial<Record<'ig' | 'tt' | 'yt' | 'li' | 'fb', { status: string; error?: string }>>
   /** The accounts it goes to, once someone picked them in the composer. */
   channels?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
   /** The idea tile it was planned from, kept so taking it back to an idea restores that tile. */

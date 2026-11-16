@@ -277,6 +277,8 @@ export function tiktokConsent(draft: Draft): string | null {
 export type Outcome =
   | { state: 'scheduled' }
   | { state: 'uploading'; progress: number }
+  /** On the core: handed to the account, with no progress to show until it answers. */
+  | { state: 'sending' }
   | { state: 'live' }
   | { state: 'failed'; reason: string }
 

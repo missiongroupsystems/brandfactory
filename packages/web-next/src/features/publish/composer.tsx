@@ -448,6 +448,8 @@ export function Composer({
   // arrived, returns its first answer, never a second send. The server keeps a key only once the
   // send is stored, so a refused send can be tried again under the same key.
   const sendKey = React.useRef('')
+  /** The post this page saved last: the one a live send follows. */
+  const [sentId, setSentId] = React.useState<string | null>(null)
   // A new post the server has stored: from then on a save moves it instead of making it.
   const created = React.useRef(false)
   // Sent and on the way back to the calendar: a second press in that moment sends nothing.
@@ -542,7 +544,7 @@ export function Composer({
         ? 'No platform listed'
         : 'Pick an account'
       : when === 'now'
-        ? 'Post on'
+        ? 'Post now'
         : // On the edit page "Schedule" would mean a fourth thing: a scheduled post is moved
           // (Reschedule), or sent again where its accounts changed (Save and send).
           post?.stage === 'scheduled'
@@ -561,7 +563,7 @@ export function Composer({
   /**
    * The server's side of a save or a send, in order: the post is made or moved, everything the
    * composer holds is kept with it, then it is sent. The stage then comes from the send's jobs,
-   * never from a hand mark, so "Publish now" is posted once each account says so.
+   * never from a hand mark, so "Post now" is posted once each account says so.
    */
   function toServer(id: string, isNew: boolean, send: Send) {
     // Resolves to the server's refusal in words, or null once everything is stored.
@@ -694,6 +696,7 @@ export function Composer({
     const isNew = !post && !created.current
     const id = quietly(() => toCalendar(stage))
     if (!id) return false
+    setSentId(id)
     setWaiting(send ? 'send' : 'save')
     const refused = await toServer(id, isNew, send)
     setWaiting(null)
@@ -715,13 +718,14 @@ export function Composer({
     update({ when: how })
     if (remote) {
       sendKey.current ||= newId()
-      if (!(await stored(when === 'now' ? 'posted' : 'scheduled', how))) return
+      // On the core a post sent now is Scheduled until its accounts answer: the page follows them.
+      if (!(await stored('scheduled', how))) return
     } else {
       toCalendar(when === 'now' ? 'posted' : 'scheduled')
     }
     remember()
     // Scheduled: back to the calendar, where the post now sits, with a word on when. The demo's
-    // "Publish now" and a new planned-only post keep the Outcomes page: the uploads, or the note
+    // "Post now" and a new planned-only post keep the Outcomes page: the sends, or the note
     // that nothing is sent. A scheduled post moved goes back to the calendar either way.
     if (how === 'slot' && (!planned || post?.stage === 'scheduled')) {
       submitted.current = true
@@ -730,7 +734,8 @@ export function Composer({
       router.push('/')
       return
     }
-    api.send(how)
+    // On the core only the accounts that post get a job: the others are planned only.
+    api.send(how, remote ? (retry ? retryOn : active.map((c) => c.key)).filter(goes) : undefined)
   }
 
   // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
@@ -830,6 +835,48 @@ export function Composer({
     })
     report(fromCard ? 'Deleted: the idea is back on its day' : 'Deleted')
   }
+  // A post sent now on the core: the page follows its jobs until each account answers. The brand
+  // reloads every 4 s while one is still sending, for at most 5 minutes (Meta may take 2½).
+  const followed = remote && phase === 'publishing' && sentId ? byId(sentId) : null
+  // Reads made since the send: the post in memory still has its state from before it (a failed
+  // job sent again reads failed until the server is asked).
+  const [reads, setReads] = React.useState(0)
+  // Past the 5 minutes: the page stops reading and says the calendar will show the answer.
+  const [slow, setSlow] = React.useState(false)
+  React.useEffect(() => {
+    if (!remote || phase !== 'publishing') return
+    const until = Date.now() + 5 * 60_000
+    const t = setInterval(() => {
+      if (Date.now() > until) {
+        setSlow(true)
+        return clearInterval(t)
+      }
+      void loadBrand(brand.id).then(
+        () => setReads((n) => n + 1),
+        () => undefined,
+      )
+    }, 4_000)
+    return () => clearInterval(t)
+  }, [phase, brand.id])
+  React.useEffect(() => {
+    if (reads === 0 || !followed?.sends) return
+    const next: Partial<Record<ChannelKey, Outcome>> = {}
+    for (const [k, job] of Object.entries(followed.sends) as [
+      ChannelKey,
+      { status: string; error?: string },
+    ][]) {
+      if (!(k in api.outcomes)) continue
+      next[k] =
+        job.status === 'live'
+          ? { state: 'live' }
+          : job.status === 'failed'
+            ? { state: 'failed', reason: job.error ?? 'It did not go out.' }
+            : { state: 'sending' }
+    }
+    api.follow(next)
+    // Each new read of the post; the outcomes it starts from are the page's own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followed, reads])
   // A posted post's collaborators, with where each Instagram invite stands, read from Instagram.
   const invites = useInvites(
     brand.id,
@@ -845,7 +892,16 @@ export function Composer({
         people={{ collabs: details.collab, tags: media[0]?.tags ?? [] }}
         slot={`${dayLabel(date)}, ${time}`}
         planned={planned}
-        plannedOn={plans}
+        plannedOn={[
+          ...plans,
+          // On the core, an account that cannot post this (a Story where only some can) is planned.
+          ...(remote
+            ? active
+                .map((c) => c.key)
+                .filter((k) => !goes(k) && !(plans as readonly string[]).includes(k))
+            : []),
+        ]}
+        slow={slow}
         onBack={() => router.push('/')}
       />
     )
@@ -890,9 +946,11 @@ export function Composer({
       )}
     </button>
   )
-  // The demo can also post at once; the core never does. It sits in a menu on the button, so
-  // no stray click sends a post out early.
-  const nowMenu = !remote && <NowMenu when={when} setWhen={setWhen} />
+  // A post that became planned only (its last account that posts unticked) cannot go now.
+  if (remote && planned && when === 'now') setWhen('schedule')
+  // A post can also go out at once. It sits in a menu on the button, so no stray click sends a
+  // post out early. Not where nothing would be sent: a planned-only post, one that cannot change.
+  const nowMenu = !(remote && planned) && !readOnly && <NowMenu when={when} setWhen={setWhen} />
   /** The quiet way out: the post goes on the calendar as a draft, finished or not, or keeps its stage. */
   const draftButton = (
     <button
@@ -3337,8 +3395,8 @@ function WhenField({
 }
 
 /**
- * The demo's other way to send, folded into the main button: a chevron opens "Publish now", or
- * "Schedule instead" once the post is set to go now. On the core a post is never sent now.
+ * The other way to send, folded into the main button: a chevron opens "Post now", or
+ * "Schedule instead" once the post is set to go now.
  */
 function NowMenu({ when, setWhen }: { when: WhenChoice; setWhen: (w: WhenChoice) => void }) {
   const [open, setOpen] = React.useState(false)
@@ -3388,7 +3446,7 @@ function NowMenu({ when, setWhen }: { when: WhenChoice; setWhen: (w: WhenChoice)
             }}
             className="flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] transition-colors hover:bg-surface"
           >
-            {when === 'now' ? 'Schedule instead' : 'Publish now'}
+            {when === 'now' ? 'Schedule instead' : 'Post now'}
           </button>
         </div>
       )}
@@ -3903,6 +3961,7 @@ function Outcomes({
   slot,
   planned = false,
   plannedOn = [],
+  slow = false,
   onBack,
 }: {
   api: PublishDraftApi
@@ -3913,6 +3972,8 @@ function Outcomes({
   planned?: boolean
   /** The accounts that are only planned while the others are sent (TikTok beside Instagram). */
   plannedOn?: readonly ChannelKey[]
+  /** On the core: still sending after the page stopped reading. */
+  slow?: boolean
   onBack: () => void
 }) {
   const { phase, outcomes, draft } = api
@@ -3926,19 +3987,25 @@ function Outcomes({
         ? 'Scheduled'
         : phase === 'publishing'
           ? 'Publishing'
-          : failed
-            ? `Live on ${keys.length - failed} of ${keys.length}`
-            : 'Live everywhere'
+          : failed > 0 && failed === keys.length
+            ? 'Not posted'
+            : failed
+              ? `Live on ${keys.length - failed} of ${keys.length}`
+              : 'Live everywhere'
   const sub =
     phase === 'scheduled' && planned
       ? `Planned for ${slot}. Nothing is sent yet.`
       : phase === 'scheduled'
         ? `${slot}, on ${accounts}. It is on the calendar.`
         : phase === 'publishing'
-          ? `Sending to ${accounts}. You can leave this page.`
-          : failed
+          ? slow
+            ? 'This takes longer than usual. The calendar shows it once it goes out.'
+            : `Sending to ${accounts}. You can leave this page.`
+          : failed === 1
             ? 'One account needs you.'
-            : `Posted to ${accounts}.`
+            : failed
+              ? `${failed} accounts need you.`
+              : `Posted to ${accounts}.`
   // Collaborators are Instagram's: their invite leaves once the Instagram post is live.
   const ig = outcomes.ig
   const invite =
@@ -3951,6 +4018,9 @@ function Outcomes({
           <span className="bb-pop flex size-10 items-center justify-center rounded-full bg-ink text-page">
             {phase === 'publishing' ? (
               <span className="bb-pulse size-[9px] rounded-full bg-page" />
+            ) : failed > 0 && failed === keys.length ? (
+              // Nothing went out: no tick.
+              <CloseIcon />
             ) : (
               <CheckIcon size={14} strokeWidth={2.2} />
             )}
@@ -3991,13 +4061,16 @@ function Outcomes({
               {o.state === 'failed' && (
                 <span className="flex flex-col items-center gap-1.5 text-center">
                   <span className="text-[13px] text-fail-ink">{o.reason}</span>
-                  <button
-                    type="button"
-                    onClick={() => api.retry(k)}
-                    className="h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page"
-                  >
-                    Reconnect and retry
-                  </button>
+                  {/* On the core a failed account is retried from the post's own page. */}
+                  {!remote && (
+                    <button
+                      type="button"
+                      onClick={() => api.retry(k)}
+                      className="h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page"
+                    >
+                      Reconnect and retry
+                    </button>
+                  )}
                 </span>
               )}
             </div>
@@ -4005,13 +4078,16 @@ function Outcomes({
         })}
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={api.backToCompose}
-          className="h-10 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 hover:text-ink"
-        >
-          Edit post
-        </button>
+        {/* On the core the post is sent: it is changed from its own page, not sent twice here. */}
+        {!remote && (
+          <button
+            type="button"
+            onClick={api.backToCompose}
+            className="h-10 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 hover:text-ink"
+          >
+            Edit post
+          </button>
+        )}
         <button
           type="button"
           onClick={onBack}
@@ -4095,15 +4171,17 @@ function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean 
         : 'Scheduled'
       : outcome.state === 'uploading'
         ? `${outcome.progress}%`
-        : outcome.state === 'live'
-          ? 'Live'
-          : 'Not posted'
+        : outcome.state === 'sending'
+          ? 'Sending'
+          : outcome.state === 'live'
+            ? 'Live'
+            : 'Not posted'
   const dot =
     outcome.state === 'live'
       ? 'bg-live'
       : outcome.state === 'failed'
         ? 'bg-fail'
-        : outcome.state === 'uploading'
+        : outcome.state === 'uploading' || outcome.state === 'sending'
           ? 'bb-pulse bg-ink'
           : 'bg-ink-5'
   return (

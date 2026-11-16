@@ -243,12 +243,12 @@ describe('a new post in the demo', () => {
     expect(screen.getByText('A Reel is a video: this is a photo.')).toBeInTheDocument()
   })
 
-  it('keeps Publish now behind a menu on the button, never a bare button', () => {
+  it('keeps Post now behind a menu on the button, never a bare button', () => {
     show()
-    expect(screen.queryByRole('button', { name: 'Publish now' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Post now/ })).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: 'Other ways to send' })[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish now' }))
-    expect(screen.getAllByRole('button', { name: /^Post on/ })[0]).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Post now' }))
+    expect(screen.getAllByRole('button', { name: /^Post now/ })[0]).toBeInTheDocument()
   })
 
   it('keeps what the post holds when an add goes over the limit, and says how many were left out', async () => {
