@@ -81,6 +81,29 @@ function fakeGraph() {
       return json({ status_code: state.status.length > 1 ? state.status.shift() : state.status[0] })
     }
     if (path === `/${IG}/media_publish`) return json({ id: `1790${id()}` })
+    if (path === `/${IG}` && params.fields?.startsWith('business_discovery.username(')) {
+      const who = /\(([^)]+)\)/.exec(params.fields)![1]
+      if (who === 'casa.partner') {
+        return json({ business_discovery: { username: 'casa.partner', id: '1784' }, id: IG })
+      }
+      if (who === 'no.permission') {
+        return json(
+          { error: { message: '(#10) Application does not have permission', code: 10 } },
+          400,
+        )
+      }
+      return json(
+        {
+          error: {
+            message: 'Invalid user id',
+            code: 110,
+            error_subcode: 2207013,
+            error_user_title: 'Cannot find User',
+          },
+        },
+        400,
+      )
+    }
     if (/^\/(1790\d+|100000000000001_\w+|v9)\/comments$/.test(path))
       return json({ id: `cm${id()}` })
     if (/^\/1790\d+\/collaborators$/.test(path)) {
@@ -819,5 +842,84 @@ describe('the payload a post with no people or comment sends', () => {
       expect(Object.keys(payload)).not.toContain('tags')
       expect(Object.keys(payload)).not.toContain('comment')
     }
+  })
+})
+
+describe('whether Instagram can tag or invite an account, before the post goes out', () => {
+  const check = (t: T, name: string, brand = 'casa') =>
+    t.call('GET', `/brands/${brand}/instagram/accounts/${encodeURIComponent(name)}`)
+
+  it('confirms a business or creator account Business Discovery finds, read live as the brand', async () => {
+    const t = await setUp()
+    const res = await check(t, '@Casa.Partner')
+    expect(res).toEqual({ status: 200, data: { handle: '@casa.partner', status: 'confirmed' } })
+    const asked = t.graph.calls.at(-1)!
+    expect(asked).toMatchObject({ method: 'GET', path: `/${IG}` })
+    expect(asked.params.fields).toBe('business_discovery.username(casa.partner){username}')
+  })
+
+  it('cannot confirm an account Meta cannot find: personal, private or misspelled', async () => {
+    const t = await setUp()
+    expect((await check(t, 'pran._.av')).data).toEqual({
+      handle: '@pran._.av',
+      status: 'unconfirmed',
+    })
+  })
+
+  it('says nothing either way when Meta refuses for another reason, such as a missing permission', async () => {
+    const t = await setUp()
+    expect((await check(t, 'no.permission')).data).toEqual({
+      handle: '@no.permission',
+      status: 'unknown',
+    })
+  })
+
+  it('refuses a name Instagram cannot have, and a brand the person does not reach, before Meta', async () => {
+    const t = await setUp()
+    expect((await check(t, 'chef antonio')).status).toBe(400)
+    expect((await check(t, 'casa.partner', 'temper')).status).toBe(404)
+    expect(t.graph.calls).toEqual([])
+  })
+
+  it('keeps no copy: every answer says not to store it', async () => {
+    const t = await setUp()
+    const res = await t.app.request('/brands/casa/instagram/accounts/casa.partner', {
+      headers: { authorization: 'Bearer member' },
+    })
+    expect(res.headers.get('cache-control')).toBe('no-store')
+  })
+})
+
+describe('a post Meta refuses for an account it cannot reach', () => {
+  it('says what to do, with each name, and keeps Meta’s words for every other refusal', async () => {
+    const g = fakeGraph()
+    const send = (p: Partial<Payload>) =>
+      sendThroughMeta(
+        { meta: g.app, token: TOKEN, sign: async (key) => `https://storage.test/${key}` },
+        {
+          brand: 'casa',
+          job: 'p:ig',
+          post: 'p',
+          channel: 'ig',
+          format: 'carousel',
+          text: 'Hi',
+          media: [{ kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }],
+          account: IG,
+          shareToFeed: true,
+          via: 'meta',
+          ...p,
+        },
+      )
+    // Meta's words for a private account, as production's job kept them on 15 Nov (one name);
+    // two names, as the same sentence lists them.
+    g.state.fail[`POST /${IG}/media`] = {
+      code: 100,
+      message: 'The following user(s) cannot be accessed: pran._.av, other.one',
+    }
+    await expect(send({ collaborators: ['pran._.av'] })).rejects.toThrow(
+      'Instagram could not reach @pran._.av and @other.one. It tags and invites public accounts only. Remove the account or ask them to switch to public, then retry.',
+    )
+    g.state.fail[`POST /${IG}/media`] = { code: 100, message: 'Invalid parameter' }
+    await expect(send({})).rejects.toThrow('Instagram: Invalid parameter')
   })
 })

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
 - **2.67.0** — 2026-11-15 — `claude/clever-sagan-fyed6e`: every option on the post page reaches Meta or is hidden. Instagram gets the collaborators, each photo's tags and the first comment (pack 1.16.0, no migration; a new internal move `post.ig_media`, so loadouts need setting again); the posted view shows where each collaborator's invite stands, read live; a crop goes out as cut; Save on a scheduled post sends its waiting jobs again with a new yes (a plain Save was refused at its time); Location, the AI label and Facebook's audience are hidden on the live app. 1705 tests by count (1438 pass, 266 skipped without a Postgres server, 1 fails only on Node 22: `text.test.ts`, pinned to Node 24.13.0).
 - **2.66.6** — 2026-11-08 — `feat/meta-direct`: the second Meta review's fixes. Instagram's server errors (-1, -2) say a post or reply may have gone, not that nothing went. The webhook answers Meta 200 for a batch Postgres refuses as data (`BAD_INPUT`, `CONFLICT`). A Page whose new Instagram account is refused still gets its webhooks. Server only, no pack change. 1425 tests (264 skipped).
 - **2.66.5** — 2026-11-07 — `feat/meta-direct`: a Meta test that ran past CI's 30-second limit is now five tests; no production code changes. 1424 tests by count (264 skipped).
@@ -144,6 +145,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.68.0 — 2026-11-15
+
+- **Why.** On 15 Nov a post that tagged and invited a private account was refused whole at its
+  time: Instagram's API tags and invites public accounts only, and the person learned it only from
+  the failed post. Task 2 of `docs/executing/post-people-handoff.md`.
+- **What changed.** `GET /brands/:brand/instagram/accounts/:handle` (`meta-collabs.ts`) asks
+  Business Discovery as the brand's Instagram account and answers `confirmed`, `unconfirmed`
+  (Meta cannot find the user: personal, private or misspelled) or `unknown` (any other refusal, so
+  a missing permission never warns on every name). Stored nowhere. The post page shows one line
+  under Collaborators, under Tag people and in the tag editor for an `unconfirmed` account, and
+  nothing otherwise. Meta's "cannot be accessed" refusal becomes a sentence that says what to do.
+  `docs/completions/tag-account-check-phases-1-to-1.md`.
+- **Review.** One pass; three low findings, two fixed (the tag line twice while the editor is
+  open; a failed read kept for the tab), one kept by design (a dead token is silent here, and the
+  send asks to reconnect).
+- **Release.** No pack change: merge to `main` (Vercel deploys the web app), then **Production**
+  `deploy`. Then check a business account and a made-up name on the live app: two `unknown`
+  answers mean the Meta app lacks a Business Discovery permission.
+- **Tests:** 1717 by count: 1451 pass and 266 are skipped without a Postgres server;
+  `scripts/test-pg.sh` ran the core's 726 on Postgres 16, all pass. Typecheck, lint, format and the
+  web build pass.
 
 ## 2.67.0 — 2026-11-15
 
