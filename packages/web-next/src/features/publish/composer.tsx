@@ -136,14 +136,6 @@ const MEDIA_RULE: Record<Format, string> = {
 
 type WhenChoice = 'now' | 'schedule'
 
-/** How a failed post says so, while the owner picks (`?banner=a|b|c`). */
-type NoteLook = 'a' | 'b' | 'c' | null
-const noSubscribe = () => () => undefined
-function noteLookOf(): NoteLook {
-  const l = new URLSearchParams(window.location.search).get('banner')
-  return l === 'a' || l === 'b' || l === 'c' ? l : null
-}
-
 /** Which accounts a detail is sent to. A detail with none of them selected stays hidden. */
 const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]> = {
   comment: ['ig', 'fb'],
@@ -284,6 +276,17 @@ export function Composer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [reconnected, setReconnected] = React.useState(false)
+  // A failed post's note: the page opens on it, wherever the scroll was left.
+  const failNote = React.useRef<HTMLDivElement>(null)
+  const failedNow = post?.stage === 'failed'
+  React.useEffect(() => {
+    const note = failNote.current
+    if (!failedNow || !note) return
+    const top = note.getBoundingClientRect().top
+    if (top < 0 || top > window.innerHeight * 0.6) {
+      note.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    }
+  }, [failedNow, post?.id])
   // The post as it opened: after a retry the live post is no longer failed, and a second send
   // (after "Edit post") must still keep the accounts it had reached.
   const [opened] = React.useState(post)
@@ -484,7 +487,6 @@ export function Composer({
   const sendKey = React.useRef('')
   /** The post this page saved last: the one a live send follows. */
   const [sentId, setSentId] = React.useState<string | null>(null)
-  const noteLook = React.useSyncExternalStore(noSubscribe, noteLookOf, () => null)
   // Post now was pressed while something stopped it: the line under the buttons says what.
   const [nowAsked, setNowAsked] = React.useState(false)
   // A new post the server has stored: from then on a save moves it instead of making it.
@@ -1155,25 +1157,6 @@ export function Composer({
       ),
     },
   }
-  // A failed post on the core, said quietly (looks A, B, C): why, the fix, and the way out.
-  const quietFail = remote && post?.stage === 'failed' && noteLook !== null
-  const failReason = quietFail && (
-    <>
-      <span>{failedWhy?.text ?? post?.error}</span>
-      {failedWhy?.connect && (
-        <ConnectLink label={failedAll.length === 1 ? `Connect ${failedName}` : 'Connect'} />
-      )}
-    </>
-  )
-  const draftsLink = quietFail && !partlyOut && (
-    <button
-      type="button"
-      onClick={() => void unschedule()}
-      className="font-medium text-ink transition-colors hover:text-ink-2"
-    >
-      Move to drafts
-    </button>
-  )
   const whenText = when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`
   const moreText = moreSummary(draft, labels, media)
   const moreNeeds = active.some((c) => summaryOf(draft, extra)[c.key].needs)
@@ -1184,18 +1167,9 @@ export function Composer({
         {/* A post that exists says where it is; a new one is new, as its title says. */}
         {post && (
           <span className="flex items-center justify-between gap-3">
-            {quietFail && noteLook === 'c' ? (
-              <span className="flex items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 py-[2px] text-[12px] font-medium text-fail-ink">
-                <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
-                Not posted
-              </span>
-            ) : quietFail && noteLook === 'a' ? (
-              <span />
-            ) : (
-              <span className="rounded-full bg-surface px-2 py-[2px] text-[12px] font-medium text-ink-2">
-                {STAGE_LABEL[post.stage]}
-              </span>
-            )}
+            <span className="rounded-full bg-surface px-2 py-[2px] text-[12px] font-medium text-ink-2">
+              {STAGE_LABEL[post.stage]}
+            </span>
             {!readOnly && (
               <PostMenu
                 onUnschedule={
@@ -1210,26 +1184,6 @@ export function Composer({
         <h1 className="font-display text-[34px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
           {post ? post.hook : 'New post'}
         </h1>
-        {quietFail && noteLook === 'c' && (
-          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-[14px] text-ink-3">
-            {failReason}
-            {draftsLink && <span aria-hidden="true">·</span>}
-            {draftsLink}
-          </p>
-        )}
-        {quietFail && noteLook === 'a' && (
-          <p
-            role="alert"
-            className="bb-alert flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-[14px] text-ink-3"
-          >
-            <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
-            <span className="font-medium text-fail-ink">Not posted · {post!.slot}</span>
-            <span aria-hidden="true">·</span>
-            {failReason}
-            {draftsLink && <span aria-hidden="true">·</span>}
-            {draftsLink}
-          </p>
-        )}
       </header>
       {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-line bg-page px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] md:hidden">
@@ -1241,44 +1195,23 @@ export function Composer({
         <div className="flex items-center gap-2">{actions}</div>
       </div>
 
-      {quietFail && noteLook === 'b' && (
+      {post?.stage === 'failed' && (
         <div
           role="alert"
-          className="bb-alert flex items-center gap-3 rounded-[18px] bg-page px-5 py-4 shadow-[0_0_0_1px_var(--line)] max-md:flex-wrap"
-        >
-          <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
-          <span className="flex flex-1 flex-col gap-0.5 text-[13.5px] leading-[1.4]">
-            <span className="font-medium text-ink">Not posted on {post!.slot}</span>
-            <span className="flex flex-wrap items-center gap-x-1.5 text-ink-3">{failReason}</span>
-          </span>
-          {!partlyOut && (
-            <button
-              type="button"
-              onClick={() => void unschedule()}
-              className="h-9 shrink-0 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-11 max-md:w-full"
-            >
-              Move to drafts
-            </button>
-          )}
-        </div>
-      )}
-      {post?.stage === 'failed' && !quietFail && (
-        <div
-          role="alert"
-          className={`bb-alert flex items-center gap-3 rounded-[14px] px-4 py-3 transition-colors max-md:flex-wrap ${reconnected ? 'bg-(--insight-1) shadow-[inset_0_0_0_1px_var(--insight-2)]' : 'bg-(--fail-soft) shadow-[inset_0_0_0_1px_var(--fail-line)]'}`}
+          ref={failNote}
+          // It comes in from above with two soft red rings, so the eye goes to the top first.
+          className={`flex items-center gap-3 rounded-[18px] bg-page px-5 py-4 shadow-[0_0_0_1px_var(--line)] max-md:flex-wrap ${reconnected ? '' : 'bb-attn'}`}
         >
           {reconnected ? (
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-(--insight-5) text-page">
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-(--insight-5) text-page">
               <CheckIcon size={8} strokeWidth={2.4} />
             </span>
           ) : (
-            <span className="bb-beacon ml-1.5 size-2 shrink-0 rounded-full bg-fail" />
+            <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
           )}
-          <span className="flex flex-1 flex-col text-[13px] leading-[1.35] max-md:basis-[calc(100%-36px)]">
-            <span className={`font-medium ${reconnected ? 'text-ink' : 'text-fail-ink'}`}>
-              {reconnected
-                ? `${failedName} is connected again.`
-                : `This post did not go out at ${post.slot}.`}
+          <span className="flex flex-1 flex-col gap-0.5 text-[13.5px] leading-[1.4] max-md:basis-[calc(100%-36px)]">
+            <span className="font-medium text-ink">
+              {reconnected ? `${failedName} is connected again.` : `Not posted on ${post.slot}`}
             </span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-ink-3">
               {reconnected
@@ -1299,7 +1232,7 @@ export function Composer({
             <button
               type="button"
               onClick={() => void unschedule()}
-              className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)] max-md:h-11 max-md:w-full"
+              className="bb-press h-9 shrink-0 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-11 max-md:w-full"
             >
               Move to drafts
             </button>
@@ -1312,7 +1245,7 @@ export function Composer({
                 // The account that failed is connected again, and the post goes to it.
                 if (!draft.connected.includes(failedKey)) api.connect(failedKey)
               }}
-              className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)] max-md:h-11 max-md:w-full"
+              className="bb-press h-9 shrink-0 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-11 max-md:w-full"
             >
               Reconnect {failedName}
             </button>

@@ -26,6 +26,11 @@ Plan: `post-now-plan.md`. Version 2.69.0. No server or pack change.
   link, and "Move to drafts" clears it in one press. On the calendar, "N failed" opens the one post,
   or a short list of them on any week; nothing shows when none failed, so another brand no longer
   shows "None failed". An "only failed" filter clears itself once none is left.
+- The failed note is a white card, as the page's other cards (the owner's pick of three, tried
+  behind `?banner=`): it comes down with two red rings and its dot rings four times (none with
+  reduced motion), and the page scrolls to it. A failed post whose day has gone opens on the next
+  free slot instead of the old day, which showed as a black chip beside the week and greyed out
+  Schedule with "Pick a day ahead."
 - The demo's word "Publish now" became "Post now"; the demo still sends on its timer.
 
 ### Verified

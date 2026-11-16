@@ -107,27 +107,40 @@
     opacity: 1;
   }
 }
-/* A failed post: its note rises in with a short nudge, and its red dot sends out a ring. */
-@keyframes bb-alert {
+/* A failed post's red dot sends out a ring. */
+/* The failed note comes down into place, then two red rings go out from its edge and fade. */
+@keyframes bb-attn {
   0% {
-    transform: translateY(6px);
+    transform: translateY(-10px);
     opacity: 0;
+    box-shadow: 0 0 0 1px var(--line);
   }
-  40% {
-    transform: translateY(0);
+  22% {
+    transform: none;
     opacity: 1;
+    box-shadow:
+      0 0 0 1px var(--fail-line),
+      0 0 0 0 color-mix(in oklab, var(--fail) 45%, transparent);
   }
-  55% {
-    transform: translateX(-4px);
+  52% {
+    box-shadow:
+      0 0 0 1px var(--fail-line),
+      0 0 0 16px color-mix(in oklab, var(--fail) 0%, transparent);
   }
-  70% {
-    transform: translateX(3px);
+  53% {
+    box-shadow:
+      0 0 0 1px var(--fail-line),
+      0 0 0 0 color-mix(in oklab, var(--fail) 38%, transparent);
   }
   85% {
-    transform: translateX(-1.5px);
+    box-shadow:
+      0 0 0 1px var(--fail-line),
+      0 0 0 16px color-mix(in oklab, var(--fail) 0%, transparent);
   }
   100% {
     transform: none;
+    opacity: 1;
+    box-shadow: 0 0 0 1px var(--line);
   }
 }
 @keyframes bb-beacon {
@@ -219,8 +232,8 @@
 @utility bb-pop {
   animation: bb-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-@utility bb-alert {
-  animation: bb-alert 640ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+@utility bb-attn {
+  animation: bb-attn 2.2s 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 /* Four rings, then the dot rests: it says so, and does not keep on. */
 @utility bb-beacon {

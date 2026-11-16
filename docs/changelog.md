@@ -157,6 +157,11 @@ One line each — full write-ups are under the matching `##` heading further dow
   jobs (the brand reloads every 4 s, at most 5 minutes; only reads after the send count). An account
   that is planned only beside them shows "Planned only" and holds nothing up. Every account failed
   reads "Not posted" with a cross. The demo's word changed from "Publish now" to "Post now".
+- **Failed post page.** The failed note is a white card like the rest of the page (the owner's
+  pick of three): "Not posted on <slot>", the reason in plain words, Connect and a quiet "Move to
+  drafts". It comes down into place with two red rings, and its dot rings four times, so the eye
+  goes to the top; the page scrolls to it if needed. A failed post whose day has gone opens on the
+  next free slot, so Schedule works at once.
 - **Review.** Two passes. The first fixed: an account with no job (TikTok beside Instagram, or Facebook on a
   Story it cannot post) stayed "Sending" for ever; "Post now" stayed picked once a post turned
   planned only; the page said nothing after its 5 minutes; "Not posted" could show with no account.
