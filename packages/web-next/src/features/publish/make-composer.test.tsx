@@ -104,14 +104,12 @@ async function land() {
 }
 
 describe('the composer with Instagram through Make', () => {
-  it('sends only Instagram, offers no TikTok beside it, and never offers Publish now', async () => {
+  it('sends only Instagram, and offers no TikTok beside it', async () => {
     open()
     tick('Instagram')
     // TikTok is planned only beside Make: not offered next to accounts that post.
     expect(screen.queryAllByRole('checkbox', { name: /TikTok/ })).toEqual([])
     tick('Facebook', false)
-    expect(screen.queryByRole('radio', { name: 'Publish now' })).toBeNull()
-    expect(screen.queryByText('Publish now')).toBeNull()
     reschedule()
     await land()
     const patch = requests.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/ravioli')

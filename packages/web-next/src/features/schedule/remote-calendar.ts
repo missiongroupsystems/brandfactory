@@ -116,6 +116,9 @@ export function postOf(p: ServerPost): Post {
     .map((j) => j.channel as NonNullable<Post['waiting']>[number])
   // A live job's error is a note, not a failure: the post went out.
   const notes = p.jobs.flatMap((j) => (j.status === 'live' && j.error ? [j.error] : []))
+  const sends: NonNullable<Post['sends']> = Object.fromEntries(
+    p.jobs.map((j) => [j.channel, { status: j.status, ...(j.error && { error: j.error }) }]),
+  )
   return {
     id: p.id,
     format: p.format,
@@ -138,6 +141,7 @@ export function postOf(p: ServerPost): Post {
     }),
     ...(waiting.length > 0 && { waiting }),
     ...(notes.length > 0 && { notes }),
+    ...(p.jobs.length > 0 && { sends }),
   }
 }
 

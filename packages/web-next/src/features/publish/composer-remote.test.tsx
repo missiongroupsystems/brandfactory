@@ -10,6 +10,8 @@ import { DEMO_TODAY, setToday } from '@/lib/dates'
 import type * as NotAvailable from '@/features/connections/not-available'
 import type * as Remote from '@/lib/remote'
 
+import { demoAsCore } from '@/test-core-state'
+
 import { Composer } from './composer'
 
 // The composer on the API: `sent` stands in for the server's answer, which the test hands back
@@ -24,12 +26,20 @@ const requests: string[] = []
 // The same requests with what they carried, for a test that reads a body.
 const bodies: Array<{ call: string; body: unknown }> = []
 // The brand's state, as the core sends it, once the test begins.
-const core = vi.hoisted(() => ({ loaded: false, fbText: '' as string, storyToday: false }))
+const core = vi.hoisted(() => ({
+  loaded: false,
+  fbText: '' as string,
+  storyToday: false,
+  /** The jobs a later read of the brand gives a post, by post id: a send's answers. */
+  jobs: {} as Record<string, unknown[]>,
+  /** The stores' own hydrate calls, so a read of the brand reaches them again. */
+  hydrators: [] as Array<(id: string, state: unknown) => void>,
+}))
 // What the composer says on the app's message line, and where it goes after.
 const told = vi.hoisted(() => ({
   report: vi.fn(),
   push: vi.fn(),
-  load: vi.fn(async () => undefined),
+  load: vi.fn(async (): Promise<void> => undefined),
 }))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
@@ -67,7 +77,11 @@ vi.mock('@/lib/remote', async (original) => {
           jobs: [],
         })
       }
+      for (const p of state.posts as Array<{ id: string; jobs: unknown[] }>) {
+        if (core.jobs[p.id]) p.jobs = core.jobs[p.id]!
+      }
       hydrate('casa-vostra', state)
+      core.hydrators.push(hydrate)
       return () => undefined
     },
   }
@@ -105,6 +119,10 @@ beforeEach(() => {
   bodies.length = 0
   core.fbText = ''
   core.storyToday = false
+  core.jobs = {}
+  core.hydrators.length = 0
+  told.load.mockReset()
+  told.load.mockImplementation(async () => undefined)
   told.report.mockClear()
   told.push.mockClear()
 })
@@ -563,5 +581,175 @@ describe('the composer on the API', () => {
     expect(dialog.queryByRole('button', { name: /^Today/ })).toBeNull()
     expect(dialog.getByRole('button', { name: 'Tomorrow 18:00' })).toBeInTheDocument()
     expect(dialog.queryByRole('button', { name: 'Tomorrow 21:00' })).toBeNull()
+  })
+})
+
+/** A read of the brand: the stores get its state again, with the jobs the test set. */
+function reread() {
+  const state = demoAsCore('casa-vostra')
+  for (const p of state.posts as Array<{ id: string; jobs: unknown[] }>) {
+    if (core.jobs[p.id]) p.jobs = core.jobs[p.id]!
+  }
+  for (const hydrate of core.hydrators) hydrate('casa-vostra', state)
+}
+
+const job = (channel: string, status: string, error: string | null = null) => ({
+  id: `ravioli:${channel}`,
+  channel,
+  status,
+  error,
+  runAt: '2026-10-06T02:00:00.000Z',
+})
+
+describe('posting now on the core', () => {
+  /** The ravioli post, sent with Post now. */
+  function postNow() {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer post={{ ...crust, waiting: ['ig'] }} />
+        </Loaded>
+      </BrandProvider>,
+    )
+    // Post now: the quiet button beside the main one, which sends at once.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Post now' })[0]!)
+  }
+
+  it('sends the post now, then follows each account until its job answers', async () => {
+    vi.useRealTimers()
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(DEMO_CLOCK)
+    told.load.mockImplementation(async () => act(() => reread()))
+    postNow()
+    await land(null)
+    const sendCall = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    expect(sendCall?.body).toMatchObject({ when: 'now' })
+    const channels = (sendCall!.body as { channels: string[] }).channels
+    // Handed over: each account is sending, and nothing here can send it twice.
+    expect(screen.getByRole('heading', { name: 'Publishing' })).toBeInTheDocument()
+    expect(screen.getAllByText('Sending')).toHaveLength(channels.length)
+    expect(screen.queryByRole('button', { name: 'Edit post' })).toBeNull()
+    // The first read after the send: still waiting.
+    core.jobs.ravioli = channels.map((c) => job(c, 'scheduled'))
+    await act(async () => vi.advanceTimersByTime(4_000))
+    expect(screen.getAllByText('Sending')).toHaveLength(channels.length)
+    // Then each account answers.
+    core.jobs.ravioli = channels.map((c) => job(c, 'live'))
+    await act(async () => vi.advanceTimersByTime(4_000))
+    expect(screen.getByRole('heading', { name: 'Live everywhere' })).toBeInTheDocument()
+    expect(screen.getAllByText('Live')).toHaveLength(channels.length)
+    // Answered: no more reads.
+    const reads = told.load.mock.calls.length
+    await act(async () => vi.advanceTimersByTime(12_000))
+    expect(told.load.mock.calls.length).toBe(reads)
+  })
+
+  it('shows the job’s own reason for an account that failed, and offers no demo retry', async () => {
+    vi.useRealTimers()
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(DEMO_CLOCK)
+    told.load.mockImplementation(async () => act(() => reread()))
+    postNow()
+    await land(null)
+    const sendCall = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    const channels = (sendCall!.body as { channels: string[] }).channels
+    const reason = 'Instagram could not reach @pran._.av. It tags and invites public accounts only.'
+    core.jobs.ravioli = channels.map((c) => job(c, 'failed', reason))
+    await act(async () => vi.advanceTimersByTime(4_000))
+    expect(screen.getAllByText(reason)).toHaveLength(channels.length)
+    // Every account failed: nothing went out, and the page says so, with no tick.
+    expect(screen.getByRole('heading', { name: 'Not posted' })).toBeInTheDocument()
+    expect(screen.getByText(`${channels.length} accounts need you.`)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reconnect and retry' })).toBeNull()
+  })
+
+  it('reads none of the post’s old jobs as an answer before the first read after the send', async () => {
+    // The post failed before: its old job must not show as this send's answer.
+    core.jobs.ravioli = [job('ig', 'failed', 'An old refusal.')]
+    told.load.mockImplementation(async () => undefined)
+    postNow()
+    await land(null)
+    expect(screen.queryByText('An old refusal.')).toBeNull()
+    expect(screen.getAllByText('Sending').length).toBeGreaterThan(0)
+  })
+})
+
+describe('a failed post on the core', () => {
+  it('says why in plain words, links to Connections, and clears to a draft in one press', async () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer
+            post={{ ...crust, stage: 'failed', error: 'no connector social', failedOn: 'ig' }}
+          />
+        </Loaded>
+      </BrandProvider>,
+    )
+    const banner = screen.getByRole('alert')
+    expect(within(banner).getByText('Instagram is not set up for posting yet.')).toBeInTheDocument()
+    expect(within(banner).queryByText('no connector social')).toBeNull()
+    expect(within(banner).getByRole('link', { name: /Connect Instagram/ })).toHaveAttribute(
+      'href',
+      '/brand/connections',
+    )
+    fireEvent.click(within(banner).getByRole('button', { name: 'Move to drafts' }))
+    await land(null)
+    const mark = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/mark')
+    expect(mark?.body).toEqual({ stage: 'draft' })
+    expect(told.report).toHaveBeenCalledWith('Moved to drafts')
+  })
+})
+
+describe('Post now on a failed post on the core', () => {
+  it('sends on the first press, though its day is past', async () => {
+    // 13:00 on Thu 8 Oct: the ravioli post's 12:00 has gone, and it failed.
+    setToday('2026-10-08')
+    vi.setSystemTime(new Date('2026-10-08T05:00:00Z'))
+    try {
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer
+              post={{ ...crust, stage: 'failed', error: 'no connector social', failedOn: 'ig' }}
+            />
+          </Loaded>
+        </BrandProvider>,
+      )
+      fireEvent.click(screen.getAllByRole('button', { name: 'Post now' })[0]!)
+      await land(null)
+      const send = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+      expect(send?.body).toMatchObject({ when: 'now' })
+    } finally {
+      setToday(DEMO_TODAY)
+    }
+  })
+
+  it('names each account’s own reason, and keeps Move to drafts away once one account has it', () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer
+            post={{
+              ...crust,
+              stage: 'failed',
+              error: 'no connector social',
+              failedOn: 'fb',
+              sends: {
+                ig: { status: 'live' },
+                fb: {
+                  status: 'failed',
+                  error: 'Facebook did not answer. Nothing was posted. Try again.',
+                },
+              },
+            }}
+          />
+        </Loaded>
+      </BrandProvider>,
+    )
+    const banner = screen.getByRole('alert')
+    expect(
+      within(banner).getByText(/Facebook did not answer\. Try again in a few minutes\./),
+    ).toBeInTheDocument()
+    expect(within(banner).queryByRole('button', { name: 'Move to drafts' })).toBeNull()
   })
 })

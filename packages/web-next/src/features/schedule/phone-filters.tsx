@@ -58,11 +58,11 @@ export function PhoneFilters({
       {open && (
         <Sheet title="Show" onClose={close}>
           <div className="flex flex-col gap-6 pt-1">
-            {(failed.length > 0 || failedOnly) && (
+            {failed.length > 0 && (
               <div className="flex min-h-12 items-center justify-between gap-4 rounded-[14px] bg-(--fail-soft) px-4 py-3">
                 <span className="flex items-center gap-2.5 text-[14px] font-medium text-fail-ink">
                   <span className="size-2 shrink-0 rounded-full bg-fail shadow-[0_0_0_3px_color-mix(in_oklab,var(--fail)_16%,transparent)]" />
-                  {failed.length === 0 ? 'None failed' : `Only the ${failed.length} failed`}
+                  {`Only the ${failed.length} failed`}
                 </span>
                 <Switch
                   label="Only the posts that did not go out"

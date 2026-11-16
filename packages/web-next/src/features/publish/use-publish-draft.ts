@@ -75,7 +75,7 @@ export function saveLastAccounts(brand: string, keys: ChannelKey[]) {
 /**
  * The draft and the simulated send, for any publish view.
  *
- * The demo has no server, so "Publish now" is a timer: each channel uploads at its own pace,
+ * The demo has no server, so "Post now" is a timer: each channel uploads at its own pace,
  * LinkedIn fails at the end (a signed-out account, the commonest real failure), and Reconnect
  * sends it again. A brand without LinkedIn sees every account go live. The timings are slow enough to watch and short enough not to bore a room.
  */
@@ -134,13 +134,24 @@ export function usePublishDraft(input: {
   }, [])
 
   // `when` can be passed in, so a view that sets it and sends in one click does not wait a render.
+  // `live`: the accounts the core sent it to. Each waits for its job's answer (`follow`), no
+  // timer; an account not among them (planned only) is shown as such and waited for by nothing.
   const send = React.useCallback(
-    (when: When = draft.when) => {
+    (when: When = draft.when, live?: readonly ChannelKey[]) => {
       if (rawPhase !== 'compose' || blockers(draft, { tiktokDraft: remote }).length > 0) return
       const keys = activeChannels(draft).map((c) => c.key)
       if (when === 'slot') {
         setOutcomes(Object.fromEntries(keys.map((k) => [k, { state: 'scheduled' } as Outcome])))
         setPhase('scheduled')
+        return
+      }
+      if (live) {
+        setOutcomes(
+          Object.fromEntries(
+            keys.map((k) => [k, { state: live.includes(k) ? 'sending' : 'scheduled' } as Outcome]),
+          ),
+        )
+        setPhase('publishing')
         return
       }
       setOutcomes(
@@ -151,6 +162,11 @@ export function usePublishDraft(input: {
     },
     [draft, rawPhase, upload],
   )
+
+  /** Each account's answer as the core has it, while a live send is followed. */
+  const follow = React.useCallback((next: Partial<Record<ChannelKey, Outcome>>) => {
+    setOutcomes((o) => ({ ...o, ...next }))
+  }, [])
 
   const retry = React.useCallback(
     (key: ChannelKey) => {
@@ -170,10 +186,23 @@ export function usePublishDraft(input: {
 
   // Done is a fact about the channels, not a timer: a timer set for the first batch fired early
   // when Reconnect started a second upload after it.
-  const uploading = Object.values(outcomes).some((o) => o?.state === 'uploading')
+  const uploading = Object.values(outcomes).some(
+    (o) => o?.state === 'uploading' || o?.state === 'sending',
+  )
   const phase: Phase = rawPhase === 'publishing' && !uploading ? 'done' : rawPhase
 
-  return { draft, update, toggleChannel, connect, phase, outcomes, send, retry, backToCompose }
+  return {
+    draft,
+    update,
+    toggleChannel,
+    connect,
+    phase,
+    outcomes,
+    send,
+    follow,
+    retry,
+    backToCompose,
+  }
 }
 
 export type PublishDraftApi = ReturnType<typeof usePublishDraft>

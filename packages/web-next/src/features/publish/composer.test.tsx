@@ -243,12 +243,21 @@ describe('a new post in the demo', () => {
     expect(screen.getByText('A Reel is a video: this is a photo.')).toBeInTheDocument()
   })
 
-  it('keeps Publish now behind a menu on the button, never a bare button', () => {
+  it('offers Post now as a quiet button beside Schedule', () => {
     show()
-    expect(screen.queryByRole('button', { name: 'Publish now' })).toBeNull()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Other ways to send' })[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish now' }))
-    expect(screen.getAllByRole('button', { name: /^Post on/ })[0]).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^Schedule/ })[0]).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Post now' })[0]).toBeInTheDocument()
+  })
+
+  it('posts at once from Post now, when the post can go', async () => {
+    show()
+    upload('pasta.jpg')
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(1))
+    fireEvent.change(screen.getAllByRole('textbox', { name: /caption/i })[0]!, {
+      target: { value: 'Fresh pasta tonight.' },
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Post now' })[0]!)
+    expect(await screen.findByRole('heading', { name: 'Publishing' })).toBeInTheDocument()
   })
 
   it('keeps what the post holds when an add goes over the limit, and says how many were left out', async () => {
