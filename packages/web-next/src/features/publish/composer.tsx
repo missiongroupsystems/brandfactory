@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import { Confetti } from '@/components/confetti'
 import { Fold, Segmented, Switch } from '@/components/controls'
 import {
+  ArrowUpRightIcon,
   CheckIcon,
   ChevronIcon,
   CloseIcon,
@@ -43,6 +44,7 @@ import { mediaItem } from '@/lib/remote-days'
 import { CropEditor } from './crop-editor'
 import { PublicNote } from './account-check'
 import { cutPhoto, knownCut } from './cut'
+import { reasonFor } from './reasons'
 import { useInvites } from './invites'
 import { DriveGlyph, DrivePicker, trap } from './drive-picker'
 import { DropZone } from './drop-zone'
@@ -131,6 +133,15 @@ const MEDIA_RULE: Record<Format, string> = {
 }
 
 type WhenChoice = 'now' | 'schedule'
+
+/** Where Post now sits, while the owner picks: A a day chip, B a switch, C a button. */
+type Look = 'a' | 'b' | 'c' | null
+
+const noSubscribe = () => () => undefined
+function lookOf(): Look {
+  const l = new URLSearchParams(window.location.search).get('look')
+  return l === 'a' || l === 'b' || l === 'c' ? l : null
+}
 
 /** Which accounts a detail is sent to. A detail with none of them selected stays hidden. */
 const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]> = {
@@ -450,6 +461,8 @@ export function Composer({
   const sendKey = React.useRef('')
   /** The post this page saved last: the one a live send follows. */
   const [sentId, setSentId] = React.useState<string | null>(null)
+  // The way to post now being tried (`?look=a|b|c`): none on the server, the address's in the browser.
+  const look = React.useSyncExternalStore(noSubscribe, lookOf, () => null)
   // A new post the server has stored: from then on a save moves it instead of making it.
   const created = React.useRef(false)
   // Sent and on the way back to the calendar: a second press in that moment sends nothing.
@@ -710,11 +723,11 @@ export function Composer({
     return true
   }
 
-  async function primary() {
+  async function primary(choice: WhenChoice = when) {
     if (stuck || waiting || submitted.current) return
     // The clock moved on since the page last drew: check the time again before it goes out.
-    if (when === 'schedule' && tooSoon(brand.id, date, time)) return tick()
-    const how = when === 'now' ? 'now' : 'slot'
+    if (choice === 'schedule' && tooSoon(brand.id, date, time)) return tick()
+    const how = choice === 'now' ? 'now' : 'slot'
     update({ when: how })
     if (remote) {
       sendKey.current ||= newId()
@@ -927,7 +940,7 @@ export function Composer({
       aria-disabled={stuck}
       aria-label={logos.length > 0 ? `${label} ${namesOf(logos)}` : undefined}
       aria-busy={waiting === 'send'}
-      onClick={primary}
+      onClick={() => void primary()}
       className={`flex h-10 min-w-0 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:flex-1 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
     >
       {waiting === 'send' ? (
@@ -948,9 +961,34 @@ export function Composer({
   )
   // A post that became planned only (its last account that posts unticked) cannot go now.
   if (remote && planned && when === 'now') setWhen('schedule')
-  // A post can also go out at once. It sits in a menu on the button, so no stray click sends a
-  // post out early. Not where nothing would be sent: a planned-only post, one that cannot change.
-  const nowMenu = !(remote && planned) && !readOnly && <NowMenu when={when} setWhen={setWhen} />
+  // A post can also go out at once, but not where nothing would be sent: a planned-only post, or
+  // one that cannot change. Where the choice sits is being picked (`?look=a|b|c`); with no look
+  // it is a menu on the button, so no stray click sends a post out early.
+  const canNow = !(remote && planned) && !readOnly
+  const nowMenu = canNow && !look && <NowMenu when={when} setWhen={setWhen} />
+  // Looks A and B: Now is a choice in the When card itself, beside the days.
+  const nowChoice =
+    canNow && (look === 'a' || look === 'b')
+      ? {
+          on: when === 'now',
+          set: (on: boolean) => setWhen(on ? 'now' : 'schedule'),
+          style: look,
+        }
+      : undefined
+  // Look C: Post now is its own quiet button beside the main one, and sends at once.
+  const nowButton = canNow && look === 'c' && when === 'schedule' && (
+    <button
+      type="button"
+      aria-disabled={stuck}
+      onClick={() => {
+        setWhen('now')
+        void primary('now')
+      }}
+      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[14px] font-medium transition-colors max-md:h-12 ${stuck ? 'cursor-not-allowed text-ink-4' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+    >
+      Post now
+    </button>
+  )
   /** The quiet way out: the post goes on the calendar as a draft, finished or not, or keeps its stage. */
   const draftButton = (
     <button
@@ -981,12 +1019,14 @@ export function Composer({
   // A scheduled post has no second save button beside its one action.
   const actions = oneAction ? (
     <>
+      {nowButton}
       {resend ? send : saveMain}
       {nowMenu}
     </>
   ) : (
     <>
       {draftButton}
+      {nowButton}
       {send}
       {nowMenu}
     </>
@@ -1075,6 +1115,7 @@ export function Composer({
           time={time}
           setTime={setTime}
           freeDay={freeDay}
+          now={nowChoice}
           bare
         />
       ),
@@ -1260,13 +1301,15 @@ export function Composer({
             self={post?.id}
           />
           {/* The demo can post at once: then there is no day or hour to pick. */}
-          {when === 'schedule' && (
+          {/* Looks A and B keep the card: Now is picked in it. */}
+          {(when === 'schedule' || nowChoice) && (
             <WhenPanel
               date={date}
               setDate={setDate}
               time={time}
               setTime={setTime}
               freeDay={freeDay}
+              now={nowChoice}
             />
           )}
           <div className="flex items-center justify-end gap-2">{actions}</div>
@@ -2046,6 +2089,7 @@ function WhenPanel({
   time,
   setTime,
   freeDay,
+  now,
   bare,
 }: {
   date: string
@@ -2053,6 +2097,8 @@ function WhenPanel({
   time: string
   setTime: (t: string) => void
   freeDay?: (day: string) => string
+  /** Post now as a choice here: A a chip before the days, B a switch above them. */
+  now?: { on: boolean; set: (on: boolean) => void; style: 'a' | 'b' }
   /** In the phone's sheet: no card of its own. */
   bare?: boolean
 }) {
@@ -2084,70 +2130,106 @@ function WhenPanel({
       aria-label="When"
       className={`flex flex-col gap-4 ${bare ? '' : 'rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)]'}`}
     >
-      <div className="flex items-center gap-1">
-        {week.map((d) => {
-          const on = d === date
-          return (
+      {now?.style === 'b' && (
+        <Segmented<'schedule' | 'now'>
+          label="When it goes out"
+          pill
+          value={now.on ? 'now' : 'schedule'}
+          onChange={(v) => now.set(v === 'now')}
+          options={[
+            { value: 'schedule', label: 'Schedule' },
+            { value: 'now', label: 'Now' },
+          ]}
+        />
+      )}
+      {now?.on && now.style === 'b' ? null : (
+        <div className="flex items-center gap-1">
+          {now?.style === 'a' && (
             <button
-              key={d}
               type="button"
-              aria-pressed={on}
-              onClick={() => setDate(d)}
-              className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-[12px] transition-colors ${on ? 'bg-ink text-page' : 'text-ink hover:bg-surface'}`}
+              aria-pressed={now.on}
+              onClick={() => now.set(true)}
+              className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-1 rounded-[12px] transition-colors ${now.on ? 'bg-ink text-page' : 'text-ink hover:bg-surface'}`}
             >
-              <span className={`text-[12px] ${on ? 'text-page/70' : 'text-ink-4'}`}>
-                {d === today
-                  ? 'Today'
-                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekdayOf(d)]}
-              </span>
-              <span className="text-[15px] font-medium tabular-nums">{dayNumber(d)}</span>
-              {d === bestDay && !on && (
-                <span className="absolute bottom-1.5 size-1 rounded-full bg-(--insight-5)" />
-              )}
+              <span className={`text-[12px] ${now.on ? 'text-page/70' : 'text-ink-4'}`}>Post</span>
+              <span className="text-[15px] font-medium">Now</span>
             </button>
-          )
-        })}
-        <WhenField
-          // A day off the strip shows here, picked, so the day set is always on the page.
-          className={`flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-[12px] transition-colors ${far ? 'bg-ink px-3 text-[13px] font-medium text-page' : 'w-9 text-ink-3 hover:bg-surface hover:text-ink'}`}
-          // Named by the day and the time it holds, as a date picker's button is.
-          ariaLabel={`${dayLabel(date)}, ${time}`}
-          label={
-            <>
-              <CalendarGlyph />
-              {far && dayLabel(date)}
-            </>
-          }
-        >
-          {calendar}
-        </WhenField>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 items-center gap-1.5 rounded-[10px] bg-page px-2.5 text-ink-4 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--ink)] hover:shadow-[inset_0_0_0_1px_var(--ink-4)]">
-          <ClockGlyph />
-          <TimeField
-            time={time}
-            setTime={setTime}
-            className="w-[42px] cursor-text bg-transparent text-[15px] font-medium text-ink tabular-nums outline-none"
-          />
-          <PencilIcon size={10} />
+          )}
+          {week.map((d) => {
+            const on = d === date && !now?.on
+            return (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setDate(d)
+                  now?.set(false)
+                }}
+                className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-[12px] transition-colors ${on ? 'bg-ink text-page' : 'text-ink hover:bg-surface'}`}
+              >
+                <span className={`text-[12px] ${on ? 'text-page/70' : 'text-ink-4'}`}>
+                  {d === today
+                    ? 'Today'
+                    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekdayOf(d)]}
+                </span>
+                <span className="text-[15px] font-medium tabular-nums">{dayNumber(d)}</span>
+                {d === bestDay && !on && (
+                  <span className="absolute bottom-1.5 size-1 rounded-full bg-(--insight-5)" />
+                )}
+              </button>
+            )
+          })}
+          <WhenField
+            // A day off the strip shows here, picked, so the day set is always on the page.
+            className={`flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-[12px] transition-colors ${far ? 'bg-ink px-3 text-[13px] font-medium text-page' : 'w-9 text-ink-3 hover:bg-surface hover:text-ink'}`}
+            // Named by the day and the time it holds, as a date picker's button is.
+            ariaLabel={`${dayLabel(date)}, ${time}`}
+            label={
+              <>
+                <CalendarGlyph />
+                {far && dayLabel(date)}
+              </>
+            }
+          >
+            {calendar}
+          </WhenField>
         </div>
-        {best === time ? (
-          <span className="text-[13.5px] text-(--insight-6)">Best time</span>
-        ) : (
-          best && (
-            <button
-              type="button"
-              onClick={() => setTime(best)}
-              className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
-            >
-              <SparkIcon size={9} />
-              Best time: {best}
-            </button>
-          )
-        )}
-      </div>
-      <DayChart date={date} time={time} setTime={setTime} />
+      )}
+      {now?.on ? (
+        <p className="text-[13.5px] leading-[1.45] text-ink-3">
+          It goes out as soon as you press Post now.
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 items-center gap-1.5 rounded-[10px] bg-page px-2.5 text-ink-4 shadow-[inset_0_0_0_1px_var(--line-strong)] transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--ink)] hover:shadow-[inset_0_0_0_1px_var(--ink-4)]">
+              <ClockGlyph />
+              <TimeField
+                time={time}
+                setTime={setTime}
+                className="w-[42px] cursor-text bg-transparent text-[15px] font-medium text-ink tabular-nums outline-none"
+              />
+              <PencilIcon size={10} />
+            </div>
+            {best === time ? (
+              <span className="text-[13.5px] text-(--insight-6)">Best time</span>
+            ) : (
+              best && (
+                <button
+                  type="button"
+                  onClick={() => setTime(best)}
+                  className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+                >
+                  <SparkIcon size={9} />
+                  Best time: {best}
+                </button>
+              )
+            )}
+          </div>
+          <DayChart date={date} time={time} setTime={setTime} />
+        </>
+      )}
     </section>
   )
 }
@@ -4052,15 +4134,32 @@ function Outcomes({
                       : textFor(draft, k).text
                   }
                 />
-                <OutcomePill outcome={o} planned={planned || plannedOn.includes(k)} />
               </Phone>
-              <span className="flex items-center gap-1.5 text-[13px]">
-                <PlatformLogo platform={k} size={12} />
-                {NAME[k]}
+              {/* The account and where it stands, under the phone: nothing drawn over the post. */}
+              <span className="flex items-center gap-2 text-[13px]">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <PlatformLogo platform={k} size={12} />
+                  {NAME[k]}
+                </span>
+                <OutcomeStatus outcome={o} planned={planned || plannedOn.includes(k)} />
               </span>
               {o.state === 'failed' && (
-                <span className="flex flex-col items-center gap-1.5 text-center">
-                  <span className="text-[13px] text-fail-ink">{o.reason}</span>
+                <span className="flex flex-col items-center gap-2.5 text-center">
+                  <span className="text-[13px] leading-[1.45] text-ink-2">
+                    {reasonFor(NAME[k], o.reason).text}
+                  </span>
+                  {remote && reasonFor(NAME[k], o.reason).connect && (
+                    <Link
+                      href="/brand/connections"
+                      className="group flex h-8 items-center gap-1.5 rounded-full bg-page pr-3 pl-2.5 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line-strong)] transition-[transform,box-shadow] duration-200 hover:-translate-y-px hover:shadow-lift"
+                    >
+                      <PlatformLogo platform={k} size={13} />
+                      Connect {NAME[k]}
+                      <span className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+                        <ArrowUpRightIcon size={9} />
+                      </span>
+                    </Link>
+                  )}
                   {/* On the core a failed account is retried from the post's own page. */}
                   {!remote && (
                     <button
@@ -4163,7 +4262,8 @@ function Phone({
   )
 }
 
-function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean }) {
+/** Where one account stands, as a dot and a word beside its name. */
+function OutcomeStatus({ outcome, planned }: { outcome: Outcome; planned: boolean }) {
   const label =
     outcome.state === 'scheduled'
       ? planned
@@ -4187,7 +4287,7 @@ function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean 
   return (
     <span
       key={outcome.state}
-      className={`bb-pop absolute top-2.5 right-2.5 flex items-center gap-1.5 rounded-full bg-white/95 px-[9px] py-[5px] text-[12px] font-medium shadow-[0_2px_10px_rgba(18,18,18,0.18)] ${outcome.state === 'failed' ? 'text-fail-ink' : 'text-ink'}`}
+      className={`bb-pop flex items-center gap-1.5 ${outcome.state === 'failed' ? 'text-fail-ink' : outcome.state === 'live' ? 'text-ink-2' : 'text-ink-3'}`}
     >
       <span className={`size-1.5 rounded-full ${dot}`} />
       {label}
