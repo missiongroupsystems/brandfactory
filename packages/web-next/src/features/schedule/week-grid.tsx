@@ -490,10 +490,10 @@ function WeekDay({
         <div key={post.id} className="flex flex-col gap-1.5">
           <PostTile post={post} eager={eager} onOpen={() => onOpenPost(post.id)} />
           <span
-            className={`flex items-center gap-1.5 text-[13px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
+            className={`flex flex-wrap items-center gap-x-1.5 text-[13px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
           >
             {postTime(post)}
-            {post.stage === 'failed' && <span>· Fix it</span>}
+            {post.stage === 'failed' && <span className="whitespace-nowrap">· Fix it</span>}
             <span className="flex items-center gap-1 text-ink-4">
               {channelsOf(post).map((c) => (
                 <PlatformLogo key={c} platform={c} size={10} />

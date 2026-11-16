@@ -8,6 +8,7 @@ import { isVideo, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag } from '@/components/touch-drag'
 import type { Day, FeedMark, Format, LayerKey, Post, Week } from '@/data/demo'
+import { postReason } from '@/features/publish/reasons'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 
 import type { CalendarMode } from './calendar-view'
@@ -326,7 +327,7 @@ export function PostRow({
         </span>
         {failed && post.error && (
           <span className="line-clamp-2 text-[13px] leading-[1.35] text-fail-ink">
-            {post.error}
+            {postReason(post)?.text ?? post.error}
           </span>
         )}
       </span>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { reasonFor } from './reasons'
+import type { Post } from '@/data/demo'
+
+import { postReason, reasonFor } from './reasons'
 
 describe('why an account did not take a post, in plain words', () => {
   it('turns the server’s technical words into a sentence, with Connections where that is the fix', () => {
@@ -77,5 +79,20 @@ describe('why an account did not take a post, in plain words', () => {
       text: 'Brand Base cannot post this yet. Ask your admin to finish the setup.',
       connect: false,
     })
+  })
+
+  it('says why a failed post did not go out, for every account, in one sentence', () => {
+    const post = {
+      error: 'no connector social',
+      sends: {
+        ig: { status: 'failed', error: 'no connector social' },
+        fb: { status: 'failed', error: 'no connector social' },
+      },
+    } as unknown as Post
+    expect(postReason(post)).toEqual({
+      text: 'Instagram and Facebook are not set up for posting yet.',
+      connect: true,
+    })
+    expect(postReason({ error: undefined } as unknown as Post)).toBeNull()
   })
 })

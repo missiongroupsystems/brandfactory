@@ -3,6 +3,11 @@
  * error. The server's sentences that already say what to do are kept; its technical words are
  * not. `connect`: the fix is on the Connections page.
  */
+import type { Post } from '@/data/demo'
+import { failedOn } from '@/features/schedule/failed-menu'
+
+import { namesIn } from './model'
+
 export interface Reason {
   text: string
   /** The same in a few words, for a line under the account's name. */
@@ -92,4 +97,30 @@ export function reasonFor(name: string, raw: string): Reason {
   // The server's own sentences ("Instagram takes JPEG photos only.") already say what to do.
   const text = r || `${name} did not take this post.`
   return { text, short: text, connect: false }
+}
+
+const NAME: Record<string, string> = {
+  ig: 'Instagram',
+  tt: 'TikTok',
+  yt: 'YouTube',
+  li: 'LinkedIn',
+  fb: 'Facebook',
+  pin: 'Pinterest',
+}
+
+/**
+ * Why a failed post did not go out, for every account it failed on: one sentence when they
+ * failed alike, each account's own otherwise. Null when the post has no error.
+ */
+export function postReason(post: Post): { text: string; connect: boolean } | null {
+  if (!post.error) return null
+  const all = failedOn(post)
+  const name = (k: string) => NAME[k] ?? k
+  const each = all.map((k) => reasonFor(name(k), post.sends?.[k]?.error ?? post.error!))
+  if (each.length <= 1 || each.every((r) => r.short === each[0]!.short)) {
+    const names = all.length > 1 ? namesIn(all.map(name)) : all[0] ? name(all[0]) : 'This account'
+    const one = reasonFor(names, post.sends?.[all[0]!]?.error ?? post.error)
+    return { text: one.text, connect: one.connect }
+  }
+  return { text: each.map((r) => r.text).join(' '), connect: each.some((r) => r.connect) }
 }

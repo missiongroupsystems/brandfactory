@@ -6,6 +6,7 @@ import { SparkIcon } from '@/components/icons'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
+import { postReason } from '@/features/publish/reasons'
 import { timeRange } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
 
@@ -236,7 +237,7 @@ export function DayView({
                 </span>
                 {post.stage === 'failed' && post.error && (
                   <span className="text-[11.5px] leading-[1.35] font-medium text-fail-ink">
-                    {post.error}
+                    {postReason(post)?.text ?? post.error}
                   </span>
                 )}
               </button>

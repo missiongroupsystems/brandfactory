@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1735 tests by count: 1469 pass, 266 skipped without a Postgres server.
+- **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1736 tests by count: 1470 pass, 266 skipped without a Postgres server.
 - **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
 - **2.67.0** — 2026-11-15 — `claude/clever-sagan-fyed6e`: every option on the post page reaches Meta or is hidden. Instagram gets the collaborators, each photo's tags and the first comment (pack 1.16.0, no migration; a new internal move `post.ig_media`, so loadouts need setting again); the posted view shows where each collaborator's invite stands, read live; a crop goes out as cut; Save on a scheduled post sends its waiting jobs again with a new yes (a plain Save was refused at its time); Location, the AI label and Facebook's audience are hidden on the live app. 1705 tests by count (1438 pass, 266 skipped without a Postgres server, 1 fails only on Node 22: `text.test.ts`, pinned to Node 24.13.0).
 - **2.66.6** — 2026-11-08 — `feat/meta-direct`: the second Meta review's fixes. Instagram's server errors (-1, -2) say a post or reply may have gone, not that nothing went. The webhook answers Meta 200 for a batch Postgres refuses as data (`BAD_INPUT`, `CONFLICT`). A Page whose new Instagram account is refused still gets its webhooks. Server only, no pack change. 1425 tests (264 skipped).
@@ -162,10 +162,15 @@ One line each — full write-ups are under the matching `##` heading further dow
   drafts". It comes down into place with two red rings, and its dot rings four times, so the eye
   goes to the top; the page scrolls to it if needed. A failed post whose day has gone opens on the
   next free slot, so Schedule works at once.
+- **Phone and tablet.** Checked in Chromium (Pixel 7, iPad Mini) and WebKit, Safari's engine
+  (iPhone 15, iPad Mini): no page scrolls sideways and no script error. The calendar's failed
+  posts say why in the same plain words as the post page ("no connector social" was shown as it
+  came), the card's dot sits by its first line, and "Fix it" on a narrow week column no longer
+  breaks across two lines. The Xcode iOS Simulator is not run: this session has no Mac.
 - **Review.** Two passes. The first fixed: an account with no job (TikTok beside Instagram, or Facebook on a
   Story it cannot post) stayed "Sending" for ever; "Post now" stayed picked once a post turned
   planned only; the page said nothing after its 5 minutes; "Not posted" could show with no account.
-- **Tests:** 1735 by count: 1469 pass and 266 are skipped without a Postgres server. Typecheck,
+- **Tests:** 1736 by count: 1470 pass and 266 are skipped without a Postgres server. Typecheck,
   lint, format and the web build pass. Browser: the Post now button, the sending page and the
   local core's own answer, and the live answer.
 

@@ -44,7 +44,7 @@ import { mediaItem } from '@/lib/remote-days'
 import { CropEditor } from './crop-editor'
 import { PublicNote } from './account-check'
 import { cutPhoto, knownCut } from './cut'
-import { reasonFor } from './reasons'
+import { postReason, reasonFor } from './reasons'
 import { failedOn } from '@/features/schedule/failed-menu'
 import { useInvites } from './invites'
 import { DriveGlyph, DrivePicker, trap } from './drive-picker'
@@ -60,7 +60,6 @@ import {
   improveCaption,
   initialDraft,
   inviteNote,
-  namesIn,
   isUncut,
   kindOn,
   lengthFor,
@@ -294,17 +293,8 @@ export function Composer({
   const failedName = NAME[failedKey]
   // On the core a post can fail on several accounts: the banner names each.
   const failedAll = post ? failedOn(post) : []
-  const failedNames = failedAll.length > 1 ? namesIn(failedAll.map((k) => NAME[k])) : failedName
   // Each account's own reason, from its own job: one sentence when they failed alike.
-  const failedWhy = (() => {
-    if (!post?.error) return null
-    const each = failedAll.map((k) => reasonFor(NAME[k], post.sends?.[k]?.error ?? post.error!))
-    if (each.length <= 1 || each.every((r) => r.short === each[0]!.short)) {
-      const one = reasonFor(failedNames, post.sends?.[failedAll[0]!]?.error ?? post.error)
-      return { text: one.text, connect: one.connect }
-    }
-    return { text: each.map((r) => r.text).join(' '), connect: each.some((r) => r.connect) }
-  })()
+  const failedWhy = post ? postReason(post) : null
   // A post live on one account cannot go back to drafts: the core keeps what went out.
   const partlyOut = Object.values(post?.sends ?? {}).some((j) => j?.status === 'live')
   const { draft, update, phase } = api
@@ -1203,11 +1193,11 @@ export function Composer({
           className={`flex items-center gap-3 rounded-[18px] bg-page px-5 py-4 shadow-[0_0_0_1px_var(--line)] max-md:flex-wrap ${reconnected ? '' : 'bb-attn'}`}
         >
           {reconnected ? (
-            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-(--insight-5) text-page">
+            <span className="mt-px flex size-4 shrink-0 items-center justify-center self-start rounded-full bg-(--insight-5) text-page">
               <CheckIcon size={8} strokeWidth={2.4} />
             </span>
           ) : (
-            <span className="bb-beacon size-1.5 shrink-0 rounded-full bg-fail" />
+            <span className="bb-beacon mt-[7px] size-1.5 shrink-0 self-start rounded-full bg-fail" />
           )}
           <span className="flex flex-1 flex-col gap-0.5 text-[13.5px] leading-[1.4] max-md:basis-[calc(100%-36px)]">
             <span className="font-medium text-ink">
