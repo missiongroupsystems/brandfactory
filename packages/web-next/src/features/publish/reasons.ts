@@ -14,14 +14,30 @@ export function reasonFor(name: string, raw: string): Reason {
   const r = raw.trim()
   // "Instagram and Facebook" take the plural.
   const many = / and /.test(name)
-  if (/no connector|not set up|PLATFORM_OFF|keeps no files/i.test(r)) {
+  // The server itself cannot post (no connector, no files): a setting for whoever runs it.
+  if (/keeps no files/i.test(r)) {
+    return {
+      text: 'Brand Base cannot post this yet. Ask your admin to finish the setup.',
+      short: 'Not set up yet: ask your admin',
+      connect: false,
+    }
+  }
+  if (/no connector|not set up|PLATFORM_OFF/i.test(r)) {
     return {
       text: `${name} ${many ? 'are' : 'is'} not set up for posting yet.`,
       short: 'Not set up yet',
       connect: true,
     }
   }
-  if (/connect .*(first|again)|reconnect|needs connecting|token/i.test(r)) {
+  // Never linked: "Connect Instagram first."
+  if (/connect \w+ first/i.test(r)) {
+    return {
+      text: `${name} ${many ? 'are' : 'is'} not connected yet.`,
+      short: 'Not connected yet',
+      connect: true,
+    }
+  }
+  if (/connect .*again|reconnect|needs connecting|token/i.test(r)) {
     return {
       text: `${name} ${many ? 'need' : 'needs'} to be connected again.`,
       short: 'Needs connecting again',
@@ -37,8 +53,8 @@ export function reasonFor(name: string, raw: string): Reason {
   }
   if (/waiting for a person to approve/i.test(r)) {
     return {
-      text: 'The post changed after it was scheduled. Schedule it again.',
-      short: 'Changed: schedule again',
+      text: 'This send waits for a person to approve it. Schedule it again.',
+      short: 'Waits for approval: schedule again',
       connect: false,
     }
   }
@@ -49,6 +65,13 @@ export function reasonFor(name: string, raw: string): Reason {
       connect: false,
     }
   }
+  if (/is busy/i.test(r)) {
+    return {
+      text: `${name} ${many ? 'are' : 'is'} busy. Try again in a minute.`,
+      short: 'Busy: try again soon',
+      connect: false,
+    }
+  }
   if (/did not answer|took too long|try again/i.test(r)) {
     return {
       text: `${name} did not answer. Try again in a few minutes.`,
@@ -56,10 +79,12 @@ export function reasonFor(name: string, raw: string): Reason {
       connect: false,
     }
   }
-  // Meta's own words come as "Instagram: …", often with codes: say it plainly instead.
-  if (r.startsWith(`${name}: `)) {
+  // Meta's own words come as "Instagram: …", often with codes: keep the cause, drop the codes.
+  const meta = /^(Instagram|Facebook|TikTok|Pinterest): ([^]+)$/.exec(r)
+  if (meta) {
+    const cause = meta[2]!.replace(/\(#?\d+\)\s*/g, '').trim()
     return {
-      text: `${name} did not take this post. Check the photos and the caption, then try again.`,
+      text: `${name} did not take this post${cause ? `: ${cause.replace(/\.$/, '')}` : ''}. Check the photos and the caption, then try again.`,
       short: 'Not taken: check the post',
       connect: false,
     }

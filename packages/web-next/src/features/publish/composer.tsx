@@ -284,6 +284,18 @@ export function Composer({
   // On the core a post can fail on several accounts: the banner names each.
   const failedAll = post ? failedOn(post) : []
   const failedNames = failedAll.length > 1 ? namesIn(failedAll.map((k) => NAME[k])) : failedName
+  // Each account's own reason, from its own job: one sentence when they failed alike.
+  const failedWhy = (() => {
+    if (!post?.error) return null
+    const each = failedAll.map((k) => reasonFor(NAME[k], post.sends?.[k]?.error ?? post.error!))
+    if (each.length <= 1 || each.every((r) => r.short === each[0]!.short)) {
+      const one = reasonFor(failedNames, post.sends?.[failedAll[0]!]?.error ?? post.error)
+      return { text: one.text, connect: one.connect }
+    }
+    return { text: each.map((r) => r.text).join(' '), connect: each.some((r) => r.connect) }
+  })()
+  // A post live on one account cannot go back to drafts: the core keeps what went out.
+  const partlyOut = Object.values(post?.sends ?? {}).some((j) => j?.status === 'live')
   const { draft, update, phase } = api
 
   // The media, and one line under the strip when the last add could not take everything. One
@@ -457,6 +469,8 @@ export function Composer({
   const sendKey = React.useRef('')
   /** The post this page saved last: the one a live send follows. */
   const [sentId, setSentId] = React.useState<string | null>(null)
+  // Post now was pressed while something stopped it: the line under the buttons says what.
+  const [nowAsked, setNowAsked] = React.useState(false)
   // A new post the server has stored: from then on a save moves it instead of making it.
   const created = React.useRef(false)
   // Sent and on the way back to the calendar: a second press in that moment sends nothing.
@@ -506,39 +520,48 @@ export function Composer({
       )
     : []
   const targetId = post?.id ?? madeId
-  const storyDay = when === 'now' ? todayDate() : date
-  const blocked = [
-    ...(readOnly ? ['Not on the calendar: it can be viewed, not changed.'] : []),
-    // On the core a failed account is retried as it is: the job's error says what to fix.
-    ...(post?.stage === 'failed' && !reconnected && !planOnly && !remote
-      ? [`Reconnect ${failedName} first.`]
-      : []),
-    // 6. A planned post needs a platform: the core refuses a scheduled post with none.
-    ...(planOnly && active.length === 0 ? ['Pick an account.'] : []),
-    ...(media.length === 0 ? ['Add a photo or video.'] : []),
-    ...(media.length > MEDIA_MAX[draft.format]
-      ? [`A ${draft.format} takes ${MEDIA_MAX[draft.format]}: remove the extra media.`]
-      : []),
-    ...(draft.format === 'story' && storyTaken(weeks, storyDay, targetId ?? undefined)
-      ? ['A story is already on that day: pick another.']
-      : []),
-    ...blockers(draft, { tiktokDraft: remote }),
-    ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
-    // A draft can sit on a day that has since passed: a schedule needs a day ahead.
-    ...(when === 'schedule' && date && date < brandToday(brand.id) ? ['Pick a day ahead.'] : []),
-    // Later today is fine; a time already gone would go out at once.
-    ...(when === 'schedule' && tooSoon(brand.id, date, time) ? ['Pick a time ahead.'] : []),
-    // What Make's Instagram and Facebook modules cannot post, before the server says so at its time.
-    ...(remote && !planned
-      ? makeBlockers(
-          draft.format,
-          active.map((c) => c.key).filter(goes),
-          media.map((m) => ({ src: m.src, video: isVideo(m.src) })),
-        )
-      : []),
-  ]
+  /** What stops a send now or at the slot: the day rules apply to a schedule only. */
+  const blockersFor = (choice: WhenChoice) => {
+    const storyDay = choice === 'now' ? todayDate() : date
+    return [
+      ...(readOnly ? ['Not on the calendar: it can be viewed, not changed.'] : []),
+      // On the core a failed account is retried as it is: the job's error says what to fix.
+      ...(post?.stage === 'failed' && !reconnected && !planOnly && !remote
+        ? [`Reconnect ${failedName} first.`]
+        : []),
+      // 6. A planned post needs a platform: the core refuses a scheduled post with none.
+      ...(planOnly && active.length === 0 ? ['Pick an account.'] : []),
+      ...(media.length === 0 ? ['Add a photo or video.'] : []),
+      ...(media.length > MEDIA_MAX[draft.format]
+        ? [`A ${draft.format} takes ${MEDIA_MAX[draft.format]}: remove the extra media.`]
+        : []),
+      ...(draft.format === 'story' && storyTaken(weeks, storyDay, targetId ?? undefined)
+        ? ['A story is already on that day: pick another.']
+        : []),
+      ...blockers(draft, { tiktokDraft: remote }),
+      ...(choice === 'schedule' && !date ? ['Pick a day.'] : []),
+      // A draft can sit on a day that has since passed: a schedule needs a day ahead.
+      ...(choice === 'schedule' && date && date < brandToday(brand.id)
+        ? ['Pick a day ahead.']
+        : []),
+      // Later today is fine; a time already gone would go out at once.
+      ...(choice === 'schedule' && tooSoon(brand.id, date, time) ? ['Pick a time ahead.'] : []),
+      // What Make's Instagram and Facebook modules cannot post, before the server says so at its time.
+      ...(remote && !planned
+        ? makeBlockers(
+            draft.format,
+            active.map((c) => c.key).filter(goes),
+            media.map((m) => ({ src: m.src, video: isVideo(m.src) })),
+          )
+        : []),
+    ]
+  }
+  const blocked = blockersFor(when)
+  // Post now is checked by its own rules, so a past day never stops it.
+  const blockedNow = blockersFor('now')
   // Nothing can go out: a read-only post, or a blocker (a draft may still be saved unfinished).
   const stuck = readOnly || blocked.length > 0
+  const stuckNow = readOnly || blockedNow.length > 0
   // A retry names its accounts by their logos, so the button shows exactly where it goes again.
   // Before the reconnect, the account that failed is not ticked yet: the button names it anyway.
   const retryOn = active.length > 0 ? active.map((c) => c.key) : reconnected ? [] : [failedKey]
@@ -661,8 +684,8 @@ export function Composer({
   const live = targetId && byId(targetId) ? targetId : null
 
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
-  function toCalendar(stage: Stage): string | null {
-    const day = when === 'now' ? todayDate() : date
+  function toCalendar(stage: Stage, choice: WhenChoice = when): string | null {
+    const day = choice === 'now' ? todayDate() : date
     // On the core the calendar holds exactly what the save sends.
     const channels = remote
       ? [...active.map((c) => c.key), ...others]
@@ -701,7 +724,7 @@ export function Composer({
     // From what the server stored, not from the calendar, which a reload may not have reached yet.
     // A create sent again is safe: the server returns the post its id already names.
     const isNew = !post && !created.current
-    const id = quietly(() => toCalendar(stage))
+    const id = quietly(() => toCalendar(stage, send === 'now' ? 'now' : when))
     if (!id) return false
     setSentId(id)
     setWaiting(send ? 'send' : 'save')
@@ -718,7 +741,7 @@ export function Composer({
   }
 
   async function primary(choice: WhenChoice = when) {
-    if (stuck || waiting || submitted.current) return
+    if ((choice === 'now' ? stuckNow : stuck) || waiting || submitted.current) return
     // The clock moved on since the page last drew: check the time again before it goes out.
     if (choice === 'schedule' && tooSoon(brand.id, date, time)) return tick()
     const how = choice === 'now' ? 'now' : 'slot'
@@ -728,7 +751,7 @@ export function Composer({
       // On the core a post sent now is Scheduled until its accounts answer: the page follows them.
       if (!(await stored('scheduled', how))) return
     } else {
-      toCalendar(when === 'now' ? 'posted' : 'scheduled')
+      toCalendar(choice === 'now' ? 'posted' : 'scheduled', choice)
     }
     remember()
     // Scheduled: back to the calendar, where the post now sits, with a word on when. The demo's
@@ -918,6 +941,8 @@ export function Composer({
   // What the button shown waits for: a plain Save waits only for an account; a send for all.
   const reasons = [
     ...(emptyNote && empty ? ['Nothing to save yet: add a photo or a caption.'] : []),
+    // Post now was pressed and something stops it: its own first reason, above the others.
+    ...(nowAsked && blockedNow[0] && !blocked.includes(blockedNow[0]) ? [blockedNow[0]] : []),
     ...(oneAction && !resend ? (unsaveable && !readOnly ? ['Pick an account.'] : []) : blocked),
   ]
   const hint = (all: boolean) =>
@@ -961,12 +986,13 @@ export function Composer({
   const nowButton = canNow && when === 'schedule' && (
     <button
       type="button"
-      aria-disabled={stuck}
+      aria-disabled={stuckNow}
       onClick={() => {
-        setWhen('now')
+        // Stopped: say why under the buttons. Otherwise the page follows the send.
+        if (stuckNow) return setNowAsked(true)
         void primary('now')
       }}
-      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[14px] font-medium transition-colors max-md:h-12 ${stuck ? 'cursor-not-allowed text-ink-4' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[14px] font-medium transition-colors max-md:h-12 ${stuckNow ? 'cursor-not-allowed text-ink-4' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
       Post now
     </button>
@@ -1174,16 +1200,17 @@ export function Composer({
                 ? 'Press Retry to post it now.'
                 : planOnly
                   ? 'Pick a day and press Schedule to plan it again.'
-                  : remote && post.error
-                    ? reasonFor(failedNames, post.error).text
+                  : remote && failedWhy
+                    ? failedWhy.text
                     : post.error}
-              {remote && post.error && !planOnly && reasonFor(failedNames, post.error).connect && (
+              {remote && !planOnly && failedWhy?.connect && (
                 <ConnectLink label={failedAll.length === 1 ? `Connect ${failedName}` : 'Connect'} />
               )}
             </span>
           </span>
-          {/* On the core: post it again with Post now, or clear it here by taking it to drafts. */}
-          {remote && (
+          {/* On the core: post it again with Post now, or clear it here by taking it to drafts
+              (not once one account has it: that is kept). */}
+          {remote && !partlyOut && (
             <button
               type="button"
               onClick={() => void unschedule()}

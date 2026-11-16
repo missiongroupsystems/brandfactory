@@ -36,12 +36,30 @@ export function FailedPill({ posts }: { posts: Post[] }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLSpanElement>(null)
+  const button = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
     if (!open) return
+    // The focus goes onto the first post, Up and Down move it, and Escape brings it back.
+    const items = () => [
+      ...(root.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
+    ]
+    items()[0]?.focus()
     const away = (e: PointerEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false)
     }
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        button.current?.focus()
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      e.preventDefault()
+      const list = items()
+      const at = list.indexOf(document.activeElement as HTMLElement)
+      const next = (at + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length
+      list[next]?.focus()
+    }
     document.addEventListener('pointerdown', away)
     document.addEventListener('keydown', key)
     return () => {
@@ -54,6 +72,7 @@ export function FailedPill({ posts }: { posts: Post[] }) {
   return (
     <span ref={root} className="relative flex">
       <button
+        ref={button}
         type="button"
         aria-haspopup={one ? undefined : 'menu'}
         aria-expanded={one ? undefined : open}

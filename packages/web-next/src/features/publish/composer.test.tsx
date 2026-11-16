@@ -249,6 +249,17 @@ describe('a new post in the demo', () => {
     expect(screen.getAllByRole('button', { name: 'Post now' })[0]).toBeInTheDocument()
   })
 
+  it('posts at once from Post now, when the post can go', async () => {
+    show()
+    upload('pasta.jpg')
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(1))
+    fireEvent.change(screen.getAllByRole('textbox', { name: /caption/i })[0]!, {
+      target: { value: 'Fresh pasta tonight.' },
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Post now' })[0]!)
+    expect(await screen.findByRole('heading', { name: 'Publishing' })).toBeInTheDocument()
+  })
+
   it('keeps what the post holds when an add goes over the limit, and says how many were left out', async () => {
     show()
     upload(...Array.from({ length: 10 }, (_, i) => `photo-${i}.jpg`))

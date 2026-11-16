@@ -49,9 +49,13 @@ describe('the failed mark beside the calendar title', () => {
     expect(items.map((i) => i.getAttribute('href'))).toEqual(['/post/p1', '/post/p2'])
     expect(screen.getByText('Wine list')).toBeInTheDocument()
     expect(screen.getByText('Fri 13 Nov, 18:00')).toBeInTheDocument()
-    // Escape closes it.
+    // The keys: the first post has the focus, Down moves it, Escape closes and goes back.
+    expect(document.activeElement).toBe(items[0])
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(items[1])
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '2 failed' }))
   })
 
   it('names every account a post failed on, from its jobs', () => {

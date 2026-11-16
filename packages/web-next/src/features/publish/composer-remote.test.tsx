@@ -602,7 +602,7 @@ const job = (channel: string, status: string, error: string | null = null) => ({
 })
 
 describe('posting now on the core', () => {
-  /** The ravioli post, with Post now picked from the menu on its button. */
+  /** The ravioli post, sent with Post now. */
   function postNow() {
     render(
       <BrandProvider>
@@ -697,5 +697,59 @@ describe('a failed post on the core', () => {
     const mark = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/mark')
     expect(mark?.body).toEqual({ stage: 'draft' })
     expect(told.report).toHaveBeenCalledWith('Moved to drafts')
+  })
+})
+
+describe('Post now on a failed post on the core', () => {
+  it('sends on the first press, though its day is past', async () => {
+    // 13:00 on Thu 8 Oct: the ravioli post's 12:00 has gone, and it failed.
+    setToday('2026-10-08')
+    vi.setSystemTime(new Date('2026-10-08T05:00:00Z'))
+    try {
+      render(
+        <BrandProvider>
+          <Loaded>
+            <Composer
+              post={{ ...crust, stage: 'failed', error: 'no connector social', failedOn: 'ig' }}
+            />
+          </Loaded>
+        </BrandProvider>,
+      )
+      fireEvent.click(screen.getAllByRole('button', { name: 'Post now' })[0]!)
+      await land(null)
+      const send = bodies.find((r) => r.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+      expect(send?.body).toMatchObject({ when: 'now' })
+    } finally {
+      setToday(DEMO_TODAY)
+    }
+  })
+
+  it('names each account’s own reason, and keeps Move to drafts away once one account has it', () => {
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer
+            post={{
+              ...crust,
+              stage: 'failed',
+              error: 'no connector social',
+              failedOn: 'fb',
+              sends: {
+                ig: { status: 'live' },
+                fb: {
+                  status: 'failed',
+                  error: 'Facebook did not answer. Nothing was posted. Try again.',
+                },
+              },
+            }}
+          />
+        </Loaded>
+      </BrandProvider>,
+    )
+    const banner = screen.getByRole('alert')
+    expect(
+      within(banner).getByText(/Facebook did not answer\. Try again in a few minutes\./),
+    ).toBeInTheDocument()
+    expect(within(banner).queryByRole('button', { name: 'Move to drafts' })).toBeNull()
   })
 })

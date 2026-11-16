@@ -10,7 +10,7 @@ direct Meta path posts whenever a job runs.
 
 ## What changes
 
-1. **The menu** (`composer.tsx`, `NowMenu`): shown on the live app too, beside the main button, as
+1. **The control** (`composer.tsx`): first planned as the demo's menu on the main button (`NowMenu`), as
    in the demo. Its item reads "Post now" (and "Schedule instead" once picked); the main button
    then reads "Post now" with the accounts' logos. Not offered where nothing would be sent: a
    planned-only post, one that cannot be changed, a posted one.
@@ -28,6 +28,9 @@ No server or pack change.
 
 ## Tests
 
-The menu on the live app and where it is hidden; Post now sends `when: 'now'` with the accounts;
+Post now on the live app and where it is hidden; Post now sends `when: 'now'` with the accounts;
 the outcome page from jobs (sending, live, failed with its reason) and its polling stops when all
 answered; the demo keeps its timer. Then the full gate and screenshots of the real flow.
+
+The owner then picked a quiet "Post now" button beside Schedule from three options (a chip in the
+day row, a switch, a button); the menu is gone. See `post-now-phases-1-to-1.md`.

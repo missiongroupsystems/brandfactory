@@ -30,10 +30,12 @@ Plan: `post-now-plan.md`. Version 2.69.0. No server or pack change.
 
 ### Verified
 
-- Tests: the menu and the send (`when: 'now'`, the accounts), the page following the jobs to Live
+- Tests: the button and the send (`when: 'now'`, the accounts), a failed post with a past day sent on
+  the first press, the demo posting at once, the page following the jobs to Live
   and stopping its reads, a failed job's reason with no demo retry, an old job not read as this
-  send's answer, the menu absent for a planned-only post.
-- Browser, local core: Post now from the menu, the button, the sending page and the core's own
+  send's answer, no Post now for a planned-only post; the failed mark (none, one, several, keys),
+  each account's own reason on the banner, no Move to drafts once one account has the post.
+- Browser, local core: the Post now button, the sending page and the core's own
   answer (the local core has no Meta app, so both accounts answered "no connector social": the
   failed state). The live state with the jobs' answers set to live in the browser.
 
@@ -44,6 +46,14 @@ One pass, four fixes: an account with no job stayed "Sending" for ever (now "Pla
 nothing after its 5 minutes (now: "This takes longer than usual. The calendar shows it once it
 goes out."), and "Not posted" needs at least one failed account. Out-of-order reads cannot reopen
 a finished send: the page reads answers only while it shows Publishing.
+
+A second pass, over the button, the reasons and the failed post, found and fixed: Post now was
+checked by Schedule's rules (a failed post's past day stopped the first press, and a stopped press
+left the page with no way back); a Story sent now was checked on its scheduled day; the demo marked
+a post sent now Scheduled; Move to drafts showed on a post live on one account, which the core
+refuses; the banner gave one account's error for all; four reasons read wrong (never linked, a
+busy service, a server setting, an agent's send), and Meta's own cause was dropped; the failed list
+had no keys or focus.
 
 ### Left
 
