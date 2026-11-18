@@ -9,7 +9,6 @@ import {
   ChevronIcon,
   EyeIcon,
   HeartIcon,
-  PlayIcon,
   SortIcon,
 } from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
@@ -35,6 +34,7 @@ import {
   kindOf,
   ledgerOf,
   nowIn,
+  one,
   PLATFORM_NAME,
   platformOf,
   profileName,
@@ -496,9 +496,11 @@ function SortMenu({ order, onChange }: { order: Order; onChange: (o: Order) => v
   )
 }
 
-/** The counts a tile names by a glyph: views, reach and likes. The rest keep their word. */
+/**
+ * The counts a tile names by a glyph: reach and likes. The rest keep their word. Views say so in
+ * a word: a play icon beside a number was read as a count of something else.
+ */
 const GLYPH: Partial<Record<CountKey, React.ReactNode>> = {
-  views: <PlayIcon />,
   reach: <EyeIcon />,
   likes: <HeartIcon />,
 }
@@ -581,7 +583,7 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
           {GLYPH[head.key] ?? null}
           {k(head.value)}
           <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
-            {head.label.toLowerCase()}
+            {one(head.value, head.label.toLowerCase())}
           </span>
         </span>
       )}
@@ -760,8 +762,8 @@ function VideoTile({
       href={video.url ?? undefined}
       target="_blank"
       rel="noreferrer"
-      aria-label={`${noun}${when && ` · ${when}`}: ${title}${views ? ` · ${views} views` : ''}${
-        !views && likes ? ` · ${k(likes.value)} ${likes.label}` : ''
+      aria-label={`${noun}${when && ` · ${when}`}: ${title}${views ? ` · ${views} ${one(video.views!, 'views')}` : ''}${
+        !views && likes ? ` · ${k(likes.value)} ${one(likes.value, likes.label)}` : ''
       }`}
       className="group relative block aspect-[3/4] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none md:hover:-translate-y-0.5"
     >
@@ -777,9 +779,8 @@ function VideoTile({
         <span
           className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[10.5px] ${ON_COVER}`}
         >
-          {platform === 'tt' && <PlayIcon />}
           {views}
-          <span className="sr-only">views</span>
+          <span className="font-normal">{one(video.views!, 'views')}</span>
         </span>
       )}
       <span className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 bg-black/55 p-4 text-page opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:hidden">

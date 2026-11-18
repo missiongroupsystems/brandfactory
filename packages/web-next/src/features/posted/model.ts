@@ -225,6 +225,11 @@ export function k(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n)
 }
 
+/** "1 view", "12 views": the word agrees with its number. */
+export function one(value: number, word: string): string {
+  return value === 1 && word.endsWith('s') ? word.slice(0, -1) : word
+}
+
 /** When the counts were read, in Singapore: "22 Oct", with the year only when it is not this one. */
 export function asOf(measuredAt: string): string {
   const day = clockToday(new Date(measuredAt))
@@ -381,7 +386,7 @@ export function headlineOf(item: PostedItem, platform: Platform) {
 export function tileLabel(item: PostedItem, platform: Platform, today: string): string {
   const head = headlineOf(item, platform)
   const collab = item.collabs.length > 0 ? ` · with ${item.collabs.join(', ')}` : ''
-  const count = head ? ` · ${k(head.value)} ${head.label.toLowerCase()}` : ''
+  const count = head ? ` · ${k(head.value)} ${one(head.value, head.label.toLowerCase())}` : ''
   return `${kindOf(item.post, platform)} · ${whenOf(item, today)}${collab}: ${item.post.hook}${count}`
 }
 
