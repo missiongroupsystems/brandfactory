@@ -28,6 +28,35 @@ This rule applies to chat messages and to thinking. It does not apply to the
 prose in `docs/`, which keeps its present style. Ask the user before you change
 that scope.
 
+## Working rules for agents
+
+### The main agent orchestrates
+
+- The main agent talks with the owner, plans, gives tasks to subagents or cloud sessions, follows
+  them, and reports.
+- It does small things itself: reads, short checks, one-line edits, git and PR steps, answers from
+  facts at hand.
+- It gives out: builds, reviews, test and visual runs, investigations across many files, and any
+  task over a few minutes.
+- It keeps independent tasks running in parallel and reports each result when it arrives.
+
+### Visual checks: Chromium, then optional Safari
+
+1. Required for every UI change: headless Chromium (Playwright, the preinstalled browser), at
+   laptop width.
+2. Optional: WebKit, Safari's engine (Playwright's `webkit` with the `iPhone 15` and `iPad Mini`
+   device descriptors). Run it for mobile work or when the owner asks. In a cloud session, install
+   it once per session with
+   `PLAYWRIGHT_BROWSERS_PATH=<scratchpad>/pwwk node <playwright>/cli.js install webkit` and
+   `node <playwright>/cli.js install-deps webkit` (the host cdn.playwright.dev is allowed in the
+   brandfactory environment), and run WebKit with that `PLAYWRIGHT_BROWSERS_PATH`. Type into fields
+   with `pressSequentially`: `fill` does not reach React's inputs in WebKit.
+3. Optional: real iOS Safari in the Xcode iOS Simulator on the owner's Mac, through Remote Control
+   (the cloud session connects to the brandfactory folder on the Mac and drives the Simulator). Run
+   it for mobile work or when the owner asks, and only when the Mac is online.
+
+State in each report which of the three steps ran.
+
 ## Commands
 
 Run the full gate before you report that work is complete. The changelog
