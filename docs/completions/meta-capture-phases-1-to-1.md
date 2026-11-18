@@ -46,7 +46,8 @@ handler, so ids (`idOf(mid)`) dedupe against a later webhook.
   copy job (Meta's hosts only, redirects checked, streamed, 100 MB cap), and `GET /capture`,
   `POST /capture/code`. `metaHandler` is the webhook's handler: capture, then the Inbox.
 - `meta-poll.ts`: the two reads; `host.ts` starts them. Logs carry counts only.
-- `env.ts`: `META_CAPTURE_BRAND`, `META_POLL_DMS`.
+- `env.ts`: `META_CAPTURE_BRAND`, `META_POLL_DMS`. `META_CAPTURE_ACCOUNT` (2.70.0) is gone: `/meta/select`
+  and the disconnect keep the capture brand's Page subscribed by `META_CAPTURE_BRAND`.
 
 ### Web (`packages/web-next`)
 
@@ -65,7 +66,7 @@ follows a release. The owner sets `META_CAPTURE_BRAND`; see the plan's setup lis
 
 ### Checked
 
-- The full gate: typecheck, lint, format, 1780 tests by count (1501 pass, 279 skipped without a Postgres server) and the web build.
+- The full gate: typecheck, lint, format, 1801 tests by count (1522 pass, 279 skipped without a Postgres server; `bubbles` "stops a turn whose runtime is still starting" is timing-sensitive under load and passed on a rerun) and the web build.
 - A local run on Postgres 16: the core and the connect host with Meta's calls stubbed, the web app
   on it, signed deliveries of a LINK, a share and a quick-reply tap. The account answered "Linked
   to admin", asked which brand with three quick replies, copied the reel and answered "Saved to

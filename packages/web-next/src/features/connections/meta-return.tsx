@@ -46,13 +46,19 @@ export function MetaReturn({
   const pick = React.useCallback(
     (got: Found, pageId: string) => {
       setPicking(true)
-      pickPage(got.brandId, got.choice, pageId).then(({ webhooks }) => {
+      pickPage(got.brandId, got.choice, pageId).then(({ webhooks, missing, instagramRefused }) => {
         setBrandId(got.brandId)
-        if (webhooks === false) {
-          setError(
-            `Facebook is connected and can post, but its comments and DMs will not reach the Inbox yet. Write to ${CONTACT} to turn them on.`,
-          )
-        } else router.replace('/brand/connections')
+        const notes = [
+          instagramRefused &&
+            `Facebook is connected, but Instagram is not: ${instagramRefused.replace(/\.$/, '')}.`,
+          // A missing permission is the reason the comments and DMs do not come: say that one.
+          missing.length > 0
+            ? `Facebook did not give brand base these permissions: ${missing.join(', ')}. Ask the Meta app admin to add them, then connect again.`
+            : webhooks === false &&
+              `Facebook is connected and can post, but its comments and DMs will not reach the Inbox yet. Write to ${CONTACT} to turn them on.`,
+        ].filter((n): n is string => Boolean(n))
+        if (notes.length > 0) setError(notes.join('\n'))
+        else router.replace('/brand/connections')
       }, fail)
     },
     [fail, router, setBrandId],
@@ -72,7 +78,11 @@ export function MetaReturn({
     <main className="flex min-h-svh flex-col items-center justify-center gap-3 px-4 text-center">
       {error ? (
         <>
-          <p className="max-w-[420px] text-[14px] text-ink-2">{error}</p>
+          {error.split('\n').map((line) => (
+            <p key={line} className="max-w-[420px] text-[14px] text-ink-2">
+              {line}
+            </p>
+          ))}
           <Link href="/brand/connections" className="text-[13px] font-medium underline">
             Back to Connections
           </Link>

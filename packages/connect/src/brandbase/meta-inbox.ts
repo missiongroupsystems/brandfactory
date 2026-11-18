@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { Refused } from '@brandfactory/core/src/errors'
 import { call, clean, type CoreDeps } from '@brandfactory/core/src/run'
 import { type Context, Hono } from 'hono'
-import { bound, PACK, readAccount, type Who } from './accounts'
+import { type Account, bound, PACK, readAccount, type Who } from './accounts'
 import { words } from './make'
 import { type MetaApp, MetaError, MetaReconnect } from './meta'
 import { definite } from './meta-post'
@@ -57,6 +57,36 @@ function isoOf(value: unknown, now: number) {
   return at.toISOString()
 }
 
+/** A DM's attachment, in words: what the person sent (Instagram Messaging, Webhooks). */
+const ATTACHMENT: Record<string, string> = {
+  ig_reel: 'Shared a reel',
+  reel: 'Shared a reel',
+  ig_post: 'Shared a post',
+  // Instagram's older name for a shared post (Meta retires it after February 2026).
+  share: 'Shared a post',
+  story_mention: 'Mentioned you in a story',
+  image: 'Sent a photo',
+  video: 'Sent a video',
+  audio: 'Sent a voice message',
+  file: 'Sent a file',
+}
+/** Several of one kind, as one line. */
+const SEVERAL: Record<string, string> = { image: 'photos', video: 'videos' }
+
+/** What a DM with no text holds, as one short line; Meta sends only a link to the media. */
+export function attachmentWords(message: Json): string {
+  if (message.is_unsupported === true) return 'Sent a message Instagram cannot show here'
+  const types = (Array.isArray(message.attachments) ? message.attachments : []).map((a) =>
+    str(obj(a).type),
+  )
+  const first = types[0]
+  if (!first) return 'Sent a message with no text'
+  const plural = SEVERAL[first]
+  if (types.length > 1 && plural && types.every((t) => t === first))
+    return `Sent ${types.length} ${plural}`
+  return ATTACHMENT[first] ?? 'Sent an attachment'
+}
+
 /**
  * The comments and DMs in one of Meta's deliveries, by account. A Page's (`object: page`): its
  * Messenger messages and the comments in its `feed`. An Instagram account's (`object:
@@ -84,7 +114,7 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
         removed.push(idOf(mid))
         continue
       }
-      const text = str(message.text) || '(a photo, a video or a sticker)'
+      const text = str(message.text) || attachmentWords(message)
       items.push({
         id: idOf(mid),
         kind: 'dm',
@@ -140,6 +170,120 @@ export function batchesOf(delivery: MetaDelivery, now: number): Batch[] {
 }
 
 /**
+ * What one delivery holds, by count, for the log: its entries, and the messages Meta sent as
+ * `standby` (another app leads the conversation in Conversation Routing, so they are not ours to
+ * keep). No one's words or ids.
+ */
+export function countsOf(delivery: MetaDelivery) {
+  let standby = 0
+  for (const entry of delivery.entry) {
+    if (Array.isArray(entry.standby)) standby += entry.standby.length
+  }
+  return { object: delivery.object, entries: delivery.entry.length, standby }
+}
+
+/** The person's name and @handle on Instagram, once per sender; a lookup that failed is kept too. */
+interface Named {
+  name: string
+  username: string
+}
+/** The most senders kept in memory; the oldest go first. */
+const MAX_NAMES = 2000
+/** How long a sender's name is kept before it is read again. */
+const NAME_TTL_MS = 24 * 60 * 60 * 1000
+/** The most time one name read may take: Meta waits for the delivery's answer. */
+const NAME_WAIT_MS = 3000
+
+/**
+ * Reads the names of the Instagram people who sent DMs in a batch, with the brand's Page token,
+ * from `GET /{IGSID}?fields=name,username` (Instagram Messaging, User Profile). Run as the webhook's
+ * principal: `inbox.meta_receive` with nothing in it names the brand that holds the account, then
+ * `account.read` opens its sealed token. Any failure leaves the default name: a name is never the
+ * reason a message is not kept.
+ */
+function senderNames(core: CoreDeps, as: string, meta: MetaApp) {
+  const names = new Map<string, { at: number; named: Named | null }>()
+  /** Until this time no name is read: the principal may not read the account (its loadout). */
+  let offUntil = 0
+  const asWebhook = (op: string, input: Record<string, unknown>) =>
+    call(core, { authorization: undefined, as, internal: true, pack: PACK, op, input })
+
+  async function tokenFor(account: string) {
+    const held = (await asWebhook('inbox.meta_receive', {
+      platform: 'instagram',
+      account,
+      items: [],
+      removed: [],
+    })) as { brand?: string | null }
+    if (!held.brand) return null
+    const rows = (await asWebhook('account.read', {
+      brand: held.brand,
+      platform: 'instagram',
+    })) as Account[]
+    const row = rows[0] ?? null
+    if (!viaMeta(row) || row.accountId !== account) return null
+    return meta.openToken(row.tokens, bound('instagram', held.brand, account))
+  }
+
+  return async (b: Batch) => {
+    const now = core.now().getTime()
+    if (b.platform !== 'instagram' || now < offUntil) return
+    const key = (sender: string) => `${b.account}:${sender}`
+    const wanted = [
+      ...new Set(
+        b.items
+          // An Instagram-scoped id is digits: nothing else goes into a Graph path.
+          .filter((i) => i.kind === 'dm' && /^[0-9]{1,30}$/.test(i.external.sender ?? ''))
+          .map((i) => i.external.sender!)
+          .filter((s) => {
+            const had = names.get(key(s))
+            return !had || now - had.at > NAME_TTL_MS
+          }),
+      ),
+    ]
+    if (wanted.length > 0) {
+      let token: string | null = null
+      try {
+        token = await tokenFor(b.account)
+      } catch (err) {
+        // The principal may not read accounts (its loadout): no names for ten minutes, and one
+        // line says why. Any other failure (no brand holds the account) skips this batch only.
+        if (err instanceof Refused && err.code === 'FORBIDDEN') {
+          offUntil = now + 10 * 60 * 1000
+          console.warn('meta webhook: no sender names', err.code)
+        }
+        return
+      }
+      if (!token) return
+      for (const sender of wanted.slice(0, 20)) {
+        let named: Named | null = null
+        try {
+          const read = meta.graph<{ name?: unknown; username?: unknown }>(`/${sender}`, {
+            fields: 'name,username',
+            access_token: token,
+          })
+          const got = await Promise.race([
+            read,
+            new Promise<null>((r) => setTimeout(() => r(null), NAME_WAIT_MS)),
+          ])
+          if (got) named = { name: cut(str(got.name), 200), username: cut(str(got.username), 199) }
+        } catch {
+          // Meta keeps the profile from us (the person's settings, or no consent): the default.
+        }
+        if (names.size >= MAX_NAMES) names.delete(names.keys().next().value!)
+        names.set(key(sender), { at: now, named })
+      }
+    }
+    for (const item of b.items) {
+      const named = item.kind === 'dm' && names.get(key(item.external.sender ?? ''))?.named
+      if (!named) continue
+      if (named.username) item.fromHandle = `@${named.username}`
+      item.fromName = named.name || named.username || item.fromName
+    }
+  }
+}
+
+/**
  * Refusals of a batch that a resend gets again: no brand within reach holds the account (also when
  * the principal's person left the company or is deactivated), or Postgres refused the data itself
  * (a bad value, a row that conflicts). A refusal of the principal itself (removed, or its loadout
@@ -156,28 +300,40 @@ const NEVER_STORED = new Set(['NOT_FOUND', 'VALIDATION', 'BAD_INPUT', 'CONFLICT'
  * Only a failure that can pass answers Meta with an error. Meta unsubscribes a Page after an hour
  * of errors (Messenger Platform, Webhooks), so what can never be stored is logged and left behind.
  */
-export function inboxHandler(core: CoreDeps, as: string | undefined) {
+export function inboxHandler(core: CoreDeps, as: string | undefined, meta?: MetaApp) {
+  const name = as && meta ? senderNames(core, as, meta) : null
   return async (delivery: MetaDelivery) => {
     const batches = batchesOf(delivery, core.now().getTime())
+    const counts = { ...countsOf(delivery), stored: 0, dropped: 0, removed: 0 }
     if (!as) {
-      console.info('meta webhook', delivery.object, delivery.entry.length, 'not stored')
+      console.info('meta webhook', JSON.stringify({ ...counts, kept: false }))
       return
     }
-    for (const b of batches) {
-      try {
-        await call(core, {
-          authorization: undefined,
-          as,
-          internal: true,
-          pack: PACK,
-          op: 'inbox.meta_receive',
-          input: b,
-        })
-      } catch (err) {
-        // Meta is answered all the same: sending again would not help. The account alone is logged.
-        if (!(err instanceof Refused && NEVER_STORED.has(err.code))) throw err
-        console.error('meta webhook: dropped', err.code, b.platform, b.account)
+    try {
+      for (const b of batches) {
+        if (name) await name(b)
+        try {
+          const done = (await call(core, {
+            authorization: undefined,
+            as,
+            internal: true,
+            pack: PACK,
+            op: 'inbox.meta_receive',
+            input: b,
+          })) as { stored?: number; removed?: number } | null
+          counts.stored += Number(done?.stored ?? 0)
+          counts.removed += Number(done?.removed ?? 0)
+        } catch (err) {
+          // Meta is answered all the same: sending again would not help. The account alone is
+          // logged.
+          if (!(err instanceof Refused && NEVER_STORED.has(err.code))) throw err
+          counts.dropped += b.items.length
+          console.error('meta webhook: dropped', err.code, b.platform, b.account)
+        }
       }
+    } finally {
+      // One line for each delivery, also one that fails: Meta sends it again.
+      console.info('meta webhook', JSON.stringify(counts))
     }
   }
 }

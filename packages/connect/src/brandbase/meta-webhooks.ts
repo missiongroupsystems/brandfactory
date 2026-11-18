@@ -52,7 +52,33 @@ export function signedByMeta(raw: Uint8Array, header: string | undefined, appSec
 
 /** What came, with no one's words in the log: the handler when no store is wired. */
 export async function logDelivery(delivery: MetaDelivery) {
-  console.info('meta webhook', delivery.object, delivery.entry.length)
+  const standby = delivery.entry.reduce(
+    (n, e) => n + (Array.isArray(e.standby) ? e.standby.length : 0),
+    0,
+  )
+  console.info(
+    'meta webhook',
+    JSON.stringify({ object: delivery.object, entries: delivery.entry.length, standby }),
+  )
+}
+
+/** One log line a minute at most for refused signatures, with how many came since the last. */
+const REFUSAL_LOG_MS = 60_000
+
+/**
+ * Counts refused signatures and logs them at most once a minute: a wrong app secret shows in the
+ * log at once, and a flood of bad requests does not fill it.
+ */
+export function refusalLog(now: () => number = Date.now) {
+  let since = 0
+  let last = -Infinity
+  return () => {
+    since++
+    if (now() - last < REFUSAL_LOG_MS) return
+    console.warn('meta webhook: refused signature', JSON.stringify({ count: since }))
+    since = 0
+    last = now()
+  }
 }
 
 /**
@@ -67,6 +93,7 @@ export function metaWebhookRoutes(
   handle: (delivery: MetaDelivery) => Promise<void> = logDelivery,
 ) {
   const off = () => new Refused(503, 'PLATFORM_OFF', 'Meta webhooks are not set up')
+  const refused = refusalLog()
   return new Hono()
     .get('/webhooks/meta', (c) => {
       if (!hooks) throw off()
@@ -94,6 +121,7 @@ export function metaWebhookRoutes(
         if (!appSecret) throw off()
         const raw = new Uint8Array(await c.req.arrayBuffer())
         if (!signedByMeta(raw, c.req.header('x-hub-signature-256'), appSecret)) {
+          refused()
           throw new Refused(401, 'UNAUTHORIZED', 'the signature does not hold')
         }
         let body: unknown

@@ -13,6 +13,8 @@ const linkers = vi.hoisted(() => [] as Array<(brandId: string, state: Remote.Bra
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
   remote: true,
+  // As on the core: no demo table reaches a brand (the real module reads its own `remote`).
+  demoOf: () => undefined,
   onState: (h: (brandId: string, state: Remote.BrandState) => void) => {
     const stack = new Error().stack ?? ''
     if (stack.includes('inbox-store')) hydrators.push(h)
@@ -90,5 +92,24 @@ describe('the inbox on the core', () => {
     )
     expect(screen.queryByText('All caught up')).toBeNull()
     expect(screen.getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
+  })
+
+  it('opens a complaint the server holds with no people, and offers the server’s people when it has them', () => {
+    page()
+    load(['cv-soggy-pizza'])
+    // Before: the send-to menu read the demo's people, none on the core, and the page crashed.
+    act(() => screen.getByRole('button', { name: /Rachel Tan/ }).click())
+    expect(screen.getByRole('article', { name: /Rachel Tan/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
+    act(() =>
+      inboxStore('casa-vostra', {
+        brand: { id: 'casa-vostra' },
+        inbox: {
+          people: [{ id: 'p1', name: 'Giulia', role: 'Head chef' }],
+          messages: [{ id: 'cv-soggy-pizza', doneAt: null, sentTo: [] }],
+        },
+      }),
+    )
+    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
   })
 })

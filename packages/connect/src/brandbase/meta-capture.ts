@@ -555,7 +555,7 @@ export function metaHandler(
     secret: hooks?.appSecret,
     fetch: fetchFor,
   })
-  const inbox = inboxHandler(core, hooks?.as)
+  const inbox = inboxHandler(core, hooks?.as, meta)
   return {
     capture,
     handle: async (delivery: MetaDelivery) => inbox(await capture.route(delivery)),
