@@ -15,7 +15,8 @@ import {
 import { type MakeApp } from './make'
 import { makeRoutes } from './make-routes'
 import { type MetaApp } from './meta'
-import { inboxHandler, metaInboxRoutes } from './meta-inbox'
+import { metaHandler, type MetaHandler } from './meta-capture'
+import { metaInboxRoutes } from './meta-inbox'
 import { metaCollabRoutes } from './meta-collabs'
 import { metaInsightsRoutes } from './meta-insights'
 import { metaRoutes } from './meta-routes'
@@ -79,7 +80,12 @@ async function strings<K extends string>(c: Context, ...keys: K[]): Promise<Reco
  * write of an account is one of the pack's internal moves, run as the person, so the pack's row
  * rules decide which brands they reach.
  */
-export function accountRoutes(core: CoreDeps, platforms: Platforms) {
+export function accountRoutes(
+  core: CoreDeps,
+  platforms: Platforms,
+  /** The webhook's handler: the host shares it with the regular DM read. */
+  meta: MetaHandler = metaHandler(core, platforms.meta, platforms.metaHooks),
+) {
   const now = () => core.now().getTime()
   const who = (c: Context): Who => ({ authorization: c.req.header('authorization') })
   const person = (c: Context) => authenticate(core.auth, c.req.header('authorization'))
@@ -154,13 +160,10 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
       .route('/', metaRoutes(core, platforms.meta, platforms.metaHooks))
 
       // Meta's webhooks: no person's session, Meta's own signature instead.
-      .route(
-        '/',
-        metaWebhookRoutes(
-          platforms.metaHooks,
-          inboxHandler(core, platforms.metaHooks?.as, platforms.meta),
-        ),
-      )
+      .route('/', metaWebhookRoutes(platforms.metaHooks, meta.handle))
+
+      // Instagram capture: the Ideas page's link code, and the capture account's handle.
+      .route('/', meta.capture.routes)
 
       // Replies to the comments and DMs the webhook brought, and hiding a comment.
       .route('/', metaInboxRoutes(core, platforms.meta))

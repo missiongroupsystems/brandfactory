@@ -1,0 +1,31 @@
+{
+  "name": "capture.save",
+  "description": "Gives the caller's capture its brand (the person's choice) or its stored copy (src, with its kind), in either order. Once it has both, it becomes a pasted link of that brand with the capture's id: a reel for a video, a carousel for a photo, shown under Shared. saved says whether this call made it; the brand saved to becomes the sender's last. Internal: packages/connect, as the person the sender is linked to.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "brand", "src", "kind"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "brand": {
+        "type": ["string", "null"],
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "src": {
+        "type": ["string", "null"],
+        "maxLength": 2048,
+        "pattern": "^https?://[^/\\s]+/files/[A-Za-z0-9_-]{43}/brandbase/[0-9a-f-]{36}\\.(jpg|png|webp|mp4|mov|webm)$"
+      },
+      "kind": {
+        "enum": ["video", "image", null]
+      }
+    }
+  },
+  "before": ["capture.found", "capture.brand_reached"],
+  "internal": true,
+  "returns": "one",
+  "sql": "with c as (update brandbase.captures x set brand_id = coalesce(:brand, x.brand_id), src = coalesce(:src, x.src), kind = coalesce(:kind, x.kind) where x.id = :id and x.user_id = brandbase.caller() returning x.*), p as (insert into brandbase.pasted_links (id, brand_id, created_at, reference) select c.id, c.brand_id, :now::timestamptz, jsonb_build_object('platform', 'ig', 'account', c.name, 'image', case when c.kind = 'image' then c.src else '' end, 'video', case when c.kind = 'video' then c.src end, 'ratio', case when c.kind = 'video' then 1.6 end, 'borrow', case when c.kind = 'video' then 'Shared reel' else 'Shared post' end, 'seed', jsonb_build_object('format', case when c.kind = 'video' then 'reel' else 'carousel' end, 'pillar', 'Craft', 'hook', 'New idea from a reference.', 'angle', 'What to borrow, in your words.', 'feature', '', 'shots', '[]'::jsonb, 'sharper', '[]'::jsonb)) from c where c.brand_id is not null and c.src is not null and c.kind is not null on conflict (id) do nothing returning brand_id), s as (update brandbase.capture_senders y set last_brand = c.brand_id from c where :brand::text is not null and y.account = c.account and y.sender = c.sender and y.user_id = brandbase.caller()) select jsonb_build_object('saved', exists (select 1 from p), 'brand', c.brand_id, 'brandName', (select b.name from brandbase.brands b where b.id = c.brand_id), 'stored', c.src is not null) as result from c"
+}

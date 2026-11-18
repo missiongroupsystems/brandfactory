@@ -1,0 +1,14 @@
+{
+  "name": "account.meta_list",
+  "description": "Every Instagram account and Facebook Page linked through our own Meta app in a brand within the caller's reach, with its sealed token and when it was linked: the regular read of Instagram comments and of DMs reads them. Internal: packages/connect, as the principal META_WEBHOOK_AS names.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [],
+    "properties": {}
+  },
+  "before": ["account.exists"],
+  "internal": true,
+  "returns": "many",
+  "sql": "select jsonb_build_object('brand', a.brand_id, 'platform', a.platform, 'accountId', a.account_id, 'username', a.username, 'tokens', a.tokens, 'details', a.details, 'linkedAt', brandbase.iso(a.updated_at)) as result from brandbase.accounts a where a.platform in ('instagram', 'facebook') and a.details ->> 'via' = 'meta' order by a.brand_id, a.platform"
+}

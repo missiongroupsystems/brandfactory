@@ -53,8 +53,9 @@ describe('the moodboard on the API', () => {
     })
     expect(pastedReferences('temper').map((r) => r.id)).toEqual(['p-old'])
     const { result } = renderHook(() => useIdeas('temper'))
-    // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
-    expect(result.current.sources).toMatchObject({ dm: false, tt: false })
+    // Shared is always on (pasted links and the capture account); TikTok is not set up on our
+    // side yet: a stored "connected" is not trusted.
+    expect(result.current.sources).toMatchObject({ dm: true, tt: false })
 
     pasteLink('temper', link('p-new'))
     expect(pastedReferences('temper').map((r) => r.id)).toEqual(['p-new', 'p-old'])

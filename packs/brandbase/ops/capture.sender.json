@@ -1,0 +1,26 @@
+{
+  "name": "capture.sender",
+  "description": "Who a sender of the capture account is linked to: the person, their name and the brand they saved to last; none when not linked. With hint, an unlinked sender is marked as told how to link, at most once a day: hint answers whether to tell them now. Internal: packages/connect's webhook, as the principal META_WEBHOOK_AS names.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["account", "sender", "hint"],
+    "properties": {
+      "account": {
+        "type": "string",
+        "pattern": "^[0-9]{1,30}$"
+      },
+      "sender": {
+        "type": "string",
+        "pattern": "^[0-9]{1,40}$"
+      },
+      "hint": {
+        "type": "boolean"
+      }
+    }
+  },
+  "before": ["capture.account_reached"],
+  "internal": true,
+  "returns": "one",
+  "sql": "with s as (select x.user_id, x.name, x.last_brand from brandbase.capture_senders x where x.account = :account and x.sender = :sender and x.user_id is not null), h as (insert into brandbase.capture_senders as x (account, sender, hinted_at) select :account, :sender, :now::timestamptz where :hint::boolean and not exists (select 1 from s) on conflict (account, sender) do update set hinted_at = excluded.hinted_at where x.user_id is null and (x.hinted_at is null or x.hinted_at <= excluded.hinted_at - interval '1 day') returning 1) select jsonb_build_object('userId', (select user_id from s), 'name', (select name from s), 'lastBrand', (select last_brand from s), 'hint', exists (select 1 from h)) as result"
+}

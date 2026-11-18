@@ -1,0 +1,7 @@
+{
+  "id": "capture.brand_reached",
+  "sql": "select :brand::text is null or exists (select 1 from brandbase.brands where id = :brand) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "brand not found"
+}

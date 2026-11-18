@@ -89,7 +89,9 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
           verifyToken: env.META_WEBHOOK_VERIFY_TOKEN,
           appSecret: env.META_APP_SECRET || undefined,
           as: env.META_WEBHOOK_AS || undefined,
-          captureAccount: env.META_CAPTURE_ACCOUNT || undefined,
+          captureBrand: env.META_CAPTURE_BRAND || undefined,
+          // On unless "off": Meta may send no webhook while the app is in Development mode.
+          pollDms: env.META_POLL_DMS !== 'off',
         } satisfies MetaHooks)
       : undefined,
     tiktok: env.TIKTOK_CLIENT_KEY

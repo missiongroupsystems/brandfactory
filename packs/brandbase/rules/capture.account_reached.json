@@ -1,0 +1,7 @@
+{
+  "id": "capture.account_reached",
+  "sql": "select :account::text = any (brandbase.capture_reached()) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "no brand within reach holds this capture account"
+}

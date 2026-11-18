@@ -300,6 +300,9 @@ const ACCOUNT_ROUTES: Array<[method: string, path: RegExp]> = [
   ['GET', /^\/brands\/[^/]+\/meta\/(instagram|facebook)\/posts$/],
   ['GET', /^\/brands\/[^/]+\/posts\/[^/]+\/collaborators$/],
   ['GET', /^\/brands\/[^/]+\/instagram\/accounts\/[^/]+$/],
+  // Instagram capture: the capture account's handle, and a person's link code.
+  ['GET', /^\/capture$/],
+  ['POST', /^\/capture\/code$/],
 ]
 
 /** Whether a route is one of the accounts' routes on the server. */

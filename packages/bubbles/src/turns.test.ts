@@ -30,7 +30,12 @@ function agents(expiresInMs = HOUR) {
 
 async function setup(
   script: unknown[],
-  opts: Partial<TurnsOptions> & { fail?: boolean; expiresInMs?: number; dailyUsd?: number } = {},
+  opts: Partial<TurnsOptions> & {
+    fail?: boolean
+    expiresInMs?: number
+    dailyUsd?: number
+    initDelayMs?: number
+  } = {},
 ) {
   const gateway = new Gateway({
     upstream: 'http://127.0.0.1:9',
@@ -55,6 +60,7 @@ async function setup(
           FAKE_SCRIPT: JSON.stringify(script),
           FAKE_LOG: log,
           ...(opts.fail ? { FAKE_INIT_FAIL: '1' } : {}),
+          ...(opts.initDelayMs ? { FAKE_INIT_DELAY: String(opts.initDelayMs) } : {}),
         },
         provider: 'bubbles',
         model: 'm',
@@ -233,7 +239,9 @@ describe('a turn with Bubbles', () => {
   })
 
   it('stops a turn whose runtime is still starting', async () => {
-    const { app, turn, prompts } = await setup([say('Too late')])
+    // The runtime takes 1 s to start, so the stop always comes while it starts, however busy the
+    // machine (a bare 30 ms wait raced the start on CI).
+    const { app, turn, prompts } = await setup([say('Too late')], { initDelayMs: 1000 })
     const running = turn('Hello')
     // Long enough for the request to hold the conversation, short of the runtime's start.
     await new Promise((ok) => setTimeout(ok, 30))

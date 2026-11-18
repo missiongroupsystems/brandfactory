@@ -94,12 +94,12 @@ const AGENT = 'owner/meta'
 async function setUp(
   as: string | null = AGENT,
   appSecret: string | undefined = 'app-secret',
-  captureAccount?: string,
+  captureBrand?: string,
 ) {
   const meta = fakeMeta()
   const t = await serve({
     meta: meta.app,
-    metaHooks: { verifyToken: 'v', appSecret, as: as ?? undefined, captureAccount },
+    metaHooks: { verifyToken: 'v', appSecret, as: as ?? undefined, captureBrand },
   })
   await addPrincipal(t.db, AGENT, 'owner')
   await setLoadout(t.db, AGENT, 'brandbase', ['inbox.meta_receive'])
@@ -506,11 +506,10 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     }
   })
 
-  it('never turns off the webhooks of the Page that holds the capture account', async () => {
-    const IG_ID = '17841400000000001'
+  it('never turns off the webhooks of the capture brand’s Page', async () => {
     const deletes = (t: T) => t.meta.calls.filter((c) => c.method === 'DELETE').length
     // The agent may not keep messages: any other Page would be unsubscribed here.
-    const t = await setUp(null, 'app-secret', IG_ID)
+    const t = await setUp(null, 'app-secret', 'casa')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const { done } = await signIn(t)
@@ -524,9 +523,7 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
         { choice: again.done.data.choice, pageId: '100002' },
         'owner',
       )
-      expect(t.meta.calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual([
-        '/100002/subscribed_apps',
-      ])
+      expect(deletes(t)).toBe(0)
       // Disconnect: the capture Page keeps them as well.
       const back = await signIn(t)
       await t.call(
@@ -597,12 +594,17 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     expect(platformsFromEnv({ META_APP_SECRET: 's' }).meta).toBeUndefined()
   })
 
-  it('reads the capture account as optional', () => {
-    expect(platformsFromEnv({ META_WEBHOOK_VERIFY_TOKEN: 'v' }).metaHooks?.captureAccount).toBe(
-      undefined,
-    )
+  it('reads the capture brand as optional, and the DM read as on unless off', () => {
+    expect(platformsFromEnv({ META_WEBHOOK_VERIFY_TOKEN: 'v' }).metaHooks).toMatchObject({
+      captureBrand: undefined,
+      pollDms: true,
+    })
     expect(
-      platformsFromEnv({ META_WEBHOOK_VERIFY_TOKEN: 'v', META_CAPTURE_ACCOUNT: '1784' }).metaHooks,
-    ).toMatchObject({ captureAccount: '1784' })
+      platformsFromEnv({
+        META_WEBHOOK_VERIFY_TOKEN: 'v',
+        META_CAPTURE_BRAND: 'casa',
+        META_POLL_DMS: 'off',
+      }).metaHooks,
+    ).toMatchObject({ captureBrand: 'casa', pollDms: false })
   })
 })

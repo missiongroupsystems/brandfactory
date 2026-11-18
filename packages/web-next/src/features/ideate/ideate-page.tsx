@@ -43,6 +43,7 @@ import {
 } from '@/features/connections/not-available'
 import { demoOf, newId, remote, RemoteError, report } from '@/lib/remote'
 
+import { CaptureLink, useSharedRefresh } from './capture'
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
 import {
@@ -746,6 +747,8 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
   const [anchor, setAnchor] = React.useState(0)
   const [removing, setRemoving] = React.useState(false)
+  // On the core, what is shared by DM lands under Shared while the page is open.
+  useSharedRefresh(brand.id, sources.dm)
 
   // The setup floats over the board like a menu: a tap outside or Escape closes it.
   React.useEffect(() => {
@@ -824,7 +827,10 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   // On the core, once Pinterest reads a board, the "+" picks the boards: the other sources cannot
   // connect there yet.
   const livePinterest = remote && sources.pinterest && !notAvailable('pinterest')
-  const choices: MoodSource[] = livePinterest ? ['pinterest'] : missing
+  // The live app offers only the sources it can connect (Shared is always on there).
+  const choices: MoodSource[] = livePinterest
+    ? ['pinterest']
+    : missing.filter((m) => !remote || MOOD_SOURCES_ON_CORE.includes(m))
   const chips = [
     { id: 'all', label: 'All', source: null, url: undefined },
     ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source, url: f.url })),
@@ -968,7 +974,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
               pasteLink(brand.id, r)
             }}
           />
-          <DmHint />
+          {remote ? <CaptureLink /> : <DmHint />}
         </div>
       )}
       {shown.length === 0 &&
@@ -1599,7 +1605,28 @@ function Masonry({
                   className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left transition-shadow duration-200 ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
                   style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
                 >
-                  {ref.image && (
+                  {ref.video && (
+                    <>
+                      {/* A reel's cover is its own first frame: Instagram sends no picture for it. */}
+                      <video
+                        src={`${ref.video}#t=0.1`}
+                        preload="metadata"
+                        muted
+                        playsInline
+                        aria-hidden="true"
+                        className={`absolute inset-0 size-full object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md"
+                      >
+                        <svg viewBox="0 0 10 10" className="ml-px size-2.5" fill="currentColor">
+                          <path d="M2 1.2v7.6L8.6 5z" />
+                        </svg>
+                      </span>
+                    </>
+                  )}
+                  {ref.image && !ref.video && (
                     <Image
                       src={ref.image}
                       alt=""

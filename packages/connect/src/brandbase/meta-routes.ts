@@ -89,18 +89,15 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
       return err instanceof Refused && err.status < 500 ? 'no' : 'unknown'
     }
   }
-  /** True for the Page whose Instagram account takes shared reels: its webhooks stay on. */
-  const capturePage = (igUserId: unknown) =>
-    Boolean(hooks?.captureAccount) && String(igUserId ?? '') === hooks?.captureAccount
+  /**
+   * True for the Pages of the capture brand (`META_CAPTURE_BRAND`), whose Instagram account takes
+   * shared reels: their webhooks stay on.
+   */
+  const capturePage = (brand: string) =>
+    Boolean(hooks?.captureBrand) && brand === hooks?.captureBrand
   /** Turns a Page's webhooks off, unless the capture needs them; the log names a kept one. */
-  const unsubscribe = async (
-    app: MetaApp,
-    brand: string,
-    page: string,
-    token: string,
-    ig: unknown,
-  ) => {
-    if (capturePage(ig)) {
+  const unsubscribe = async (app: MetaApp, brand: string, page: string, token: string) => {
+    if (capturePage(brand)) {
       console.warn('meta: the capture Page keeps its webhooks', brand)
       return false
     }
@@ -175,7 +172,7 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
           await metaMove(c, 'inbox.meta_forget', { brand, platform: 'facebook' })
           try {
             const old = app.openToken(oldPage.tokens, bound('facebook', brand, oldPage.accountId))
-            await unsubscribe(app, brand, oldPage.accountId, old, oldPage.details.igUserId)
+            await unsubscribe(app, brand, oldPage.accountId, old)
           } catch (err) {
             console.error(
               'meta: the old Page’s webhooks did not turn off',
@@ -210,7 +207,7 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
         try {
           if (webhooks) await app.subscribe(page.id, page.token)
           // A Page subscribed before must stop too: what Meta delivers now would be lost.
-          else if (keeps === 'no') await unsubscribe(app, brand, page.id, page.token, page.igUserId)
+          else if (keeps === 'no') await unsubscribe(app, brand, page.id, page.token)
         } catch (err) {
           webhooks = false
           console.error('meta: the Page webhooks did not change', brand, (err as Error).message)
@@ -251,8 +248,7 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
         if (app && viaMeta(page)) {
           try {
             const token = app.openToken(page.tokens, bound('facebook', brand, page.accountId))
-            const igId = page.details.igUserId ?? (viaMeta(ig) ? ig.accountId : null)
-            unsubscribed = await unsubscribe(app, brand, page.accountId, token, igId)
+            unsubscribed = await unsubscribe(app, brand, page.accountId, token)
           } catch (err) {
             console.error('meta: the Page webhooks did not turn off', brand, (err as Error).message)
           }

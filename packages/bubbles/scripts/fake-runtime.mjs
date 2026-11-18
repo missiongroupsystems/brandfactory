@@ -12,6 +12,9 @@ const event = (sessionId, type, data) =>
 createInterface({ input: process.stdin }).on('line', async (line) => {
   const m = JSON.parse(line)
   if (m.method === 'initialize') {
+    // FAKE_INIT_DELAY (ms): a runtime slow to start, so a test can act while it starts.
+    const delay = Number(process.env.FAKE_INIT_DELAY ?? 0)
+    if (delay > 0) await new Promise((ok) => setTimeout(ok, delay))
     if (process.env.FAKE_INIT_FAIL) return send({ id: m.id, error: { message: 'no model' } })
     return send({ id: m.id, result: { env: process.env.BUBBLES_CORE_TOKEN } })
   }

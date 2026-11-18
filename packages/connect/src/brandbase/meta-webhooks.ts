@@ -23,10 +23,12 @@ export interface MetaHooks {
    */
   as?: string
   /**
-   * `META_CAPTURE_ACCOUNT`: the Instagram account id that takes shared reels for Ideation. Its
-   * Page's webhooks are never turned off from here, or the capture would stop with no word.
+   * `META_CAPTURE_BRAND`: the brand whose Instagram account, linked through Meta, is the capture
+   * account (`meta-capture.ts`). Capture is off without it.
    */
-  captureAccount?: string
+  captureBrand?: string
+  /** `META_POLL_DMS`: the regular DM read while Meta sends no webhooks (`meta-poll.ts`). */
+  pollDms?: boolean
 }
 
 /** One delivery, as Meta sends it: the object type and its changes, possibly batched. */

@@ -40,6 +40,8 @@ export interface Reference {
   /** The account, or the board for a pin. */
   account: string
   image: string
+  /** A reel's own video, shown as its cover (a reel shared to the capture account). */
+  video?: string | null
   /** What to borrow, in the team's words. */
   borrow: string
   /** Height over width, for a pin on the board. */
