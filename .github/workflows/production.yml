@@ -10,7 +10,8 @@ name: Production
 #   agent-loadout  adds the moves `ops` names (space-separated) to every agent whose loadout holds
 #            `inbox.meta_receive` (the webhook's principal, META_WEBHOOK_AS); prints a count only
 #   meta     read only: the names of the server's secrets that Meta needs (never a value), and
-#            the last hour of the server's log lines about Meta's webhooks (counts, no one's words)
+#            the last hour of the server's log lines about Meta's webhooks, the capture account
+#            and the DM and comment reads (counts, no one's words)
 #
 # Secrets and variables are the repository's (Settings, Secrets and variables, Actions):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
@@ -174,7 +175,7 @@ jobs:
           echo "Secrets the server holds (names only):"
           flyctl secrets list -a brandfactory --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const x of JSON.parse(s))console.log(" ", x.Name ?? x.name)})'
           echo "Meta lines in the server log:"
-          flyctl logs -a brandfactory --no-tail 2>/dev/null | grep -i -E "meta webhook|meta:|meta reply" | tail -n 60 || echo "  none"
+          flyctl logs -a brandfactory --no-tail 2>/dev/null | grep -i -E "meta webhook|meta:|meta reply|meta capture|meta poll" | tail -n 60 || echo "  none"
 
       - name: Deploy
         if: inputs.task == 'deploy'

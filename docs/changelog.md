@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.71.1** — 2026-11-18 — `claude/admiring-cray-ayxhku`: the Production workflow's `meta` task also shows the server's `meta capture:` and `meta poll:` log lines (counts only, no one's words). Workflow only. 1801 tests by count: 1522 pass, 279 skipped without a Postgres server.
 - **2.71.0** — 2026-11-18 — `feat/meta-capture`: a reel or a post DM'd to the capture account (the Instagram account of the brand `META_CAPTURE_BRAND` names) lands in the sender's chosen brand's Ideas, under Shared (pack 1.17.0, migration `0027_capture.sql`). A person links their Instagram once with "Add from Instagram" on the Ideas page (`LINK <code>`, 10 minutes, single use); the account asks which brand with quick replies and saves a copy of the media to our files. Shared is always on, on the live app. Instagram comments are read once a minute, and DMs every 30 seconds while the Meta app is in Development mode (`META_POLL_DMS`; switch it off once webhooks arrive). 1801 tests by count: 1522 pass, 279 skipped without a Postgres server.
 - **2.70.0** — 2026-11-18 — `feat/meta-inbox-fixes`: the Inbox is live: a DM or comment that comes through Meta shows within about a second, with no reload (the core's change signal, and a 5-second check on the Inbox when it is down). A DM with no text says what it holds ("Shared a reel"), and the sender's name and @handle are read once; the server logs each delivery by counts and each refused signature; the sign-in names the permissions Facebook did not give; a refused Instagram account and a reply Meta refused are shown; the capture Page keeps its webhooks; the Inbox no longer crashes on a complaint on the core. No pack change. 1758 tests by count: 1491 pass, 266 skipped without a Postgres server, and one Make test that ran past 30 s under load passes alone.
 - **2.69.1** — 2026-11-18 — `fix/views-label`: a post's views on the Feed say "views" (or "view" for one) beside the number, where a bare number showed before. 1737 tests by count: 1471 pass, 266 skipped without a Postgres server.
@@ -149,6 +150,16 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.71.1 — 2026-11-18
+
+- **Why.** Since 2.71.0 the server logs the capture account (`meta-capture.ts`) and the DM and
+  comment reads (`meta-poll.ts`) as `meta capture: ...` and `meta poll: ...`. The workflow's
+  `meta` task did not show those lines.
+- **What changed.** `.github/workflows/production.yml`: the `Meta` step's filter adds
+  `meta capture|meta poll`, and the comment at the top names the new lines. No code or pack change.
+- **Tests:** 1801 by count: 1522 pass and 279 are skipped without a Postgres server. Typecheck,
+  lint, format and the web build pass.
 
 ## 2.71.0 — 2026-11-18
 
