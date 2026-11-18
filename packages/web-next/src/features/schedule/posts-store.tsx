@@ -27,8 +27,10 @@ import {
   onAccount,
   onState,
   push,
+  quietly,
   remote,
   request,
+  sent,
   setActiveBrand,
 } from '@/lib/remote'
 import { mediaItem } from '@/lib/remote-days'
@@ -668,6 +670,27 @@ export function useBrand(): BrandValue {
   const value = React.useContext(BrandContext)
   if (!value) throw new Error('useBrand needs a BrandProvider above it')
   return value
+}
+
+/**
+ * A scheduled or failed post back to a draft: its waiting sends are cancelled. The calendar
+ * changes only once the server has it; a refusal shows its own line (`sent`) and keeps the post.
+ * True once it is a draft. The post page's "Move to drafts" and the failed list's × both use it.
+ */
+export function useMoveToDrafts(): (id: string) => Promise<boolean> {
+  const { brand, setStage } = useBrand()
+  const b = brand.id
+  return React.useCallback(
+    async (id: string) => {
+      const refused = await sent(b, () =>
+        request('POST', `/brands/${b}/posts/${id}/mark`, { stage: 'draft' }),
+      )
+      if (refused !== null) return false
+      quietly(() => setStage(id, 'draft'))
+      return true
+    },
+    [b, setStage],
+  )
 }
 
 /** The posts slice of `useBrand()`, kept for the components that only need posts. */
