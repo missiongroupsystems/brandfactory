@@ -358,6 +358,8 @@ describe('a tile', () => {
     expect(tileLabel(reel, 'ig', TODAY)).toBe(
       'Reel · Sun 25 Oct, 12:00: Sunday roast is back · 12.4k views',
     )
+    const once = item('First look', '2026-10-25', { format: 'reel', metrics: { views: 1 } })
+    expect(tileLabel(once, 'ig', TODAY)).toBe('Reel · Sun 25 Oct, 12:00: First look · 1 view')
     const collab = item('Wine night', TODAY, {}, { collabs: ['@dan'] })
     expect(tileLabel(collab, 'ig', TODAY)).toBe('Post · Today, 12:00 · with @dan: Wine night')
   })

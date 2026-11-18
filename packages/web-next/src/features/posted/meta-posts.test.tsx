@@ -97,6 +97,16 @@ describe('the Instagram tab on the core, linked through Meta', () => {
     )
   })
 
+  it('says views in a word on the cover, and one view as one view', async () => {
+    answer.posts = [post({ id: '1791', views: 1 }), post({})]
+    open()
+    const list = await screen.findByRole('list', { name: 'Posts' })
+    const [one, many] = within(list).getAllByRole('listitem')
+    expect(within(one!).getAllByText('view').length).toBeGreaterThan(0)
+    expect(within(many!).getAllByText('views').length).toBeGreaterThan(0)
+    expect(within(one!).getByRole('link').getAttribute('aria-label')).toMatch(/ · 1 view$/)
+  })
+
   it('keeps what Make read back for an account linked through Make, and asks Meta nothing', async () => {
     answer.via = 'make'
     open()
