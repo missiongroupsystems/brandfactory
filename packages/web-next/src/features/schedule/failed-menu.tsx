@@ -140,7 +140,7 @@ export function FailedPill({ posts }: { posts: Post[] }) {
                       href={`/post/${p.id}`}
                       tabIndex={gone ? -1 : undefined}
                       onClick={() => setOpen(false)}
-                      className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] p-1.5 outline-none"
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] py-1.5 pr-2.5 pl-1.5 outline-none"
                     >
                       <span className="relative block size-10 shrink-0 overflow-hidden rounded-[8px] bg-tile">
                         {p.images[0] && <Media src={p.images[0]} sizes="80px" />}
@@ -151,7 +151,7 @@ export function FailedPill({ posts }: { posts: Post[] }) {
                           {p.slot}
                         </span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-1.5 text-ink-3">
+                      <span className="ml-1 flex shrink-0 items-center gap-1.5 text-ink-3">
                         {failedOn(p).map((k) => (
                           <PlatformLogo key={k} platform={k} size={12} />
                         ))}
@@ -171,7 +171,7 @@ export function FailedPill({ posts }: { posts: Post[] }) {
                             onClick={(e) =>
                               void clear(p.id, e.currentTarget.closest<HTMLElement>('.group'))
                             }
-                            className="mr-1.5 grid size-6 scale-75 place-items-center rounded-full text-ink-3 opacity-0 outline-none transition-[opacity,transform,background-color,color] duration-[180ms] ease-out group-hover:scale-100 group-hover:opacity-100 group-has-[:focus-visible]:scale-100 group-has-[:focus-visible]:opacity-100 hover:bg-tile hover:text-ink focus-visible:bg-tile focus-visible:text-ink active:scale-90 motion-reduce:transition-none [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
+                            className="mr-1 grid size-5 scale-75 place-items-center rounded-full text-ink-4 opacity-0 outline-none transition-[opacity,transform,background-color,color] duration-[180ms] ease-out group-hover:scale-100 group-hover:opacity-100 group-has-[:focus-visible]:scale-100 group-has-[:focus-visible]:opacity-100 hover:bg-tile hover:text-ink-2 focus-visible:bg-tile focus-visible:text-ink-2 active:scale-90 motion-reduce:transition-none [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
                           >
                             <CloseIcon size={9} />
                           </button>
