@@ -35,7 +35,7 @@ import { useConnections, useConnected } from '@/features/connections/connections
 import { useMakeAccount, useStoryAccounts } from '@/features/connections/make'
 import { NotAvailable } from '@/features/connections/not-available'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
-import { useBrand } from '@/features/schedule/posts-store'
+import { useBrand, useMoveToDrafts } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
 import { demoOf, loadBrand, newId, quietly, remote, report, request, sent } from '@/lib/remote'
 import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
@@ -45,7 +45,7 @@ import { CropEditor } from './crop-editor'
 import { PublicNote } from './account-check'
 import { cutPhoto, knownCut } from './cut'
 import { postReason, reasonFor } from './reasons'
-import { failedOn } from '@/features/schedule/failed-menu'
+import { failedOn, isPartlyOut } from '@/features/schedule/failed-menu'
 import { useInvites } from './invites'
 import { DriveGlyph, DrivePicker, trap } from './drive-picker'
 import { DropZone } from './drop-zone'
@@ -296,7 +296,8 @@ export function Composer({
   // Each account's own reason, from its own job: one sentence when they failed alike.
   const failedWhy = post ? postReason(post) : null
   // A post live on one account cannot go back to drafts: the core keeps what went out.
-  const partlyOut = Object.values(post?.sends ?? {}).some((j) => j?.status === 'live')
+  const partlyOut = post ? isPartlyOut(post) : false
+  const moveToDrafts = useMoveToDrafts()
   const { draft, update, phase } = api
 
   // The media, and one line under the strip when the last add could not take everything. One
@@ -830,15 +831,11 @@ export function Composer({
    */
   async function unschedule() {
     if (!post || post.stage === 'posted' || post.stage === 'draft' || waiting) return
-    const b = brand.id
     setWaiting('save')
-    const refused = await sent(b, () =>
-      request('POST', `/brands/${b}/posts/${post.id}/mark`, { stage: 'draft' }),
-    )
+    const moved = await moveToDrafts(post.id)
     setWaiting(null)
-    if (refused !== null) return
+    if (!moved) return
     submitted.current = true
-    quietly(() => setStage(post.id, 'draft'))
     // Back to the calendar, as Schedule, Reschedule and Save draft go. No Undo: scheduling it
     // again is a new send, which the post page's Schedule makes on purpose.
     report(post.stage === 'failed' ? 'Moved to drafts' : 'Unscheduled: it is a draft now')

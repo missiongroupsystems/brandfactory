@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.70.0** — 2026-11-18 — `feat/failed-clear`: "N failed" on the calendar always opens its list (one failure too); each row shows a quiet × on hover or keyboard focus (always on touch) that takes the post to drafts without posting it, as the post page's "Move to drafts" does, and the row folds away. A long list scrolls inside the menu with faded edges. No server or pack change. 1741 tests by count: 1473 pass, 266 skipped without a Postgres server.
 - **2.69.1** — 2026-11-18 — `fix/views-label`: a post's views on the Feed say "views" (or "view" for one) beside the number, where a bare number showed before. 1737 tests by count: 1471 pass, 266 skipped without a Postgres server.
 - **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1736 tests by count: 1470 pass, 266 skipped without a Postgres server.
 - **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
@@ -147,6 +148,22 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.70.0 — 2026-11-18
+
+- **Why.** The owner wanted to see the failed list with many posts, and to clear a failure from
+  the calendar without opening the post or posting it.
+- **What changed.** `schedule/failed-menu.tsx`: the pill opens the list for one failure too, so
+  its × is in reach; the row still opens the post. Each row has a small × ("Move to drafts") on
+  hover, on keyboard focus and always on touch; it folds the row away (260 ms), then moves the post
+  to drafts, and the count follows; with none left the pill goes. A refusal unfolds the row
+  again. No × for a post already live on one account (`isPartlyOut`, the post page's rule). The
+  list is at most about seven rows tall and scrolls inside the menu, with a thin bar and a fade at
+  an edge that has more. The move is one hook, `useMoveToDrafts` in `posts-store.tsx`, which the
+  post page's "Move to drafts" now uses too.
+- **Tests:** 1741 by count: 1473 pass and 266 are skipped without a Postgres server. Typecheck,
+  lint, format and the web build pass. Browser: the Schedule page on a local core with 1, 3 and 12
+  failed posts at laptop width, through to the last ×.
 
 ## 2.69.1 — 2026-11-18
 
