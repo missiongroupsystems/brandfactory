@@ -763,7 +763,7 @@ function VideoTile({
       target="_blank"
       rel="noreferrer"
       aria-label={`${noun}${when && ` · ${when}`}: ${title}${views ? ` · ${views} ${one(video.views!, 'views')}` : ''}${
-        !views && likes ? ` · ${k(likes.value)} ${likes.label}` : ''
+        !views && likes ? ` · ${k(likes.value)} ${one(likes.value, likes.label)}` : ''
       }`}
       className="group relative block aspect-[3/4] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none md:hover:-translate-y-0.5"
     >
