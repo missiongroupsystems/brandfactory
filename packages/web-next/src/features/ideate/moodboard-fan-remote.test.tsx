@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
@@ -70,25 +70,14 @@ const photos = (root: HTMLElement) =>
       decodeURIComponent(img.getAttribute('src') ?? '').match(/\/demo\/pins\/[\w-]+\.jpg/)?.[0],
   )
 
-describe('the moodboard’s empty state on the core', () => {
-  it('fans out the drawn set, no one’s food, as decoration only', () => {
-    openMoodboard(false)
-    const empty = screen.getByRole('region', { name: 'Connect your accounts' })
-    expect(within(empty).getByText('Bring in your moodboard')).toBeVisible()
-    // A brand with no boards yet shows four drawn cards, never another brand's photos.
-    expect(photos(empty)).toEqual([])
-    expect(empty.querySelectorAll('svg[viewBox="0 0 100 132"]')).toHaveLength(4)
-    // Hidden from screen readers and nothing to press: the one button is Pinterest, the only
-    // source ready on the live app.
-    const fan = empty.querySelector('svg[viewBox="0 0 100 132"]')!.closest('[aria-hidden="true"]')
-    expect(fan).not.toBeNull()
-    expect(within(empty).queryAllByRole('img')).toHaveLength(0)
-    expect(
-      within(empty)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Pinterest'])
-    // Nothing of the demo's moodboard comes with the cards: no board names, captions or handles.
+describe('the moodboard on the core', () => {
+  it('shows Shared at once, with no fan and none of the demo’s moodboard, before Pinterest is linked', async () => {
+    const { container } = openMoodboard(false)
+    expect(screen.queryByText('Bring in your moodboard')).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Shared' })).toBeVisible()
+    expect(container.querySelectorAll('svg[viewBox="0 0 100 132"]')).toHaveLength(0)
+    // The one source to add on the live app is Pinterest.
+    expect(screen.getByRole('button', { name: 'Add a source' })).toBeVisible()
     expect(screen.queryByText('Pasta shots')).toBeNull()
     expect(screen.queryByText('Pizza close-ups')).toBeNull()
   })

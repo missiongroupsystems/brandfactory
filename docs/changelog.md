@@ -6,7 +6,9 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.70.0** — 2026-11-18 — `feat/failed-clear`: "N failed" on the calendar always opens its list (one failure too); each row shows a quiet × on hover or keyboard focus (always on touch) that takes the post to drafts without posting it, as the post page's "Move to drafts" does, and the row folds away. A long list scrolls inside the menu with faded edges. No server or pack change. 1741 tests by count: 1473 pass, 266 skipped without a Postgres server.
+- **2.72.0** — 2026-11-18 — `feat/failed-clear`: "N failed" on the calendar always opens its list (one failure too); each row shows a quiet × on hover or keyboard focus (always on touch) that takes the post to drafts without posting it, as the post page's "Move to drafts" does, and the row folds away. A long list scrolls inside the menu with faded edges. No server or pack change. 1741 tests by count: 1473 pass, 266 skipped without a Postgres server.
+- **2.71.0** — 2026-11-18 — `feat/meta-capture`: a reel or a post DM'd to the capture account (the Instagram account of the brand `META_CAPTURE_BRAND` names) lands in the sender's chosen brand's Ideas, under Shared (pack 1.17.0, migration `0027_capture.sql`). A person links their Instagram once with "Add from Instagram" on the Ideas page (`LINK <code>`, 10 minutes, single use); the account asks which brand with quick replies and saves a copy of the media to our files. Shared is always on, on the live app. Instagram comments are read once a minute, and DMs every 30 seconds while the Meta app is in Development mode (`META_POLL_DMS`; switch it off once webhooks arrive). 1801 tests by count: 1522 pass, 279 skipped without a Postgres server.
+- **2.70.0** — 2026-11-18 — `feat/meta-inbox-fixes`: the Inbox is live: a DM or comment that comes through Meta shows within about a second, with no reload (the core's change signal, and a 5-second check on the Inbox when it is down). A DM with no text says what it holds ("Shared a reel"), and the sender's name and @handle are read once; the server logs each delivery by counts and each refused signature; the sign-in names the permissions Facebook did not give; a refused Instagram account and a reply Meta refused are shown; the capture Page keeps its webhooks; the Inbox no longer crashes on a complaint on the core. No pack change. 1758 tests by count: 1491 pass, 266 skipped without a Postgres server, and one Make test that ran past 30 s under load passes alone.
 - **2.69.1** — 2026-11-18 — `fix/views-label`: a post's views on the Feed say "views" (or "view" for one) beside the number, where a bare number showed before. 1737 tests by count: 1471 pass, 266 skipped without a Postgres server.
 - **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1736 tests by count: 1470 pass, 266 skipped without a Postgres server.
 - **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
@@ -149,7 +151,7 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
-## 2.70.0 — 2026-11-18
+## 2.72.0 — 2026-11-18
 
 - **Why.** The owner wanted to see the failed list with many posts, and to clear a failure from
   the calendar without opening the post or posting it.
@@ -165,6 +167,70 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Tests:** 1741 by count: 1473 pass and 266 are skipped without a Postgres server. Typecheck,
   lint, format and the web build pass. Browser: the Schedule page on a local core with 1, 3 and 12
   failed posts at laptop width, through to the last ×.
+
+## 2.71.0 — 2026-11-18
+
+- **Why.** The owner demos capture on 19 Nov: a marketer DMs a reel or a post to our capture
+  Instagram account, and it lands at once in the right brand's Ideas, under Shared. The Meta app is
+  still unpublished, so Meta may send no webhook: the owner asked for a DM read as a fallback.
+- **Pack 1.17.0** (migration `0027_capture.sql`). Tables `capture_codes` (a code's HMAC-SHA256 under the app secret only),
+  `capture_senders`, `captures`, `capture_seen`, walled to the person's own rows and to the capture
+  account's reach. Internal moves `capture.code`, `capture.link`, `capture.sender`,
+  `capture.claim`, `capture.file` (upload), `capture.save`, `capture.drop` and
+  `account.meta_list`; `account.forget` deletes an Instagram account's sender links and codes. A
+  saved capture is a pasted link of the brand: a reel (with its video) or a carousel.
+- **Server.** `meta-capture.ts`: the capture account comes from `META_CAPTURE_BRAND`'s Instagram row
+  (no separate id). The webhook's handler runs the capture before `batchesOf`: a LINK code, a brand
+  tap and a linked sender's share never reach the Inbox; everything else does, as before. Five
+  wrong codes an hour stop the checks; an unlinked sender gets one how-to reply a day. The share is
+  claimed before any reply, its media is copied after the 200 (Meta's hosts only, streamed, 100 MB
+  cap), and the brand is asked with up to 13 quick replies (the last brand first), or saved at
+  once for one brand. A deleted message deletes its capture. `GET /capture` and
+  `POST /capture/code` serve the Ideas page. `meta-poll.ts`, started in `host.ts` as
+  `META_WEBHOOK_AS`: Instagram comments once a minute (`inbox.meta_receive`, `idOf(comment id)`),
+  and DMs every 30 seconds through the webhook's own handler (`META_POLL_DMS`, on unless `off`;
+  for Development mode only, switch it off once webhooks arrive). Both start from the link time and
+  log counts only. `META_CAPTURE_ACCOUNT` (2.70.0) is gone: the capture brand's Page keeps its
+  webhooks by `META_CAPTURE_BRAND` instead, so no account id can drift from the linked row.
+- **Web.** Shared is always on, on the live app (finding 2), with "Or share a post to @handle. Add
+  from Instagram" and a code card; the "+" offers only Pinterest there. A reel shows its own first
+  frame (`<video preload="metadata">`) and a play mark. The page reads the brand every 10 seconds
+  while open. The privacy page says what capture keeps.
+- **Production.** A new Production task, `agent-loadout` (`scripts/widen-agents.ts`), adds moves to
+  the agents that hold `inbox.meta_receive`. The owner sets `META_CAPTURE_BRAND`.
+- **Tests:** 1801 by count: 1522 pass and 279 are skipped without a Postgres server (13 new pack cases in `tests/capture.json`, 16 in `meta-capture.test.ts`, 1 in `capture.test.tsx`). Typecheck, lint, format and the web build pass. Browser: a local core on
+  Postgres 16 with the connect host (Meta stubbed), signed LINK, share and quick-reply deliveries,
+  and the Ideas page before and after the capture landed, at laptop width.
+- **CI.** Bubbles' test "stops a turn whose runtime is still starting" raced a 30 ms wait against
+  the fake runtime's start and failed on CI; the fake runtime now takes `FAKE_INIT_DELAY`, and the
+  test starts it in 1 s.
+## 2.70.0 — 2026-11-18
+
+- **Why.** The owner demos the Meta Inbox on production on 19 Nov, and the team reported "DMs do
+  not work, and Insights shows no data". Checked first: no merge removed Make, production has
+  Meta on and its webhook answers, and Insights shows no figures on the core by design. The Meta
+  app is in Development mode, so Meta sends no webhooks (the owner publishes it). Reproduced: the
+  web app showed a new DM only after a reload, and on a local core the Inbox page crashed when it
+  opened a complaint the server holds.
+- **What changed.** `docs/completions/meta-inbox-live-phases-1-to-6.md`. Web: `lib/live.ts` reads
+  `GET /events/brandbase` with the session token in the header and opens it again after 1 to 30 s;
+  `RemoteSync` reloads the brand one second after a change (outside the Inbox it waits while
+  someone types), and the Inbox reloads every 5 s while the signal is down; the open message stays
+  open when a newer one arrives; the send-to menu reads the server's people; a reply Meta refused
+  says so in the thread, with its words in the box; the Connections return page says which
+  permissions Facebook did not give and why Instagram was not linked. Server
+  (`packages/connect`): attachment words; the sender's name and @handle from
+  `GET /{IGSID}?fields=name,username` with the brand's Page token, once per sender a day (needs
+  `account.read` in `META_WEBHOOK_AS`'s loadout); one log line per delivery with its counts
+  (`standby` too) and one a minute for refused signatures; `GET /me/permissions` after the sign-in;
+  `/meta/select` links the Page when Instagram is refused and says why; `META_CAPTURE_ACCOUNT`
+  (optional) keeps that Page subscribed. No pack change, no migration.
+- **Tests:** 1758 by count: 1491 pass and 266 are skipped without a Postgres server; one Make
+  test (`make.test.ts`, not changed) ran past its 30 s limit while other runs shared the machine,
+  and passes alone (8 of 8). Typecheck, lint and format pass. The web build passes with
+  `next build --webpack`; Turbopack's build cannot download Google's fonts in this sandbox (curl
+  can), so CI's build is the check for it. Browser (Chromium, 1440 wide): the Inbox before and
+  after two signed deliveries with no reload, a refused reply, and the return page's two lines.
 
 ## 2.69.1 — 2026-11-18
 

@@ -1,6 +1,6 @@
 {
   "name": "account.forget",
-  "description": "Forgets a brand's account on one platform, and its tokens: only the account named, so one linked since is kept. Instagram and Facebook only by an owner or admin of the brand's company. Internal: packages/connect.",
+  "description": "Forgets a brand's account on one platform, and its tokens: only the account named, so one linked since is kept. Instagram and Facebook only by an owner or admin of the brand's company. An Instagram account's capture links and codes go with it: its senders' ids are scoped to it. Internal: packages/connect.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -23,5 +23,5 @@
   "before": ["brand.reachable", "account.make_managed"],
   "internal": true,
   "returns": "many",
-  "sql": "with a as (delete from brandbase.accounts a where a.brand_id = :brand and a.platform = :platform and a.account_id = :accountId returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, 'off' from a, brandbase.account_connections(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id) as result from a"
+  "sql": "with a as (delete from brandbase.accounts a where a.brand_id = :brand and a.platform = :platform and a.account_id = :accountId returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, 'off' from a, brandbase.account_connections(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) , s as (delete from brandbase.capture_senders x using a where a.platform = 'instagram' and x.account = a.account_id), q as (delete from brandbase.capture_codes x using a where a.platform = 'instagram' and x.account = a.account_id) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id) as result from a"
 }

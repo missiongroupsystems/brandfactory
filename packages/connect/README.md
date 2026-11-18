@@ -47,7 +47,10 @@ described below; it is not deployed.
   operator's list, with `inbox.meta_receive`); without it they are only counted. `META_APP_ID`,
   `META_APP_SECRET`, `META_CONFIG_ID` (the Facebook Login for Business configuration) and
   `META_REDIRECT_URL` (the web app's `/connect/meta`), all four or none, turn on Facebook's
-  sign-in for each brand's Page and Instagram account. `pnpm -F @brandfactory/connect serve` starts it with the core's
+  sign-in for each brand's Page and Instagram account. `META_CAPTURE_BRAND` names the brand whose
+  Instagram account, linked through Meta, is the capture account (`meta-capture.ts`; capture is off
+  without it). `META_POLL_DMS=off` stops the DM read every 30 seconds (`meta-poll.ts`), which stands in
+  while Meta sends no webhooks. `pnpm -F @brandfactory/connect serve` starts it with the core's
   own variables too.
 
 ## The brand rule

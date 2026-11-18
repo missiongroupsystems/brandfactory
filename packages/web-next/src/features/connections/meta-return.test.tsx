@@ -11,6 +11,8 @@ const requests = vi.hoisted(() => [] as { call: string; body: unknown }[])
 const pages = vi.hoisted(() => ({
   list: [] as { id: string; name: string; igUsername: string | null }[],
   webhooks: true,
+  missing: [] as string[],
+  instagramRefused: null as string | null,
 }))
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
@@ -18,7 +20,12 @@ vi.mock('@/lib/remote', async (original) => ({
   request: async (method: string, path: string, body?: unknown) => {
     requests.push({ call: `${method} ${path}`, body })
     if (path === '/meta/callback') return { brandId: 'casa', choice: 'sealed', pages: pages.list }
-    if (path === '/meta/select') return { webhooks: pages.webhooks }
+    if (path === '/meta/select')
+      return {
+        webhooks: pages.webhooks,
+        missing: pages.missing,
+        instagramRefused: pages.instagramRefused,
+      }
     return {}
   },
   loadBrand: async () => ({}),
@@ -30,6 +37,8 @@ beforeEach(() => {
   requests.length = 0
   replace.mockClear()
   pages.webhooks = true
+  pages.missing = []
+  pages.instagramRefused = null
 })
 
 describe('the page Facebook returns to', () => {
@@ -66,6 +75,33 @@ describe('the page Facebook returns to', () => {
     expect(await screen.findByText(/will not reach the Inbox/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to Connections' })).toBeInTheDocument()
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('names the permissions Facebook did not give, and who can add them, after the link', async () => {
+    pages.list = [{ id: '1001', name: 'Casa Vostra', igUsername: 'casavostra' }]
+    pages.webhooks = false
+    pages.missing = ['pages_messaging', 'instagram_manage_messages']
+    render(<MetaReturn code="c" state="s" declined={null} />)
+    expect(
+      await screen.findByText(
+        'Facebook did not give brand base these permissions: pages_messaging, instagram_manage_messages. Ask the Meta app admin to add them, then connect again.',
+      ),
+    ).toBeInTheDocument()
+    // One reason only: the missing permissions explain the Inbox too.
+    expect(screen.queryByText(/will not reach the Inbox/)).not.toBeInTheDocument()
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('says Instagram was not linked, and why, when another brand holds it', async () => {
+    pages.list = [{ id: '1001', name: 'Casa Vostra', igUsername: 'casavostra' }]
+    pages.instagramRefused = 'this Instagram account belongs to another brand'
+    render(<MetaReturn code="c" state="s" declined={null} />)
+    expect(
+      await screen.findByText(
+        'Facebook is connected, but Instagram is not: this Instagram account belongs to another brand.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to Connections' })).toBeInTheDocument()
   })
 
   it('shows Facebook’s reason when the sign-in was declined, and sends no code', () => {

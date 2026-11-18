@@ -62,6 +62,8 @@ export interface InboxMessage {
   replies: InboxReply[]
   /** A complaint's first choice of person, by name from the brand's `people`. */
   sendTo?: string
+  /** The reply the platform refused (one that came through Meta): it waits to be sent again. */
+  failedReply?: string
 }
 
 export interface BrandInbox {

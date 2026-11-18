@@ -204,7 +204,8 @@ if (remote) {
       // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
       sources: {
         pinterest,
-        dm: on(SOURCE_KEY.dm) && !notAvailable('ig'),
+        // Shared is always on: pasted links, and what people share to the capture account.
+        dm: true,
         tt: on(SOURCE_KEY.tt) && !notAvailable('tt'),
       },
     }))

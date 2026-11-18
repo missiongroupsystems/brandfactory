@@ -1,9 +1,9 @@
 import { createHmac } from 'node:crypto'
 import { createCore } from '@brandfactory/core/src/app'
 import { type CoreDeps } from '@brandfactory/core/src/run'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { platformsFromEnv } from './env'
-import { type MetaDelivery, metaWebhookRoutes } from './meta-webhooks'
+import { type MetaDelivery, metaWebhookRoutes, refusalLog } from './meta-webhooks'
 import { accountRoutes, type Platforms } from './routes'
 
 const SECRET = 'app-secret'
@@ -83,6 +83,35 @@ describe('the Meta webhook', () => {
         body: COMMENT,
       })
       expect(res.status).toBe(401)
+    }
+  })
+
+  it('logs refused signatures at most once a minute, with how many came', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const app = await serve({ metaHooks: { verifyToken: TOKEN, appSecret: SECRET } })
+      for (let i = 0; i < 3; i++) {
+        const res = await app.request('/webhooks/meta', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=00' },
+          body: COMMENT,
+        })
+        expect(res.status).toBe(401)
+      }
+      // The first refusal is logged at once; the next two wait for the minute.
+      expect(warn.mock.calls).toEqual([['meta webhook: refused signature', '{"count":1}']])
+      warn.mockClear()
+      let at = 0
+      const refused = refusalLog(() => at)
+      refused()
+      at = 30_000
+      refused()
+      refused()
+      at = 60_000
+      refused()
+      expect(warn.mock.calls.map((c) => c[1])).toEqual(['{"count":1}', '{"count":3}'])
+    } finally {
+      warn.mockRestore()
     }
   })
 
