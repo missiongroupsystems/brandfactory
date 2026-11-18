@@ -104,6 +104,7 @@ describe('the Instagram tab on the core, linked through Meta', () => {
     const [one, many] = within(list).getAllByRole('listitem')
     expect(within(one!).getAllByText('view').length).toBeGreaterThan(0)
     expect(within(many!).getAllByText('views').length).toBeGreaterThan(0)
+    expect(within(one!).getByRole('link').getAttribute('aria-label')).toMatch(/ · 1 view$/)
   })
 
   it('keeps what Make read back for an account linked through Make, and asks Meta nothing', async () => {

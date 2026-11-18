@@ -34,6 +34,7 @@ import {
   kindOf,
   ledgerOf,
   nowIn,
+  one,
   PLATFORM_NAME,
   platformOf,
   profileName,
@@ -495,13 +496,10 @@ function SortMenu({ order, onChange }: { order: Order; onChange: (o: Order) => v
   )
 }
 
-/** The counts a tile names by a glyph: views, reach and likes. The rest keep their word. */
-// Views say so in a word: a play or an eye beside a number was read as a count of something else.
-/** "1 view", "12 views": the word agrees with its number. */
-function one(value: number, word: string) {
-  return value === 1 && word.endsWith('s') ? word.slice(0, -1) : word
-}
-
+/**
+ * The counts a tile names by a glyph: reach and likes. The rest keep their word. Views say so in
+ * a word: a play icon beside a number was read as a count of something else.
+ */
 const GLYPH: Partial<Record<CountKey, React.ReactNode>> = {
   reach: <EyeIcon />,
   likes: <HeartIcon />,
@@ -764,7 +762,7 @@ function VideoTile({
       href={video.url ?? undefined}
       target="_blank"
       rel="noreferrer"
-      aria-label={`${noun}${when && ` · ${when}`}: ${title}${views ? ` · ${views} views` : ''}${
+      aria-label={`${noun}${when && ` · ${when}`}: ${title}${views ? ` · ${views} ${one(video.views!, 'views')}` : ''}${
         !views && likes ? ` · ${k(likes.value)} ${likes.label}` : ''
       }`}
       className="group relative block aspect-[3/4] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none md:hover:-translate-y-0.5"

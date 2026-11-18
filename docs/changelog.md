@@ -153,7 +153,8 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Why.** The owner read the round "1" on a Feed tile and could not tell it counts views.
 - **What changed.** `posted/posted-page.tsx`: the views badge on a post's cover shows the word,
   "1 view" or "2.4k views", on Instagram posts read from Meta and on TikTok videos (the play mark
-  is gone from both); reach and likes keep their eye and heart.
+  is gone from both); reach and likes keep their eye and heart. A tile's label for a screen
+  reader agrees too: "1 view", not "1 views" (`one` in `posted/model.ts`).
 - **Tests:** 1737 by count: 1471 pass and 266 are skipped without a Postgres server. Typecheck,
   lint, format and the web build pass. Browser: the Feed's Instagram tab at laptop and phone width.
 
