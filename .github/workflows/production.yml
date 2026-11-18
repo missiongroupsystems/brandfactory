@@ -14,6 +14,9 @@ name: Production
 #   meta-oembed  read only: one oEmbed call for a public Facebook post and one for a public
 #            Instagram post, made on the server with the app token, so that Meta counts the
 #            "Embed content" use case as tested; prints the HTTP status and the answer's keys
+#   meta-test-calls  one pages_manage_engagement call that changes nothing (is_hidden=false on a
+#            comment that is visible already) and one read_insights call, made on the server with
+#            Casa Vostra's Page token; prints statuses, Meta's errors, the token's scopes, counts
 #
 # Secrets and variables are the repository's (Settings, Secrets and variables, Actions):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
@@ -28,7 +31,7 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy, meta, meta-oembed, agent-loadout]
+        options: [check, release, deploy, meta, meta-oembed, meta-test-calls, agent-loadout]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
         required: false
@@ -74,7 +77,7 @@ jobs:
 
       # The session pooler (IPv4), with Supabase's own root, as the CLI reaches it from anywhere.
       - name: Database logins
-        if: inputs.task != 'deploy' && inputs.task != 'meta' && inputs.task != 'meta-oembed'
+        if: inputs.task != 'deploy' && inputs.task != 'meta' && inputs.task != 'meta-oembed' && inputs.task != 'meta-test-calls'
         env:
           LOGIN_PW: ${{ secrets.CORE_LOGIN_PASSWORD }}
           MIGRATOR_PW: ${{ secrets.CORE_MIGRATOR_PASSWORD }}
@@ -164,7 +167,7 @@ jobs:
           pnpm -s exec tsx scripts/widen-agents.ts brandbase inbox.meta_receive $OPS
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed'
+        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed' || inputs.task == 'meta-test-calls'
 
       # Read only. `secrets list` shows names and digests, never values; the log lines name an
       # object and a count, or an account id, never a message.
@@ -209,6 +212,101 @@ jobs:
           b64=$(sed 's/^          //' "$RUNNER_TEMP/oembed.js" | base64 -w0)
           echo "Graph $version, on the server:"
           flyctl ssh console -a brandfactory -C "node -e \"eval(Buffer.from('$b64','base64').toString())\" $version"
+
+      # The Page token is opened inside the machine as the server opens it (account.meta_list as
+      # META_WEBHOOK_AS, then openToken), and goes only to graph.facebook.com. The script prints
+      # statuses, Meta's errors, the token's scopes and counts: never a token, a person or a text.
+      - name: Meta test calls
+        if: inputs.task == 'meta-test-calls'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Files on the server:"
+          flyctl ssh console -a brandfactory -C "sh -c 'ls /app; ls /app/src/brandbase | head -50; ls /app/node_modules/@brandfactory/core/src | head -50'"
+          cat > "$RUNNER_TEMP/mt.ts" <<'TS'
+          import { createHmac } from 'node:crypto'
+          import { loadEnv } from '/app/node_modules/@brandfactory/core/src/env.ts'
+          import { openPostgres } from '/app/node_modules/@brandfactory/core/src/db.ts'
+          import { call } from '/app/node_modules/@brandfactory/core/src/run.ts'
+          import { GRAPH, metaApp } from '/app/src/brandbase/meta.ts'
+          import { bound, PACK } from '/app/src/brandbase/accounts.ts'
+
+          const e = process.env
+          const out = (...a: unknown[]) => console.log(...a)
+          const err = (b: any) => {
+            const x = b?.error
+            return x ? JSON.stringify({ code: x.code, subcode: x.error_subcode, type: x.type, message: x.message }) : ''
+          }
+
+          ;(async () => {
+            for (const k of ['META_APP_ID', 'META_APP_SECRET', 'TOKEN_ENCRYPTION_KEY', 'META_WEBHOOK_AS', 'DATABASE_URL']) {
+              if (!e[k]) { out(k, 'is not set'); process.exit(1) }
+            }
+            const env = loadEnv()
+            const db = openPostgres(env.databaseUrl!, 1, { prepare: env.prepare })
+            const deps = { db, auth: env.auth, environment: env.environment, now: () => new Date() } as any
+            const rows = (await call(deps, {
+              authorization: undefined, as: e.META_WEBHOOK_AS, internal: true, pack: PACK, op: 'account.meta_list', input: {},
+            })) as { brand: string; platform: string; accountId: string; tokens: string }[]
+            await db.close()
+            const pages = rows.filter((r) => r.platform === 'facebook')
+            out('Facebook Pages linked through our Meta app:', pages.length, 'brands:', pages.map((p) => p.brand).join(','))
+            const page = pages.find((p) => /casa/i.test(p.brand)) ?? (pages.length === 1 ? pages[0] : undefined)
+            if (!page) { out('no Facebook Page for Casa Vostra'); process.exit(1) }
+            out('brand used:', page.brand)
+
+            const app = metaApp({
+              appId: e.META_APP_ID!, appSecret: e.META_APP_SECRET!, configId: e.META_CONFIG_ID ?? '',
+              redirectUrl: e.META_REDIRECT_URL ?? 'https://x', masterKey: Buffer.from(e.TOKEN_ENCRYPTION_KEY!, 'base64'),
+            })
+            const token = app.openToken(page.tokens, bound('facebook', page.brand, page.accountId))
+            const proof = (t: string) => createHmac('sha256', e.META_APP_SECRET!).update(t).digest('hex')
+            async function g(method: 'GET' | 'POST', path: string, params: Record<string, string>, t = token) {
+              const all = new URLSearchParams({ ...params, access_token: t, appsecret_proof: proof(t) })
+              const signal = AbortSignal.timeout(60_000)
+              const res = method === 'POST'
+                ? await fetch(GRAPH + path, { method, body: all, signal })
+                : await fetch(GRAPH + path + '?' + all, { signal })
+              const body: any = await res.json().catch(() => ({}))
+              return { status: res.status, body }
+            }
+
+            // The token's permissions.
+            const dbg = await g('GET', '/debug_token', { input_token: token }, e.META_APP_ID + '|' + e.META_APP_SECRET)
+            out('debug_token', dbg.status, err(dbg.body) || JSON.stringify({
+              is_valid: dbg.body?.data?.is_valid, type: dbg.body?.data?.type, scopes: dbg.body?.data?.scopes,
+            }))
+
+            // 1. pages_manage_engagement: set is_hidden=false on a comment that is already visible.
+            const posts = await g('GET', `/${page.accountId}/posts`, {
+              limit: '5', fields: 'id,comments.limit(5){id,is_hidden,can_hide}',
+            })
+            const comments = ((posts.body?.data ?? []) as any[]).flatMap((p) => p.comments?.data ?? [])
+            const visible = comments.filter((c) => c.is_hidden === false)
+            out('GET posts', posts.status, err(posts.body) || JSON.stringify({
+              posts: (posts.body?.data ?? []).length, comments: comments.length, visible: visible.length,
+              can_hide: visible.filter((c) => c.can_hide === true).length,
+            }))
+            const pick = visible.find((c) => c.can_hide === true) ?? visible[0]
+            if (!pick) {
+              out('pages_manage_engagement: no visible comment on the last 5 posts; nothing sent')
+            } else {
+              const r = await g('POST', `/${pick.id}`, { is_hidden: 'false' })
+              out('POST comment is_hidden=false', r.status, err(r.body) || JSON.stringify({ success: r.body?.success === true, can_hide: pick.can_hide === true }))
+            }
+
+            // 2. read_insights.
+            for (const metric of ['page_impressions_unique', 'page_total_media_view_unique', 'page_follows']) {
+              const r = await g('GET', `/${page.accountId}/insights`, { metric, period: 'day' })
+              out('GET insights', metric, r.status, err(r.body) || JSON.stringify({ series: (r.body?.data ?? []).length }))
+              if (r.status === 200) break
+              if (r.body?.error?.code !== 100) break
+            }
+          })().catch((x) => { out('failed:', (x as Error).message); process.exit(1) })
+          TS
+          b64=$(base64 -w0 "$RUNNER_TEMP/mt.ts")
+          flyctl ssh console -a brandfactory -C "sh -c 'echo $b64 | base64 -d > /tmp/mt.mts && cd /app && node_modules/.bin/tsx /tmp/mt.mts; rm -f /tmp/mt.mts'"
 
       - name: Deploy
         if: inputs.task == 'deploy'
