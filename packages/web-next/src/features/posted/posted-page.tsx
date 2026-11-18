@@ -9,7 +9,6 @@ import {
   ChevronIcon,
   EyeIcon,
   HeartIcon,
-  PlayIcon,
   SortIcon,
 } from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
@@ -497,8 +496,13 @@ function SortMenu({ order, onChange }: { order: Order; onChange: (o: Order) => v
 }
 
 /** The counts a tile names by a glyph: views, reach and likes. The rest keep their word. */
+// Views say so in a word: a play or an eye beside a number was read as a count of something else.
+/** "1 view", "12 views": the word agrees with its number. */
+function one(value: number, word: string) {
+  return value === 1 && word.endsWith('s') ? word.slice(0, -1) : word
+}
+
 const GLYPH: Partial<Record<CountKey, React.ReactNode>> = {
-  views: <PlayIcon />,
   reach: <EyeIcon />,
   likes: <HeartIcon />,
 }
@@ -581,7 +585,7 @@ function Tile({ item, platform, today }: { item: PostedItem; platform: Platform;
           {GLYPH[head.key] ?? null}
           {k(head.value)}
           <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
-            {head.label.toLowerCase()}
+            {one(head.value, head.label.toLowerCase())}
           </span>
         </span>
       )}
@@ -777,9 +781,8 @@ function VideoTile({
         <span
           className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[10.5px] ${ON_COVER}`}
         >
-          {platform === 'tt' && <PlayIcon />}
           {views}
-          <span className="sr-only">views</span>
+          <span className="font-normal">{one(video.views!, 'views')}</span>
         </span>
       )}
       <span className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 bg-black/55 p-4 text-page opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:hidden">

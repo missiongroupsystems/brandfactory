@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.69.1** — 2026-11-18 — `fix/views-label`: a post's views on the Feed say "views" (or "view" for one) beside the number, where a bare number showed before. 1737 tests by count: 1471 pass, 266 skipped without a Postgres server.
 - **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1736 tests by count: 1470 pass, 266 skipped without a Postgres server.
 - **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
 - **2.67.0** — 2026-11-15 — `claude/clever-sagan-fyed6e`: every option on the post page reaches Meta or is hidden. Instagram gets the collaborators, each photo's tags and the first comment (pack 1.16.0, no migration; a new internal move `post.ig_media`, so loadouts need setting again); the posted view shows where each collaborator's invite stands, read live; a crop goes out as cut; Save on a scheduled post sends its waiting jobs again with a new yes (a plain Save was refused at its time); Location, the AI label and Facebook's audience are hidden on the live app. 1705 tests by count (1438 pass, 266 skipped without a Postgres server, 1 fails only on Node 22: `text.test.ts`, pinned to Node 24.13.0).
@@ -146,6 +147,15 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.69.1 — 2026-11-18
+
+- **Why.** The owner read the round "1" on a Feed tile and could not tell it counts views.
+- **What changed.** `posted/posted-page.tsx`: the views badge on a post's cover shows the word,
+  "1 view" or "2.4k views", on Instagram posts read from Meta and on TikTok videos (the play mark
+  is gone from both); reach and likes keep their eye and heart.
+- **Tests:** 1737 by count: 1471 pass and 266 are skipped without a Postgres server. Typecheck,
+  lint, format and the web build pass. Browser: the Feed's Instagram tab at laptop and phone width.
 
 ## 2.69.0 — 2026-11-16
 
