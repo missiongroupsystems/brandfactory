@@ -130,6 +130,15 @@ export function metaCapture(core: CoreDeps, meta: MetaApp | undefined, opts: Cap
   let warned = ''
   /** Brand choices waiting for a tap, by account and sender. */
   const pending = new Map<string, { id: string; person: string; choices: Choice[]; at: number }>()
+  /**
+   * Meta's ids of the messages the capture took lately: the webhook and the DM read may both bring
+   * one, and a tap read the second time no longer finds its question.
+   */
+  const taken = new Set<string>()
+  const remember = (mid: string) => {
+    taken.add(mid)
+    if (taken.size > 5000) taken.delete(taken.values().next().value!)
+  }
   /** The jobs that run after Meta's 200, one after another. */
   let queue: Promise<void> = Promise.resolve()
   const later = (name: string, job: () => Promise<void>) => {
@@ -470,7 +479,7 @@ export function metaCapture(core: CoreDeps, meta: MetaApp | undefined, opts: Cap
       if (delivery.object !== 'instagram') return delivery
       const acc = await account()
       if (!acc) return delivery
-      let taken = 0
+      let count = 0
       const entry: Json[] = []
       for (const e of delivery.entry) {
         if (str(e.id) !== acc.id || !Array.isArray(e.messaging)) {
@@ -479,19 +488,24 @@ export function metaCapture(core: CoreDeps, meta: MetaApp | undefined, opts: Cap
         }
         const kept: unknown[] = []
         for (const m of e.messaging) {
-          let mine = false
+          const message = obj(obj(m).message)
+          const mid = str(message.mid)
+          // A delete names the message it deletes: it always runs.
+          let mine = message.is_deleted !== true && taken.has(mid)
           try {
-            mine = await take(acc, obj(m))
+            if (!mine) mine = await take(acc, obj(m))
           } catch (err) {
             if (!(err instanceof Refused && err.status < 500)) throw err
             console.error('meta capture: refused', err.code)
           }
-          if (mine) taken++
-          else kept.push(m)
+          if (mine) {
+            count++
+            remember(mid)
+          } else kept.push(m)
         }
         entry.push({ ...e, messaging: kept })
       }
-      if (taken > 0) console.info('meta capture:', taken, 'taken')
+      if (count > 0) console.info('meta capture:', count, 'taken')
       return { ...delivery, entry }
     },
 

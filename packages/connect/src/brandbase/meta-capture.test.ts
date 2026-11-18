@@ -256,6 +256,8 @@ describe('Instagram capture', () => {
       dm('mid-tap', 'Temper', SENDER, { quick_reply: { payload: `cap:${id}:temper` } }),
     )
     expect(dms(t.graph).at(-1)!.text).toBe(SAY.saved('Temper'))
+    // The DM read brings the same tap again, as text: it stays out of the Inbox.
+    await t.deliver(dm('mid-tap', 'Temper'))
     const [saved] = await t.pasted()
     expect(saved).toMatchObject({
       id,
