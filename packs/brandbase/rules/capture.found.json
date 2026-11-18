@@ -1,0 +1,7 @@
+{
+  "id": "capture.found",
+  "sql": "select exists (select 1 from brandbase.captures where id = :id and user_id = brandbase.caller()) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "capture not found"
+}

@@ -1,0 +1,33 @@
+{
+  "name": "capture.file",
+  "description": "A new file for the caller's own capture: the copy of the shared reel or post, in the type Meta served it. Answers a signed write URL and the file's stable address. Internal: packages/connect copies the media, as the person the sender is linked to.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "mime"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "mime": {
+        "type": "string",
+        "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "video/mp4",
+          "video/quicktime",
+          "video/webm"
+        ]
+      }
+    }
+  },
+  "upload": {
+    "type": "mime"
+  },
+  "before": ["capture.found"],
+  "internal": true,
+  "returns": "one",
+  "sql": "update brandbase.captures c set file_key = :file where c.id = :id and c.user_id = brandbase.caller() returning jsonb_build_object('upload', jsonb_build_object('key', c.file_key, 'type', :mime::text)) as result"
+}

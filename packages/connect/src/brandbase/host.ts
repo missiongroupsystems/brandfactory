@@ -1,6 +1,8 @@
 import { serveCore } from '@brandfactory/core/src/server'
 import { platformsFromEnv } from './env'
 import { socialConnector } from './make'
+import { metaHandler } from './meta-capture'
+import { metaPoll, startMetaPoll } from './meta-poll'
 import { metaSender } from './meta-post'
 import { accountRoutes } from './routes'
 
@@ -16,6 +18,15 @@ const platforms = platformsFromEnv()
 await serveCore((core) => {
   const signedReadUrl =
     core.files && ((key: string, ttl: number) => core.files!.store.signedReadUrl(key, ttl))
+  const meta = metaHandler(core, platforms.meta, platforms.metaHooks)
+  // The regular reads of Instagram comments and, while Meta sends no webhooks, of DMs: Fly runs
+  // one machine, so one loop.
+  const hooks = platforms.metaHooks
+  if (platforms.meta && hooks?.as) {
+    startMetaPoll(
+      metaPoll(core, platforms.meta, meta.handle, { as: hooks.as, dms: hooks.pollDms !== false }),
+    )
+  }
   return {
     connectors: {
       social: socialConnector({
@@ -24,6 +35,6 @@ await serveCore((core) => {
         signedReadUrl,
       }),
     },
-    routes: (app) => app.route('/', accountRoutes(core, platforms)),
+    routes: (app) => app.route('/', accountRoutes(core, platforms, meta)),
   }
 })

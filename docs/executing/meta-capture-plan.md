@@ -41,52 +41,86 @@ minute) until App Review gives Advanced Access; then the webhook replaces it.
 | Page subscription on connect (`messages`, `feed`) | Built (`meta.ts`, `/meta/select`) |
 | DM and comment reply, hide, 24-hour window | Built |
 | A shared reel or post in the Inbox | Shows "(a photo, a video or a sticker)": **missing** |
-| Instagram comments without Advanced Access | **Missing**: the regular read |
-| Capture: account setting, sender link, brand choice, save to Ideation | **Missing** |
-| The Ideas page's DM copy (`@mission.moodboards`, `#tag`) | Demo copy: **to replace** |
+| Instagram comments without Advanced Access | Built: the read once a minute (`meta-poll.ts`) |
+| DMs while the app is in Development mode | Built: the read every 30 seconds (`META_POLL_DMS`) |
+| Capture: account setting, sender link, brand choice, save to Ideation | Built (`meta-capture.ts`, pack 1.17.0) |
+| The Ideas page's DM copy (`@mission.moodboards`, `#tag`) | Replaced on the live app by the capture handle and "Add from Instagram" |
 
 ## Build
 
-1. **Settings (the "master file").** Two server variables on Fly:
-   `META_CAPTURE_ACCOUNT` (the capture account's Instagram id) and `META_CAPTURE_BRAND` (the brand
-   whose linked account holds its Page token; for the demo, the test brand). The webhook sends a
-   DM to the capture path only when it came to `META_CAPTURE_ACCOUNT`.
-2. **Who sent it.** A table of linked senders (Instagram sender id → Brand Base person). On the
-   Ideas page, "Add from Instagram" shows a code. The marketer DMs `LINK 4821` to the capture
-   account once; the account answers "Linked to <name>". A share from a sender with no link is
-   not saved, and gets one reply that says how to link.
-3. **Which brand.** After a share, the account answers with quick-reply buttons: the person's
-   brands, the one used last first (Instagram allows 13). A tap saves it. A person with one brand
-   saves at once. A brand name or tag in the text (`#casavostra`) also picks it. Replies fall
-   within the 24-hour window.
-4. **Save.** At once, the server copies the media from Meta's URL (it expires) into our file
-   storage, then adds a pasted reference to the brand (platform `ig`, the caption, the image or
-   video, format reel or post). It shows under "Shared" on the Ideas page, as a pasted link does.
-   The same message twice saves once (the id comes from Meta's message id).
-5. **Inbox and capture on one account.** On the capture account, a share from a linked sender
-   goes to capture, and the `LINK` and brand replies are kept out of the Inbox. Every other DM
-   goes to the Inbox as now. With the demo's one account, the sender's text DMs show in the Inbox
-   and their shared reels in Ideation.
-6. **Inbox shows shares.** A DM with a reel or a photo shows its picture in the Inbox, not
-   "(a photo, a video or a sticker)".
-7. **Instagram comments.** A read every minute of the recent posts' new comments, for each brand
-   linked through Meta, stored with `inbox.meta_receive` as the webhook would. It stops when
-   Advanced Access comes and the webhook sends them.
-8. **Tests.** Unit tests for each path, with signed deliveries built from Meta's documented
-   payloads. A local run end to end (local core, a signed delivery, Playwright screenshots of the
-   Ideas page and the Inbox). Then the live run with the two accounts.
+Capture (flow B) and the regular reads are built on `feat/meta-capture` (pack 1.17.0, migration
+`0027_capture.sql`); see `docs/completions/meta-capture-phases-1-to-1.md`. The Inbox fixes (flow A)
+are on `feat/meta-inbox-fixes`. Design as built, with the changes from the first draft:
+
+1. **Settings.** One server variable, `META_CAPTURE_BRAND`: the brand whose Instagram account,
+   linked through Meta on Connections, is the capture account. The capture account's id, handle,
+   Page and Page token come from that row, so there is no `META_CAPTURE_ACCOUNT` that can drift
+   from it. Unset, or the brand has no Instagram row linked through Meta: capture is off, and the
+   Ideas page shows no "Add from Instagram". The capture side runs as `META_WEBHOOK_AS`, which must
+   reach the capture brand (its company) and hold the capture moves (owner's setup, step 5).
+2. **Routing.** The webhook's handler runs the capture first (`meta-capture.ts`, `route`), before
+   `batchesOf`. On the capture account (`entry.id`), a LINK code, a brand tap (quick reply, or the
+   brand's name typed while a choice waits) and a share (`ig_reel`, `reel`, `ig_post`, `share`, a
+   photo or a video) from a linked sender are the capture's and never reach the Inbox. Everything
+   else goes to the Inbox as before, a share from an unlinked sender included.
+3. **Who sent it.** "Add from Instagram" on the Ideas page (Shared) shows an 8-character code (no
+   look-alike letters) for 10 minutes: "DM this to @handle: LINK ABCD2345". Only its HMAC-SHA256 (under the app secret) is
+   kept; it is single use, and a new code replaces the person's earlier one. After 5 wrong tries
+   in an hour the sender's codes are not checked. The account answers "Linked to <name>". An
+   unlinked sender who shares a post gets one how-to reply a day, and nothing is copied.
+4. **Which brand.** After a share, the account asks "Which brand is this for?" with quick replies:
+   the person's brands, the one saved to last first, at most 13, titles cut to 20 characters.
+   Each payload is `cap:<capture id>:<brand id>`, so a tap still works after a restart. The share
+   is claimed (`capture.claim`) before anything is sent, so Meta's resend asks nothing twice. One
+   brand: it saves at once. The brand name or tag in the text (`#casavostra`) is dropped; a typed
+   brand name answers a waiting question instead.
+5. **Save.** After Meta's 200, a job copies the media from Meta's host (`fbcdn.net`,
+   `cdninstagram.com`, `fbsbx.com` only, each redirect checked), streamed, at most 100 MB, into
+   the core's files (`capture.file`, an upload move), then `capture.save` gives the capture its
+   stable `/files/<sig>/<key>` address. With the brand and the file both in, it becomes a pasted
+   link of the brand under the capture's id (`idOf(mid)`): a reel for a video, a carousel for a
+   photo, saved as the linked person, never as `META_WEBHOOK_AS`. The tap and the copy may come in
+   either order. A reel shows its own first frame as its cover (`<video preload="metadata">`).
+   There is no caption: Meta sends none. A message the sender deletes (`is_deleted`) deletes its
+   capture and pasted link (`capture.drop`). Disconnecting the capture account deletes its sender
+   links and codes (`account.forget`).
+6. **Ideas page.** On the live app "Shared" is always on (finding 2): pasted links and captures,
+   the paste field, and "Or share a post to @handle. Add from Instagram". The page reads the brand
+   again every 10 seconds while open, so a capture shows without a reload.
+7. **Instagram comments, read once a minute** (`meta-poll.ts`, started in `host.ts`):
+   `GET /{ig-user-id}/media?fields=id,timestamp,comments.limit(25){...}&limit=10` for each
+   Instagram account linked through Meta (`account.meta_list`, a new internal move), stored with
+   `inbox.meta_receive` under `idOf(comment id)`. The brand's own comments and comments older than
+   the link are skipped. It stops being needed once App Review gives Advanced Access.
+8. **DMs, read every 30 seconds, for Development mode** (added 18 Nov, the owner's decision: the
+   Meta app is unpublished, so Meta may send no webhook). For each Instagram account and Page
+   linked through Meta: `GET /{page-id}/conversations?platform=instagram|messenger` with the
+   messages' `id, created_time, from, message, attachments, shares`, from when the account was
+   linked (after a restart, at most 24 hours back). Each new message is turned into the webhook's
+   own shape and goes through the same handler (capture first, then the Inbox), so a later webhook
+   of it changes nothing. A tap read this way has no payload; its text (the brand's name) picks the
+   brand. `META_POLL_DMS=off` turns it off: **switch it off once webhooks arrive.**
+9. **Tests.** Pack cases in `packs/brandbase/tests/capture.json`; `meta-capture.test.ts` with
+   signed deliveries and stubbed Graph, media and storage calls; a local run end to end with
+   screenshots.
 
 ## The owner's setup, before the live run
 
-1. In the Meta app, set the App Mode to **Live** (published). Meta sends no webhooks before that.
-2. In the Meta app, Webhooks: callback `https://brandfactory.fly.dev/webhooks/meta`; Instagram
-   fields `messages` and `comments`; Page fields `messages` and `feed`.
-3. The test brand account: an Instagram professional account, linked to a Facebook Page, with
+1. In the Meta app, Webhooks: callback `https://brandfactory.fly.dev/webhooks/meta`; Instagram
+   fields `messages` and `comments`; Page fields `messages` and `feed`. Publish the app (Live)
+   when it can be: until then the DM read (build item 8) stands in.
+2. The test brand account: an Instagram professional account, linked to a Facebook Page, with
    Settings, Messages and story replies, Message controls, Connected tools, **Allow access to
    messages** turned on. Link it on a test brand in Brand Base, Connections (not on Casa Vostra).
-4. The sender: an Instagram account added as an **Instagram tester** in the Meta app's Roles, with
+3. The sender: an Instagram account added as an **Instagram tester** in the Meta app's Roles, with
    the invite accepted in Instagram (Settings, Apps and websites, Tester invites). For Facebook
    comments, also a Facebook account with a role on the app.
+4. `fly secrets set -a brandfactory META_CAPTURE_BRAND=<the test brand's id>`. The test brand must
+   be in a company where the person behind `META_WEBHOOK_AS` is a member.
+5. The webhook's principal gets the new moves: run **Production** with task `agent-loadout` and
+   ops `account.read account.meta_list capture.link capture.sender capture.claim` (after the
+   release of 1.17.0).
+6. Optional: `META_POLL_DMS=off` once webhooks arrive.
 
 ## Live test script
 
@@ -96,7 +130,8 @@ minute) until App Review gives Advanced Access; then the webhook replaces it.
 3. Sender comments on the test brand's Instagram post: it shows in the Inbox within a minute.
 4. Sender sends `LINK <code>` from the Ideas page: the account answers "Linked to <name>".
 5. Sender shares a reel to the account: the brand buttons come back; a tap saves it; it shows in
-   the brand's Ideas, under Shared, with its cover and caption.
+   the brand's Ideas, under Shared, with its first frame as the cover (no caption: Meta sends
+   none).
 6. Sender shares a photo post and a carousel: each saves (the carousel as its first image).
 
 ## Risks

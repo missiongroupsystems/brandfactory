@@ -22,6 +22,13 @@ export interface MetaHooks {
    * company on the operator's list). Without it, deliveries are acknowledged and only counted.
    */
   as?: string
+  /**
+   * `META_CAPTURE_BRAND`: the brand whose Instagram account, linked through Meta, is the capture
+   * account (`meta-capture.ts`). Capture is off without it.
+   */
+  captureBrand?: string
+  /** `META_POLL_DMS`: the regular DM read while Meta sends no webhooks (`meta-poll.ts`). */
+  pollDms?: boolean
 }
 
 /** One delivery, as Meta sends it: the object type and its changes, possibly batched. */

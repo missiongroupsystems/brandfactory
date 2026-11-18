@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.70.0** — 2026-11-18 — `feat/meta-capture`: a reel or a post DM'd to the capture account (the Instagram account of the brand `META_CAPTURE_BRAND` names) lands in the sender's chosen brand's Ideas, under Shared (pack 1.17.0, migration `0027_capture.sql`). A person links their Instagram once with "Add from Instagram" on the Ideas page (`LINK <code>`, 10 minutes, single use); the account asks which brand with quick replies and saves a copy of the media to our files. Shared is always on, on the live app. Instagram comments are read once a minute, and DMs every 30 seconds while the Meta app is in Development mode (`META_POLL_DMS`; switch it off once webhooks arrive). 1780 tests by count: 1501 pass, 279 skipped without a Postgres server.
 - **2.69.1** — 2026-11-18 — `fix/views-label`: a post's views on the Feed say "views" (or "view" for one) beside the number, where a bare number showed before. 1737 tests by count: 1471 pass, 266 skipped without a Postgres server.
 - **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1736 tests by count: 1470 pass, 266 skipped without a Postgres server.
 - **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
@@ -147,6 +148,39 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.70.0 — 2026-11-18
+
+- **Why.** The owner demos capture on 19 Nov: a marketer DMs a reel or a post to our capture
+  Instagram account, and it lands at once in the right brand's Ideas, under Shared. The Meta app is
+  still unpublished, so Meta may send no webhook: the owner asked for a DM read as a fallback.
+- **Pack 1.17.0** (migration `0027_capture.sql`). Tables `capture_codes` (a code's HMAC-SHA256 under the app secret only),
+  `capture_senders`, `captures`, `capture_seen`, walled to the person's own rows and to the capture
+  account's reach. Internal moves `capture.code`, `capture.link`, `capture.sender`,
+  `capture.claim`, `capture.file` (upload), `capture.save`, `capture.drop` and
+  `account.meta_list`; `account.forget` deletes an Instagram account's sender links and codes. A
+  saved capture is a pasted link of the brand: a reel (with its video) or a carousel.
+- **Server.** `meta-capture.ts`: the capture account comes from `META_CAPTURE_BRAND`'s Instagram row
+  (no separate id). The webhook's handler runs the capture before `batchesOf`: a LINK code, a brand
+  tap and a linked sender's share never reach the Inbox; everything else does, as before. Five
+  wrong codes an hour stop the checks; an unlinked sender gets one how-to reply a day. The share is
+  claimed before any reply, its media is copied after the 200 (Meta's hosts only, streamed, 100 MB
+  cap), and the brand is asked with up to 13 quick replies (the last brand first), or saved at
+  once for one brand. A deleted message deletes its capture. `GET /capture` and
+  `POST /capture/code` serve the Ideas page. `meta-poll.ts`, started in `host.ts` as
+  `META_WEBHOOK_AS`: Instagram comments once a minute (`inbox.meta_receive`, `idOf(comment id)`),
+  and DMs every 30 seconds through the webhook's own handler (`META_POLL_DMS`, on unless `off`;
+  for Development mode only, switch it off once webhooks arrive). Both start from the link time and
+  log counts only.
+- **Web.** Shared is always on, on the live app (finding 2), with "Or share a post to @handle. Add
+  from Instagram" and a code card; the "+" offers only Pinterest there. A reel shows its own first
+  frame (`<video preload="metadata">`) and a play mark. The page reads the brand every 10 seconds
+  while open. The privacy page says what capture keeps.
+- **Production.** A new Production task, `agent-loadout` (`scripts/widen-agents.ts`), adds moves to
+  the agents that hold `inbox.meta_receive`. The owner sets `META_CAPTURE_BRAND`.
+- **Tests:** 1780 by count: 1501 pass and 279 are skipped without a Postgres server (13 new pack cases in `tests/capture.json`, 16 in `meta-capture.test.ts`, 1 in `capture.test.tsx`). Typecheck, lint, format and the web build pass. Browser: a local core on
+  Postgres 16 with the connect host (Meta stubbed), signed LINK, share and quick-reply deliveries,
+  and the Ideas page before and after the capture landed, at laptop width.
 
 ## 2.69.1 — 2026-11-18
 

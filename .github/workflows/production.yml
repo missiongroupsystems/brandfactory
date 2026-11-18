@@ -7,6 +7,8 @@ name: Production
 #            Facebook account is linked (read as the release person, through the server)
 #   release  the pack: publish, test, migrate, promote `version`, then people's loadouts follow it
 #   deploy   the server (`fly deploy`), then its health
+#   agent-loadout  adds the moves `ops` names (space-separated) to every agent whose loadout holds
+#            `inbox.meta_receive` (the webhook's principal, META_WEBHOOK_AS); prints a count only
 #   meta     read only: the names of the server's secrets that Meta needs (never a value), and
 #            the last hour of the server's log lines about Meta's webhooks (counts, no one's words)
 #
@@ -23,9 +25,13 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy, meta]
+        options: [check, release, deploy, meta, agent-loadout]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
+        required: false
+        type: string
+      ops:
+        description: The moves to add (agent-loadout only), space-separated
         required: false
         type: string
 
@@ -142,6 +148,17 @@ jobs:
           pnpm -s exec tsx scripts/loadouts.ts before brandbase > "$RUNNER_TEMP/before.json"
           core promote brandbase "$VERSION"
           pnpm -s exec tsx scripts/loadouts.ts after brandbase "$RUNNER_TEMP/before.json"
+
+      - name: Agent loadout
+        if: inputs.task == 'agent-loadout'
+        working-directory: packages/core
+        env:
+          OPS: ${{ inputs.ops }}
+        run: |
+          set -euo pipefail
+          [ -n "$OPS" ] || { echo "name the moves to add in ops"; exit 1; }
+          # shellcheck disable=SC2086
+          pnpm -s exec tsx scripts/widen-agents.ts brandbase inbox.meta_receive $OPS
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
         if: inputs.task == 'deploy' || inputs.task == 'meta'
