@@ -40,19 +40,20 @@ that scope.
   task over a few minutes.
 - It keeps independent tasks running in parallel and reports each result when it arrives.
 
-### Visual checks: Chromium and Safari
+### Visual checks: Chromium, then optional Safari
 
-1. Headless Chromium (Playwright, the preinstalled browser), at laptop width. Every UI change.
-2. WebKit, Safari's engine (Playwright's `webkit` with the `iPhone 15` and `iPad Mini` device
-   descriptors), next to step 1 for every UI change. In a cloud session, install it once per
-   session with `PLAYWRIGHT_BROWSERS_PATH=<scratchpad>/pwwk node <playwright>/cli.js install webkit`
-   and `node <playwright>/cli.js install-deps webkit` (the host cdn.playwright.dev is allowed in the
+1. Required for every UI change: headless Chromium (Playwright, the preinstalled browser), at
+   laptop width.
+2. Optional: WebKit, Safari's engine (Playwright's `webkit` with the `iPhone 15` and `iPad Mini`
+   device descriptors). Run it for mobile work or when the owner asks. In a cloud session, install
+   it once per session with
+   `PLAYWRIGHT_BROWSERS_PATH=<scratchpad>/pwwk node <playwright>/cli.js install webkit` and
+   `node <playwright>/cli.js install-deps webkit` (the host cdn.playwright.dev is allowed in the
    brandfactory environment), and run WebKit with that `PLAYWRIGHT_BROWSERS_PATH`. Type into fields
    with `pressSequentially`: `fill` does not reach React's inputs in WebKit.
-3. Optional for now: real iOS Safari in the Xcode iOS Simulator on the owner's Mac, through Remote
-   Control (the cloud session connects to the brandfactory folder on the Mac and drives the
-   Simulator). Use it for mobile work when the Mac is online; otherwise say that step 3 did not
-   run.
+3. Optional: real iOS Safari in the Xcode iOS Simulator on the owner's Mac, through Remote Control
+   (the cloud session connects to the brandfactory folder on the Mac and drives the Simulator). Run
+   it for mobile work or when the owner asks, and only when the Mac is online.
 
 State in each report which of the three steps ran.
 
