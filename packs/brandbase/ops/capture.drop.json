@@ -1,6 +1,6 @@
 {
   "name": "capture.drop",
-  "description": "Forgets the caller's capture and the pasted link it became: the sender deleted the message on Instagram (Platform Terms). Internal: packages/connect's webhook, as the person the sender is linked to.",
+  "description": "Forgets a capture and the pasted link it became: the sender deleted the message on Instagram (Platform Terms). Internal: packages/connect's webhook, as the principal META_WEBHOOK_AS names.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -15,5 +15,5 @@
   "before": ["capture.found"],
   "internal": true,
   "returns": "one",
-  "sql": "with c as (delete from brandbase.captures x where x.id = :id and x.user_id = brandbase.caller() returning x.id, x.brand_id), p as (delete from brandbase.pasted_links l using c where l.id = c.id and l.brand_id = c.brand_id returning 1) select jsonb_build_object('dropped', (select count(*) from c), 'pasted', (select count(*) from p)) as result"
+  "sql": "with c as (delete from brandbase.captures x where x.id = :id returning x.id, x.brand_id), p as (delete from brandbase.pasted_links l using c where l.id = c.id and l.brand_id = c.brand_id returning 1) select jsonb_build_object('dropped', (select count(*) from c), 'pasted', (select count(*) from p)) as result"
 }

@@ -83,3 +83,24 @@ runtime's start. The fake runtime takes `FAKE_INIT_DELAY` now, and the test star
 - The brand named by a tag in the text (`#casavostra`) from the first draft: a typed brand name
   answers a waiting question instead.
 - A reel's cover is its video's first frame: no ffmpeg on the server image.
+
+## Phase 2: no LINK code, and the tile opens the post (pack 1.18.0)
+
+The owner's change of 18 Nov, on `feat/capture-simple`; the plan's section "The owner's change of
+18 Nov" has the design and which of the four ways to the post's address Meta's docs support.
+
+- Pack: migration `0028_capture_open.sql` (additive); `capture.take`; `capture.file`,
+  `capture.save` and `capture.drop` as the webhook's principal, a save only by its own sender; the
+  link moves gone. `tests/capture.json`: 6 cases.
+- Server: `meta-capture.ts` without the link flow; `readSenderName` shared with the Inbox;
+  `permalinkOf` with the ways (a) to (d), counted in the log; `META_CAPTURE_SENDERS`.
+- Web: the capture line with no code; a captured tile is a link to the post (a new tab), with its
+  own pick mark; "Added by @handle".
+- Review (adversarial, by this session; no separate reviewer tool was available): a tap carrying
+  another sender's capture id could set that capture's brand. Fixed: `capture.save` takes the
+  sender and changes only that sender's capture (tests in the pack and in connect). Checked with
+  no finding: a resend saves once; a failed name read saves as "Instagram"; an unknown sender is
+  captured unless `META_CAPTURE_SENDERS` is set, and then is a DM for the Inbox; a share with no
+  media URL is a DM, and one whose URL is the post's address does not save and says so; an
+  address that is not `instagram.com` is never kept (the server's match and the move's pattern);
+  a tile with no address opens our copy; an ordinary DM still reaches the Inbox.

@@ -1,0 +1,27 @@
+{
+  "name": "capture.take",
+  "description": "Claims a reel or a post someone shared with the capture account, under the id made from Meta's message id. A claim made before (Meta sends again, or the DM read found it too) claims nothing. Answers the brand this sender saved to last. Internal: packages/connect's webhook, as the principal META_WEBHOOK_AS names.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["account", "sender", "id"],
+    "properties": {
+      "account": {
+        "type": "string",
+        "pattern": "^[0-9]{1,30}$"
+      },
+      "sender": {
+        "type": "string",
+        "pattern": "^[0-9]{1,40}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["capture.account_reached"],
+  "internal": true,
+  "returns": "one",
+  "sql": "with c as (insert into brandbase.captures (id, account, sender, created_at) values (:id, :account, :sender, :now::timestamptz) on conflict (id) do nothing returning 1) select jsonb_build_object('claimed', exists (select 1 from c), 'lastBrand', (select s.last_brand from brandbase.capture_senders s where s.account = :account and s.sender = :sender)) as result"
+}

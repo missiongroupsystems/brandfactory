@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.73.0** — 2026-11-18 — `feat/capture-simple`: capture with no LINK code (pack 1.18.0, migration `0028_capture_open.sql`, additive). Anyone who DMs a reel or a post to the capture account taps a brand of the capture brand's company and it lands under Shared, "Added by @handle"; the tile opens the post on Instagram, or our copy when Meta gives no address. `META_CAPTURE_SENDERS` optionally limits who is captured. 1792 tests by count: 1520 pass, 272 skipped without a Postgres server.
 - **2.72.0** — 2026-11-18 — `feat/failed-clear`: "N failed" on the calendar always opens its list (one failure too); each row shows a quiet × on hover or keyboard focus (always on touch) that takes the post to drafts without posting it, as the post page's "Move to drafts" does, and the row folds away. A long list scrolls inside the menu with faded edges. No server or pack change. 1741 tests by count: 1473 pass, 266 skipped without a Postgres server.
 - **2.71.0** — 2026-11-18 — `feat/meta-capture`: a reel or a post DM'd to the capture account (the Instagram account of the brand `META_CAPTURE_BRAND` names) lands in the sender's chosen brand's Ideas, under Shared (pack 1.17.0, migration `0027_capture.sql`). A person links their Instagram once with "Add from Instagram" on the Ideas page (`LINK <code>`, 10 minutes, single use); the account asks which brand with quick replies and saves a copy of the media to our files. Shared is always on, on the live app. Instagram comments are read once a minute, and DMs every 30 seconds while the Meta app is in Development mode (`META_POLL_DMS`; switch it off once webhooks arrive). 1801 tests by count: 1522 pass, 279 skipped without a Postgres server.
 - **2.70.0** — 2026-11-18 — `feat/meta-inbox-fixes`: the Inbox is live: a DM or comment that comes through Meta shows within about a second, with no reload (the core's change signal, and a 5-second check on the Inbox when it is down). A DM with no text says what it holds ("Shared a reel"), and the sender's name and @handle are read once; the server logs each delivery by counts and each refused signature; the sign-in names the permissions Facebook did not give; a refused Instagram account and a reply Meta refused are shown; the capture Page keeps its webhooks; the Inbox no longer crashes on a complaint on the core. No pack change. 1758 tests by count: 1491 pass, 266 skipped without a Postgres server, and one Make test that ran past 30 s under load passes alone.
@@ -150,6 +151,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.73.0 — 2026-11-18
+
+- **Why.** The owner asked for capture with no setup: a person just DMs a reel or a post, and a
+  click on the tile opens the original on Instagram.
+- **Pack 1.18.0** (migration `0028_capture_open.sql`, additive: a capture's person may be empty;
+  it keeps the sender's name, @handle and the post's address). New `capture.take` claims a share
+  for anyone; `capture.file`, `capture.save` and `capture.drop` run as `META_WEBHOOK_AS`, and a
+  save counts only its own sender's tap. The pasted link keeps `addedBy` and `link` (the post on
+  Instagram, or our copy). `capture.code`, `capture.link`, `capture.sender` and `capture.claim`
+  are gone; their tables stay.
+- **Server.** No LINK flow and no `POST /capture/code`. The brands offered are the ones
+  `META_WEBHOOK_AS` reaches, the sender's last first. The sender's name comes from the Inbox's own
+  lookup (`readSenderName`, now shared). The post's address: (a) the payload's URL, (b) the message
+  read with the Page token, (c) a media id's `permalink`, as the Feed reads it, else (d) our copy;
+  the log counts which. `META_CAPTURE_SENDERS` (optional usernames): anyone else's share is a DM
+  for the Inbox.
+- **Web.** Shared says "Or share a reel or a post to @handle on Instagram." (no code card). A
+  captured tile opens its post in a new tab, with "Open on Instagram" on hover; its pick mark still
+  picks it. The account line says "Added by @handle".
+- **Tests:** 1792 by count: 1520 pass and 272 are skipped without a Postgres server. Typecheck, lint, format and the web build pass. Browser: Shared with a
+  captured reel, at laptop width, before and on hover.
 
 ## 2.72.0 — 2026-11-18
 

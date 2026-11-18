@@ -90,12 +90,11 @@ export default function Page() {
           shares, read from Meta each time and not stored.
         </p>
         <p>
-          A person on a team can also link their own Instagram account to brand base, with a code
-          they DM to our capture account, and then DM reels and posts to it. brand base keeps that
-          Instagram account&rsquo;s id for that account only, the person it is linked to, and a copy
-          of each reel or post they share, saved to the brand they pick. It answers only to say what
-          it did. A shared post its sender deletes is deleted here too, and the links go when the
-          capture account is disconnected.
+          Anyone can also DM a reel or a post to our capture account on Instagram and pick a brand.
+          brand base keeps the sender&rsquo;s Instagram id for that account only, their Instagram
+          name and username, the post&rsquo;s address on Instagram when Meta gives it, and a copy of
+          the reel or post, saved to the brand they pick. It answers only to ask which brand and to
+          say what it did. A shared post its sender deletes is deleted here too.
         </p>
         <p>
           To delete what brand base keeps from Facebook and Instagram, disconnect Facebook in
