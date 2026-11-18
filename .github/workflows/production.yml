@@ -33,7 +33,7 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy, meta, meta-oembed, meta-test-calls, meta-engagement, agent-loadout]
+        options: [check, release, deploy, meta, meta-oembed, meta-test-calls, meta-engagement, agent-loadout, capture-brand]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
         required: false
@@ -169,7 +169,7 @@ jobs:
           pnpm -s exec tsx scripts/widen-agents.ts brandbase inbox.meta_receive $OPS
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed' || inputs.task == 'meta-test-calls' || inputs.task == 'meta-engagement'
+        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed' || inputs.task == 'meta-test-calls' || inputs.task == 'meta-engagement' || inputs.task == 'capture-brand'
 
       # Read only. `secrets list` shows names and digests, never values; the log lines name an
       # object and a count, or an account id, never a message.
@@ -329,6 +329,19 @@ jobs:
           TS
           b64=$(base64 -w0 "$RUNNER_TEMP/mt.ts")
           flyctl ssh console -a brandfactory -C "sh -c 'echo $b64 | base64 -d > /tmp/mt.mts && cd /app && node_modules/.bin/tsx /tmp/mt.mts ${{ inputs.task }}; rm -f /tmp/mt.mts'"
+
+      # Sets the capture brand (not a secret: a brand id). Fly restarts the server with it.
+      - name: Capture brand
+        if: inputs.task == 'capture-brand'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          BRAND: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$BRAND" =~ ^[a-z0-9-]{1,80}$ ]] || { echo "give the brand id in version"; exit 1; }
+          flyctl secrets set -a brandfactory "META_CAPTURE_BRAND=$BRAND"
+          for i in $(seq 1 20); do curl -fsS https://brandfactory.fly.dev/health && echo && break; sleep 6; done
+          curl -fsS https://brandfactory.fly.dev/capture && echo
 
       - name: Deploy
         if: inputs.task == 'deploy'
