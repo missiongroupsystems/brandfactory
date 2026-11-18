@@ -1538,6 +1538,9 @@ function toColumns(pins: Reference[], count: number) {
   return columns
 }
 
+/** True for a post's address on Instagram, not our own copy. */
+const onInstagram = (link: string) => /^https:\/\/(www\.)?instagram\.com\//.test(link)
+
 /** Pins at their own shape in columns, the way Pinterest lays out a board. A tap picks one. */
 function Masonry({
   pins,
@@ -1596,53 +1599,131 @@ function Masonry({
                   } as React.CSSProperties
                 }
               >
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={on}
-                  onClick={() => onToggle(ref.id)}
-                  aria-label={`${ref.account}: ${ref.borrow}${on ? ` (picked ${order + 1})` : ''}`}
-                  className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left transition-shadow duration-200 ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
-                  style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
-                >
-                  {ref.video && (
-                    <>
-                      {/* A reel's cover is its own first frame: Instagram sends no picture for it. */}
-                      <video
-                        src={`${ref.video}#t=0.1`}
-                        preload="metadata"
-                        muted
-                        playsInline
-                        aria-hidden="true"
-                        className={`absolute inset-0 size-full object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
-                      />
+                {ref.link ? (
+                  // A capture opens the post on Instagram (or our copy); its pick mark picks it.
+                  <div
+                    className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left transition-shadow duration-200 ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
+                    style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
+                  >
+                    <a
+                      href={ref.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${onInstagram(ref.link) ? 'Open on Instagram' : 'Open'}: ${ref.borrow}`}
+                      className="absolute inset-0 block"
+                    >
+                      {ref.video && (
+                        <>
+                          {/* A reel's cover is its own first frame: Instagram sends no picture for it. */}
+                          <video
+                            src={`${ref.video}#t=0.1`}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            aria-hidden="true"
+                            className={`absolute inset-0 size-full object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
+                          />
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md"
+                          >
+                            <svg viewBox="0 0 10 10" className="ml-px size-2.5" fill="currentColor">
+                              <path d="M2 1.2v7.6L8.6 5z" />
+                            </svg>
+                          </span>
+                        </>
+                      )}
+                      {ref.image && !ref.video && (
+                        <Image
+                          src={ref.image}
+                          alt=""
+                          fill
+                          sizes="(max-width: 640px) 50vw, 280px"
+                          className={`object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
+                        />
+                      )}
                       <span
                         aria-hidden="true"
-                        className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md"
+                        className="absolute bottom-2.5 left-2.5 flex h-7 items-center gap-1.5 rounded-full bg-black/45 px-3 text-[12px] font-medium text-white opacity-0 backdrop-blur-md transition-opacity duration-200 group-hover/pin:opacity-100"
                       >
-                        <svg viewBox="0 0 10 10" className="ml-px size-2.5" fill="currentColor">
-                          <path d="M2 1.2v7.6L8.6 5z" />
+                        {onInstagram(ref.link) ? 'Open on Instagram' : 'Open'}
+                        <svg
+                          viewBox="0 0 10 10"
+                          className="size-2.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.4"
+                        >
+                          <path d="M3 7l4-4M3.8 3H7v3.2" />
                         </svg>
                       </span>
-                    </>
-                  )}
-                  {ref.image && !ref.video && (
-                    <Image
-                      src={ref.image}
-                      alt=""
-                      fill
-                      sizes="(max-width: 640px) 50vw, 280px"
-                      className={`object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
-                    />
-                  )}
-                  {/* The pick mark: a number once picked, an empty ring on hover or while picking. */}
-                  <span
-                    aria-hidden="true"
-                    className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[11px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : `bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md group-hover/pin:opacity-100 ${selected.length > 0 ? 'opacity-100' : 'opacity-0'}`}`}
+                    </a>
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      onClick={() => onToggle(ref.id)}
+                      aria-label={`Pick ${ref.borrow}${on ? ` (picked ${order + 1})` : ''}`}
+                      className="absolute top-0 left-0 size-12"
+                    >
+                      {/* The pick mark: a number once picked, an empty ring on hover or while picking. */}
+                      <span
+                        aria-hidden="true"
+                        className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[11px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : `bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md group-hover/pin:opacity-100 ${selected.length > 0 ? 'opacity-100' : 'opacity-0'}`}`}
+                      >
+                        {on ? order + 1 : ''}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    onClick={() => onToggle(ref.id)}
+                    aria-label={`${ref.account}: ${ref.borrow}${on ? ` (picked ${order + 1})` : ''}`}
+                    className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left transition-shadow duration-200 ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
+                    style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
                   >
-                    {on ? order + 1 : ''}
-                  </span>
-                </button>
+                    {ref.video && (
+                      <>
+                        {/* A reel's cover is its own first frame: Instagram sends no picture for it. */}
+                        <video
+                          src={`${ref.video}#t=0.1`}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          aria-hidden="true"
+                          className={`absolute inset-0 size-full object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md"
+                        >
+                          <svg viewBox="0 0 10 10" className="ml-px size-2.5" fill="currentColor">
+                            <path d="M2 1.2v7.6L8.6 5z" />
+                          </svg>
+                        </span>
+                      </>
+                    )}
+                    {ref.image && !ref.video && (
+                      <Image
+                        src={ref.image}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 50vw, 280px"
+                        className={`object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${on ? 'scale-[1.03]' : 'group-hover/pin:scale-[1.03]'}`}
+                      />
+                    )}
+                    {/* The pick mark: a number once picked, an empty ring on hover or while picking. */}
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full font-mono text-[11px] transition-[opacity,background-color] duration-200 ${on ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : `bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md group-hover/pin:opacity-100 ${selected.length > 0 ? 'opacity-100' : 'opacity-0'}`}`}
+                    >
+                      {on ? order + 1 : ''}
+                    </span>
+                  </button>
+                )}
                 <span className="flex flex-col gap-1.5 px-1">
                   <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
                   <span className="flex min-w-0 items-center gap-2">
@@ -1652,7 +1733,15 @@ function Masonry({
                     >
                       <PlatformLogo platform={ref.platform} size={12} brand />
                     </span>
-                    <span className="truncate text-[12px] text-ink-2">{ref.account}</span>
+                    <span className="truncate text-[12px] text-ink-2">
+                      {ref.addedBy ? (
+                        <span className="text-ink-4">
+                          Added by <span className="text-ink-2">{ref.addedBy}</span>
+                        </span>
+                      ) : (
+                        ref.account
+                      )}
+                    </span>
                     {used && (
                       <span className="ml-auto shrink-0 text-[11.5px] text-ink-4">{used}</span>
                     )}

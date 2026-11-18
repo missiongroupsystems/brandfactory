@@ -49,7 +49,8 @@ described below; it is not deployed.
   `META_REDIRECT_URL` (the web app's `/connect/meta`), all four or none, turn on Facebook's
   sign-in for each brand's Page and Instagram account. `META_CAPTURE_BRAND` names the brand whose
   Instagram account, linked through Meta, is the capture account (`meta-capture.ts`; capture is off
-  without it). `META_POLL_DMS=off` stops the DM read every 30 seconds (`meta-poll.ts`), which stands in
+  without it). `META_CAPTURE_SENDERS` (optional, comma-separated Instagram usernames) captures only
+  those senders. `META_POLL_DMS=off` stops the DM read every 30 seconds (`meta-poll.ts`), which stands in
   while Meta sends no webhooks. `pnpm -F @brandfactory/connect serve` starts it with the core's
   own variables too.
 

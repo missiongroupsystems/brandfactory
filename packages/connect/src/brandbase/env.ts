@@ -90,6 +90,11 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
           appSecret: env.META_APP_SECRET || undefined,
           as: env.META_WEBHOOK_AS || undefined,
           captureBrand: env.META_CAPTURE_BRAND || undefined,
+          captureSenders: env.META_CAPTURE_SENDERS
+            ? env.META_CAPTURE_SENDERS.split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : undefined,
           // On unless "off": Meta may send no webhook while the app is in Development mode.
           pollDms: env.META_POLL_DMS !== 'off',
         } satisfies MetaHooks)

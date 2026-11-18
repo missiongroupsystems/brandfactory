@@ -46,6 +46,43 @@ minute) until App Review gives Advanced Access; then the webhook replaces it.
 | Capture: account setting, sender link, brand choice, save to Ideation | Built (`meta-capture.ts`, pack 1.17.0) |
 | The Ideas page's DM copy (`@mission.moodboards`, `#tag`) | Replaced on the live app by the capture handle and "Add from Instagram" |
 
+## The owner's change of 18 Nov: no LINK code (pack 1.18.0, `feat/capture-simple`)
+
+This replaces items 2 to 5 of "Build" below where they differ.
+
+1. **No link step.** Anyone who DMs a reel or a post to the capture account adds it. The account
+   asks "Which brand is this for?" with quick replies over the brands `META_WEBHOOK_AS` reaches
+   (the capture brand's company), the one this sender saved to last first, at most 13; one brand
+   saves at once. Everything is saved as `META_WEBHOOK_AS`, not as a linked person. The code card,
+   the LINK messages and their moves are gone (`capture.code`, `capture.link`, `capture.sender`,
+   `capture.claim`); their tables stay, unused (migration `0028_capture_open.sql` only adds).
+2. **Who added it.** The sender's Instagram name and @handle, read with the capture brand's Page
+   token (`GET /{IGSID}?fields=name,username`, the Inbox's own lookup, `readSenderName`), are kept
+   on the capture. The Shared tile says "Added by @handle"; with no name, the account line says
+   "Instagram".
+3. **Who may add.** Before App Review, Meta delivers DMs only from people with a role on the app,
+   so the app's testers are the allowlist. `META_CAPTURE_SENDERS` (optional, comma-separated
+   Instagram usernames) narrows it: when set, a share from anyone else is a DM for the Inbox, with
+   no reply and nothing copied.
+4. **Kept:** the claim before any reply (`capture.take`), the media copy after the 200, dedupe by
+   `idOf(mid)`, delete on `is_deleted`, a tap that only its own sender's taps count, and the DM
+   read every 30 seconds.
+5. **The tile opens the post.** A captured tile opens its post on Instagram in a new tab (its pick
+   mark still picks it for an idea). The address is found the first way that works, and the log
+   counts which (`meta capture: post address {...}`):
+   - (a) the attachment's `payload.url` is itself an `instagram.com/reel/` or `/p/` address. Meta's
+     docs do not support this: the Instagram Messaging webhook says only a URL for the shared
+     media comes. **Confirmed only by the live test.** If it happens, there is no media to copy and
+     the account answers that the post did not save.
+   - (b) the message read with the Page token, `GET /{mid}?fields=shares{...},attachments{...}`
+     (Conversations API). The fields exist on Meta's Message node; whether a shared reel's `link`
+     is its `instagram.com` address is **confirmed only by the live test**.
+   - (c) a media id from the payload (`reel_video_id`, `id`) or from the message's shares and
+     attachments, read for `permalink`, as the Feed reads the brand's own posts
+     (`meta-insights.ts`). Meta documents `permalink` on IG Media, but only for media the account
+     may read: a reel by another creator likely is not. **Confirmed only by the live test.**
+   - (d) none: the tile opens our saved copy. Always works.
+
 ## Build
 
 Capture (flow B) and the regular reads are built on `feat/meta-capture` (pack 1.17.0, migration
@@ -115,11 +152,12 @@ are on `feat/meta-inbox-fixes`. Design as built, with the changes from the first
 3. The sender: an Instagram account added as an **Instagram tester** in the Meta app's Roles, with
    the invite accepted in Instagram (Settings, Apps and websites, Tester invites). For Facebook
    comments, also a Facebook account with a role on the app.
-4. `fly secrets set -a brandfactory META_CAPTURE_BRAND=<the test brand's id>`. The test brand must
+4. `fly secrets set -a brandfactory META_CAPTURE_BRAND=<the test brand's id>`. Optional:
+   `META_CAPTURE_SENDERS=<username>,<username>` to capture only those senders. The test brand must
    be in a company where the person behind `META_WEBHOOK_AS` is a member.
-5. The webhook's principal gets the new moves: run **Production** with task `agent-loadout` and
-   ops `account.read account.meta_list capture.link capture.sender capture.claim` (after the
-   release of 1.17.0).
+5. The webhook's principal gets the moves (done on 18 Nov by the session, after each release):
+   **Production**, task `agent-loadout`, ops `account.read account.meta_list brand.list
+   capture.take capture.file capture.save capture.drop`.
 6. Optional: `META_POLL_DMS=off` once webhooks arrive.
 
 ## Live test script
@@ -128,10 +166,12 @@ are on `feat/meta-inbox-fixes`. Design as built, with the changes from the first
    seconds. Answer it from Brand Base: the sender gets the answer.
 2. Sender comments on the test brand's Facebook post: it shows in the Inbox within seconds.
 3. Sender comments on the test brand's Instagram post: it shows in the Inbox within a minute.
-4. Sender sends `LINK <code>` from the Ideas page: the account answers "Linked to <name>".
-5. Sender shares a reel to the account: the brand buttons come back; a tap saves it; it shows in
-   the brand's Ideas, under Shared, with its first frame as the cover (no caption: Meta sends
-   none).
+4. Sender shares a reel to the account: the brand buttons come back; a tap saves it; it shows in
+   the brand's Ideas, under Shared, with its first frame as the cover, "Added by @<sender>" (no
+   caption: Meta sends none).
+5. Click the tile: it opens the reel on Instagram in a new tab, or our copy. The server log line
+   `meta capture: post address` says which way found it (payload, message, media, copy); this
+   confirms (a) to (c) above.
 6. Sender shares a photo post and a carousel: each saves (the carousel as its first image).
 
 ## Risks

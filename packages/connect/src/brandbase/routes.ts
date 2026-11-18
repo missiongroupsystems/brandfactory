@@ -162,7 +162,7 @@ export function accountRoutes(
       // Meta's webhooks: no person's session, Meta's own signature instead.
       .route('/', metaWebhookRoutes(platforms.metaHooks, meta.handle))
 
-      // Instagram capture: the Ideas page's link code, and the capture account's handle.
+      // Instagram capture: the capture account's handle, for the Ideas page.
       .route('/', meta.capture.routes)
 
       // Replies to the comments and DMs the webhook brought, and hiding a comment.

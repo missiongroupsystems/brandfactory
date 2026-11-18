@@ -183,7 +183,7 @@ export function countsOf(delivery: MetaDelivery) {
 }
 
 /** The person's name and @handle on Instagram, once per sender; a lookup that failed is kept too. */
-interface Named {
+export interface Named {
   name: string
   username: string
 }
@@ -193,6 +193,33 @@ const MAX_NAMES = 2000
 const NAME_TTL_MS = 24 * 60 * 60 * 1000
 /** The most time one name read may take: Meta waits for the delivery's answer. */
 const NAME_WAIT_MS = 3000
+
+/**
+ * One Instagram sender's name and @handle, from `GET /{IGSID}?fields=name,username` with the Page
+ * token of the account they wrote to (Instagram Messaging, User Profile), or null: Meta keeps the
+ * profile from us (the person's settings, or no consent), or it took longer than three seconds.
+ * The capture uses it too (`meta-capture.ts`).
+ */
+export async function readSenderName(
+  meta: MetaApp,
+  token: string,
+  sender: string,
+): Promise<Named | null> {
+  if (!/^[0-9]{1,30}$/.test(sender)) return null
+  try {
+    const read = meta.graph<{ name?: unknown; username?: unknown }>(`/${sender}`, {
+      fields: 'name,username',
+      access_token: token,
+    })
+    const got = await Promise.race([
+      read,
+      new Promise<null>((r) => setTimeout(() => r(null), NAME_WAIT_MS)),
+    ])
+    return got ? { name: cut(str(got.name), 200), username: cut(str(got.username), 199) } : null
+  } catch {
+    return null
+  }
+}
 
 /**
  * Reads the names of the Instagram people who sent DMs in a batch, with the brand's Page token,
@@ -256,20 +283,7 @@ function senderNames(core: CoreDeps, as: string, meta: MetaApp) {
       }
       if (!token) return
       for (const sender of wanted.slice(0, 20)) {
-        let named: Named | null = null
-        try {
-          const read = meta.graph<{ name?: unknown; username?: unknown }>(`/${sender}`, {
-            fields: 'name,username',
-            access_token: token,
-          })
-          const got = await Promise.race([
-            read,
-            new Promise<null>((r) => setTimeout(() => r(null), NAME_WAIT_MS)),
-          ])
-          if (got) named = { name: cut(str(got.name), 200), username: cut(str(got.username), 199) }
-        } catch {
-          // Meta keeps the profile from us (the person's settings, or no consent): the default.
-        }
+        const named = await readSenderName(meta, token, sender)
         if (names.size >= MAX_NAMES) names.delete(names.keys().next().value!)
         names.set(key(sender), { at: now, named })
       }

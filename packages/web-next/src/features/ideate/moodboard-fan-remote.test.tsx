@@ -82,6 +82,46 @@ describe('the moodboard on the core', () => {
     expect(screen.queryByText('Pizza close-ups')).toBeNull()
   })
 
+  it('shows a captured reel as added by its sender, opening the post on Instagram', async () => {
+    const view = render(
+      <BrandProvider>
+        <IdeatePage />
+      </BrandProvider>,
+    )
+    act(() =>
+      hydrate.fn('casa-vostra', {
+        ...state(false),
+        pasted: [
+          {
+            id: 'meta-cap1',
+            platform: 'ig',
+            account: '@ana.cooks',
+            addedBy: '@ana.cooks',
+            link: 'https://www.instagram.com/reel/DAbc123xyz/',
+            image: '',
+            video: 'https://core.test/files/sig/brandbase/x.mp4',
+            borrow: 'Shared reel',
+            seed: {
+              format: 'reel',
+              pillar: 'Craft',
+              hook: 'h',
+              angle: 'a',
+              feature: '',
+              shots: [],
+              sharper: [],
+            },
+          },
+        ],
+      } as BrandState),
+    )
+    const open = await screen.findByRole('link', { name: 'Open on Instagram: Shared reel' })
+    expect(open).toHaveAttribute('href', 'https://www.instagram.com/reel/DAbc123xyz/')
+    expect(open).toHaveAttribute('target', '_blank')
+    expect(screen.getByText('Added by')).toBeVisible()
+    expect(screen.getByRole('checkbox', { name: 'Pick Shared reel' })).toBeVisible()
+    view.unmount()
+  })
+
   it('shows the linked board’s own pins and no fan', async () => {
     answers['/brands/casa-vostra/pinterest/pins'] = {
       boards: [

@@ -27,6 +27,11 @@ export interface MetaHooks {
    * account (`meta-capture.ts`). Capture is off without it.
    */
   captureBrand?: string
+  /**
+   * `META_CAPTURE_SENDERS`: Instagram usernames, comma-separated. When set, only their shares are
+   * captured; anyone else's is a DM for the Inbox, with no reply and nothing copied.
+   */
+  captureSenders?: string[]
   /** `META_POLL_DMS`: the regular DM read while Meta sends no webhooks (`meta-poll.ts`). */
   pollDms?: boolean
 }

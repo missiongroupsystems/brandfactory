@@ -42,6 +42,10 @@ export interface Reference {
   image: string
   /** A reel's own video, shown as its cover (a reel shared to the capture account). */
   video?: string | null
+  /** Who shared it to the capture account: their @handle or name. */
+  addedBy?: string | null
+  /** Where a tap opens it: the post on Instagram, or our copy (a capture). */
+  link?: string | null
   /** What to borrow, in the team's words. */
   borrow: string
   /** Height over width, for a pin on the board. */

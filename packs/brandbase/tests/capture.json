@@ -4,497 +4,13 @@
   "as": "owner",
   "cases": [
     {
-      "name": "links a sender with a live code once, and answers a message seen before as not fresh",
+      "name": "claims a share once, saves it to the brand tapped once its copy is stored, as a reel added by its sender that opens on Instagram",
       "steps": [
         {
           "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
         },
         {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "expiresAt": "2026-10-06T04:10:00.000Z"
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l0",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": null,
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": "both",
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": false,
-              "linked": null
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l2",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": null
-            }
-          }
-        },
-        {
-          "call": "capture.sender",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "hint": true
-          },
-          "expect": {
-            "result": {
-              "userId": "both",
-              "name": "both",
-              "lastBrand": null,
-              "hint": false
-            }
-          }
-        },
-        {
-          "sql": "select user_id, tries from brandbase.capture_senders",
-          "expect": {
-            "rows": [
-              {
-                "user_id": "both",
-                "tries": 1
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "keeps only a code's hash, and a code ten minutes old does not link",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {}
-        },
-        {
-          "sql": "select code_hash, name from brandbase.capture_codes",
-          "expect": {
-            "rows": [
-              {
-                "code_hash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e",
-                "name": "both"
-              }
-            ]
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": null
-            }
-          },
-          "now": "2026-10-06T04:10:00Z"
-        }
-      ]
-    },
-    {
-      "name": "a new code replaces the person's earlier one",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {}
-        },
-        {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {}
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "linked": null
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l2",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "linked": "both"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "stops checking codes after five wrong tries in an hour, and starts again an hour later",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {}
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w0",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w1",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w2",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w3",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w4",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
-          },
-          "expect": {
-            "result": {
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w5",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "linked": null,
-              "limited": true
-            }
-          }
-        },
-        {
-          "sql": "update brandbase.capture_senders set tries_since = tries_since - interval '61 minutes'"
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-w7",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "linked": "both",
-              "limited": false
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "tells an unlinked sender how to link at most once a day",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.sender",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "6001",
-            "hint": true
-          },
-          "expect": {
-            "result": {
-              "userId": null,
-              "hint": true
-            }
-          }
-        },
-        {
-          "call": "capture.sender",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "6001",
-            "hint": true
-          },
-          "expect": {
-            "result": {
-              "hint": false
-            }
-          }
-        },
-        {
-          "call": "capture.sender",
-          "now": "2026-10-07T04:00:00Z",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "6001",
-            "hint": true
-          },
-          "expect": {
-            "result": {
-              "hint": true
-            }
-          }
-        },
-        {
-          "call": "capture.sender",
-          "now": "2026-10-08T04:00:00Z",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "6001",
-            "hint": false
-          },
-          "expect": {
-            "result": {
-              "hint": false
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "a capture account out of reach is refused as not found",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.link",
-          "as": "b-owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-x",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "status": 404,
-            "code": "NOT_FOUND"
-          }
-        },
-        {
-          "call": "capture.sender",
-          "as": "b-owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "hint": true
-          },
-          "expect": {
-            "status": 404,
-            "code": "NOT_FOUND"
-          }
-        },
-        {
-          "call": "capture.claim",
-          "as": "b-owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "id": "meta-s1"
-          },
-          "expect": {
-            "status": 404,
-            "code": "NOT_FOUND"
-          }
-        }
-      ]
-    },
-    {
-      "name": "claims a share once, saves it to the brand picked once its copy is stored, and makes it a reel under Shared",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "expiresAt": "2026-10-06T04:10:00.000Z"
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": "both",
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.claim",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
@@ -502,12 +18,13 @@
           },
           "expect": {
             "result": {
-              "userId": "both"
+              "claimed": true,
+              "lastBrand": null
             }
           }
         },
         {
-          "call": "capture.claim",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
@@ -515,66 +32,77 @@
           },
           "expect": {
             "result": {
-              "userId": null
-            }
-          }
-        },
-        {
-          "call": "capture.claim",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "7001",
-            "id": "meta-s2"
-          },
-          "expect": {
-            "result": {
-              "userId": null
+              "claimed": false
             }
           }
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-s1",
-            "brand": "temper",
+            "sender": "6001",
+            "brand": "casa",
             "src": null,
-            "kind": null
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
+          },
+          "expect": {
+            "status": 404
+          }
+        },
+        {
+          "call": "capture.save",
+          "input": {
+            "id": "meta-s1",
+            "sender": "5001",
+            "brand": "osteria",
+            "src": null,
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "result": {
               "saved": false,
-              "brand": "temper",
-              "brandName": "Temper",
+              "brand": "osteria",
+              "brandName": "Osteria",
               "stored": false
             }
           }
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-s1",
+            "sender": "5001",
             "brand": null,
             "src": "https://core.example/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.mp4",
-            "kind": "video"
+            "kind": "video",
+            "name": "Ana",
+            "handle": "ana.cooks",
+            "link": "https://www.instagram.com/reel/DAbc123xyz/"
           },
           "expect": {
             "result": {
               "saved": true,
-              "brand": "temper",
               "stored": true
             }
           }
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-s1",
-            "brand": "temper",
+            "sender": "5001",
+            "brand": "osteria",
             "src": null,
-            "kind": null
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "result": {
@@ -584,9 +112,9 @@
         },
         {
           "call": "brand.state",
-          "as": "both",
+          "as": "member",
           "input": {
-            "brand": "temper"
+            "brand": "osteria"
           },
           "expect": {
             "result": {
@@ -594,7 +122,9 @@
                 {
                   "id": "meta-s1",
                   "platform": "ig",
-                  "account": "both",
+                  "account": "@ana.cooks",
+                  "addedBy": "@ana.cooks",
+                  "link": "https://www.instagram.com/reel/DAbc123xyz/",
                   "image": "",
                   "video": "https://core.example/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.mp4",
                   "borrow": "Shared reel",
@@ -607,72 +137,38 @@
           }
         },
         {
-          "call": "capture.sender",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
-            "hint": false
+            "id": "meta-s2"
           },
           "expect": {
             "result": {
-              "lastBrand": "temper"
+              "claimed": true,
+              "lastBrand": "osteria"
             }
           }
         }
       ]
     },
     {
-      "name": "a photo stored before the brand is picked becomes a carousel once picked",
+      "name": "a photo with no address on Instagram opens our copy, and a sender with no name shows as Instagram",
       "steps": [
         {
           "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
         },
         {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "expiresAt": "2026-10-06T04:10:00.000Z"
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": "both",
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.claim",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
             "id": "meta-p1"
           },
-          "expect": {
-            "result": {
-              "userId": "both"
-            }
-          }
+          "expect": {}
         },
         {
           "call": "capture.file",
-          "as": "both",
           "input": {
             "id": "meta-p1",
             "mime": "image/jpeg"
@@ -689,12 +185,15 @@
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-p1",
+            "sender": "5001",
             "brand": null,
             "src": "https://core.example/files/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/brandbase/00000000-0000-4000-8000-000000000002.jpg",
-            "kind": "image"
+            "kind": "image",
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "result": {
@@ -705,12 +204,15 @@
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-p1",
+            "sender": "5001",
             "brand": "casa",
             "src": null,
-            "kind": null
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "result": {
@@ -730,6 +232,9 @@
               "pasted": [
                 {
                   "id": "meta-p1",
+                  "account": "Instagram",
+                  "addedBy": null,
+                  "link": "https://core.example/files/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/brandbase/00000000-0000-4000-8000-000000000002.jpg",
                   "image": "https://core.example/files/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/brandbase/00000000-0000-4000-8000-000000000002.jpg",
                   "video": null,
                   "seed": {
@@ -743,72 +248,55 @@
       ]
     },
     {
-      "name": "only the linked person saves a capture, and only to a brand they reach",
+      "name": "a capture account out of reach is refused as not found, and so is its capture and a brand out of reach",
       "steps": [
         {
           "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
         },
         {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "expiresAt": "2026-10-06T04:10:00.000Z"
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": "both",
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.claim",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
             "id": "meta-s1"
           },
+          "expect": {}
+        },
+        {
+          "call": "capture.take",
+          "input": {
+            "account": "17841400000000001",
+            "sender": "5001",
+            "id": "meta-x"
+          },
           "expect": {
-            "result": {
-              "userId": "both"
-            }
-          }
+            "status": 404,
+            "code": "NOT_FOUND"
+          },
+          "as": "b-owner"
         },
         {
           "call": "capture.save",
-          "as": "member",
           "input": {
             "id": "meta-s1",
+            "sender": "5001",
             "brand": "casa",
             "src": null,
-            "kind": null
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "status": 404,
             "code": "NOT_FOUND",
             "message": "capture not found"
-          }
+          },
+          "as": "b-owner"
         },
         {
           "call": "capture.file",
-          "as": "member",
+          "as": "b-owner",
           "input": {
             "id": "meta-s1",
             "mime": "video/mp4"
@@ -819,26 +307,27 @@
           }
         },
         {
-          "call": "capture.save",
-          "as": "member",
+          "call": "capture.drop",
+          "as": "b-owner",
           "input": {
-            "id": "meta-nope",
-            "brand": null,
-            "src": null,
-            "kind": null
+            "id": "meta-s1"
           },
           "expect": {
-            "status": 404
+            "status": 404,
+            "code": "NOT_FOUND"
           }
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-s1",
-            "brand": "nowhere",
+            "sender": "5001",
+            "brand": "temper",
             "src": null,
-            "kind": null
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "status": 404,
@@ -848,12 +337,31 @@
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-s1",
+            "sender": "5001",
             "brand": null,
             "src": "https://evil.example/x.mp4",
-            "kind": "video"
+            "kind": "video",
+            "name": null,
+            "handle": null,
+            "link": null
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "capture.save",
+          "input": {
+            "id": "meta-s1",
+            "sender": "5001",
+            "brand": null,
+            "src": null,
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": "https://evil.example/reel/x/"
           },
           "expect": {
             "status": 400
@@ -868,56 +376,25 @@
           "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
         },
         {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "expiresAt": "2026-10-06T04:10:00.000Z"
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
-          "input": {
-            "account": "17841400000000001",
-            "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": "both",
-              "limited": false
-            }
-          }
-        },
-        {
-          "call": "capture.claim",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
             "id": "meta-s1"
           },
-          "expect": {
-            "result": {
-              "userId": "both"
-            }
-          }
+          "expect": {}
         },
         {
           "call": "capture.save",
-          "as": "both",
           "input": {
             "id": "meta-s1",
+            "sender": "5001",
             "brand": "casa",
             "src": "https://core.example/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.mp4",
-            "kind": "video"
+            "kind": "video",
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {
             "result": {
@@ -927,18 +404,6 @@
         },
         {
           "call": "capture.drop",
-          "as": "member",
-          "input": {
-            "id": "meta-s1"
-          },
-          "expect": {
-            "status": 404,
-            "code": "NOT_FOUND"
-          }
-        },
-        {
-          "call": "capture.drop",
-          "as": "both",
           "input": {
             "id": "meta-s1"
           },
@@ -947,6 +412,15 @@
               "dropped": 1,
               "pasted": 1
             }
+          }
+        },
+        {
+          "call": "capture.drop",
+          "input": {
+            "id": "meta-s1"
+          },
+          "expect": {
+            "status": 404
           }
         },
         {
@@ -962,47 +436,31 @@
       ]
     },
     {
-      "name": "forgetting the capture account forgets its sender links and codes",
+      "name": "forgetting the capture account forgets what it kept of its senders",
       "steps": [
         {
           "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
         },
         {
-          "call": "capture.code",
-          "as": "both",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "result": {
-              "expiresAt": "2026-10-06T04:10:00.000Z"
-            }
-          }
-        },
-        {
-          "call": "capture.link",
-          "as": "owner",
+          "call": "capture.take",
           "input": {
             "account": "17841400000000001",
             "sender": "5001",
-            "mid": "mid-l1",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
+            "id": "meta-s1"
           },
-          "expect": {
-            "result": {
-              "fresh": true,
-              "linked": "both",
-              "limited": false
-            }
-          }
+          "expect": {}
         },
         {
-          "call": "capture.code",
-          "as": "both",
+          "call": "capture.save",
           "input": {
-            "account": "17841400000000001",
-            "codeHash": "bb1ab0dd3aee0aa84716401792122e5ddbdec3b306cef3d54b359353c9fd3e07"
+            "id": "meta-s1",
+            "sender": "5001",
+            "brand": "casa",
+            "src": null,
+            "kind": null,
+            "name": null,
+            "handle": null,
+            "link": null
           },
           "expect": {}
         },
@@ -1018,12 +476,11 @@
           }
         },
         {
-          "sql": "select (select count(*)::int from brandbase.capture_senders) as senders, (select count(*)::int from brandbase.capture_codes) as codes",
+          "sql": "select count(*)::int as senders from brandbase.capture_senders",
           "expect": {
             "rows": [
               {
-                "senders": 0,
-                "codes": 0
+                "senders": 0
               }
             ]
           }
@@ -1065,38 +522,6 @@
           "call": "account.meta_list",
           "as": "stranger",
           "input": {},
-          "expect": {
-            "status": 404,
-            "code": "NOT_FOUND"
-          }
-        }
-      ]
-    },
-    {
-      "name": "a code is a person's own, and a deactivated person makes none",
-      "steps": [
-        {
-          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\", \"pageId\": \"100000000000001\"}', 'owner')"
-        },
-        {
-          "call": "capture.code",
-          "as": "gone",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
-          "expect": {
-            "status": 403,
-            "code": "ACCOUNT_DEACTIVATED"
-          }
-        },
-        {
-          "call": "capture.code",
-          "as": "stranger",
-          "input": {
-            "account": "17841400000000001",
-            "codeHash": "a00d76646eba91b057841554d5c8334f498dc592ed744bce404f21fe271cd36e"
-          },
           "expect": {
             "status": 404,
             "code": "NOT_FOUND"
