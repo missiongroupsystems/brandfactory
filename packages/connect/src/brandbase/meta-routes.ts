@@ -89,6 +89,24 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
       return err instanceof Refused && err.status < 500 ? 'no' : 'unknown'
     }
   }
+  /** True for the Page whose Instagram account takes shared reels: its webhooks stay on. */
+  const capturePage = (igUserId: unknown) =>
+    Boolean(hooks?.captureAccount) && String(igUserId ?? '') === hooks?.captureAccount
+  /** Turns a Page's webhooks off, unless the capture needs them; the log names a kept one. */
+  const unsubscribe = async (
+    app: MetaApp,
+    brand: string,
+    page: string,
+    token: string,
+    ig: unknown,
+  ) => {
+    if (capturePage(ig)) {
+      console.warn('meta: the capture Page keeps its webhooks', brand)
+      return false
+    }
+    await app.unsubscribe(page, token)
+    return true
+  }
   const invalid = () =>
     new Refused(400, 'META_STATE', 'this Facebook link is not valid. Start again.')
 
@@ -111,7 +129,10 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
         if (!was || was.userId !== (await person(c))) throw invalid()
         // The person may have lost the brand in the ten minutes.
         await readAccount(core, who(c), was.brandId, 'facebook')
-        const pages = await ask(() => app.pagesFor(code))
+        const { pages, missing } = await ask(() => app.pagesFor(code))
+        if (missing.length > 0) {
+          console.warn('meta: permissions not granted', was.brandId, missing.join(','))
+        }
         if (pages.length === 0) {
           throw new Refused(
             400,
@@ -121,8 +142,9 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
         }
         return c.json({
           brandId: was.brandId,
-          choice: app.sealChoice({ ...was, pages }, now()),
+          choice: app.sealChoice({ ...was, pages, missing }, now()),
           pages: pages.map((p) => ({ id: p.id, name: p.name, igUsername: p.igUsername })),
+          missing,
         })
       })
 
@@ -153,7 +175,7 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
           await metaMove(c, 'inbox.meta_forget', { brand, platform: 'facebook' })
           try {
             const old = app.openToken(oldPage.tokens, bound('facebook', brand, oldPage.accountId))
-            await app.unsubscribe(oldPage.accountId, old)
+            await unsubscribe(app, brand, oldPage.accountId, old, oldPage.details.igUserId)
           } catch (err) {
             console.error(
               'meta: the old Page’s webhooks did not turn off',
@@ -162,9 +184,11 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
             )
           }
         }
-        // A refused Instagram account (another brand holds it) is answered after the webhooks
-        // below: the Page is this brand's now, and its comments and DMs must still come.
+        // A refused Instagram account (another brand holds it) is answered with the Page's link:
+        // the Page is this brand's now, and its comments and DMs must still come. Connections
+        // says why Instagram is not linked.
         let refusal: unknown = null
+        let instagramRefused: string | null = null
         if (page.igUserId) {
           try {
             await linkAccount(core, who(c), brand, 'instagram', {
@@ -174,7 +198,10 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
               details: { via: 'meta', pageId: page.id },
             })
           } catch (err) {
-            refusal = err
+            if (err instanceof Refused && err.status < 500) {
+              instagramRefused = err.message
+              console.warn('meta: the Instagram account was refused', brand, err.code)
+            } else refusal = err
           }
         }
         // Linked either way: without the webhooks only the inbox misses this Page.
@@ -183,17 +210,23 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
         try {
           if (webhooks) await app.subscribe(page.id, page.token)
           // A Page subscribed before must stop too: what Meta delivers now would be lost.
-          else if (keeps === 'no') await app.unsubscribe(page.id, page.token)
+          else if (keeps === 'no') await unsubscribe(app, brand, page.id, page.token, page.igUserId)
         } catch (err) {
           webhooks = false
           console.error('meta: the Page webhooks did not change', brand, (err as Error).message)
         }
         if (refusal) throw refusal
+        const missing = offered.missing ?? []
+        if (missing.length > 0) {
+          console.warn('meta: linked without permissions', brand, missing.join(','))
+        }
         return c.json({
           brandId: brand,
           page: page.name,
-          igUsername: page.igUserId ? page.igUsername : null,
+          igUsername: page.igUserId && !instagramRefused ? page.igUsername : null,
           webhooks,
+          missing,
+          instagramRefused,
         })
       })
 
@@ -218,8 +251,8 @@ export function metaRoutes(core: CoreDeps, meta: MetaApp | undefined, hooks?: Me
         if (app && viaMeta(page)) {
           try {
             const token = app.openToken(page.tokens, bound('facebook', brand, page.accountId))
-            await app.unsubscribe(page.accountId, token)
-            unsubscribed = true
+            const igId = page.details.igUserId ?? (viaMeta(ig) ? ig.accountId : null)
+            unsubscribed = await unsubscribe(app, brand, page.accountId, token, igId)
           } catch (err) {
             console.error('meta: the Page webhooks did not turn off', brand, (err as Error).message)
           }

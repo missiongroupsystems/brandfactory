@@ -9,6 +9,23 @@ const TEN_MINUTES = 10 * 60 * 1000
 /** The Page fields the webhook takes (the app's Webhooks settings select the same). */
 export const PAGE_FIELDS = ['messages', 'feed']
 
+/**
+ * The permissions the Inbox, posting and the Page's webhooks need. Facebook Login for Business
+ * lets the person untick some, and a missing one fails its calls later (a Page subscribe without
+ * `pages_messaging` fails whole), so the sign-in names the ones not granted.
+ */
+export const NEEDED_PERMISSIONS = [
+  'pages_show_list',
+  'pages_manage_metadata',
+  'pages_messaging',
+  'pages_read_engagement',
+  'pages_read_user_content',
+  'pages_manage_engagement',
+  'instagram_basic',
+  'instagram_manage_messages',
+  'instagram_manage_comments',
+]
+
 export interface MetaConfig {
   appId: string
   appSecret: string
@@ -122,11 +139,19 @@ export function metaApp(config: MetaConfig) {
     openState: (sealed: string, now: number) =>
       openExpiring<Started>(stateKey, 'meta-state', sealed, now),
 
-    /** The Pages a sign-in found, sealed: their tokens reach the browser only like this. */
-    sealChoice: (value: Started & { pages: MetaPage[] }, now: number) =>
+    /**
+     * The Pages a sign-in found, sealed: their tokens reach the browser only like this. `missing`
+     * names the permissions the person did not grant.
+     */
+    sealChoice: (value: Started & { pages: MetaPage[]; missing?: string[] }, now: number) =>
       sealExpiring(choiceKey, 'meta-choice', value, now + TEN_MINUTES),
     openChoice: (sealed: string, now: number) =>
-      openExpiring<Started & { pages: MetaPage[] }>(choiceKey, 'meta-choice', sealed, now),
+      openExpiring<Started & { pages: MetaPage[]; missing?: string[] }>(
+        choiceKey,
+        'meta-choice',
+        sealed,
+        now,
+      ),
 
     /** `bound` names the row (platform, brand and account): the token opens only there. */
     sealToken: (pageToken: string, bound: string) => seal(tokenKey, pageToken, bound),
@@ -137,7 +162,7 @@ export function metaApp(config: MetaConfig) {
      * its Instagram business account. The code becomes a user token, then a long-lived one, so
      * the Page tokens read with it do not expire.
      */
-    async pagesFor(code: string): Promise<MetaPage[]> {
+    async pagesFor(code: string): Promise<{ pages: MetaPage[]; missing: string[] }> {
       const credentials = { client_id: config.appId, client_secret: config.appSecret }
       const short = await graph<{ access_token: string }>('/oauth/access_token', {
         ...credentials,
@@ -161,7 +186,21 @@ export function metaApp(config: MetaConfig) {
         limit: '100',
         access_token: long.access_token,
       })
-      return (pages.data ?? []).flatMap((p) =>
+      // What the person granted: a failed read names nothing, as the link still works.
+      let missing: string[] = []
+      try {
+        const granted = await graph<{ data?: { permission?: string; status?: string }[] }>(
+          '/me/permissions',
+          { access_token: long.access_token },
+        )
+        const have = new Set(
+          (granted.data ?? []).filter((p) => p.status === 'granted').map((p) => p.permission),
+        )
+        missing = NEEDED_PERMISSIONS.filter((p) => !have.has(p))
+      } catch (err) {
+        console.error('meta: could not read the permissions', (err as Error).message)
+      }
+      const found = (pages.data ?? []).flatMap((p) =>
         p.access_token
           ? [
               {
@@ -174,6 +213,7 @@ export function metaApp(config: MetaConfig) {
             ]
           : [],
       )
+      return { pages: found, missing }
     },
 
     /** Turns the Page's webhooks on for this app (needs `pages_manage_metadata`). */

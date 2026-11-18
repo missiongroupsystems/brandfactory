@@ -3,16 +3,21 @@
 import { usePathname, useRouter } from 'next/navigation'
 import * as React from 'react'
 
+import { watchChanges } from '@/lib/live'
 import {
   accountEmpty,
+  CORE_URL,
+  currentBrand,
   leave,
   loadAll,
+  loadBrand,
   needsPassword,
   noAccess,
   onProblem,
   remote,
   settled,
   signedIn,
+  token,
 } from '@/lib/remote'
 
 import { PUBLIC_PATHS } from './legal'
@@ -97,6 +102,50 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('visibilitychange', back)
   }, [open, state])
 
+  // What others changed comes in while the page is open: the core's change signal reloads the
+  // brand on screen, a second after the first signal of a burst. A new comment or DM shows in the
+  // Inbox without a reload. A hidden tab waits: it reloads when it comes back into view.
+  const [live, setLive] = React.useState(true)
+  const path = React.useRef(pathname)
+  React.useEffect(() => {
+    path.current = pathname
+  }, [pathname])
+  React.useEffect(() => {
+    if (open || state !== 'ready') return
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const later = () => {
+      timer = setTimeout(() => {
+        timer = null
+        // Someone typing outside the Inbox keeps their words: the reload waits until they stop.
+        if (!path.current.startsWith('/inbox') && editing()) later()
+        else reloadBrand()
+      }, CHANGE_WAIT_MS)
+    }
+    const stop = watchChanges({
+      url: CORE_URL,
+      token,
+      onLive: setLive,
+      onChanged: () => {
+        if (!timer && document.visibilityState === 'visible') later()
+      },
+    })
+    return () => {
+      stop()
+      if (timer) clearTimeout(timer)
+    }
+  }, [open, state])
+
+  // Without the signal (a proxy that cuts streams, the server restarting), the Inbox asks again
+  // every five seconds while it is in view.
+  const onInbox = pathname.startsWith('/inbox')
+  React.useEffect(() => {
+    if (open || state !== 'ready' || live || !onInbox) return
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') reloadBrand()
+    }, POLL_MS)
+    return () => clearInterval(t)
+  }, [open, state, live, onInbox])
+
   // The password is set: now the account loads.
   const load = React.useCallback(() => setState('loading'), [])
 
@@ -128,3 +177,20 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
 }
 
 const noChange = () => () => {}
+
+/** How long a burst of change signals waits before one reload. */
+const CHANGE_WAIT_MS = 1000
+/** The Inbox's own check while the change signal is down. */
+const POLL_MS = 5000
+
+/** True while the focus is in a field a person types in. */
+function editing() {
+  const el = document.activeElement as HTMLElement | null
+  return Boolean(el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)))
+}
+
+/** Loads the brand on screen again; a failure leaves the screen as it is until the next try. */
+function reloadBrand() {
+  const brand = currentBrand()
+  if (brand) void loadBrand(brand).catch(() => undefined)
+}

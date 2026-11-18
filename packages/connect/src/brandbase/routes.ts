@@ -156,7 +156,10 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
       // Meta's webhooks: no person's session, Meta's own signature instead.
       .route(
         '/',
-        metaWebhookRoutes(platforms.metaHooks, inboxHandler(core, platforms.metaHooks?.as)),
+        metaWebhookRoutes(
+          platforms.metaHooks,
+          inboxHandler(core, platforms.metaHooks?.as, platforms.meta),
+        ),
       )
 
       // Replies to the comments and DMs the webhook brought, and hiding a comment.

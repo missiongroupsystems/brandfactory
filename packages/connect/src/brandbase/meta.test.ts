@@ -1,7 +1,7 @@
 import { addPrincipal, setLoadout } from '@brandfactory/core/src/registry'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { platformsFromEnv } from './env'
-import { metaApp } from './meta'
+import { metaApp, NEEDED_PERMISSIONS } from './meta'
 import { NOW, serve } from './test-core'
 
 const MASTER = Buffer.alloc(32, 7)
@@ -13,7 +13,13 @@ const MASTER = Buffer.alloc(32, 7)
  */
 function fakeMeta() {
   const calls: { method: string; path: string; params: URLSearchParams }[] = []
-  const state = { subscribeFails: false, pages: 'code-casa' }
+  const state = {
+    subscribeFails: false,
+    pages: 'code-casa',
+    /** The permissions the person unticked on Facebook's screen. */
+    declined: [] as string[],
+    permissionsFail: false,
+  }
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 
@@ -50,6 +56,16 @@ function fakeMeta() {
         ],
       })
     }
+    if (path === '/me/permissions') {
+      if (state.permissionsFail) return json({ error: { message: 'down', code: 2 } }, 500)
+      // Meta's answer: each permission asked, granted or declined.
+      return json({
+        data: NEEDED_PERMISSIONS.map((permission) => ({
+          permission,
+          status: state.declined.includes(permission) ? 'declined' : 'granted',
+        })),
+      })
+    }
     if (/^\/\d+\/subscribed_apps$/.test(path)) {
       if (state.subscribeFails && method === 'POST') {
         return json({ error: { message: '(#200) needs pages_manage_metadata', code: 200 } }, 403)
@@ -75,11 +91,15 @@ type T = Awaited<ReturnType<typeof setUp>>
 const AGENT = 'owner/meta'
 
 /** The server as released: the webhook's agent is set and may keep messages. */
-async function setUp(as: string | null = AGENT, appSecret: string | undefined = 'app-secret') {
+async function setUp(
+  as: string | null = AGENT,
+  appSecret: string | undefined = 'app-secret',
+  captureAccount?: string,
+) {
   const meta = fakeMeta()
   const t = await serve({
     meta: meta.app,
-    metaHooks: { verifyToken: 'v', appSecret, as: as ?? undefined },
+    metaHooks: { verifyToken: 'v', appSecret, as: as ?? undefined, captureAccount },
   })
   await addPrincipal(t.db, AGENT, 'owner')
   await setLoadout(t.db, AGENT, 'brandbase', ['inbox.meta_receive'])
@@ -380,7 +400,17 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
       { choice: done.data.choice, pageId: '100001' },
       'owner',
     )
-    expect(picked).toMatchObject({ status: 409, data: { code: 'ACCOUNT_TAKEN' } })
+    // The Page links; the answer says why Instagram did not, so Connections can say it.
+    expect(picked).toMatchObject({
+      status: 200,
+      data: {
+        page: 'Casa Vostra',
+        igUsername: null,
+        webhooks: true,
+        instagramRefused: 'this Instagram account belongs to another brand',
+      },
+    })
+    expect(JSON.stringify(picked.data)).not.toContain('osteria')
     // The Page is casa's; its old Instagram account, with another Page's token, is gone.
     expect((await t.accounts()).map((r) => [r.brand_id, r.platform, r.account_id])).toEqual([
       ['casa', 'facebook', '100001'],
@@ -431,6 +461,102 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     expect(await t.accounts()).toHaveLength(1)
   })
 
+  it('names the permissions Facebook did not give, in the answers and the log, and links all the same', async () => {
+    const t = await setUp()
+    t.meta.state.declined = ['pages_messaging', 'instagram_manage_messages']
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { done } = await signIn(t)
+      expect(done.data.missing).toEqual(['pages_messaging', 'instagram_manage_messages'])
+      // Read with the person's long-lived token, as the Pages are.
+      const read = t.meta.calls.find((c) => c.path === '/me/permissions')!
+      expect(read.params.get('access_token')).toBe('long:user:code-casa')
+      const picked = await t.call(
+        'POST',
+        '/meta/select',
+        { choice: done.data.choice, pageId: '100001' },
+        'owner',
+      )
+      expect(picked).toMatchObject({
+        status: 200,
+        data: { missing: ['pages_messaging', 'instagram_manage_messages'], instagramRefused: null },
+      })
+      expect(await t.accounts()).toHaveLength(2)
+      const lines = warn.mock.calls.map((c) => c.join(' '))
+      expect(lines).toContain(
+        'meta: permissions not granted casa pages_messaging,instagram_manage_messages',
+      )
+      // The log names the permissions, never a token.
+      expect(lines.join('\n')).not.toContain('page:100001')
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('names no permission when all are granted, or when Meta does not answer the read', async () => {
+    const t = await setUp()
+    expect((await signIn(t)).done.data.missing).toEqual([])
+    t.meta.state.permissionsFail = true
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { done } = await signIn(t)
+      expect(done).toMatchObject({ status: 200, data: { missing: [] } })
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('never turns off the webhooks of the Page that holds the capture account', async () => {
+    const IG_ID = '17841400000000001'
+    const deletes = (t: T) => t.meta.calls.filter((c) => c.method === 'DELETE').length
+    // The agent may not keep messages: any other Page would be unsubscribed here.
+    const t = await setUp(null, 'app-secret', IG_ID)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { done } = await signIn(t)
+      await t.call('POST', '/meta/select', { choice: done.data.choice, pageId: '100001' }, 'owner')
+      expect(deletes(t)).toBe(0)
+      // A switch to another Page keeps the capture Page's webhooks on too.
+      const again = await signIn(t)
+      await t.call(
+        'POST',
+        '/meta/select',
+        { choice: again.done.data.choice, pageId: '100002' },
+        'owner',
+      )
+      expect(t.meta.calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual([
+        '/100002/subscribed_apps',
+      ])
+      // Disconnect: the capture Page keeps them as well.
+      const back = await signIn(t)
+      await t.call(
+        'POST',
+        '/meta/select',
+        { choice: back.done.data.choice, pageId: '100001' },
+        'owner',
+      )
+      const before = deletes(t)
+      const gone = await t.call('DELETE', '/brands/casa/meta', undefined, 'owner')
+      expect(gone).toMatchObject({ status: 200, data: { unsubscribed: false } })
+      expect(deletes(t)).toBe(before)
+      expect(warn.mock.calls.map((c) => c.join(' '))).toContain(
+        'meta: the capture Page keeps its webhooks casa',
+      )
+    } finally {
+      warn.mockRestore()
+    }
+    // Without the setting, the same Page is unsubscribed as before.
+    const plain = await setUp(null)
+    const { done } = await signIn(plain)
+    await plain.call(
+      'POST',
+      '/meta/select',
+      { choice: done.data.choice, pageId: '100001' },
+      'owner',
+    )
+    expect(deletes(plain)).toBe(1)
+  })
+
   it('says Facebook and Instagram are set up when the Meta app is, and needs all four of its settings', async () => {
     const t = await setUp()
     expect((await t.call('GET', '/platforms')).data).toMatchObject({
@@ -469,5 +595,14 @@ describe('Meta: connecting a brand’s Page and Instagram account', () => {
     ).toThrow(/META_REDIRECT_URL: an https address/)
     // The app secret alone, beside the webhook's verify token, is not the sign-in.
     expect(platformsFromEnv({ META_APP_SECRET: 's' }).meta).toBeUndefined()
+  })
+
+  it('reads the capture account as optional', () => {
+    expect(platformsFromEnv({ META_WEBHOOK_VERIFY_TOKEN: 'v' }).metaHooks?.captureAccount).toBe(
+      undefined,
+    )
+    expect(
+      platformsFromEnv({ META_WEBHOOK_VERIFY_TOKEN: 'v', META_CAPTURE_ACCOUNT: '1784' }).metaHooks,
+    ).toMatchObject({ captureAccount: '1784' })
   })
 })

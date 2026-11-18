@@ -12,6 +12,8 @@ const TOKEN = 'page-token'
 const SECRET = 'app-secret'
 const AGENT = 'owner/meta'
 
+type Json = Record<string, unknown>
+
 const igDm = (mid: string, text: string, sender = '9001', at = NOW.getTime() - 60_000) => ({
   object: 'instagram',
   entry: [
@@ -45,12 +47,24 @@ function fakeGraph() {
   const state = {
     fail: null as null | { code: number; message: string; is_transient?: boolean },
     lost: false,
+    /** What `GET /{IGSID}` answers: the person's name and @handle, or Meta's refusal. */
+    profile: { name: 'Ana Lim', username: 'ana.lim' } as Record<string, unknown>,
   }
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input))
-    const params = Object.fromEntries(new URLSearchParams(String(init?.body)))
-    calls.push({ path: url.pathname.replace('/v26.0', ''), params })
+    const get = (init?.method ?? 'GET') === 'GET'
+    const params = Object.fromEntries(
+      get ? url.searchParams : new URLSearchParams(String(init?.body)),
+    )
+    const path = url.pathname.replace('/v26.0', '')
+    calls.push({ path, params })
     expect(params.access_token).toBe(TOKEN)
+    if (get && /^\/\d+$/.test(path)) {
+      expect(params.fields).toBe('name,username')
+      return new Response(JSON.stringify({ id: path.slice(1), ...state.profile }), {
+        status: state.profile.error ? 400 : 200,
+      })
+    }
     if (state.lost) throw new TypeError('fetch failed')
     if (state.fail) {
       return new Response(JSON.stringify({ error: state.fail }), { status: 400 })
@@ -196,6 +210,113 @@ describe('comments and DMs from Meta', () => {
     // A time no date can hold lands at the time it came, not as a failure Meta sends for 36 hours.
     const odd = igDm('mid.odd', 'Hi', '9001', 1e20) as MetaDelivery
     expect(batchesOf(odd, now)[0]!.items[0]!.receivedAt).toBe(new Date(now).toISOString())
+  })
+
+  it('says in words what a DM with no text holds, from the attachment types Meta documents', () => {
+    const dm = (message: Record<string, unknown>) =>
+      batchesOf(
+        {
+          object: 'instagram',
+          entry: [
+            {
+              id: IG,
+              messaging: [
+                {
+                  sender: { id: '9001' },
+                  timestamp: NOW.getTime(),
+                  message: { mid: 'm', ...message },
+                },
+              ],
+            },
+          ],
+        },
+        NOW.getTime(),
+      )[0]!.items[0]!.text
+    const one = (type: string) => ({
+      attachments: [{ type, payload: { url: 'https://cdn.test/x' } }],
+    })
+    expect(dm(one('ig_reel'))).toBe('Shared a reel')
+    expect(dm(one('reel'))).toBe('Shared a reel')
+    expect(dm(one('ig_post'))).toBe('Shared a post')
+    expect(dm(one('share'))).toBe('Shared a post')
+    expect(dm(one('story_mention'))).toBe('Mentioned you in a story')
+    expect(dm(one('image'))).toBe('Sent a photo')
+    expect(dm(one('video'))).toBe('Sent a video')
+    expect(dm(one('audio'))).toBe('Sent a voice message')
+    expect(dm(one('file'))).toBe('Sent a file')
+    expect(dm(one('something_new'))).toBe('Sent an attachment')
+    expect(dm({ attachments: [one('image').attachments[0], one('image').attachments[0]] })).toBe(
+      'Sent 2 photos',
+    )
+    expect(dm({ is_unsupported: true })).toBe('Sent a message Instagram cannot show here')
+    // Words the person wrote win over the attachment's.
+    expect(dm({ text: 'Look at this', ...one('ig_reel') })).toBe('Look at this')
+  })
+
+  it('names an Instagram sender by name and @handle, read once with the brand’s Page token', async () => {
+    const t = await setUp()
+    await setLoadout(t.db, AGENT, 'brandbase', ['inbox.meta_receive', 'account.read'])
+    expect((await t.deliver(igDm('mid.1', 'Hi'))).status).toBe(200)
+    expect((await t.deliver(igDm('mid.2', 'Still there?'))).status).toBe(200)
+    const rows = await t.db.query<{ from_name: string; from_handle: string }>(
+      'select from_name, from_handle from brandbase.inbox_messages order by id',
+    )
+    expect(rows).toEqual([
+      { from_name: 'Ana Lim', from_handle: '@ana.lim' },
+      { from_name: 'Ana Lim', from_handle: '@ana.lim' },
+    ])
+    expect(t.graph.calls.filter((c) => c.path === '/9001')).toHaveLength(1)
+  })
+
+  it('keeps the default name when Meta keeps the profile back, or the agent may not read the account', async () => {
+    const t = await setUp()
+    await setLoadout(t.db, AGENT, 'brandbase', ['inbox.meta_receive', 'account.read'])
+    t.graph.state.profile = { error: { message: 'no consent', code: 230 } }
+    expect((await t.deliver(igDm('mid.1', 'Hi'))).status).toBe(200)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      // Without `account.read` in its loadout: no names, one line, and the message is kept.
+      const off = await setUp()
+      expect((await off.deliver(igDm('mid.1', 'Hi', '9005'))).status).toBe(200)
+      expect((await off.deliver(igDm('mid.2', 'Hi', '9006'))).status).toBe(200)
+      expect(warn.mock.calls.filter((c) => c[0] === 'meta webhook: no sender names')).toHaveLength(
+        1,
+      )
+      expect((await off.inbox()).map((m) => m.from_handle)).toEqual(['', ''])
+    } finally {
+      warn.mockRestore()
+    }
+    const [row] = await t.db.query<{ from_name: string }>(
+      'select from_name from brandbase.inbox_messages',
+    )
+    expect(row!.from_name).toBe('Instagram user')
+  })
+
+  it('logs one line for each delivery, with counts only: no one’s words or ids', async () => {
+    const t = await setUp()
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    try {
+      await t.deliver(igDm('mid.1', 'SECRET-TEXT', '90017'))
+      // Another app leads the conversation: Meta sends it as standby, and it is only counted.
+      const standby = igDm('mid.2', 'SECRET-STANDBY', '90017') as { entry: Json[] }
+      standby.entry[0]!.standby = standby.entry[0]!.messaging
+      delete standby.entry[0]!.messaging
+      await t.deliver(standby)
+      const deleted = igDm('mid.1', '', '90017') as { entry: { messaging: Json[] }[] }
+      ;(deleted.entry[0]!.messaging[0]!.message as Json).is_deleted = true
+      await t.deliver(deleted)
+      const lines = info.mock.calls.filter((c) => c[0] === 'meta webhook').map((c) => c[1])
+      expect(lines.map((l) => JSON.parse(String(l)))).toEqual([
+        { object: 'instagram', entries: 1, standby: 0, stored: 1, dropped: 0, removed: 0 },
+        { object: 'instagram', entries: 1, standby: 1, stored: 0, dropped: 0, removed: 0 },
+        { object: 'instagram', entries: 1, standby: 0, stored: 0, dropped: 0, removed: 1 },
+      ])
+      const all = JSON.stringify(info.mock.calls)
+      expect(all).not.toContain('SECRET')
+      expect(all).not.toContain('90017')
+    } finally {
+      info.mockRestore()
+    }
   })
 
   it('keeps each signed delivery in the inbox of the brand holding the account, once, however often Meta sends it', async () => {
