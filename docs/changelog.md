@@ -157,7 +157,8 @@ One line each — full write-ups are under the matching `##` heading further dow
   its × is in reach; the row still opens the post. Each row has a small × ("Move to drafts") on
   hover, on keyboard focus and always on touch; it folds the row away (260 ms), then moves the post
   to drafts, and the count follows; with none left the pill goes. A refusal unfolds the row
-  again. No × for a post already live on one account (`isPartlyOut`, the post page's rule). The
+  again. At rest the × takes no space, so the logos sit at the row's edge; on hover or focus its
+  slot opens (180 ms) and the logos slide over. No × for a post already live on one account (`isPartlyOut`, the post page's rule). The
   list is at most about seven rows tall and scrolls inside the menu, with a thin bar and a fade at
   an edge that has more. The move is one hook, `useMoveToDrafts` in `posts-store.tsx`, which the
   post page's "Move to drafts" now uses too.

@@ -134,7 +134,7 @@ export function FailedPill({ posts }: { posts: Post[] }) {
                   className="bb-fold transition-[grid-template-rows,opacity] motion-reduce:transition-none"
                   style={{ gridTemplateRows: gone ? '0fr' : '1fr', opacity: gone ? 0 : 1 }}
                 >
-                  <div className="group flex items-center gap-1 rounded-[10px] pr-1.5 transition-colors hover:bg-surface has-[:focus-visible]:bg-surface">
+                  <div className="group flex items-center rounded-[10px] transition-colors hover:bg-surface has-[:focus-visible]:bg-surface">
                     <Link
                       role="menuitem"
                       href={`/post/${p.id}`}
@@ -158,20 +158,25 @@ export function FailedPill({ posts }: { posts: Post[] }) {
                       </span>
                     </Link>
                     {/* Not for a post already out on one account: that is kept (isPartlyOut).
-                        The space stays, so the logos line up down the list. */}
-                    {isPartlyOut(p) ? (
-                      <span className="size-6 shrink-0" />
-                    ) : (
-                      <button
-                        type="button"
-                        aria-label="Move to drafts"
-                        title="Move to drafts"
-                        tabIndex={gone ? -1 : undefined}
-                        onClick={(e) => void clear(p.id, e.currentTarget.parentElement)}
-                        className="bb-press grid size-6 shrink-0 place-items-center rounded-full text-ink-3 opacity-0 outline-none group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 hover:bg-tile hover:text-ink focus-visible:bg-tile focus-visible:text-ink [@media(hover:none)]:opacity-100"
-                      >
-                        <CloseIcon size={9} />
-                      </button>
+                        At rest the slot is shut, so the logos sit at the row's edge; on hover or
+                        keyboard focus it opens and the logos slide over. Open on touch. */}
+                    {!isPartlyOut(p) && (
+                      <span className="grid shrink-0 grid-cols-[0fr] transition-[grid-template-columns] duration-[180ms] ease-out group-hover:grid-cols-[1fr] group-has-[:focus-visible]:grid-cols-[1fr] motion-reduce:transition-none [@media(hover:none)]:grid-cols-[1fr]">
+                        <span className="min-w-0 overflow-hidden">
+                          <button
+                            type="button"
+                            aria-label="Move to drafts"
+                            title="Move to drafts"
+                            tabIndex={gone ? -1 : undefined}
+                            onClick={(e) =>
+                              void clear(p.id, e.currentTarget.closest<HTMLElement>('.group'))
+                            }
+                            className="mr-1.5 grid size-6 scale-75 place-items-center rounded-full text-ink-3 opacity-0 outline-none transition-[opacity,transform,background-color,color] duration-[180ms] ease-out group-hover:scale-100 group-hover:opacity-100 group-has-[:focus-visible]:scale-100 group-has-[:focus-visible]:opacity-100 hover:bg-tile hover:text-ink focus-visible:bg-tile focus-visible:text-ink active:scale-90 motion-reduce:transition-none [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
+                          >
+                            <CloseIcon size={9} />
+                          </button>
+                        </span>
+                      </span>
                     )}
                   </div>
                 </div>
