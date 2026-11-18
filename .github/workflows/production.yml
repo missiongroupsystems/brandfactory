@@ -7,6 +7,8 @@ name: Production
 #            Facebook account is linked (read as the release person, through the server)
 #   release  the pack: publish, test, migrate, promote `version`, then people's loadouts follow it
 #   deploy   the server (`fly deploy`), then its health
+#   meta     read only: the names of the server's secrets that Meta needs (never a value), and
+#            the last hour of the server's log lines about Meta's webhooks (counts, no one's words)
 #
 # Secrets and variables are the repository's (Settings, Secrets and variables, Actions):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
@@ -21,7 +23,7 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy]
+        options: [check, release, deploy, meta]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
         required: false
@@ -63,7 +65,7 @@ jobs:
 
       # The session pooler (IPv4), with Supabase's own root, as the CLI reaches it from anywhere.
       - name: Database logins
-        if: inputs.task != 'deploy'
+        if: inputs.task != 'deploy' && inputs.task != 'meta'
         env:
           LOGIN_PW: ${{ secrets.CORE_LOGIN_PASSWORD }}
           MIGRATOR_PW: ${{ secrets.CORE_MIGRATOR_PASSWORD }}
@@ -142,7 +144,20 @@ jobs:
           pnpm -s exec tsx scripts/loadouts.ts after brandbase "$RUNNER_TEMP/before.json"
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: inputs.task == 'deploy'
+        if: inputs.task == 'deploy' || inputs.task == 'meta'
+
+      # Read only. `secrets list` shows names and digests, never values; the log lines name an
+      # object and a count, or an account id, never a message.
+      - name: Meta
+        if: inputs.task == 'meta'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -uo pipefail
+          echo "Secrets the server holds (names only):"
+          flyctl secrets list -a brandfactory --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const x of JSON.parse(s))console.log(" ", x.Name ?? x.name)})'
+          echo "Meta lines in the server log:"
+          flyctl logs -a brandfactory --no-tail 2>/dev/null | grep -i -E "meta webhook|meta:|meta reply" | tail -n 60 || echo "  none"
 
       - name: Deploy
         if: inputs.task == 'deploy'
