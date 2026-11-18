@@ -66,11 +66,16 @@ follows a release. The owner sets `META_CAPTURE_BRAND`; see the plan's setup lis
 
 ### Checked
 
-- The full gate: typecheck, lint, format, 1801 tests by count (1522 pass, 279 skipped without a Postgres server; `bubbles` "stops a turn whose runtime is still starting" is timing-sensitive under load and passed on a rerun) and the web build.
+- The full gate: typecheck, lint, format, 1801 tests by count (1522 pass, 279 skipped without a Postgres server) and the web build.
 - A local run on Postgres 16: the core and the connect host with Meta's calls stubbed, the web app
   on it, signed deliveries of a LINK, a share and a quick-reply tap. The account answered "Linked
   to admin", asked which brand with three quick replies, copied the reel and answered "Saved to
   Casa Vostra"; the Ideas page showed it under Shared within 10 seconds, with no reload.
+
+### CI
+
+Bubbles' "stops a turn whose runtime is still starting" raced a 30 ms wait against the fake
+runtime's start. The fake runtime takes `FAKE_INIT_DELAY` now, and the test starts it in 1 s.
 
 ### Not done
 

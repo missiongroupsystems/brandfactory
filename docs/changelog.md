@@ -183,6 +183,9 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Tests:** 1801 by count: 1522 pass and 279 are skipped without a Postgres server (13 new pack cases in `tests/capture.json`, 16 in `meta-capture.test.ts`, 1 in `capture.test.tsx`). Typecheck, lint, format and the web build pass. Browser: a local core on
   Postgres 16 with the connect host (Meta stubbed), signed LINK, share and quick-reply deliveries,
   and the Ideas page before and after the capture landed, at laptop width.
+- **CI.** Bubbles' test "stops a turn whose runtime is still starting" raced a 30 ms wait against
+  the fake runtime's start and failed on CI; the fake runtime now takes `FAKE_INIT_DELAY`, and the
+  test starts it in 1 s.
 ## 2.70.0 — 2026-11-18
 
 - **Why.** The owner demos the Meta Inbox on production on 19 Nov, and the team reported "DMs do
