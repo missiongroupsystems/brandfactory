@@ -11,6 +11,9 @@ name: Production
 #            `inbox.meta_receive` (the webhook's principal, META_WEBHOOK_AS); prints a count only
 #   meta     read only: the names of the server's secrets that Meta needs (never a value), and
 #            the last hour of the server's log lines about Meta's webhooks (counts, no one's words)
+#   meta-oembed  read only: one oEmbed call for a public Facebook post and one for a public
+#            Instagram post, made on the server with the app token, so that Meta counts the
+#            "Embed content" use case as tested; prints the HTTP status and the answer's keys
 #
 # Secrets and variables are the repository's (Settings, Secrets and variables, Actions):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
@@ -25,7 +28,7 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy, meta, agent-loadout]
+        options: [check, release, deploy, meta, meta-oembed, agent-loadout]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
         required: false
@@ -71,7 +74,7 @@ jobs:
 
       # The session pooler (IPv4), with Supabase's own root, as the CLI reaches it from anywhere.
       - name: Database logins
-        if: inputs.task != 'deploy' && inputs.task != 'meta'
+        if: inputs.task != 'deploy' && inputs.task != 'meta' && inputs.task != 'meta-oembed'
         env:
           LOGIN_PW: ${{ secrets.CORE_LOGIN_PASSWORD }}
           MIGRATOR_PW: ${{ secrets.CORE_MIGRATOR_PASSWORD }}
@@ -161,7 +164,7 @@ jobs:
           pnpm -s exec tsx scripts/widen-agents.ts brandbase inbox.meta_receive $OPS
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: inputs.task == 'deploy' || inputs.task == 'meta'
+        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed'
 
       # Read only. `secrets list` shows names and digests, never values; the log lines name an
       # object and a count, or an account id, never a message.
@@ -175,6 +178,37 @@ jobs:
           flyctl secrets list -a brandfactory --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const x of JSON.parse(s))console.log(" ", x.Name ?? x.name)})'
           echo "Meta lines in the server log:"
           flyctl logs -a brandfactory --no-tail 2>/dev/null | grep -i -E "meta webhook|meta:|meta reply" | tail -n 60 || echo "  none"
+
+      # Read only. The app token is built inside the machine from its own secrets and goes only to
+      # graph.facebook.com; the script prints a status and key names, or Meta's error, never the token.
+      - name: Meta oEmbed
+        if: inputs.task == 'meta-oembed'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(grep -oE "VERSION = 'v[0-9.]+'" packages/connect/src/brandbase/meta.ts | grep -oE 'v[0-9.]+')
+          cat > "$RUNNER_TEMP/oembed.js" <<'JS'
+          const graph = "https://graph.facebook.com/" + process.argv[1]
+          const { META_APP_ID: id, META_APP_SECRET: secret } = process.env
+          if (!id || !secret) { console.log("META_APP_ID or META_APP_SECRET is not set"); process.exit(1) }
+          const calls = [
+            ["oembed_post", "https://www.facebook.com/facebook/posts/10153231379946729"],
+            ["instagram_oembed", "https://www.instagram.com/p/fA9uwTtkSN/"],
+          ]
+          ;(async () => {
+            for (const [edge, url] of calls) {
+              const q = new URLSearchParams({ url, access_token: id + "|" + secret })
+              const res = await fetch(graph + "/" + edge + "?" + q)
+              const body = await res.json().catch(() => ({}))
+              const e = body.error
+              console.log(edge, res.status, e ? JSON.stringify({ code: e.code, subcode: e.error_subcode, type: e.type, message: e.message }) : "keys: " + Object.keys(body).join(","))
+            }
+          })().catch((e) => { console.log("failed:", e.message); process.exit(1) })
+          JS
+          b64=$(sed 's/^          //' "$RUNNER_TEMP/oembed.js" | base64 -w0)
+          echo "Graph $version, on the server:"
+          flyctl ssh console -a brandfactory -C "node -e \"eval(Buffer.from('$b64','base64').toString())\" $version"
 
       - name: Deploy
         if: inputs.task == 'deploy'
