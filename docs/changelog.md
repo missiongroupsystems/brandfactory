@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.70.0** — 2026-11-18 — `feat/meta-inbox-fixes`: the Inbox is live: a DM or comment that comes through Meta shows within about a second, with no reload (the core's change signal, and a 5-second check on the Inbox when it is down). A DM with no text says what it holds ("Shared a reel"), and the sender's name and @handle are read once; the server logs each delivery by counts and each refused signature; the sign-in names the permissions Facebook did not give; a refused Instagram account and a reply Meta refused are shown; the capture Page keeps its webhooks; the Inbox no longer crashes on a complaint on the core. No pack change. 1758 tests by count: 1491 pass, 266 skipped without a Postgres server, and one Make test that ran past 30 s under load passes alone.
 - **2.69.1** — 2026-11-18 — `fix/views-label`: a post's views on the Feed say "views" (or "view" for one) beside the number, where a bare number showed before. 1737 tests by count: 1471 pass, 266 skipped without a Postgres server.
 - **2.69.0** — 2026-11-16 — `feat/post-now`: the live post page can post at once, from a quiet "Post now" button beside Schedule; the page then follows the post's real jobs until each account answers, and says why one failed in plain words, with a link to Connections. A failed post clears to drafts in one press, and "N failed" on the calendar opens the post. No server or pack change. 1736 tests by count: 1470 pass, 266 skipped without a Postgres server.
 - **2.68.0** — 2026-11-15 — `feat/tag-account-check`: the post page says when Instagram may not reach an account typed as a tag or a collaborator ("We could not confirm @name is public"), read live from Business Discovery as the brand's account; a post Meta refuses for such an account says what to do. No pack change. 1717 tests by count: 1451 pass, 266 skipped without a Postgres server (726 of 726 core tests on Postgres 16).
@@ -147,6 +148,34 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.70.0 — 2026-11-18
+
+- **Why.** The owner demos the Meta Inbox on production on 19 Nov, and the team reported "DMs do
+  not work, and Insights shows no data". Checked first: no merge removed Make, production has
+  Meta on and its webhook answers, and Insights shows no figures on the core by design. The Meta
+  app is in Development mode, so Meta sends no webhooks (the owner publishes it). Reproduced: the
+  web app showed a new DM only after a reload, and on a local core the Inbox page crashed when it
+  opened a complaint the server holds.
+- **What changed.** `docs/completions/meta-inbox-live-phases-1-to-6.md`. Web: `lib/live.ts` reads
+  `GET /events/brandbase` with the session token in the header and opens it again after 1 to 30 s;
+  `RemoteSync` reloads the brand one second after a change (outside the Inbox it waits while
+  someone types), and the Inbox reloads every 5 s while the signal is down; the open message stays
+  open when a newer one arrives; the send-to menu reads the server's people; a reply Meta refused
+  says so in the thread, with its words in the box; the Connections return page says which
+  permissions Facebook did not give and why Instagram was not linked. Server
+  (`packages/connect`): attachment words; the sender's name and @handle from
+  `GET /{IGSID}?fields=name,username` with the brand's Page token, once per sender a day (needs
+  `account.read` in `META_WEBHOOK_AS`'s loadout); one log line per delivery with its counts
+  (`standby` too) and one a minute for refused signatures; `GET /me/permissions` after the sign-in;
+  `/meta/select` links the Page when Instagram is refused and says why; `META_CAPTURE_ACCOUNT`
+  (optional) keeps that Page subscribed. No pack change, no migration.
+- **Tests:** 1758 by count: 1491 pass and 266 are skipped without a Postgres server; one Make
+  test (`make.test.ts`, not changed) ran past its 30 s limit while other runs shared the machine,
+  and passes alone (8 of 8). Typecheck, lint and format pass. The web build passes with
+  `next build --webpack`; Turbopack's build cannot download Google's fonts in this sandbox (curl
+  can), so CI's build is the check for it. Browser (Chromium, 1440 wide): the Inbox before and
+  after two signed deliveries with no reload, a refused reply, and the return page's two lines.
 
 ## 2.69.1 — 2026-11-18
 

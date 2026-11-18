@@ -24,6 +24,7 @@ import {
   clearNoise,
   hideComment,
   messagesOf,
+  peopleOf,
   sendReply,
   sendTo,
   useInbox,
@@ -75,9 +76,12 @@ export function InboxPage() {
   )
 }
 
-function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
+function Inbox({ brand, data: demo }: { brand: Brand; data: BrandInbox }) {
   const phone = usePhone()
   const { done, sentTo: routed } = useInbox(brand.id)
+  // On the core the people a complaint can go to are the server's, read under `useInbox`.
+  const people = remote ? peopleOf(brand.id) : demo.people
+  const data = React.useMemo(() => ({ ...demo, people }), [demo, people])
   const messages = messagesOf(brand.id)
   const [filter, setFilter] = React.useState<InboxFilter>('all')
   const [selected, setSelected] = React.useState<string | null>(null)
@@ -86,6 +90,9 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   const staying = open.filter((m) => !leaving.has(m.id))
   // A desktop always shows a message beside the list; a phone shows one only when it is tapped.
   const current = staying.find((m) => m.id === selected) ?? (phone ? null : (staying[0] ?? null))
+  // The message a desktop opens by itself stays open when a new one arrives above it, so a reply
+  // being written is not lost.
+  if (current && selected !== current.id) setSelected(current.id)
   const complaints = open.filter((m) => m.tone === 'complaint')
   const rest = open.filter((m) => m.tone !== 'complaint')
   const waiting = queue(messages, done).open.filter((m) => !leaving.has(m.id))
@@ -477,7 +484,13 @@ function Thread({
 }) {
   const { summary: voice } = useBrandKit(brand.id).voice
   const [picked, setPicked] = React.useState<number | null>(null)
-  const [text, setText] = React.useState('')
+  const [text, setText] = React.useState(m.failedReply ?? '')
+  // A refused reply that comes back while the thread is open fills an empty box too.
+  const [failed, setFailed] = React.useState(m.failedReply)
+  if (m.failedReply !== failed) {
+    setFailed(m.failedReply)
+    if (m.failedReply && !text.trim()) setText(m.failedReply)
+  }
   const [writing, setWriting] = React.useState(false)
   // Which pick is being written: a second pick while the first writes makes the first stand down.
   const job = React.useRef(0)
@@ -529,7 +542,7 @@ function Thread({
             Hide
           </button>
         )}
-        {m.tone === 'complaint' && (
+        {m.tone === 'complaint' && data.people.length > 0 && (
           <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
         )}
       </header>
@@ -562,6 +575,12 @@ function Thread({
 
       <div className="shrink-0 px-6 pt-1 pb-5 max-md:px-4 max-md:pb-[calc(12px+env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-[552px] flex-col gap-2.5">
+          {m.failedReply !== undefined && (
+            <p role="status" className="text-[13px] text-fail-ink">
+              Your reply did not send. Send it again, or answer in the{' '}
+              {m.platform === 'fb' ? 'Facebook' : 'Instagram'} app.
+            </p>
+          )}
           {/* Three ways to reply, as a dialogue gives them. The pick writes the reply below. */}
           <div role="group" aria-label="Reply" className="flex flex-wrap gap-1.5">
             {m.replies.map((r, i) => {

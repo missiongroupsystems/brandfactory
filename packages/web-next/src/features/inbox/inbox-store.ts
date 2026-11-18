@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { INBOX_BY_BRAND, type InboxMessage } from '@/data/inbox'
+import { INBOX_BY_BRAND, type InboxMessage, type InboxPerson } from '@/data/inbox'
 
 import { onState, push, remote, request } from '@/lib/remote'
 
@@ -49,6 +49,12 @@ function update(brandId: BrandId, fn: (s: BrandInboxState) => BrandInboxState) {
 
 /** Each brand's people by name: the send-to menu speaks names, the server ids. */
 const personIds: Record<string, Record<string, string>> = {}
+/** Each brand's people as the server keeps them, for the send-to menu on the core. */
+const peopleByBrand: Record<string, InboxPerson[]> = {}
+
+/** The people a complaint can go to on the core; none until the brand's state loads. */
+export const peopleOf = (brandId: BrandId): InboxPerson[] => peopleByBrand[brandId] ?? NO_PEOPLE
+const NO_PEOPLE: InboxPerson[] = []
 
 /** A message the server keeps, as the brand's state names it. */
 interface Row {
@@ -63,6 +69,9 @@ interface Row {
   sentTo: string[]
   /** True for a comment or DM that came through Meta's webhook; its ids stay on the server. */
   external?: boolean
+  /** What came of the last reply through Meta, and its words. */
+  replyStatus?: 'queued' | 'sent' | 'failed' | 'unknown' | null
+  replyText?: string | null
 }
 
 /**
@@ -80,13 +89,16 @@ const fromMeta = (r: Row): InboxMessage => ({
   minutes: Math.max(0, Math.round((Date.now() - Date.parse(r.receivedAt)) / 60_000)),
   tone: 'question',
   replies: [],
+  // Meta refused the reply: the message is still open, with the words to send again.
+  ...(r.replyStatus === 'failed' && !r.doneAt && { failedReply: r.replyText ?? '' }),
 })
 
 // The messages themselves are the demo's (the server holds the same, seeded from them, until the
 // platforms' inboxes are read); what the team did with them comes from the server.
 if (remote) {
   onState((brandId, s) => {
-    const people = s.inbox.people as { id: string; name: string }[]
+    const people = s.inbox.people as { id: string; name: string; role?: string }[]
+    peopleByBrand[brandId] = people.map((p) => ({ name: p.name, role: p.role ?? '' }))
     const rows = s.inbox.messages as Row[]
     personIds[brandId] = Object.fromEntries(people.map((p) => [p.name, p.id]))
     real[brandId as BrandId] = rows.filter((r) => r.external).map(fromMeta)
@@ -171,5 +183,6 @@ export function sendTo(brandId: BrandId, id: string, names: string[]) {
 /** For tests: back to the inbox as the demo starts. */
 export function resetInbox() {
   state = initial()
+  for (const id of Object.keys(real)) delete real[id as BrandId]
   listeners.forEach((l) => l())
 }

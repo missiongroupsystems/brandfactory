@@ -113,14 +113,24 @@ export const finishMeta = (code: string, state: string) =>
     state,
   })
 
+/** What linking a Page says beside the link itself. */
+export interface Picked {
+  /** False when the Page's comments and DMs will not reach the Inbox. */
+  webhooks?: boolean
+  /** The permissions Facebook did not give. */
+  missing?: string[]
+  /** Why the Page's Instagram account was not linked (another brand holds it). */
+  instagramRefused?: string | null
+}
+
 /** Links the Page picked, with its Instagram account, then reloads the brand. */
 export async function pickPage(brandId: BrandId, choice: string, pageId: string) {
-  const { webhooks } = await request<{ webhooks?: boolean }>('POST', '/meta/select', {
+  const { webhooks, missing, instagramRefused } = await request<Picked>('POST', '/meta/select', {
     choice,
     pageId,
   })
   await loadBrand(brandId).catch(() => undefined)
-  return { webhooks }
+  return { webhooks, missing: missing ?? [], instagramRefused: instagramRefused ?? null }
 }
 
 /**

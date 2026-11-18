@@ -13,8 +13,23 @@ const remote = vi.hoisted(() => ({
   leave: vi.fn(),
   setPassword: vi.fn(async () => {}),
   sessionEmail: vi.fn(() => 'nat@missiongroup.com'),
+  CORE_URL: 'https://core.test',
+  currentBrand: vi.fn(() => 'casa'),
+  loadBrand: vi.fn(async () => ({})),
+  token: vi.fn(async () => 'tok'),
 }))
 vi.mock('@/lib/remote', () => remote)
+// The change signal, as the page hands it its callbacks.
+const live = vi.hoisted(() => ({
+  opts: null as null | { onChanged: () => void; onLive?: (on: boolean) => void },
+  stop: vi.fn(),
+}))
+vi.mock('@/lib/live', () => ({
+  watchChanges: (opts: typeof live.opts) => {
+    live.opts = opts
+    return live.stop
+  },
+}))
 const nav = vi.hoisted(() => ({ path: '/', replace: vi.fn() }))
 vi.mock('next/navigation', () => ({
   usePathname: () => nav.path,
@@ -29,7 +44,11 @@ beforeEach(() => {
   remote.needsPassword.mockReturnValue(false)
   remote.accountEmpty.mockReturnValue(false)
 })
-afterEach(() => vi.clearAllMocks())
+afterEach(() => {
+  vi.clearAllMocks()
+  vi.useRealTimers()
+  live.opts = null
+})
 
 // A fresh element each time: React skips a rerender of the very same element.
 const tree = () => (
@@ -127,5 +146,99 @@ describe('RemoteSync', () => {
     rerender(tree())
     expect(await screen.findByText('the app')).toBeInTheDocument()
     expect(passwordScreen()).not.toBeInTheDocument()
+  })
+
+  it('reloads the brand on screen once, a second after a burst of change signals', async () => {
+    nav.path = '/inbox'
+    render(tree())
+    await screen.findByText('the app')
+    vi.useFakeTimers()
+    expect(live.opts).not.toBeNull()
+    act(() => {
+      live.opts!.onChanged()
+      live.opts!.onChanged()
+      live.opts!.onChanged()
+    })
+    expect(remote.loadBrand).not.toHaveBeenCalled()
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(remote.loadBrand).toHaveBeenCalledTimes(1)
+    expect(remote.loadBrand).toHaveBeenCalledWith('casa')
+    // A later signal reloads again.
+    act(() => {
+      live.opts!.onChanged()
+    })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(remote.loadBrand).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks every five seconds on the Inbox while the signal is down, and stops when it is back', async () => {
+    nav.path = '/inbox'
+    render(tree())
+    await screen.findByText('the app')
+    vi.useFakeTimers()
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    expect(remote.loadBrand).not.toHaveBeenCalled()
+    act(() => {
+      live.opts!.onLive!(false)
+    })
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    expect(remote.loadBrand).toHaveBeenCalledTimes(2)
+    act(() => {
+      live.opts!.onLive!(true)
+    })
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    expect(remote.loadBrand).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not ask on other pages while the signal is down, and stops the signal on sign-out', async () => {
+    nav.path = '/ideate'
+    const { unmount } = render(tree())
+    await screen.findByText('the app')
+    vi.useFakeTimers()
+    act(() => {
+      live.opts!.onLive!(false)
+    })
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    expect(remote.loadBrand).not.toHaveBeenCalled()
+    unmount()
+    expect(live.stop).toHaveBeenCalled()
+  })
+
+  it('waits to reload while someone types outside the Inbox, then reloads', async () => {
+    nav.path = '/ideate'
+    render(
+      <RemoteSync>
+        <input aria-label="Idea" />
+      </RemoteSync>,
+    )
+    const field = await screen.findByLabelText('Idea')
+    vi.useFakeTimers()
+    act(() => {
+      field.focus()
+      live.opts!.onChanged()
+    })
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    expect(remote.loadBrand).not.toHaveBeenCalled()
+    act(() => {
+      field.blur()
+    })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(remote.loadBrand).toHaveBeenCalledTimes(1)
   })
 })
