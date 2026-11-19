@@ -182,7 +182,7 @@ jobs:
           echo "Secrets the server holds (names only):"
           flyctl secrets list -a brandfactory --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const x of JSON.parse(s))console.log(" ", x.Name ?? x.name)})'
           echo "Meta lines in the server log:"
-          flyctl logs -a brandfactory --no-tail 2>/dev/null | grep -i -E "meta webhook|meta:|meta reply" | tail -n 60 || echo "  none"
+          flyctl logs -a brandfactory --no-tail 2>/dev/null | grep -i -E "meta (webhook|poll|capture|reply)|meta:" | tail -n 80 || echo "  none"
 
       # Read only. The app token is built inside the machine from its own secrets and goes only to
       # graph.facebook.com; the script prints a status and key names, or Meta's error, never the token.
