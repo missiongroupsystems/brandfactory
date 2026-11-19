@@ -19,6 +19,9 @@ name: Production
 #            Casa Vostra's Page token; prints statuses, Meta's errors, the token's scopes, counts
 #   meta-engagement  on Casa Vostra's test Page: a comment "Test" as the Page on its newest post,
 #            is_hidden=false on it (no change), then the comment deleted; prints statuses only
+#   meta-subs  read only: the apps subscribed to Casa Vostra's Page (ours or another, with their
+#            fields), the linked Instagram username, and the counts and times of its Instagram
+#            conversations in the inbox and in message requests
 #
 # Secrets and variables are the repository's (Settings, Secrets and variables, Actions):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
@@ -33,7 +36,7 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy, meta, meta-oembed, meta-test-calls, meta-engagement, agent-loadout, capture-brand]
+        options: [check, release, deploy, meta, meta-oembed, meta-test-calls, meta-engagement, meta-subs, agent-loadout, capture-brand]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
         required: false
@@ -79,7 +82,7 @@ jobs:
 
       # The session pooler (IPv4), with Supabase's own root, as the CLI reaches it from anywhere.
       - name: Database logins
-        if: inputs.task != 'deploy' && inputs.task != 'meta' && inputs.task != 'meta-oembed' && inputs.task != 'meta-test-calls' && inputs.task != 'meta-engagement'
+        if: inputs.task != 'deploy' && inputs.task != 'meta' && inputs.task != 'meta-oembed' && inputs.task != 'meta-test-calls' && inputs.task != 'meta-engagement' && inputs.task != 'meta-subs'
         env:
           LOGIN_PW: ${{ secrets.CORE_LOGIN_PASSWORD }}
           MIGRATOR_PW: ${{ secrets.CORE_MIGRATOR_PASSWORD }}
@@ -169,7 +172,7 @@ jobs:
           pnpm -s exec tsx scripts/widen-agents.ts brandbase inbox.meta_receive $OPS
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed' || inputs.task == 'meta-test-calls' || inputs.task == 'meta-engagement' || inputs.task == 'capture-brand'
+        if: inputs.task == 'deploy' || inputs.task == 'meta' || inputs.task == 'meta-oembed' || inputs.task == 'meta-test-calls' || inputs.task == 'meta-engagement' || inputs.task == 'meta-subs' || inputs.task == 'capture-brand'
 
       # Read only. `secrets list` shows names and digests, never values; the log lines name an
       # object and a count, or an account id, never a message.
@@ -219,7 +222,7 @@ jobs:
       # META_WEBHOOK_AS, then openToken), and goes only to graph.facebook.com. The script prints
       # statuses, Meta's errors, the token's scopes and counts: never a token, a person or a text.
       - name: Meta test calls
-        if: (inputs.task == 'meta-test-calls' || inputs.task == 'meta-engagement')
+        if: (inputs.task == 'meta-test-calls' || inputs.task == 'meta-engagement' || inputs.task == 'meta-subs')
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -272,6 +275,37 @@ jobs:
                 : await fetch(GRAPH + path + '?' + all, { method, signal })
               const body: any = await res.json().catch(() => ({}))
               return { status: res.status, body }
+            }
+
+            if (process.argv[2] === 'meta-subs') {
+              // 1. The apps subscribed to the Page's webhooks: ours or another (by name), with the fields.
+              const subs = await g('GET', `/${page.accountId}/subscribed_apps`, {})
+              out('GET subscribed_apps', subs.status, err(subs.body) || `apps: ${(subs.body?.data ?? []).length}`)
+              for (const a of (subs.body?.data ?? []) as any[]) {
+                const who = String(a.id) === e.META_APP_ID ? 'ours' : `other app: ${a.name ?? '?'}`
+                out(' ', who, 'fields:', JSON.stringify(a.subscribed_fields ?? []))
+              }
+              // 2. The Instagram account the brand links, by its username (our own account).
+              const ig = rows.find((r) => r.platform === 'instagram' && r.brand === page.brand)
+              if (!ig) out('no Instagram account linked through our Meta app for', page.brand)
+              else {
+                const r = await g('GET', `/${ig.accountId}`, { fields: 'id,username' })
+                out('GET instagram account', r.status, err(r.body) || JSON.stringify({ username: r.body?.username, same_id: String(r.body?.id) === ig.accountId }))
+              }
+              // 3. The Page's Instagram conversations: the inbox, then the message requests.
+              const convs = async (label: string, extra: Record<string, string>) => {
+                const r = await g('GET', `/${page.accountId}/conversations`, {
+                  platform: 'instagram', limit: '5', fields: 'updated_time,message_count', ...extra,
+                })
+                const data = (r.body?.data ?? []) as any[]
+                out('GET conversations', label, r.status, err(r.body) || JSON.stringify({
+                  count: data.length, updated: data.map((c) => c.updated_time), messages: data.map((c) => c.message_count),
+                }))
+                return r.status
+              }
+              await convs('inbox', {})
+              if ((await convs('folder=pending', { folder: 'pending' })) !== 200) await convs('folder=other', { folder: 'other' })
+              return
             }
 
             if (process.argv[2] === 'meta-engagement') {
