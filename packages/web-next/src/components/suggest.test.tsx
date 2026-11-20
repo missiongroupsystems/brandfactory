@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Combobox, placeList, rank, type Suggestion, useMention } from './suggest'
 
@@ -302,27 +302,39 @@ describe('where the list opens', () => {
   })
 })
 
+const rect = (top: number, bottom: number, left: number, right: number) =>
+  ({
+    top,
+    bottom,
+    left,
+    right,
+    width: right - left,
+    height: bottom - top,
+    x: left,
+    y: top,
+  }) as DOMRect
+
+/** Lays the page out: the bound part, the dialog and the field, each where `at` puts it. */
+function layout(at: { bounds?: DOMRect; dialog?: DOMRect; field: DOMRect }) {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    if (this.hasAttribute('data-suggest-bounds')) return at.bounds ?? rect(0, 0, 0, 0)
+    if (this.getAttribute('role') === 'dialog') return at.dialog ?? rect(0, 0, 0, 0)
+    if (this.tagName === 'INPUT' || this.tagName === 'TEXTAREA' || this.tagName === 'BUTTON') {
+      return at.field
+    }
+    return rect(0, 0, 0, 0)
+  })
+}
+
 describe('a list inside a dialog', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('never reaches past the part it is bound to, so the dialog’s Done stays clear', () => {
-    const rect = (top: number, bottom: number, left: number, right: number) =>
-      ({
-        top,
-        bottom,
-        left,
-        right,
-        width: right - left,
-        height: bottom - top,
-        x: left,
-        y: top,
-      }) as DOMRect
-    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
-      this: Element,
-    ) {
-      if (this.hasAttribute('data-suggest-bounds')) return rect(253, 600, 490, 950)
-      if (this.tagName === 'INPUT') return rect(560, 590, 640, 860)
-      return rect(0, 0, 0, 0)
+    // The Tag people dialog, the part of it above Done, and the account box low on the photo.
+    layout({
+      dialog: rect(168, 732, 490, 950),
+      bounds: rect(188, 640, 510, 930),
+      field: rect(560, 590, 640, 860),
     })
     render(
       <div role="dialog">
@@ -340,10 +352,85 @@ describe('a list inside a dialog', () => {
     )
     fireEvent.focus(screen.getByRole('combobox'))
     const list = screen.getByRole('listbox').parentElement!
-    // Low in the photo: it turns up, and its top stays below the dialog's.
+    // Low in the photo: it turns up, and its top stays below the bound part's.
     expect(list.style.bottom).not.toBe('')
     const bottom = window.innerHeight - parseFloat(list.style.bottom)
     expect(bottom).toBeLessThanOrEqual(560)
-    expect(bottom - parseFloat(list.style.maxHeight)).toBeGreaterThanOrEqual(253)
+    expect(bottom - parseFloat(list.style.maxHeight)).toBeGreaterThanOrEqual(188)
+    // Its sides stay inside it too, at the list's usual width.
+    const left = parseFloat(list.style.left)
+    const width = parseFloat(list.style.width)
+    expect(width).toBe(280)
+    expect(left).toBeGreaterThanOrEqual(510)
+    expect(left + width).toBeLessThanOrEqual(930)
+  })
+
+  it('shows no list where the dialog has no room for one row', () => {
+    layout({ dialog: rect(100, 160, 490, 950), field: rect(110, 140, 640, 860) })
+    render(
+      <div role="dialog">
+        <Combobox value="" onChange={() => {}} options={PEOPLE} onPick={() => {}} aria-label="A" />
+      </div>,
+    )
+    const field = screen.getByRole('combobox')
+    fireEvent.focus(field)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(field).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
+describe('a list low on the page', () => {
+  // A laptop: a mouse, a window 768px high (jsdom's), and 2000px more page under it.
+  let scrolled: number[]
+  beforeEach(() => {
+    scrolled = []
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q === '(pointer: fine)',
+      addEventListener() {},
+      removeEventListener() {},
+    }))
+    vi.spyOn(document.documentElement, 'scrollHeight', 'get').mockReturnValue(2768)
+    vi.spyOn(window, 'scrollBy').mockImplementation(((o: ScrollToOptions) => {
+      scrolled.push(o.top ?? 0)
+    }) as typeof window.scrollBy)
+    layout({ field: rect(640, 676, 200, 800) })
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('scrolls the page to open under a field that asks for it', () => {
+    render(
+      <Combobox
+        value=""
+        onChange={() => {}}
+        options={PEOPLE}
+        onPick={() => {}}
+        aria-label="A"
+        scroll
+      />,
+    )
+    fireEvent.focus(screen.getByRole('combobox'))
+    expect(scrolled).toHaveLength(1)
+    expect(scrolled[0]).toBeGreaterThan(0)
+    expect(screen.getByRole('listbox').parentElement!.style.top).not.toBe('')
+  })
+
+  it('never moves the page for a field that does not ask: it turns up instead', () => {
+    render(
+      <Combobox value="" onChange={() => {}} options={PEOPLE} onPick={() => {}} aria-label="A" />,
+    )
+    fireEvent.focus(screen.getByRole('combobox'))
+    expect(scrolled).toEqual([])
+    expect(screen.getByRole('listbox').parentElement!.style.bottom).not.toBe('')
+  })
+
+  it('never moves the page for an "@" in a caption', () => {
+    render(<Caption start="" />)
+    const caption = screen.getByRole('textbox', { name: 'Caption' })
+    fireEvent.change(caption, { target: { value: 'With @chef', selectionStart: 10 } })
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(scrolled).toEqual([])
   })
 })

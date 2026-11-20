@@ -16,6 +16,13 @@ const JPEG = new Uint8Array(
     .toBuffer(),
 )
 const JUNK = 'https://scontent-sin6-1.cdninstagram.com/v/junk.jpg'
+// Small as a file, huge once decoded: 6000px a side of one colour.
+const WIDE = 'https://scontent-sin6-1.cdninstagram.com/v/wide.png'
+const WIDE_PNG = new Uint8Array(
+  await sharp({ create: { width: 6000, height: 6000, channels: 3, background: '#888' } })
+    .png()
+    .toBuffer(),
+)
 const BOUNCE = 'https://scontent-sin6-1.cdninstagram.com/v/bounce.jpg'
 const HUGE = 'https://scontent-sin6-1.cdninstagram.com/v/huge.jpg'
 const STATED = 'https://scontent-sin6-1.cdninstagram.com/v/stated.jpg'
@@ -40,7 +47,12 @@ const files: Files = {
 function fakes() {
   const asked: string[] = []
   const stored: Uint8Array[] = []
-  const state = { limited: false, broken: false, picture: PICTURE as string | null }
+  const state = {
+    limited: false,
+    broken: false,
+    storeDown: false,
+    picture: PICTURE as string | null,
+  }
   const json = (data: unknown, status = 200) => Response.json(data, { status })
   const graph = async (input: string | URL | Request) => {
     const url = new URL(String(input))
@@ -90,9 +102,11 @@ function fakes() {
         headers: { 'content-type': 'image/jpeg' },
       })
     }
+    if (url === WIDE) return new Response(WIDE_PNG, { headers: { 'content-type': 'image/png' } })
     if (url === PAGE_NOT_IMAGE)
       return new Response('<html>', { headers: { 'content-type': 'text/html' } })
     if (url === 'https://storage.test/put' && init?.method === 'PUT') {
+      if (state.storeDown) return new Response(null, { status: 503 })
       stored.push(init.body as Uint8Array)
       return new Response(null, { status: 200 })
     }
@@ -282,11 +296,33 @@ describe('the roster picture fetch', () => {
           { handle: 'named.by.hand', picture: STATED },
           { handle: 'other.one', picture: PAGE_NOT_IMAGE },
           { handle: 'third.one', picture: JUNK },
+          { handle: 'fourth.one', picture: WIDE },
         ],
       }),
     })
-    expect(await res.json()).toMatchObject({ read: 6, pictures: 0, noPicture: 6 })
+    expect(await res.json()).toMatchObject({ read: 7, pictures: 0, noPicture: 7 })
     expect(t.stored).toEqual([])
+  })
+
+  it('counts a copy that failed on the way as failed, never as an account with no picture', async () => {
+    const t = await setUp()
+    t.state.storeDown = true
+    // The run: Meta answered, the storage did not. The followers stay; the picture is not "none".
+    expect(await t.runs('?limit=1')).toMatchObject({
+      read: 1,
+      pictures: 0,
+      noPicture: 0,
+      failed: 1,
+    })
+    const [ana] = await t.accounts()
+    expect(ana).toMatchObject({ handle: 'ana.cooks', picture: null, followers: 12500 })
+    // A profile brought in: counted failed, and not marked read, so the next read tries again.
+    const res = await t.server.request('/roster/profiles?org=co-a', {
+      method: 'POST',
+      headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+      body: JSON.stringify({ profiles: [{ handle: 'casanostrasg', picture: PICTURE }] }),
+    })
+    expect(await res.json()).toEqual({ read: 0, pictures: 0, noPicture: 0, skipped: 0, failed: 1 })
   })
 
   it('lets only a company’s owners and admins start a run or bring in profiles', async () => {

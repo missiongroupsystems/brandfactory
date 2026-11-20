@@ -83,20 +83,18 @@ export function Switch({
 const FOLD_MS = 360
 
 /**
- * Content that folds open and shut by animating its row height. Shut, it is inert and hidden.
- * With `lazy` it is not on the page at all once shut (after the fold has closed), so nothing in it
- * can be found, focused or pressed while no one can see it.
+ * Content that folds open and shut by animating its row height. Shut (once it has folded), it is
+ * inert, hidden from screen readers and `visibility: hidden`: nothing in it is seen, hit, found
+ * or focused, even where it overflows its row. It stays mounted, so what was typed in it stays.
  */
 export function Fold({
   open,
   children,
   className = '',
-  lazy = false,
 }: {
   open: boolean
   children: React.ReactNode
   className?: string
-  lazy?: boolean
 }) {
   // Shown, or still folding shut.
   const [held, setHeld] = React.useState(open)
@@ -112,13 +110,12 @@ export function Fold({
       style={{
         gridTemplateRows: open ? '1fr' : '0fr',
         opacity: open ? 1 : 0,
-        // Shut, no part of it is hit or seen, even where it overflows its row.
         visibility: open || held ? undefined : 'hidden',
       }}
       aria-hidden={!open}
       inert={!open}
     >
-      <div>{!lazy || open || held ? children : null}</div>
+      <div>{children}</div>
     </div>
   )
 }

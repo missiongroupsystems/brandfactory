@@ -145,6 +145,21 @@ describe('the storage URL a stable address sends the browser to', () => {
     expect(asked).toEqual([READ_TTL_S, READ_TTL_S, READ_TTL_S])
   })
 
+  it('signs a new one when the clock stepped back, never keeping one past its hour', async () => {
+    let t = 1_000_000
+    const store = {
+      signedWriteUrl: async () => ({ url: '', headers: {} }),
+      signedReadUrl: async (key: string) => `https://storage.test/${key}?at=${t}`,
+    }
+    const link = readLinks(store, () => t)
+    await link('toy/a.jpg')
+    t -= 60_000
+    expect(await link('toy/a.jpg')).toEqual({
+      url: `https://storage.test/toy/a.jpg?at=${t}`,
+      maxAge: READ_REUSE_S,
+    })
+  })
+
   it('lets the browser keep the redirect and the file', async () => {
     const { d, files: f } = files()
     const key = newKey('toy', 'image/png')

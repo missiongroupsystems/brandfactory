@@ -106,7 +106,8 @@ export function readLinks(store: FileStore, now: () => number = Date.now, max = 
     const t = now()
     const hit = made.get(key)
     const age = hit ? Math.floor((t - hit.at) / 1000) : Infinity
-    if (hit && age < READ_REUSE_S) return { url: hit.url, maxAge: READ_REUSE_S - age }
+    // A clock that stepped back gives a negative age: a miss, never a longer life.
+    if (hit && age >= 0 && age < READ_REUSE_S) return { url: hit.url, maxAge: READ_REUSE_S - age }
     const url = await store.signedReadUrl(key, READ_TTL_S)
     made.delete(key)
     made.set(key, { url, at: t })
