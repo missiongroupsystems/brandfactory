@@ -1,6 +1,7 @@
 import { Refused } from '@brandfactory/core/src/errors'
 import { authenticate, call, type CoreDeps } from '@brandfactory/core/src/run'
 import { type Context, Hono } from 'hono'
+import sharp from 'sharp'
 import { bound, PACK, readAccount, type Who } from './accounts'
 import { type MetaApp, MetaError, MetaReconnect } from './meta'
 import { viaMeta } from './meta-routes'
@@ -38,6 +39,25 @@ const RATE_LIMITED = new Set([4, 17, 32, 613, 80002])
 /** Meta's media hosts: a picture is read from nowhere else, a redirect included. */
 const META_MEDIA = /(^|\.)(fbcdn\.net|cdninstagram\.com)$/
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+/**
+ * The side of the square a picture is kept at. Meta sends up to 1080px (about 120 KB); the
+ * screens show it at 28 to 36px, so 160px covers a 36px avatar on a 3x screen, at a few KB.
+ */
+export const THUMB_PX = 160
+
+/** A picture as it is kept: a small square WebP, or null when the bytes are no image. */
+async function thumbnail(bytes: Uint8Array): Promise<Uint8Array | null> {
+  try {
+    const out = await sharp(bytes, { limitInputPixels: 50_000_000 })
+      .rotate()
+      .resize(THUMB_PX, THUMB_PX, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toBuffer()
+    return new Uint8Array(out)
+  } catch {
+    return null
+  }
+}
 const USERNAME = /^[a-z0-9._]{1,30}$/
 
 /** What one run did, in counts. */
@@ -181,16 +201,19 @@ export function rosterPictureRoutes(
       parts.push(value)
     }
     if (size === 0) return null
-    const bytes = new Uint8Array(size)
+    const read = new Uint8Array(size)
     let at = 0
     for (const part of parts) {
-      bytes.set(part, at)
+      read.set(part, at)
       at += part.byteLength
     }
+    // Kept small: the list of people loads each one at once (THUMB_PX).
+    const bytes = await thumbnail(read)
+    if (!bytes) return null
     const made = (await move(
       who,
       'id' in due ? 'influencer.picture_file' : 'influencer.profile_file',
-      { ...due, mime },
+      { ...due, mime: 'image/webp' },
     )) as {
       src: string
       upload: { url: string; headers: Record<string, string> }

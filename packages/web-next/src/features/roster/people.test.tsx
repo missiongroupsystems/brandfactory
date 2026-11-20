@@ -178,8 +178,9 @@ describe('the people list', () => {
     const field = screen.getByRole('combobox', { name: 'Collaborators' })
     fireEvent.focus(field)
     const rows = () => within(screen.getByRole('listbox')).getAllByRole('option')
+    // Ana's picture holds her initials in its place until it has loaded.
     expect(rows().map((r) => r.textContent)).toEqual([
-      'Ana Lee@ana.cooks',
+      'ALAna Lee@ana.cooks',
       'BTBen Tan@bentan',
       'COCara Ong@cara.ong',
     ])
@@ -187,7 +188,7 @@ describe('the people list', () => {
 
     fireEvent.change(field, { target: { value: 'an' } })
     expect(rows().map((r) => r.textContent)).toEqual([
-      'Ana Lee@ana.cooks',
+      'ALAna Lee@ana.cooks',
       'BTBen Tan@bentan',
       'AFAnton Ferri@chefanton',
       'Use @an',

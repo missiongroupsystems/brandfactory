@@ -212,6 +212,17 @@ describe('a new post in the demo', () => {
     expect(screen.getAllByRole('button', { name: /^Location/ })).toHaveLength(1)
   })
 
+  it('puts nothing of More options on the page while it is shut, so no hidden control takes a click', async () => {
+    show()
+    const field = () => screen.queryByPlaceholderText('Booking link, hashtags…')
+    expect(field()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: false }))
+    expect(field()).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: true }))
+    // It folds shut first, then leaves the page.
+    await waitFor(() => expect(field()).toBeNull())
+  })
+
   it('takes tomorrow in two clicks, and an hour with one more, on the page', () => {
     show()
     fireEvent.click(when())

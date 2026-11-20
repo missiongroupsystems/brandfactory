@@ -3,7 +3,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createCore } from './app'
-import { diskFiles, fileSrc, newKey, withUpload } from './files'
+import {
+  diskFiles,
+  fileSrc,
+  newKey,
+  READ_REUSE_S,
+  READ_TTL_S,
+  readLinks,
+  withUpload,
+} from './files'
 import { type Db } from './db'
 import { deps as depsOf, freshDb, goLive, person } from './testing'
 import { toyPack } from './toy-pack'
@@ -49,12 +57,12 @@ describe('files on disk', () => {
   })
 })
 
-describe('an upload', () => {
-  const files = () => {
-    const d = disk()
-    return { d, files: { store: d.store, secret: 'x'.repeat(32), publicUrl: 'http://core' } }
-  }
+const files = () => {
+  const d = disk()
+  return { d, files: { store: d.store, secret: 'x'.repeat(32), publicUrl: 'http://core' } }
+}
 
+describe('an upload', () => {
   it('signs a write URL and a stable address only for a key the core made for this pack', async () => {
     const { files: f } = files()
     const key = newKey('toy', 'video/mp4')
@@ -102,6 +110,59 @@ describe('an upload', () => {
     // A signature for one key opens no other.
     const sig = new URL(fileSrc(f, key)).pathname.split('/')[2]
     expect((await app.request(`/files/${sig}/${newKey('toy', 'image/png')}`)).status).toBe(404)
+  })
+})
+
+describe('the storage URL a stable address sends the browser to', () => {
+  it('is the same one for an hour, so the browser keeps its copy of the file', async () => {
+    let t = 0
+    const asked: number[] = []
+    const store = {
+      signedWriteUrl: async () => ({ url: '', headers: {} }),
+      signedReadUrl: async (key: string, ttl: number) => {
+        asked.push(ttl)
+        return `https://storage.test/${key}?n=${asked.length}`
+      },
+    }
+    const link = readLinks(store, () => t)
+    expect(await link('toy/a.jpg')).toEqual({
+      url: 'https://storage.test/toy/a.jpg?n=1',
+      maxAge: 3600,
+    })
+    t = 1_000 * 1_800
+    // Handed out again, and kept only for what is left of its hour: it lives an hour past that.
+    expect(await link('toy/a.jpg')).toEqual({
+      url: 'https://storage.test/toy/a.jpg?n=1',
+      maxAge: 1800,
+    })
+    expect(READ_TTL_S - READ_REUSE_S).toBeGreaterThanOrEqual(READ_REUSE_S)
+    expect(await link('toy/b.jpg')).toMatchObject({ url: 'https://storage.test/toy/b.jpg?n=2' })
+    t = 1_000 * READ_REUSE_S
+    expect(await link('toy/a.jpg')).toEqual({
+      url: 'https://storage.test/toy/a.jpg?n=3',
+      maxAge: 3600,
+    })
+    expect(asked).toEqual([READ_TTL_S, READ_TTL_S, READ_TTL_S])
+  })
+
+  it('lets the browser keep the redirect and the file', async () => {
+    const { d, files: f } = files()
+    const key = newKey('toy', 'image/png')
+    const app = createCore(
+      { db: {} as Db, auth: {} as never, environment: 'local', now: () => new Date(), files: f },
+      { disk: d },
+    )
+    await app.request((await d.store.signedWriteUrl(key, 'image/png')).url, {
+      method: 'PUT',
+      headers: { 'content-length': '1' },
+      body: new Uint8Array([7]),
+    })
+    const first = await app.request(new URL(fileSrc(f, key)).pathname)
+    const second = await app.request(new URL(fileSrc(f, key)).pathname)
+    expect(second.headers.get('location')).toBe(first.headers.get('location'))
+    expect(first.headers.get('cache-control')).toBe('private, max-age=3600')
+    const stored = await app.request(first.headers.get('location')!)
+    expect(stored.headers.get('cache-control')).toMatch(/^private, max-age=(7200|7199), immutable$/)
   })
 })
 

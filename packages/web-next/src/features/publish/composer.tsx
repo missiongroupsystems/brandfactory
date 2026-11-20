@@ -2623,7 +2623,8 @@ function TagEditor({
   const anchor = (x: number) => `${Math.min(80, Math.max(20, x * 100))}%`
 
   const body = (
-    <div className="flex flex-col gap-3">
+    // The list of accounts stays inside this part of the dialog, clear of Done (`usePlace`).
+    <div data-suggest-bounds className="flex flex-col gap-3">
       <div
         role="img"
         aria-label="The photo: tap where someone is to tag them"
@@ -2951,7 +2952,8 @@ function MoreCard({
         </span>
         <ChevronIcon open={open} size={10} />
       </button>
-      <Fold className="grid-cols-[minmax(0,1fr)]" open={open}>
+      {/* Shut, nothing inside is on the page: no hidden control to find or press. */}
+      <Fold className="grid-cols-[minmax(0,1fr)]" open={open} lazy>
         <div className="pb-5">{children}</div>
       </Fold>
     </section>
