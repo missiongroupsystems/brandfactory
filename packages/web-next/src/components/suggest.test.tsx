@@ -193,3 +193,54 @@ describe('typing in a field', () => {
     expect(box).toHaveValue('hi @chefantonio there')
   })
 })
+
+describe('people rows', () => {
+  it('puts the handle typed in full first, whatever tier the others have', () => {
+    const rows: Suggestion[] = [
+      { value: '@bentan.eats', name: 'Ben Tan Eats', tier: 0 },
+      { value: '@bentan', name: 'Ben Tan', tier: 3 },
+    ]
+    expect(rank(rows, '@bentan').map((r) => r.value)).toEqual(['@bentan', '@bentan.eats'])
+    expect(rank(rows, 'BENTAN').map((r) => r.value)).toEqual(['@bentan', '@bentan.eats'])
+  })
+
+  it('gives the focus back to the field after Enter or Escape in a name, but not when the name is left', () => {
+    const renamed: Array<[string, string | null]> = []
+    render(
+      <>
+        <Combobox
+          value=""
+          onChange={() => undefined}
+          options={[
+            {
+              value: '@whatisdieting',
+              name: 'whatisdieting',
+              initials: 'WH',
+              rename: 'whatisdieting',
+            },
+          ]}
+          onPick={() => undefined}
+          onRename={(h, n) => renamed.push([h, n])}
+          aria-label="Collaborators"
+        />
+        <button type="button">Elsewhere</button>
+      </>,
+    )
+    const field = screen.getByRole('combobox', { name: 'Collaborators' })
+    fireEvent.focus(field)
+    fireEvent.click(screen.getByRole('button', { name: 'Name @whatisdieting' }))
+    const name = screen.getByRole('textbox', { name: 'Name for @whatisdieting' })
+    fireEvent.change(name, { target: { value: 'What Is Dieting' } })
+    fireEvent.keyDown(name, { key: 'Enter' })
+    expect(renamed).toEqual([['whatisdieting', 'What Is Dieting']])
+    expect(document.activeElement).toBe(field)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Name @whatisdieting' }))
+    const again = screen.getByRole('textbox', { name: 'Name for @whatisdieting' })
+    const elsewhere = screen.getByRole('button', { name: 'Elsewhere' })
+    elsewhere.focus()
+    fireEvent.blur(again, { relatedTarget: elsewhere })
+    expect(document.activeElement).toBe(elsewhere)
+    expect(renamed).toHaveLength(1)
+  })
+})

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 
 import { PlusIcon } from './icons'
+import { PlatformLogo, type PlatformLogoKey } from './platform-logos'
 import { ProfilePicture } from './profile-picture'
 
 /**
@@ -27,6 +28,17 @@ export interface Suggestion {
   initials?: string
   /** A profile picture, shown in place of the initials when there is one. */
   picture?: string
+  /** The platform of the handle, as its logo beside it. */
+  platform?: PlatformLogoKey
+  /** The brand a person is linked to: a small round logo of it ends the row. */
+  linkedTo?: string
+  /** Ranks before the match: a lower tier comes first whatever it matched (people's fields). */
+  tier?: number
+  /**
+   * The handle (no "@") whose name the team may give or fix from the row: a pencil shows on hover
+   * and turns the first line into a field, which `onRename` saves.
+   */
+  rename?: string
 }
 
 /** The value typed in full, offered when no suggestion is it: "Use @newhandle". */
@@ -43,7 +55,8 @@ const fold = (text: string) => text.toLowerCase().replace(/^[@#]/, '')
 /**
  * The suggestions that match what was typed, best first: a value or a name that starts with it
  * (or a word of the name that does), then one that only contains it. The order of `options` is
- * the brand's own, recent and frequent first, and breaks every tie. Nothing typed keeps it whole.
+ * the brand's own, recent and frequent first, and breaks every tie. A row's `tier` comes before
+ * all of that, and the value typed in full before the tiers. Nothing typed keeps the order whole.
  */
 export function rank(options: Suggestion[], typed: string, limit = LIMIT): Suggestion[] {
   const q = fold(typed.trim())
@@ -58,12 +71,21 @@ export function rank(options: Suggestion[], typed: string, limit = LIMIT): Sugge
     if (value.includes(q) || (tight && value.includes(tight)) || name.includes(q)) return 1
     return 2
   }
-  return options
-    .map((o, i) => ({ o, i, s: score(o) }))
-    .filter((x) => x.s < 2)
-    .sort((a, b) => a.s - b.s || a.i - b.i)
-    .slice(0, limit)
-    .map((x) => x.o)
+  return (
+    options
+      .map((o, i) => ({ o, i, s: score(o) }))
+      .filter((x) => x.s < 2)
+      // The value typed in full comes first, whatever its tier: Enter then takes what was typed.
+      .sort(
+        (a, b) =>
+          Number(fold(b.o.value) === q) - Number(fold(a.o.value) === q) ||
+          (a.o.tier ?? 0) - (b.o.tier ?? 0) ||
+          a.s - b.s ||
+          a.i - b.i,
+      )
+      .slice(0, limit)
+      .map((x) => x.o)
+  )
 }
 
 /**
@@ -134,6 +156,10 @@ function List({
   place,
   onPick,
   onHover,
+  onRename,
+  onBack,
+  frame,
+  mark,
 }: {
   id: string
   rows: Row[]
@@ -141,14 +167,25 @@ function List({
   place: React.CSSProperties
   onPick: (row: Row) => void
   onHover: (index: number) => void
+  /** Saves a name given in a row; the field takes the focus back. */
+  onRename?: (handle: string, name: string | null) => void
+  /** The small logo that ends the row of someone linked to a brand (`Suggestion.linkedTo`). */
+  mark?: (brandId: string) => React.ReactNode
+  /** Gives the focus back to the field once a name is written or left. */
+  onBack?: () => void
+  /** The list's own box, for the field to tell a press inside it from one away. */
+  frame?: React.RefObject<HTMLDivElement | null>
 }) {
-  const list = React.useRef<HTMLDivElement>(null)
+  const own = React.useRef<HTMLDivElement>(null)
+  const list = frame ?? own
+  // The row whose name is being written, by its handle.
+  const [naming, setNaming] = React.useState<string | null>(null)
   // The active row stays in sight when the arrows move past the edge of a short list.
   React.useEffect(() => {
     list.current
       ?.querySelector<HTMLElement>(`[id="${id}-${active}"]`)
       ?.scrollIntoView({ block: 'nearest' })
-  }, [id, active])
+  }, [id, active, list])
   // The row under the pointer. The keys stay with the field, so the rows take no handlers of
   // their own: the frame reads which row a press or a move is on.
   const rowAt = (e: React.MouseEvent) =>
@@ -159,10 +196,15 @@ function List({
       ref={list}
       role="presentation"
       // A press on the list must not take the focus from the field: the field would close it.
-      onMouseDown={(e) => e.preventDefault()}
+      // A name being written keeps its own field.
+      onMouseDown={(e) => {
+        if (!(e.target as HTMLElement).closest('input')) e.preventDefault()
+      }}
       onClick={(e) => {
         const i = rowAt(e)
-        if (i >= 0) onPick(rows[i]!)
+        const row = rows[i]
+        if (!row || (!('typed' in row) && row.rename && row.rename === naming)) return
+        onPick(row)
       }}
       onMouseMove={(e) => {
         const i = rowAt(e)
@@ -183,6 +225,12 @@ function List({
             (row.name ?? row.value)
           )
           const detail = typed ? undefined : row.detail
+          // The platform's logo goes beside the handle: on the second line, or on the first when
+          // the row is a handle alone.
+          const logo =
+            !typed && row.platform ? (
+              <PlatformLogo platform={row.platform} size={10} className="text-ink-4" />
+            ) : null
           return (
             <div
               key={`${typed ? 'typed' : 'option'}-${row.value}`}
@@ -190,7 +238,7 @@ function List({
               role="option"
               aria-selected={i === active}
               data-row={i}
-              className={`flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 max-md:min-h-12 ${i === active ? 'bg-surface' : ''}`}
+              className={`group/row flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 max-md:min-h-12 ${i === active ? 'bg-surface' : ''}`}
             >
               {typed ? (
                 <span
@@ -217,15 +265,45 @@ function List({
                 )
               )}
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[13.5px] font-medium max-md:text-[15px]">
-                  {name}
-                </span>
+                {!typed && row.rename && row.rename === naming ? (
+                  <NameField
+                    handle={row.rename}
+                    start={row.name && row.name !== row.rename ? row.name : ''}
+                    onDone={(next, back) => {
+                      setNaming(null)
+                      if (next !== undefined) onRename?.(row.rename!, next)
+                      // Enter or Escape goes back to the field; a name left for elsewhere does not.
+                      if (back) onBack?.()
+                    }}
+                  />
+                ) : (
+                  <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-medium max-md:text-[15px]">
+                    {!detail && logo}
+                    <span className="truncate">{name}</span>
+                  </span>
+                )}
                 {detail && (
-                  <span className="truncate text-[12px] text-ink-4 max-md:text-[13px]">
-                    {detail}
+                  <span className="flex min-w-0 items-center gap-1 text-[12px] text-ink-4 max-md:text-[13px]">
+                    {logo}
+                    <span className="truncate">{detail}</span>
                   </span>
                 )}
               </span>
+              {!typed && row.rename && onRename && row.rename !== naming && (
+                <button
+                  type="button"
+                  aria-label={`Name @${row.rename}`}
+                  tabIndex={-1}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setNaming(row.rename!)
+                  }}
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-ink-4 opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-page hover:text-ink pointer-coarse:opacity-100"
+                >
+                  <PencilGlyph />
+                </button>
+              )}
+              {!typed && row.linkedTo && mark?.(row.linkedTo)}
               {!typed && row.meta && (
                 <span className="shrink-0 text-[11.5px] text-ink-4 tabular-nums max-md:text-[12.5px]">
                   {row.meta}
@@ -237,6 +315,71 @@ function List({
       </div>
     </div>,
     document.body,
+  )
+}
+
+function PencilGlyph() {
+  return (
+    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M10.5 2.5l3 3L6 13H3v-3l7.5-7.5z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/**
+ * A name for a handle, written in its row: Enter saves (an empty field takes the name away),
+ * Escape or leaving the field keeps what was there.
+ */
+function NameField({
+  handle,
+  start,
+  onDone,
+}: {
+  handle: string
+  start: string
+  /**
+   * The name to save (null for none), or undefined when nothing changes; `back` when a key ended
+   * it (Enter, Escape), so the focus goes back to the field.
+   */
+  onDone: (name: string | null | undefined, back: boolean) => void
+}) {
+  const [value, setValue] = React.useState(start)
+  const field = React.useRef<HTMLInputElement>(null)
+  React.useEffect(() => {
+    field.current?.focus()
+    field.current?.select()
+  }, [])
+  return (
+    <input
+      ref={field}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.stopPropagation()
+          const next = value.trim()
+          onDone(next === start ? undefined : next || null, true)
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          onDone(undefined, true)
+        }
+      }}
+      onBlur={() => onDone(undefined, false)}
+      aria-label={`Name for @${handle}`}
+      placeholder={handle}
+      maxLength={200}
+      // As wide as what it holds (at least the handle's width), never wider than the row.
+      size={Math.min(Math.max(value.length, handle.length, 8) + 1, 40)}
+      className="-my-px -ml-1 h-[20px] max-w-full min-w-0 self-start rounded-[6px] bg-page px-1 text-[13.5px] font-medium shadow-[0_0_0_1px_var(--line-strong)] outline-none placeholder:font-normal placeholder:text-ink-5 max-md:text-[15px]"
+    />
   )
 }
 
@@ -252,6 +395,10 @@ export function Combobox({
   onPick,
   create,
   anchor,
+  idle,
+  limit,
+  onRename,
+  mark,
   ...input
 }: {
   value: string
@@ -263,17 +410,26 @@ export function Combobox({
   create?: (typed: string) => string
   /** The box the list lines up with, when it is wider than the input (a row of chips). */
   anchor?: React.RefObject<HTMLElement | null>
+  /** What the list shows before anything is typed, when it is not the first of `options`. */
+  idle?: Suggestion[]
+  /** How many rows the list shows. */
+  limit?: number
+  /** Saves a name the team gave a row's handle (`Suggestion.rename`). */
+  onRename?: (handle: string, name: string | null) => void
+  /** The small logo of the brand a row's person is linked to (`Suggestion.linkedTo`). */
+  mark?: (brandId: string) => React.ReactNode
 } & Pick<
   React.InputHTMLAttributes<HTMLInputElement>,
   'aria-label' | 'placeholder' | 'className' | 'autoFocus'
 >) {
   const id = React.useId()
   const own = React.useRef<HTMLInputElement>(null)
+  const frame = React.useRef<HTMLDivElement>(null)
   const [open, setOpen] = React.useState(false)
   // A field that holds a value (a location) shows every suggestion until it is typed in.
   const [touched, setTouched] = React.useState(false)
   const query = touched ? value : ''
-  const shown = rank(options, query)
+  const shown = !query.trim() && idle ? idle.slice(0, limit ?? LIMIT) : rank(options, query, limit)
   const made = create && query.trim() ? create(query) : ''
   const rows: Row[] =
     made && !options.some((o) => o.value === made)
@@ -308,11 +464,17 @@ export function Combobox({
         aria-controls={place ? id : undefined}
         aria-autocomplete="list"
         aria-activedescendant={place && active.index >= 0 ? `${id}-${active.index}` : undefined}
-        onFocus={() => {
+        onFocus={(e) => {
           setOpen(true)
+          // Back from a name written in the list: what was typed still stands.
+          if (frame.current?.contains(e.relatedTarget as Node | null)) return
           setTouched(false)
         }}
-        onBlur={close}
+        // A press in the list (a name being written) is not leaving the field.
+        onBlur={(e) => {
+          if (frame.current?.contains(e.relatedTarget as Node | null)) return
+          close()
+        }}
         onClick={() => setOpen(true)}
         onChange={(e) => {
           onChange(e.target.value)
@@ -349,6 +511,10 @@ export function Combobox({
           place={place}
           onPick={pick}
           onHover={active.set}
+          frame={frame}
+          onRename={onRename}
+          mark={mark}
+          onBack={() => own.current?.focus()}
         />
       )}
     </>

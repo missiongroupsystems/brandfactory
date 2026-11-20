@@ -25,6 +25,7 @@ steps on GitHub, and a session starts it and reads its log with the GitHub tools
 | `check` | read only: the server's health, the live pack version, how each Instagram and Facebook account is linked |
 | `release` | the pack: publish, test, migrate, promote `version`; people's loadouts follow it (`packages/core/scripts/loadouts.ts`) |
 | `deploy` | the server: `fly deploy`, then `/health` |
+| `roster-pictures` | as the release person, read up to `limit` roster Instagram accounts through Business Discovery and copy their pictures into our files (counts only) |
 
 The web app deploys from `main` on Vercel.
 

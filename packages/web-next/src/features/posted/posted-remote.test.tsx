@@ -1,5 +1,5 @@
 import { act, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
 import type * as Remote from '@/lib/remote'
@@ -39,6 +39,15 @@ const post = (id: string, over: Record<string, unknown>) => ({
 })
 
 describe('the feed on the core', () => {
+  // The Feed counts the last 30 days by the clock: the posts below are of 20 to 22 Oct 2026.
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-23T04:00:00Z'))
+  })
+  afterAll(() => {
+    vi.useRealTimers()
+  })
+
   it('waits with the loading dots, then lists what went out with no number invented, and only what the core read back', () => {
     render(
       <BrandProvider>

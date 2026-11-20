@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.74.0** — 2026-11-20 — `feat/influencers`: the company's influencer roster is back on the core (pack 1.19.0, migration `0029_influencers.sql`, additive): 146 people and 216 accounts from the old BrandFactory, imported from its own CSV exports (`import-roster`), with brand links, notes, names for the brands' saved collaborators, and a server job for Instagram profile pictures; the post page's Collaborators and Tag people suggest the brand's linked people first, search the whole roster, and fix any row's name from a pencil. No roster page. 1823 tests by count: 1543 pass, 280 skipped without a Postgres server.
 - **2.73.0** — 2026-11-18 — `feat/capture-simple`: capture with no LINK code (pack 1.18.0, migration `0028_capture_open.sql`, additive). Anyone who DMs a reel or a post to the capture account taps a brand of the capture brand's company and it lands under Shared, "Added by @handle"; the tile opens the post on Instagram, or our copy when Meta gives no address. `META_CAPTURE_SENDERS` optionally limits who is captured. 1792 tests by count: 1520 pass, 272 skipped without a Postgres server.
 - **2.72.0** — 2026-11-18 — `feat/failed-clear`: "N failed" on the calendar always opens its list (one failure too); each row shows a quiet × on hover or keyboard focus (always on touch) that takes the post to drafts without posting it, as the post page's "Move to drafts" does, and the row folds away. A long list scrolls inside the menu with faded edges. No server or pack change. 1741 tests by count: 1473 pass, 266 skipped without a Postgres server.
 - **2.71.0** — 2026-11-18 — `feat/meta-capture`: a reel or a post DM'd to the capture account (the Instagram account of the brand `META_CAPTURE_BRAND` names) lands in the sender's chosen brand's Ideas, under Shared (pack 1.17.0, migration `0027_capture.sql`). A person links their Instagram once with "Add from Instagram" on the Ideas page (`LINK <code>`, 10 minutes, single use); the account asks which brand with quick replies and saves a copy of the media to our files. Shared is always on, on the live app. Instagram comments are read once a minute, and DMs every 30 seconds while the Meta app is in Development mode (`META_POLL_DMS`; switch it off once webhooks arrive). 1801 tests by count: 1522 pass, 279 skipped without a Postgres server.
@@ -151,6 +152,47 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.74.0 — 2026-11-20
+
+- **Why.** The owner asked to bring back the old BrandFactory roster (Chloe's curated list), and
+  to make the post page's people fields suggest it: Tag people offered nobody on the core.
+- **Pack 1.19.0** (migration `0029_influencers.sql`, additive): `influencers`,
+  `influencer_accounts`, `influencer_brands` and `account_profiles`, under the company's walls.
+  `post_handles(draft)`. Moves `influencer.list`, `.read`, `.edit`, `.brand_link`, `.brand_unlink`, `.import`,
+  `.profile_list`, `.profile_name`, and the internal `.picture_due`, `.picture_file`,
+  `.picture_set`, `.profile_file`, `.profile_set`. Tests: `tests/influencers.json` (8 cases).
+- **Import.** `pnpm -F @brandfactory/pack-brandbase import-roster --org <company> --csv <dir>
+  [--names <file>]` reads the old project's exports. It writes by slug and handle, so it can run
+  again. It links a person only where a brand's saved collaborators hold their handle, and it
+  names saved handles from the researched list (high and medium confidence only). The exports stay
+  out of git because they hold private notes. It was not run against production.
+- **Server.** `POST /roster/pictures` starts a rate-limited run in the background. The run reads
+  each due Instagram account through Business Discovery and copies its picture into our files. It
+  stops at Meta's first rate limit and logs counts only. `GET /roster/pictures` answers the last
+  run's counts. The Production workflow has the task `roster-pictures`. `POST /roster/profiles`,
+  with the script `import-profiles`, brings in profiles read elsewhere. It copies each picture from
+  Meta's hosts and fills only empty names.
+- **Web.** No roster page: the owner dropped the Creators page after seeing three layouts.
+  Collaborators is now a field of chips with the same ranked list as Tag people: the brand's
+  linked people first, then the whole roster. A linked person's row ends with the brand's small
+  coin. A pencil on any row fixes its name (a roster person's own, else the company's name for the
+  handle).
+- **Links from posts.** A person is linked to a brand while a saved Instagram feed post or reel of
+  the brand names them as a collaborator or a tag; the link follows the posts. Once such a post
+  goes out (a live Instagram job, or marked posted), the link is kept for good
+  (`influencer_brands.source = 'posted'`, with the post). A story, or a post for Facebook alone,
+  links nobody.
+- **Review fixes.** The pickers offer only the brand's own company's people. The value typed in full
+  comes first, so Enter takes it. Leaving a name field does not take the focus back. The picture
+  routes are for owners and admins only. A picture's type and length are checked before it is read,
+  and the read is capped. A failed read waits 30 days. The import adds by default (`--update`
+  writes over). The roster list leaves the private notes out. A late roster read no longer
+  overwrites a newer name. The Feed test runs on a fixed clock.
+- **Tests:** 1823 by count: 1543 pass and 280 are skipped without a Postgres server; the pack's
+  tests also pass on Postgres 16 (488). Typecheck, lint, format and the web build pass. Browser:
+  Chromium screenshots of the pickers and the pencil, at laptop width, on a local core with the
+  imported roster and its pictures.
 
 ## 2.73.0 — 2026-11-18
 

@@ -36,6 +36,10 @@ import { useMakeAccount, useStoryAccounts } from '@/features/connections/make'
 import { NotAvailable } from '@/features/connections/not-available'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand, useMoveToDrafts } from '@/features/schedule/posts-store'
+import { PEOPLE_LIMIT } from '@/features/roster/people'
+import { noteUsed } from '@/features/roster/recent'
+import { loadRoster } from '@/features/roster/roster-store'
+import { usePeople } from '@/features/roster/use-people'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
 import { demoOf, loadBrand, newId, quietly, remote, report, request, sent } from '@/lib/remote'
 import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
@@ -88,9 +92,9 @@ import { postersOf, PUBLISHERS, sendsOf } from './publishers'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { TikTokInbox } from './tiktok-inbox'
-import { CollaboratorPicker } from './collaborator-picker'
 import { LocationPicker } from './location-picker'
 import { hashtagsOf, labelsOf, peopleOf } from './suggestions'
+import { addCollaborator, useCollaborators } from './collaborators-store'
 import {
   lastAccounts,
   saveLastAccounts,
@@ -634,7 +638,8 @@ export function Composer({
         shots: media.map((m) => ({ crop: m.crop, tags: m.tags }) as Shots[number]),
       },
     }
-    return sent(b, async () => {
+    // The brand's posts link the people they name: the roster loads again once the post is saved.
+    const saved = sent(b, async () => {
       // A cropped photo goes out as the preview shows it: its cut, made and uploaded once.
       const files = await Promise.all(
         media.map((m) => (m.crop && !isVideo(m.src) ? cutPhoto(b, m.src, m.crop) : m.src)),
@@ -686,6 +691,10 @@ export function Composer({
         )
       }
     })
+    void saved.then((refused) => {
+      if (remote && !refused) void loadRoster()
+    })
+    return saved
   }
 
   // The post as the calendar has it now. A refused first save reloads the brand without it, so
@@ -851,6 +860,7 @@ export function Composer({
     const b = brand.id
     setWaiting('save')
     const refused = await sent(b, () => request('DELETE', `/brands/${b}/posts/${post.id}`))
+    if (remote && !refused) void loadRoster()
     setWaiting(null)
     if (refused !== null) return
     submitted.current = true
@@ -2374,6 +2384,8 @@ function Details({
   // A feed photo takes a tag at a spot; a reel, or a post that is one video, takes names only.
   const spot = api.draft.format === 'carousel' && media.some((m) => !isVideo(m.src))
   const tagged = taggedIn(media)
+  const people = usePeople(brand.id)
+  const saved = useCollaborators(brand.id, 'ig')
   const rows: Array<{ key: keyof typeof DETAIL_ON; label: string; to: ChannelKey[] }> = [
     // On the core no place reaches Instagram or Facebook (it takes a Facebook place id, and the
     // search needs Meta's review): the row is hidden until it does.
@@ -2437,7 +2449,12 @@ function Details({
         placeholder="@account"
         max={TAG_MAX}
         normalize={handleOf}
-        options={peopleOf(brand.id, 'tag')}
+        options={people.all}
+        idle={people.idle}
+        limit={PEOPLE_LIMIT}
+        onRename={people.rename}
+        mark={people.mark}
+        onPicked={(handle) => noteUsed(brand.id, handle)}
       />
     ) : (
       <span className="flex h-9 items-center text-[13px] text-ink-4 max-md:h-auto">
@@ -2445,13 +2462,26 @@ function Details({
       </span>
     ),
     collab: (
-      // Instagram's Collab posts are the only collaborators a post takes, so its list is offered.
-      <CollaboratorPicker
-        brandId={brand.id}
-        platform="ig"
-        value={details.collab}
+      // Instagram's Collab posts are the only collaborators a post takes, so its people are offered.
+      // An account typed that is nowhere yet is saved as the brand's, for its next post.
+      <Chips
+        values={details.collab}
         onChange={(collab) => setDetails({ ...details, collab })}
+        placeholder={`@account, up to ${COLLAB_MAX}`}
+        label="Collaborators"
         max={COLLAB_MAX}
+        normalize={handleOf}
+        options={people.all}
+        idle={people.idle}
+        limit={PEOPLE_LIMIT}
+        onRename={people.rename}
+        mark={people.mark}
+        onPicked={(handle, known) => {
+          noteUsed(brand.id, handle)
+          if (!known && !saved.some((h) => h.toLowerCase() === handle.toLowerCase())) {
+            addCollaborator(brand.id, 'ig', handle)
+          }
+        }}
       />
     ),
   }
@@ -2553,7 +2583,7 @@ function TagEditor({
   const [typed, setTyped] = React.useState('')
   const form = React.useRef<HTMLFormElement>(null)
   const brandId = useBrand().brand.id
-  const people = peopleOf(brandId, 'tag')
+  const people = usePeople(brandId)
   const shot = media[index]!
   // The photo as it will post: its crop's shape, or its own. A tag's spot is a fraction of that
   // photo, as Instagram reads it, so the frame is never cut to a shape the post does not have.
@@ -2644,10 +2674,17 @@ function TagEditor({
               <Combobox
                 value={typed}
                 onChange={setTyped}
-                options={people.filter((o) => !shot.tags.some((t) => t.handle === o.value))}
+                options={people.all.filter((o) => !shot.tags.some((t) => t.handle === o.value))}
+                idle={people.idle.filter((o) => !shot.tags.some((t) => t.handle === o.value))}
+                limit={PEOPLE_LIMIT}
+                onRename={people.rename}
+                mark={people.mark}
                 create={handleOf}
                 anchor={form}
-                onPick={(handle) => keep(handle)}
+                onPick={(handle) => {
+                  noteUsed(brandId, handle)
+                  keep(handle)
+                }}
                 placeholder="@account"
                 aria-label="Account to tag"
                 className="w-[120px] bg-transparent text-[13px] outline-none placeholder:text-ink-5"
@@ -2743,16 +2780,30 @@ function Chips({
   values,
   onChange,
   placeholder,
+  label = placeholder,
   max,
   normalize = (v) => v.trim(),
   options,
+  idle,
+  limit,
+  onRename,
+  mark,
+  onPicked,
 }: {
   values: string[]
   onChange: (v: string[]) => void
   placeholder: string
+  label?: string
   max?: number
   normalize?: (typed: string) => string
   options: Suggestion[]
+  /** What the list shows before anything is typed (`Combobox`). */
+  idle?: Suggestion[]
+  limit?: number
+  onRename?: (handle: string, name: string | null) => void
+  mark?: (brandId: string) => React.ReactNode
+  /** After a value is added: whether it was one of the options, or typed. */
+  onPicked?: (value: string, known: boolean) => void
 }) {
   const [draft, setDraft] = React.useState('')
   const box = React.useRef<HTMLDivElement>(null)
@@ -2769,14 +2820,21 @@ function Chips({
           value={draft}
           onChange={setDraft}
           options={options.filter((o) => !values.includes(o.value))}
+          idle={idle?.filter((o) => !values.includes(o.value))}
+          limit={limit}
+          onRename={onRename}
+          mark={mark}
           create={normalize}
           anchor={box}
-          onPick={(value) => {
-            if (!values.includes(value)) onChange([...values, value])
+          onPick={(value, option) => {
+            if (!values.includes(value)) {
+              onChange([...values, value])
+              onPicked?.(value, option !== undefined)
+            }
             setDraft('')
           }}
           placeholder={values.length ? '' : placeholder}
-          aria-label={placeholder}
+          aria-label={label}
           className="min-w-[120px] flex-1 bg-transparent px-1 text-[13px] outline-none placeholder:text-ink-5"
         />
       )}

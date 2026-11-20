@@ -29,6 +29,21 @@ const ROUTES: Route[] = [
   ['POST', /^\/me\/avatar$/, (_m, body) => ({ op: 'account.avatar_upload', input: { ...body } })],
   ['PUT', /^\/me\/avatar$/, (_m, body) => ({ op: 'account.avatar_set', input: { ...body } })],
   ['GET', /^\/brands$/, () => ({ op: 'brand.list', input: {} })],
+  // The company's influencer roster: the people the post page's fields offer.
+  ['GET', /^\/roster$/, () => ({ op: 'influencer.list', input: {} })],
+  // The saved collaborators' Instagram accounts no one on the roster holds, and their names.
+  ['GET', /^\/roster\/profiles$/, () => ({ op: 'influencer.profile_list', input: {} })],
+  [
+    'PUT',
+    /^\/roster\/profiles\/([^/]+)\/([^/]+)$/,
+    ([org, handle], body) => ({ op: 'influencer.profile_name', input: { ...body, org, handle } }),
+  ],
+  // A roster person's name, fixed from a row.
+  [
+    'PATCH',
+    /^\/roster\/([^/]+)$/,
+    ([id], body) => ({ op: 'influencer.edit', input: { ...body, id } }),
+  ],
   ['POST', /^\/brands$/, (_m, body) => ({ op: 'brand.create', input: { ...body } })],
   ['GET', /^\/brands\/([^/]+)\/state$/, ([b]) => ({ op: 'brand.state', input: { brand: b } })],
   [

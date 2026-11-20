@@ -8,6 +8,7 @@ import { resetIdeas } from '@/features/ideate/ideas-store'
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import { DEMO_TODAY, setToday } from '@/lib/dates'
 import type * as NotAvailable from '@/features/connections/not-available'
+import type * as RosterStore from '@/features/roster/roster-store'
 import type * as Remote from '@/lib/remote'
 
 import { demoAsCore } from '@/test-core-state'
@@ -91,6 +92,16 @@ vi.mock('@/features/connections/not-available', async (original) => ({
   ...(await original<typeof NotAvailable>()),
   notAvailable: () => false,
 }))
+// The roster loads again after each saved or removed post (a post's people link it to the
+// brand); here it is counted, not fetched.
+const roster = vi.hoisted(() => ({ loads: 0 }))
+vi.mock('@/features/roster/roster-store', async (original) => ({
+  ...(await original<typeof RosterStore>()),
+  loadRoster: async () => {
+    roster.loads++
+  },
+}))
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/post/crust',
   useRouter: () => ({ push: told.push, replace: vi.fn(), back: vi.fn() }),
@@ -302,6 +313,7 @@ describe('the composer on the API', () => {
     expect(told.push).not.toHaveBeenCalled()
     await land(null)
     expect(requests).toEqual(['DELETE /brands/casa-vostra/posts/ravioli'])
+    expect(roster.loads).toBeGreaterThan(0)
     expect(told.push).toHaveBeenCalledWith('/')
     expect(told.report).toHaveBeenCalledWith('Deleted')
   })

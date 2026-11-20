@@ -1,0 +1,1491 @@
+{
+  "name": "influencers",
+  "now": "2026-11-20T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "lists the roster of the caller's companies, with accounts in order and linked brands, and nothing of another company",
+      "steps": [
+        {
+          "call": "influencer.list",
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "orgId": "co-a",
+                "slug": "ana-lee",
+                "name": "Ana Lee",
+                "category": "food",
+                "status": "active",
+                "accounts": [
+                  {
+                    "platform": "instagram",
+                    "handle": "ana.cooks",
+                    "followers": 12000,
+                    "picture": null
+                  },
+                  {
+                    "platform": "tiktok",
+                    "handle": "ana.cooks",
+                    "followers": 3400
+                  }
+                ],
+                "brands": []
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.list",
+          "as": "b-owner",
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000b001",
+                "accounts": [
+                  {
+                    "handle": "bentan"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.list",
+          "as": "both",
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "name": "Ana Lee"
+              },
+              {
+                "name": "Ben Tan"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.list",
+          "as": "stranger",
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.list",
+          "as": "gone",
+          "expect": {
+            "status": 403,
+            "code": "ACCOUNT_DEACTIVATED"
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "id": "00000000-0000-4000-8000-00000000a001",
+              "name": "Ana Lee",
+              "brands": []
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000ffff"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    },
+    {
+      "name": "every member edits a person of their company; a field left out stays",
+      "steps": [
+        {
+          "call": "influencer.edit",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "status": "past",
+            "notes": "Did the autumn menu."
+          },
+          "expect": {
+            "result": {
+              "id": "00000000-0000-4000-8000-00000000a001",
+              "name": "Ana Lee",
+              "category": "food",
+              "status": "past",
+              "notes": "Did the autumn menu.",
+              "updatedAt": "2026-11-20T04:00:00.000Z"
+            }
+          }
+        },
+        {
+          "call": "influencer.edit",
+          "as": "owner",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "name": "  Ana  Lee-Wong ",
+            "category": null
+          },
+          "expect": {
+            "result": {
+              "name": "Ana  Lee-Wong",
+              "category": null,
+              "status": "past"
+            }
+          }
+        },
+        {
+          "call": "influencer.edit",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "status": "famous"
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "influencer.edit",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "name": "   "
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "influencer.edit",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "status": "active"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "select status from brandbase.influencers where slug = 'ben-tan'",
+          "expect": {
+            "rows": [
+              {
+                "status": "prospect"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "links a person to brands of their own company only, each once, and unlinks them",
+      "steps": [
+        {
+          "call": "influencer.brand_link",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "id": "00000000-0000-4000-8000-00000000a001",
+              "brands": ["casa"]
+            }
+          }
+        },
+        {
+          "call": "influencer.brand_link",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
+          }
+        },
+        {
+          "call": "influencer.brand_link",
+          "as": "owner",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "osteria"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa", "osteria"]
+            }
+          }
+        },
+        {
+          "call": "influencer.brand_link",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.brand_link",
+          "as": "both",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 409,
+            "code": "BRAND_ELSEWHERE"
+          }
+        },
+        {
+          "call": "influencer.brand_link",
+          "as": "both",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "brand": "casa"
+          },
+          "expect": {
+            "status": 409,
+            "code": "BRAND_ELSEWHERE"
+          }
+        },
+        {
+          "call": "influencer.brand_link",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "brand": "casa"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa", "osteria"]
+            }
+          }
+        },
+        {
+          "call": "influencer.brand_unlink",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brands": ["osteria"]
+            }
+          }
+        },
+        {
+          "call": "influencer.brand_unlink",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "brands": ["osteria"]
+            }
+          }
+        },
+        {
+          "call": "influencer.brand_unlink",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.brand_unlink",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "select brand_id from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "brand_id": "osteria"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "an owner or admin imports people by slug and accounts by handle; a second run adds nothing, and update writes what it is given",
+      "steps": [
+        {
+          "call": "influencer.import",
+          "as": "owner",
+          "input": {
+            "org": "co-a",
+            "slug": "leo-lee",
+            "name": "Leo Lee",
+            "category": "food",
+            "status": "active",
+            "accounts": [
+              {
+                "platform": "instagram",
+                "handle": " @Mr_AgLeoOLeo ",
+                "followers": 36600
+              },
+              {
+                "platform": "tiktok",
+                "handle": "mr_agleooleo",
+                "followers": 2791
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "slug": "leo-lee",
+              "made": true,
+              "accounts": 2
+            }
+          }
+        },
+        {
+          "call": "influencer.import",
+          "as": "owner",
+          "input": {
+            "org": "co-a",
+            "slug": "leo-lee",
+            "name": "Leo",
+            "status": "past",
+            "notes": "x",
+            "accounts": [
+              {
+                "platform": "instagram",
+                "handle": "mr_agleooleo",
+                "followers": 1
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": false,
+              "accounts": 0
+            }
+          }
+        },
+        {
+          "sql": "select i.name, i.status, i.notes, a.position, a.platform, a.handle, a.followers::int from brandbase.influencers i join brandbase.influencer_accounts a on a.influencer_id = i.id where i.slug = 'leo-lee' order by a.position",
+          "expect": {
+            "rows": [
+              {
+                "name": "Leo Lee",
+                "status": "active",
+                "notes": "",
+                "position": 0,
+                "platform": "instagram",
+                "handle": "mr_agleooleo",
+                "followers": 36600
+              },
+              {
+                "position": 1,
+                "platform": "tiktok",
+                "followers": 2791
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.import",
+          "as": "owner",
+          "input": {
+            "org": "co-a",
+            "slug": "leo-lee",
+            "name": "Leo Lee",
+            "mode": "update",
+            "status": "past",
+            "notes": "From the old roster.",
+            "accounts": [
+              {
+                "platform": "instagram",
+                "handle": "mr_agleooleo",
+                "followers": 40000,
+                "engagement": 2.5
+              },
+              {
+                "platform": "xiaohongshu",
+                "handle": "罗大雄",
+                "followers": 100
+              },
+              {
+                "platform": "instagram",
+                "handle": "ana.cooks",
+                "followers": 1
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": false,
+              "accounts": 2
+            }
+          }
+        },
+        {
+          "sql": "select i.status, i.notes, a.position, a.platform, a.handle, a.followers::int, a.engagement::float as engagement from brandbase.influencers i join brandbase.influencer_accounts a on a.influencer_id = i.id where i.slug = 'leo-lee' order by a.position",
+          "expect": {
+            "rows": [
+              {
+                "status": "past",
+                "notes": "From the old roster.",
+                "position": 0,
+                "followers": 40000,
+                "engagement": 2.5
+              },
+              {
+                "position": 1,
+                "platform": "tiktok"
+              },
+              {
+                "position": 3,
+                "platform": "xiaohongshu",
+                "handle": "罗大雄",
+                "followers": 100
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select followers::int from brandbase.influencer_accounts where handle = 'ana.cooks' and platform = 'instagram'",
+          "expect": {
+            "rows": [
+              {
+                "followers": 12000
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.import",
+          "as": "both",
+          "input": {
+            "org": "co-b",
+            "slug": "cara",
+            "name": "Cara",
+            "accounts": []
+          },
+          "expect": {
+            "result": {
+              "made": true,
+              "accounts": 0
+            }
+          }
+        },
+        {
+          "call": "influencer.list",
+          "as": "b-owner",
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "name": "Ben Tan"
+              },
+              {
+                "name": "Cara",
+                "status": "prospect",
+                "category": null,
+                "accounts": []
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.import",
+          "input": {
+            "org": "co-a",
+            "slug": "zed",
+            "name": "Zed",
+            "accounts": []
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "influencer.import",
+          "as": "owner",
+          "input": {
+            "org": "co-b",
+            "slug": "zed",
+            "name": "Zed",
+            "accounts": []
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.import",
+          "as": "stranger",
+          "input": {
+            "org": "co-a",
+            "slug": "zed",
+            "name": "Zed",
+            "accounts": []
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.import",
+          "as": "owner",
+          "input": {
+            "org": "co-a",
+            "slug": "Zed Z",
+            "name": "Zed",
+            "accounts": []
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencers where slug = 'zed'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "the picture fetch reads the Instagram accounts due, oldest first, and keeps our own copy and the followers",
+      "steps": [
+        {
+          "call": "influencer.picture_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "handle": "ana.cooks"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.picture_due",
+          "as": "both",
+          "input": {
+            "limit": 1
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "influencer.picture_due",
+          "as": "stranger",
+          "input": {
+            "limit": 1
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.picture_file",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "handle": "ana.cooks",
+            "mime": "image/jpeg"
+          },
+          "expect": {
+            "status": 200
+          }
+        },
+        {
+          "call": "influencer.picture_file",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "handle": "bentan",
+            "mime": "image/jpeg"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.picture_file",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "handle": "ana.cooks",
+            "mime": "image/gif"
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "sql": "update brandbase.influencer_accounts set picture_key = 'brandbase/00000000-0000-4000-8000-000000000001.jpg' where handle = 'ana.cooks' and platform = 'instagram'"
+        },
+        {
+          "call": "influencer.picture_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "handle": "ana.cooks",
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000002.jpg",
+            "followers": 13000
+          },
+          "expect": {
+            "result": {
+              "picture": null,
+              "followers": 13000
+            }
+          }
+        },
+        {
+          "call": "influencer.picture_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "handle": "ana.cooks",
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+            "followers": null
+          },
+          "expect": {
+            "result": {
+              "picture": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+              "followers": 13000
+            }
+          }
+        },
+        {
+          "call": "influencer.picture_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "handle": "ana.cooks",
+            "src": null,
+            "followers": 13100
+          },
+          "expect": {
+            "result": {
+              "picture": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+              "followers": 13100
+            }
+          }
+        },
+        {
+          "call": "influencer.picture_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "influencer.picture_due",
+          "now": "2026-12-21T04:00:00Z",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "influencer.picture_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "handle": "bentan",
+            "src": null,
+            "followers": 1
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "accounts": [
+                {
+                  "picture": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+                  "followers": 13100
+                },
+                {
+                  "platform": "tiktok",
+                  "picture": null
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "names the brands' saved Instagram collaborators no one on the roster holds, each once per company",
+      "steps": [
+        {
+          "sql": "update brandbase.brands set collaborators = '{\"ig\": [\"@ana.cooks\", \"@Casanostrasg\", \"@lifestyleasiasg\"], \"tt\": [\"@tiktoker\"]}' where id = 'casa'"
+        },
+        {
+          "sql": "update brandbase.brands set collaborators = '{\"ig\": [\"@casanostrasg\"]}' where id = 'osteria'"
+        },
+        {
+          "sql": "update brandbase.brands set collaborators = '{\"ig\": [\"@bentan\", \"@other.b\"]}' where id = 'temper'"
+        },
+        {
+          "call": "influencer.picture_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 3,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "handle": "ana.cooks"
+              },
+              {
+                "org": "co-a",
+                "handle": "casanostrasg"
+              },
+              {
+                "org": "co-a",
+                "handle": "lifestyleasiasg"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.picture_due",
+          "as": "b-owner",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "handle": "bentan"
+              },
+              {
+                "org": "co-b",
+                "handle": "other.b"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.profile_file",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "mime": "image/jpeg"
+          },
+          "expect": {
+            "status": 200
+          }
+        },
+        {
+          "call": "influencer.profile_file",
+          "input": {
+            "org": "co-b",
+            "handle": "other.b",
+            "mime": "image/jpeg"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "update brandbase.account_profiles set picture_key = 'brandbase/00000000-0000-4000-8000-000000000001.jpg' where handle = 'casanostrasg'"
+        },
+        {
+          "call": "influencer.profile_set",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "name": " Casa Nostra ",
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+            "followers": 5000
+          },
+          "expect": {
+            "result": {
+              "handle": "casanostrasg",
+              "name": "Casa Nostra",
+              "picture": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+              "followers": 5000
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_set",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "name": null,
+            "src": null,
+            "followers": null
+          },
+          "expect": {
+            "result": {
+              "name": "Casa Nostra",
+              "picture": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg",
+              "followers": 5000
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_set",
+          "input": {
+            "org": "co-a",
+            "handle": "lifestyleasiasg",
+            "name": null,
+            "src": null,
+            "followers": null
+          },
+          "expect": {
+            "result": {
+              "name": null,
+              "picture": null
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_set",
+          "input": {
+            "org": "co-b",
+            "handle": "other.b",
+            "name": "X",
+            "src": null,
+            "followers": null
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.profile_name",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "name": "Casa Nostra SG"
+          },
+          "expect": {
+            "result": {
+              "name": "Casa Nostra SG"
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_set",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "name": "From Meta",
+            "src": null,
+            "followers": null
+          },
+          "expect": {
+            "result": {
+              "name": "Casa Nostra SG"
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_name",
+          "as": "owner",
+          "input": {
+            "org": "co-a",
+            "handle": "lifestyleasiasg",
+            "name": "Lifestyle Asia",
+            "fill": true
+          },
+          "expect": {
+            "result": {
+              "name": "Lifestyle Asia"
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_name",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "name": "Other",
+            "fill": true
+          },
+          "expect": {
+            "result": {
+              "name": "Casa Nostra SG"
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_name",
+          "input": {
+            "org": "co-a",
+            "handle": "casanostrasg",
+            "name": "Casa Nostra"
+          },
+          "expect": {
+            "result": {
+              "name": "Casa Nostra"
+            }
+          }
+        },
+        {
+          "call": "influencer.profile_name",
+          "input": {
+            "org": "co-b",
+            "handle": "other.b",
+            "name": "X"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.profile_name",
+          "input": {
+            "org": "co-a",
+            "handle": "@Bad Handle",
+            "name": "X"
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "influencer.profile_list",
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "orgId": "co-a",
+                "handle": "casanostrasg",
+                "name": "Casa Nostra",
+                "followers": 5000
+              },
+              {
+                "handle": "lifestyleasiasg",
+                "name": "Lifestyle Asia"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.profile_list",
+          "as": "b-owner",
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "influencer.profile_list",
+          "as": "stranger",
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.picture_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a person named on a saved post of a brand works with it while a post names them, and for good once one goes out",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "d1",
+            "format": "carousel",
+            "hook": "One",
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@Ana.Cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "osteria",
+            "id": "d2",
+            "format": "carousel",
+            "hook": "Two",
+            "channels": ["ig"],
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              }
+            ],
+            "draft": {
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@ana.cooks",
+                      "at": {
+                        "x": 0.5,
+                        "y": 0.5
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "format": "carousel",
+            "hook": "Three",
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.list",
+          "expect": {
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "brands": ["casa", "osteria"]
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "d1",
+            "draft": {
+              "details": {
+                "collab": []
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa", "osteria"]
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "draft": {
+              "details": {
+                "collab": ["@someone.else"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["osteria"]
+            }
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "osteria",
+            "id": "d2"
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": []
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Story",
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "format": "carousel",
+            "hook": "Facebook",
+            "channels": ["fb"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": []
+            }
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "stage": "posted"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "as": "both",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "format": "carousel",
+            "hook": "Four",
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": []
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "stage": "posted"
+          }
+        },
+        {
+          "sql": "select brand_id, source, post_id from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "brand_id": "casa",
+                "source": "posted",
+                "post_id": "d3"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "update brandbase.posts set draft = '{}' where id = 'd3'"
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a live Instagram job links each roster person the post names to the brand for good",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "sealed",
+            "details": {
+              "via": "meta"
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-11-22",
+            "time": "18:00",
+            "caption": "Fresh pasta.",
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              },
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@bentan",
+                      "at": null
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig"]
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-11-22T10:00:00Z",
+          "answer": {
+            "externalId": "17890000000000001"
+          }
+        },
+        {
+          "sql": "select status from brandbase.post_jobs where id = 'p1:ig'",
+          "expect": {
+            "rows": [
+              {
+                "status": "live"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select influencer_id::text, brand_id, source, post_id from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "influencer_id": "00000000-0000-4000-8000-00000000a001",
+                "brand_id": "casa",
+                "source": "posted",
+                "post_id": "p1"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "update brandbase.posts set draft = '{}' where id = 'p1'"
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

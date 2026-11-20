@@ -1,0 +1,12 @@
+{
+  "name": "influencer.list",
+  "description": "The roster of every company the caller is a member of, by name: each person with their category and status (their notes only in influencer.read), their accounts in order (the first is the one they are known by; a picture is our own copy's path on the core) and the ids of the company's brands they work with: linked for good (the import, or a post that went out with them), or named as a collaborator or a tag on an Instagram post or reel of the brand that is saved now.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "before": ["account.exists", "account.active"],
+  "returns": "many",
+  "sql": "with d as materialized (\n  select distinct p.brand_id, b.org_id, h.handle\n  from brandbase.posts p join brandbase.brands b on b.id = p.brand_id\n  cross join lateral brandbase.post_handles(p.draft) as h(handle)\n  where p.format <> 'story' and 'ig' = any (p.channels)\n)\nselect (brandbase.influencer_json(i.id) - 'notes') || jsonb_build_object('brands', coalesce((select jsonb_agg(s.brand_id order by s.brand_id) from (select l.brand_id from brandbase.influencer_brands l where l.influencer_id = i.id union select d.brand_id from d join brandbase.influencer_accounts a on a.influencer_id = i.id and a.platform = 'instagram' and a.handle = d.handle where d.org_id = i.org_id) s), '[]'::jsonb)) as result from brandbase.influencers i order by lower(i.name), i.slug"
+}

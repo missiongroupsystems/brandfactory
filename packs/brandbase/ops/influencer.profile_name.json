@@ -1,0 +1,29 @@
+{
+  "name": "influencer.profile_name",
+  "description": "Gives a saved collaborator's Instagram account (a handle without \"@\") the name the post page shows for it, or takes it away with null. With fill, only an account with no name yet takes it (the import of researched names). Every member of the company may. Answers the account's name.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["org", "handle", "name"],
+    "properties": {
+      "org": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "handle": {
+        "type": "string",
+        "pattern": "^[a-z0-9._]{1,30}$"
+      },
+      "name": {
+        "type": ["string", "null"],
+        "maxLength": 200
+      },
+      "fill": {
+        "type": "boolean"
+      }
+    }
+  },
+  "before": ["account.exists", "account.active", "influencer.org_reached"],
+  "returns": "one",
+  "sql": "insert into brandbase.account_profiles as p (org_id, handle, name) values (:org, :handle, nullif(btrim(:name::text), ''))\non conflict (org_id, handle) do update set name = case when coalesce(:fill::boolean, false) then coalesce(p.name, excluded.name) else excluded.name end\nreturning jsonb_build_object('handle', p.handle, 'name', p.name) as result"
+}

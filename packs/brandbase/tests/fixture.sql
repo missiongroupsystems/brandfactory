@@ -35,3 +35,12 @@ insert into brandbase.moodboard_posts (id, brand_id, board_id, platform, account
 insert into brandbase.event_orgs (org_id) values ('co-a');
 -- Company A's brands may post through Make (make_orgs); company B's may not.
 insert into brandbase.make_orgs (org_id) values ('co-a');
+-- The roster (0029): Ana Lee in company A, on Instagram and TikTok, linked to no brand; Ben Tan in
+-- company B, on Instagram.
+insert into brandbase.influencers (id, org_id, slug, name, category, status, notes) values
+  ('00000000-0000-4000-8000-00000000a001', 'co-a', 'ana-lee', 'Ana Lee', 'food', 'active', 'Cooks at home.'),
+  ('00000000-0000-4000-8000-00000000b001', 'co-b', 'ben-tan', 'Ben Tan', null, 'prospect', '');
+insert into brandbase.influencer_accounts (influencer_id, org_id, position, platform, handle, followers) values
+  ('00000000-0000-4000-8000-00000000a001', 'co-a', 0, 'instagram', 'ana.cooks', 12000),
+  ('00000000-0000-4000-8000-00000000a001', 'co-a', 1, 'tiktok', 'ana.cooks', 3400),
+  ('00000000-0000-4000-8000-00000000b001', 'co-b', 0, 'instagram', 'bentan', 800);

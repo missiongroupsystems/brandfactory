@@ -1,0 +1,30 @@
+{
+  "name": "influencer.profile_file",
+  "description": "A new file for the profile picture of a saved collaborator's Instagram account (influencer.picture_due names it by company and handle): our copy of the picture Meta serves. Answers a signed write URL and the file's stable address, which influencer.profile_set then takes. Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["org", "handle", "mime"],
+    "properties": {
+      "org": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "handle": {
+        "type": "string",
+        "pattern": "^[a-z0-9._]{1,30}$"
+      },
+      "mime": {
+        "type": "string",
+        "enum": ["image/jpeg", "image/png", "image/webp"]
+      }
+    }
+  },
+  "upload": {
+    "type": "mime"
+  },
+  "before": ["influencer.org_reached"],
+  "internal": true,
+  "returns": "one",
+  "sql": "insert into brandbase.account_profiles (org_id, handle, picture_key) values (:org, :handle, :file)\non conflict (org_id, handle) do update set picture_key = excluded.picture_key\nreturning jsonb_build_object('upload', jsonb_build_object('key', picture_key, 'type', :mime::text)) as result"
+}

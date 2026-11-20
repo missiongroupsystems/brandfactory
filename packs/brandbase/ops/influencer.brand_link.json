@@ -1,0 +1,22 @@
+{
+  "name": "influencer.brand_link",
+  "description": "Links a person to a brand of their own company, which a post's Collaborators and Tag people then suggest them for. Linked already, nothing changes. Answers the ids of the person's brands.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "brand"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["influencer.found", "brand.reachable", "influencer.brand_in_company"],
+  "returns": "one",
+  "sql": "with added as (\n  insert into brandbase.influencer_brands (influencer_id, brand_id, org_id)\n  select i.id, :brand, i.org_id from brandbase.influencers i where i.id = :id::uuid\n  on conflict (influencer_id, brand_id) do nothing\n  returning brand_id\n)\nselect jsonb_build_object('id', :id::uuid, 'brands', coalesce((select jsonb_agg(s.brand_id order by s.brand_id) from (select l.brand_id from brandbase.influencer_brands l where l.influencer_id = :id::uuid union select a.brand_id from added a) s), '[]'::jsonb)) as result"
+}

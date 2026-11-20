@@ -3,11 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The brandbase pack's data, the scripts that load its demo, and the import of brands' own posts. The core reads the data; nothing imports this package.",
+  "description": "The brandbase pack's data, the scripts that load its demo, the import of brands' own posts, and the import of the influencer roster. The core reads the data; nothing imports this package.",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "seed": "tsx demo/seed.ts",
-    "import-posts": "tsx import/run.ts"
+    "import-posts": "tsx import/run.ts",
+    "import-roster": "tsx import/roster.ts",
+    "import-profiles": "tsx import/profiles.ts"
   },
   "dependencies": {
     "pg": "^8.13.1",

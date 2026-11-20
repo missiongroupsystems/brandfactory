@@ -1,0 +1,20 @@
+{
+  "name": "influencer.picture_due",
+  "description": "The Instagram accounts the server's picture fetch (packages/connect, roster-pictures.ts) reads next, oldest first, at most limit: the roster's (by person id and handle) and the brands' saved Instagram collaborators no one on the roster holds (by company and handle), each with a handle Instagram takes, never read or not for 30 days. Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["limit"],
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 200
+      }
+    }
+  },
+  "before": ["account.exists", "account.active"],
+  "internal": true,
+  "returns": "many",
+  "sql": "select d.result from (\n  select jsonb_build_object('id', a.influencer_id, 'handle', a.handle) as result, a.read_at as at, a.handle\n  from brandbase.influencer_accounts a\n  where a.platform = 'instagram' and a.handle ~ '^[a-z0-9._]{1,30}$'\n  union all\n  select jsonb_build_object('org', s.org_id, 'handle', s.handle), max(p.read_at), s.handle\n  from (\n    select distinct b.org_id, lower(regexp_replace(btrim(e.v), '^@+', '')) as handle\n    from brandbase.brands b, jsonb_array_elements_text(coalesce(b.collaborators -> 'ig', '[]'::jsonb)) as e(v)\n  ) s\n  left join brandbase.account_profiles p on p.org_id = s.org_id and p.handle = s.handle\n  where s.handle ~ '^[a-z0-9._]{1,30}$'\n    and not exists (select 1 from brandbase.influencer_accounts x where x.org_id = s.org_id and x.platform = 'instagram' and x.handle = s.handle)\n  group by s.org_id, s.handle\n) d\nwhere d.at is null or d.at < :now::timestamptz - interval '30 days'\norder by d.at nulls first, d.handle\nlimit :limit::int"
+}

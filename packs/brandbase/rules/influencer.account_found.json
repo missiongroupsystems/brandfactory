@@ -1,0 +1,7 @@
+{
+  "id": "influencer.account_found",
+  "sql": "select exists (select 1 from brandbase.influencer_accounts a where a.influencer_id = :id::uuid and a.platform = 'instagram' and a.handle = :handle) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "account not found"
+}
