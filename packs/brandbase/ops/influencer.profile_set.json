@@ -1,0 +1,35 @@
+{
+  "name": "influencer.profile_set",
+  "description": "Records one read of a saved collaborator's Instagram account: its display name (kept only where the account has none yet: a name a person gave stays), the address influencer.profile_file answered for its picture, and its followers (each null: the one kept stays). Keeps only the address's path on the core. Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["org", "handle", "name", "src", "followers"],
+    "properties": {
+      "org": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "handle": {
+        "type": "string",
+        "pattern": "^[a-z0-9._]{1,30}$"
+      },
+      "name": {
+        "type": ["string", "null"],
+        "maxLength": 200
+      },
+      "src": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      },
+      "followers": {
+        "type": ["integer", "null"],
+        "minimum": 0
+      }
+    }
+  },
+  "before": ["influencer.org_reached"],
+  "internal": true,
+  "returns": "one",
+  "sql": "insert into brandbase.account_profiles as p (org_id, handle, name, followers, read_at) values (:org, :handle, nullif(btrim(:name::text), ''), :followers::bigint, :now::timestamptz)\non conflict (org_id, handle) do update set\n  name = coalesce(p.name, excluded.name),\n  followers = coalesce(excluded.followers, p.followers),\n  picture = case when p.picture_key is not null and right(:src::text, length(p.picture_key) + 1) = '/' || p.picture_key then coalesce(substring(:src::text from '/files/[A-Za-z0-9_-]{43}/brandbase/[0-9a-f-]{36}\\.(?:jpg|png|webp)$'), p.picture) else p.picture end,\n  read_at = excluded.read_at\nreturning jsonb_build_object('handle', p.handle, 'name', p.name, 'picture', p.picture, 'followers', p.followers) as result"
+}

@@ -1,0 +1,45 @@
+{
+  "name": "influencer.edit",
+  "description": "Changes a person's name, category (null for none), status (active, prospect or past) or notes; a field left out stays. Every member of the person's company may. Answers the fields as stored.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 120,
+        "pattern": "\\S"
+      },
+      "category": {
+        "enum": [
+          "beauty",
+          "fashion",
+          "food",
+          "fitness",
+          "travel",
+          "home",
+          "tech",
+          "parenting",
+          "motoring",
+          "family",
+          null
+        ]
+      },
+      "status": {
+        "enum": ["active", "prospect", "past"]
+      },
+      "notes": {
+        "type": "string",
+        "maxLength": 20000
+      }
+    }
+  },
+  "before": ["influencer.found"],
+  "returns": "one",
+  "sql": "update brandbase.influencers i set\n  name = case when :fields::jsonb ? 'name' then btrim(:name::text) else i.name end,\n  category = case when :fields::jsonb ? 'category' then :category::text else i.category end,\n  status = case when :fields::jsonb ? 'status' then :status::text else i.status end,\n  notes = case when :fields::jsonb ? 'notes' then :notes::text else i.notes end,\n  updated_at = :now::timestamptz\nwhere i.id = :id::uuid\nreturning jsonb_build_object('id', i.id, 'name', i.name, 'category', i.category, 'status', i.status, 'notes', i.notes, 'updatedAt', brandbase.iso(i.updated_at)) as result"
+}

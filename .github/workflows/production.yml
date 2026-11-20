@@ -11,6 +11,9 @@ name: Production
 #            `inbox.meta_receive` (the webhook's principal, META_WEBHOOK_AS); prints a count only
 #   meta     read only: the names of the server's secrets that Meta needs (never a value), and
 #            the last hour of the server's log lines about Meta's webhooks (counts, no one's words)
+#   roster-pictures  as the release person, reads up to `limit` Instagram accounts of the
+#            roster through Business Discovery and copies their profile pictures into our files
+#            (packages/connect/src/brandbase/roster-pictures.ts); prints counts only
 #
 # Secrets and variables are the repository's (Settings, Secrets and variables, Actions):
 #   secrets    CORE_LOGIN_PASSWORD, CORE_MIGRATOR_PASSWORD (Keychain service brandbase-supabase-db),
@@ -25,7 +28,7 @@ on:
         description: What to run
         required: true
         type: choice
-        options: [check, release, deploy, meta, agent-loadout]
+        options: [check, release, deploy, meta, agent-loadout, roster-pictures]
       version:
         description: The pack version to release (release only), e.g. 1.16.0
         required: false
@@ -34,6 +37,11 @@ on:
         description: The moves to add (agent-loadout only), space-separated
         required: false
         type: string
+      limit:
+        description: The most Instagram accounts to read (roster-pictures only, 1-150)
+        required: false
+        type: string
+        default: '50'
 
 concurrency:
   group: production
@@ -148,6 +156,36 @@ jobs:
           pnpm -s exec tsx scripts/loadouts.ts before brandbase > "$RUNNER_TEMP/before.json"
           core promote brandbase "$VERSION"
           pnpm -s exec tsx scripts/loadouts.ts after brandbase "$RUNNER_TEMP/before.json"
+
+      # One run of the roster's picture fetch on the server, as the release person, who must reach
+      # a brand whose Instagram is linked through our Meta app. Business Discovery allows about
+      # 200 calls an hour per account: a run stops at Meta's first rate limit.
+      - name: Roster pictures
+        if: inputs.task == 'roster-pictures'
+        working-directory: packages/core
+        env:
+          LIMIT: ${{ inputs.limit }}
+          RELEASE_EMAIL: ${{ vars.RELEASE_EMAIL }}
+          CORE_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ "$LIMIT" =~ ^[0-9]{1,3}$ ]] || { echo "limit is a number from 1 to 150"; exit 1; }
+          pnpm -s exec tsx src/cli.ts login "$RELEASE_EMAIL" >/dev/null
+          unset CORE_PASSWORD
+          node -e '
+          const token = JSON.parse(require("fs").readFileSync(require("os").homedir() + "/.config/brandbase-core/session.json", "utf8")).token
+          const url = "https://brandfactory.fly.dev/roster/pictures"
+          const headers = { authorization: "Bearer " + token }
+          ;(async () => {
+            const started = await fetch(url + "?limit=" + process.env.LIMIT, { method: "POST", headers })
+            if (started.status !== 202) throw new Error("the run did not start: " + started.status + " " + ((await started.json().catch(() => ({}))).code ?? ""))
+            for (let i = 0; i < 150; i++) {
+              await new Promise((r) => setTimeout(r, 10_000))
+              const run = await (await fetch(url, { headers })).json()
+              if (!run.running) { console.log(JSON.stringify(run, null, 2)); return }
+            }
+            throw new Error("the run did not end in 25 minutes")
+          })().catch((e) => { console.error(e.message); process.exit(1) })'
 
       - name: Agent loadout
         if: inputs.task == 'agent-loadout'

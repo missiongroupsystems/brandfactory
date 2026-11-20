@@ -1,0 +1,7 @@
+{
+  "id": "influencer.org_managed",
+  "sql": "select :org::text = any (brandbase.managed_orgs()) as ok",
+  "status": 403,
+  "code": "FORBIDDEN",
+  "message": "only the company's owners and admins import its roster"
+}

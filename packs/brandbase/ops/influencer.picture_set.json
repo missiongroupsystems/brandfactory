@@ -1,0 +1,31 @@
+{
+  "name": "influencer.picture_set",
+  "description": "Records one read of an Instagram account: the address influencer.picture_file answered for it (null when Meta showed no picture: the one kept stays) and the followers Meta counted (null: the count kept stays). Keeps only the address's path on the core. Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "handle", "src", "followers"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "handle": {
+        "type": "string",
+        "pattern": "^[a-z0-9._]{1,30}$"
+      },
+      "src": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      },
+      "followers": {
+        "type": ["integer", "null"],
+        "minimum": 0
+      }
+    }
+  },
+  "before": ["influencer.account_found"],
+  "internal": true,
+  "returns": "one",
+  "sql": "update brandbase.influencer_accounts a set\n  picture = case when a.picture_key is not null and right(:src::text, length(a.picture_key) + 1) = '/' || a.picture_key then coalesce(substring(:src::text from '/files/[A-Za-z0-9_-]{43}/brandbase/[0-9a-f-]{36}\\.(?:jpg|png|webp)$'), a.picture) else a.picture end,\n  followers = coalesce(:followers::bigint, a.followers),\n  read_at = :now::timestamptz\nwhere a.influencer_id = :id::uuid and a.platform = 'instagram' and a.handle = :handle\nreturning jsonb_build_object('handle', a.handle, 'picture', a.picture, 'followers', a.followers) as result"
+}

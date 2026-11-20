@@ -1,0 +1,90 @@
+{
+  "name": "influencer.import",
+  "description": "Adds a person to a company's roster by their slug, with their accounts (a handle is taken without \"@\", in lower case), for the import script (packs/brandbase/import/roster.ts). Mode add (the default) changes nothing a person or an account has already; mode update writes each field it is given over the stored one. An account whose handle another person of the company holds is left to them. Answers whether the person was new and how many accounts were added or written. Only the company's owners and admins.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["org", "slug", "name", "accounts"],
+    "properties": {
+      "org": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "slug": {
+        "type": "string",
+        "maxLength": 80,
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 120,
+        "pattern": "\\S"
+      },
+      "category": {
+        "enum": [
+          "beauty",
+          "fashion",
+          "food",
+          "fitness",
+          "travel",
+          "home",
+          "tech",
+          "parenting",
+          "motoring",
+          "family",
+          null
+        ]
+      },
+      "status": {
+        "enum": ["active", "prospect", "past"]
+      },
+      "notes": {
+        "type": ["string", "null"],
+        "maxLength": 20000
+      },
+      "mode": {
+        "enum": ["add", "update"]
+      },
+      "accounts": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["platform", "handle"],
+          "properties": {
+            "platform": {
+              "enum": ["instagram", "tiktok", "youtube", "xiaohongshu", "facebook", "linkedin"]
+            },
+            "handle": {
+              "type": "string",
+              "pattern": "^\\s*@?[^\\s@/?#]{1,100}\\s*$"
+            },
+            "followers": {
+              "type": ["integer", "null"],
+              "minimum": 0
+            },
+            "engagement": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 999
+            },
+            "url": {
+              "type": ["string", "null"],
+              "maxLength": 500,
+              "pattern": "^https://"
+            }
+          }
+        }
+      }
+    }
+  },
+  "before": [
+    "account.exists",
+    "account.active",
+    "influencer.org_reached",
+    "influencer.org_managed"
+  ],
+  "returns": "one",
+  "sql": "with person as (\n  insert into brandbase.influencers (org_id, slug, name, category, status, notes)\n  values (:org, :slug, btrim(:name::text), :category::text, coalesce(:status::text, 'prospect'), coalesce(:notes::text, ''))\n  on conflict (org_id, slug) do update set\n    name = case when :mode::text = 'update' then excluded.name else brandbase.influencers.name end,\n    category = case when :mode::text = 'update' and :fields::jsonb ? 'category' then excluded.category else brandbase.influencers.category end,\n    status = case when :mode::text = 'update' and :fields::jsonb ? 'status' then excluded.status else brandbase.influencers.status end,\n    notes = case when :mode::text = 'update' and :notes::text is not null then excluded.notes else brandbase.influencers.notes end,\n    updated_at = case when :mode::text = 'update' then :now::timestamptz else brandbase.influencers.updated_at end\n  returning id, org_id\n),\ngiven as (\n  select e.ord, e.v ->> 'platform' as platform, lower(regexp_replace(btrim(e.v ->> 'handle'), '^@+', '')) as handle,\n    (e.v ->> 'followers')::bigint as followers, (e.v ->> 'engagement')::numeric as engagement, e.v ->> 'url' as url\n  from jsonb_array_elements(:accounts::jsonb) with ordinality as e(v, ord)\n),\nwritten as (\n  insert into brandbase.influencer_accounts (influencer_id, org_id, position, platform, handle, followers, engagement, url)\n  select p.id, p.org_id,\n    coalesce((select max(x.position) + 1 from brandbase.influencer_accounts x where x.influencer_id = p.id), 0) + (g.ord - 1)::int,\n    g.platform, g.handle, g.followers, g.engagement, g.url\n  from person p, given g\n  on conflict (org_id, platform, handle) do update set\n    followers = coalesce(excluded.followers, brandbase.influencer_accounts.followers),\n    engagement = coalesce(excluded.engagement, brandbase.influencer_accounts.engagement),\n    url = coalesce(excluded.url, brandbase.influencer_accounts.url)\n  where :mode::text = 'update' and brandbase.influencer_accounts.influencer_id = excluded.influencer_id\n  returning handle\n)\nselect jsonb_build_object('id', p.id, 'slug', :slug,\n  'made', not exists (select 1 from brandbase.influencers i where i.org_id = :org and i.slug = :slug),\n  'accounts', (select count(*) from written)) as result\nfrom person p"
+}

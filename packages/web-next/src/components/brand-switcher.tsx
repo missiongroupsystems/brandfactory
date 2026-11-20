@@ -3,31 +3,12 @@
 import Link from 'next/link'
 import * as React from 'react'
 
-import type { Brand } from '@/data/brands'
-import { BrandLogo } from '@/features/brand/brand-logo'
 import { NewBrandForm } from '@/features/brand/new-brand-form'
 import { useConnections } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
+import { BrandMark } from './brand-mark'
 import { CheckIcon, ChevronIcon, PlusIcon } from './icons'
-
-/**
- * A brand's logo as a coin: the same size in every row, cropped a touch inside its edge (a
- * profile picture often carries its own white rim), with one fine ring over it so a light logo
- * still has an edge on the white menu.
- */
-function BrandMark({ brand }: { brand: Brand }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="relative size-7 shrink-0 overflow-hidden rounded-full"
-      style={{ background: `var(${brand.colour})` }}
-    >
-      <BrandLogo brandId={brand.id} sizes="56px" className="scale-[1.08] object-cover" />
-      <span className="pointer-events-none absolute inset-0 rounded-full shadow-[inset_0_0_0_1px_rgba(18,18,18,0.1)]" />
-    </span>
-  )
-}
 
 /** The header pill: shows the current brand and opens a menu to switch to another. */
 export function BrandSwitcher() {
@@ -90,7 +71,7 @@ export function BrandSwitcher() {
         }}
         className={`flex h-9 items-center gap-2.5 rounded-[10px] whitespace-nowrap pr-3 pl-1 text-sm font-medium transition-colors hover:bg-paper ${open ? 'bg-paper' : 'bg-surface'}`}
       >
-        <BrandMark brand={brand} />
+        <BrandMark brandId={brand.id} />
         <span>{brand.name}</span>
         <span className="-ml-0.5 text-ink-4">
           <ChevronIcon open={open} />
@@ -125,7 +106,7 @@ export function BrandSwitcher() {
                 }}
                 className="flex items-center gap-3 rounded-[10px] px-2 py-1.5 text-left text-[14px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
               >
-                <BrandMark brand={b} />
+                <BrandMark brandId={b.id} />
                 <span className="flex-1 truncate">{b.name}</span>
                 <span
                   className={`text-ink transition-opacity ${current ? 'opacity-100' : 'opacity-0'}`}

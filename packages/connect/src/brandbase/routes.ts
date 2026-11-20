@@ -23,6 +23,7 @@ import { metaRoutes } from './meta-routes'
 import { type MetaHooks, metaWebhookRoutes } from './meta-webhooks'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
 import { type MakeReadings, readingsRoutes } from './readings'
+import { rosterPictureRoutes } from './roster-pictures'
 import { type TikTokApp } from './tiktok'
 import { tiktokRoutes } from './tiktok-routes'
 
@@ -173,6 +174,9 @@ export function accountRoutes(
 
       // Where each collaborator's invite on a post that went out on Instagram stands.
       .route('/', metaCollabRoutes(core, platforms.meta))
+
+      // The roster's Instagram profile pictures and followers, read through Business Discovery.
+      .route('/', rosterPictureRoutes(core, platforms.meta))
 
       // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
       .route('/', tiktokRoutes(core, platforms.tiktok))

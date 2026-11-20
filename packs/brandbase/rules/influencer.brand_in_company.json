@@ -1,0 +1,7 @@
+{
+  "id": "influencer.brand_in_company",
+  "sql": "select exists (select 1 from brandbase.influencers i join brandbase.brands b on b.org_id = i.org_id where i.id = :id::uuid and b.id = :brand) as ok",
+  "status": 409,
+  "code": "BRAND_ELSEWHERE",
+  "message": "the brand belongs to another company than the person's"
+}

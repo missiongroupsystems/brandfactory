@@ -1,0 +1,30 @@
+{
+  "name": "influencer.picture_file",
+  "description": "A new file for one Instagram account's profile picture: our copy of the picture Meta serves, in its type. Answers a signed write URL and the file's stable address, which influencer.picture_set then takes. Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "handle", "mime"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "handle": {
+        "type": "string",
+        "pattern": "^[a-z0-9._]{1,30}$"
+      },
+      "mime": {
+        "type": "string",
+        "enum": ["image/jpeg", "image/png", "image/webp"]
+      }
+    }
+  },
+  "upload": {
+    "type": "mime"
+  },
+  "before": ["influencer.account_found"],
+  "internal": true,
+  "returns": "one",
+  "sql": "update brandbase.influencer_accounts a set picture_key = :file where a.influencer_id = :id::uuid and a.platform = 'instagram' and a.handle = :handle returning jsonb_build_object('upload', jsonb_build_object('key', a.picture_key, 'type', :mime::text)) as result"
+}

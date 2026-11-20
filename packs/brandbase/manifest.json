@@ -1,7 +1,7 @@
 {
   "name": "brandbase",
-  "version": "1.18.0",
-  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, timed sends, what went out on Instagram and Facebook with its counts as Make reads them back, the brand's linked Pinterest (its boards) and TikTok accounts, its Instagram account and Facebook Page, linked by our own Meta app's sign-in or posted to through Make, the comments and DMs Meta's webhook brings for them, planned videos sent to the TikTok inbox, reels and posts anyone DMs to the capture account, saved to a brand's Ideas by the sender's tap, and the company's own events from Mission Events.",
+  "version": "1.19.0",
+  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, timed sends, what went out on Instagram and Facebook with its counts as Make reads them back, the brand's linked Pinterest (its boards) and TikTok accounts, its Instagram account and Facebook Page, linked by our own Meta app's sign-in or posted to through Make, the comments and DMs Meta's webhook brings for them, planned videos sent to the TikTok inbox, reels and posts anyone DMs to the capture account, saved to a brand's Ideas by the sender's tap, the company’s own events from Mission Events, and the company’s influencer roster, each person linked to the brands they work with.",
   "errors": {
     "posts_story_day": {
       "status": 409,
@@ -32,6 +32,11 @@
       "status": 409,
       "code": "ACCOUNT_TAKEN",
       "message": "this account belongs to another brand"
+    },
+    "influencer_accounts_pkey": {
+      "status": 409,
+      "code": "HANDLE_TAKEN",
+      "message": "another person on the roster has this account"
     }
   },
   "scheduler": {

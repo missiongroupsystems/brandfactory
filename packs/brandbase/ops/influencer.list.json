@@ -1,0 +1,12 @@
+{
+  "name": "influencer.list",
+  "description": "The roster of every company the caller is a member of, by name: each person with their category, status and notes, their accounts in order (the first is the one they are known by; a picture is our own copy's path on the core) and the ids of the company's brands they are linked to.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "before": ["account.exists", "account.active"],
+  "returns": "many",
+  "sql": "select brandbase.influencer_json(i.id) as result from brandbase.influencers i order by lower(i.name), i.slug"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "influencer.profile_list",
+  "description": "The Instagram accounts the brands of the caller's companies saved as collaborators but no one on the roster holds, as the picture fetch last read them: the handle, the account's own display name, its picture (our own file's path on the core) and its followers. The post page names them with it.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "before": ["account.exists", "account.active"],
+  "returns": "many",
+  "sql": "select jsonb_build_object('orgId', p.org_id, 'handle', p.handle, 'name', p.name, 'picture', p.picture, 'followers', p.followers) as result from brandbase.account_profiles p order by p.org_id, p.handle"
+}

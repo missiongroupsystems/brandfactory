@@ -1,0 +1,22 @@
+{
+  "name": "influencer.brand_unlink",
+  "description": "Takes a brand off a person's links; not linked, nothing changes. Answers the ids of the person's brands.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "brand"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["influencer.found", "brand.reachable"],
+  "returns": "one",
+  "sql": "with gone as (\n  delete from brandbase.influencer_brands l where l.influencer_id = :id::uuid and l.brand_id = :brand\n  returning l.brand_id\n)\nselect jsonb_build_object('id', :id::uuid, 'brands', coalesce((select jsonb_agg(l.brand_id order by l.brand_id) from brandbase.influencer_brands l where l.influencer_id = :id::uuid and l.brand_id not in (select g.brand_id from gone g)), '[]'::jsonb)) as result"
+}

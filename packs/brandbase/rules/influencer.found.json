@@ -1,0 +1,7 @@
+{
+  "id": "influencer.found",
+  "sql": "select exists (select 1 from brandbase.influencers i where i.id = :id::uuid) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "person not found"
+}
