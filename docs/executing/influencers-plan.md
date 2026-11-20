@@ -23,17 +23,19 @@ project's own CSV exports of `influencers`, `influencer_accounts` and `brands` (
    (146 people, 216 accounts, 0 differences), with the notes.
 3. **No invented brand links.** A person is linked to a brand only where the brand's saved
    collaborators (`brands.collaborators`, migration 0025) hold their Instagram or TikTok handle;
-   the team links the rest on the Creators page.
+   a saved post of the brand that names them links them while it does, and a post that goes out
+   with them links them for good (owner, 20 Nov).
 4. **One source of names for the saved handles no one on the roster holds:** `account_profiles`
    (company and handle). The import fills it from `handle-names.csv` (high and medium confidence),
    the picture job fills an empty name from Business Discovery, and a person names or renames one
-   by hand in the post page's list or on the Creators page.
+   by hand from the post page's list.
 5. **Pictures are copied, never linked.** Meta's `profile_picture_url` expires. A server job reads
    Business Discovery through a brand's Instagram account linked by our own Meta app and copies
    each picture into the core's files; initials show until then, and for anyone Business
    Discovery does not find.
-6. **Three layouts behind `?look=a|b|c`** (list, grid of cards, compact table) on the same data;
-   the owner picks one and the others go.
+6. **No roster page** (owner, 20 Nov): three layouts went up behind `?look=a|b|c` and the owner
+   dropped the page. The roster serves the post page's people fields, where any row's name can
+   be fixed.
 
 ## Phase 1 (one phase)
 
@@ -46,10 +48,10 @@ project's own CSV exports of `influencers`, `influencer_accounts` and `brands` (
 3. `packages/connect/src/brandbase/roster-pictures.ts`: `POST /roster/pictures` (a run in the
    background, rate limited, counts only in the log) and `GET /roster/pictures`; the Production
    workflow's `roster-pictures` task.
-4. Web: `/creators` (nav "Creators"), the side panel, the pickers' new ranking and the inline name.
+4. Web: the pickers' new ranking, the brand's coin, and the pencil that fixes a row's name.
 5. Gate, changelog, screenshots on a local core with the imported roster.
 
 ## Not in this plan
 
 Adding or removing a person or an account from the UI, TikTok and Facebook names in the pickers
-(Instagram's alone take a collaborator or a tag), and a phone tab for Creators.
+(Instagram's alone take a collaborator or a tag), and a roster page.

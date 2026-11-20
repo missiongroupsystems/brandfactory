@@ -81,11 +81,3 @@ export function resetCollaborators() {
   saved = {}
   emit()
 }
-
-const savedSnapshot = () => saved
-
-/** Every brand's saved Instagram collaborators, for the Creators page: by brand id. */
-export function useSavedIg(brandIds: string[]): Record<string, string[]> {
-  React.useSyncExternalStore(subscribe, savedSnapshot, savedSnapshot)
-  return Object.fromEntries(brandIds.map((id) => [id, read(id, 'ig')]))
-}

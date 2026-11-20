@@ -7,7 +7,7 @@ import { Combobox, rank } from '@/components/suggest'
 import type { RosterAccount, RosterPerson } from '@/data/roster'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
-import { initialsOf, PEOPLE_LIMIT, peopleFor } from './people'
+import { initialsOf, PEOPLE_LIMIT, peopleFor, personOfHandle } from './people'
 
 const ig = (handle: string, picture: string | null = null): RosterAccount => ({
   platform: 'instagram',
@@ -108,8 +108,8 @@ describe('the people a post offers for a brand', () => {
   })
 })
 
-describe('a saved handle no one on the roster holds', () => {
-  it('has the same two lines: its name and handle once named, else its handle and the platform', () => {
+describe('a row’s name', () => {
+  it('has the same two lines: a name and the handle once named, else the handle and the platform', () => {
     const { all } = peopleFor({
       brandId: 'casa-vostra',
       roster: ROSTER,
@@ -131,8 +131,11 @@ describe('a saved handle no one on the roster holds', () => {
       initials: 'WH',
       rename: 'whatisdieting',
     })
-    // A roster person's row is named on the roster, not from the list.
-    expect(row('@ana.cooks')?.rename).toBeUndefined()
+    // Every row's name can be fixed from the list: a roster person's is their own.
+    expect(row('@ana.cooks')?.rename).toBe('ana.cooks')
+    expect(personOfHandle(ROSTER, 'demo', '@Ana.Cooks')?.name).toBe('Ana Lee')
+    expect(personOfHandle(ROSTER, 'demo', 'casanostrasg')).toBeNull()
+    expect(personOfHandle(ROSTER, 'other-company', 'ana.cooks')).toBeNull()
     // A name is searched like a person's.
     expect(values(rank(all, 'nostra', PEOPLE_LIMIT))).toEqual(['@casanostrasg'])
     expect(initialsOf('365days2play - SG Eats • Hotels')).toBe('3S')

@@ -31,8 +31,8 @@ const fold = (handle: string) => handle.replace(/^@+/, '').toLowerCase()
  *   lately and the saved collaborators, in that order, at most `PEOPLE_LIMIT`.
  *
  * A row of someone linked to the brand carries `linkedTo`: the list marks it with the brand's
- * logo. Nothing else tells the rows apart. A row of an account no one on the roster holds carries
- * `rename`: the team may name it from the list.
+ * logo. Nothing else tells the rows apart. Every row carries `rename`: the team may fix its name
+ * from the list (`personOfHandle` says whose name it is).
  */
 export function peopleFor({
   brandId,
@@ -70,6 +70,7 @@ export function peopleFor({
         initials: initialsOf(p.name),
         ...(a.picture && { picture: picture(a.picture) }),
         ...(linked && { linkedTo: brandId }),
+        rename: a.handle,
         tier,
         order: at ?? 0,
         sortName: p.name.toLowerCase(),
@@ -118,4 +119,23 @@ export function peopleFor({
       .map(strip),
     all: sorted.map(strip),
   }
+}
+
+/**
+ * The roster person whose Instagram account a handle is, or null: a name fixed in the list is then
+ * the person's own (`influencer.edit`), else the saved account's (`influencer.profile_name`).
+ */
+export function personOfHandle(
+  roster: RosterPerson[],
+  orgId: string,
+  handle: string,
+): RosterPerson | null {
+  const h = fold(handle)
+  return (
+    roster.find(
+      (p) =>
+        (!orgId || p.orgId === orgId) &&
+        p.accounts.some((a) => a.platform === 'instagram' && a.handle === h),
+    ) ?? null
+  )
 }

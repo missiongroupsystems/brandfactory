@@ -38,6 +38,7 @@ import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand, useMoveToDrafts } from '@/features/schedule/posts-store'
 import { PEOPLE_LIMIT } from '@/features/roster/people'
 import { noteUsed } from '@/features/roster/recent'
+import { loadRoster } from '@/features/roster/roster-store'
 import { usePeople } from '@/features/roster/use-people'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
 import { demoOf, loadBrand, newId, quietly, remote, report, request, sent } from '@/lib/remote'
@@ -637,7 +638,8 @@ export function Composer({
         shots: media.map((m) => ({ crop: m.crop, tags: m.tags }) as Shots[number]),
       },
     }
-    return sent(b, async () => {
+    // The brand's posts link the people they name: the roster loads again once the post is saved.
+    const saved = sent(b, async () => {
       // A cropped photo goes out as the preview shows it: its cut, made and uploaded once.
       const files = await Promise.all(
         media.map((m) => (m.crop && !isVideo(m.src) ? cutPhoto(b, m.src, m.crop) : m.src)),
@@ -689,6 +691,10 @@ export function Composer({
         )
       }
     })
+    void saved.then((refused) => {
+      if (remote && !refused) void loadRoster()
+    })
+    return saved
   }
 
   // The post as the calendar has it now. A refused first save reloads the brand without it, so
@@ -854,6 +860,7 @@ export function Composer({
     const b = brand.id
     setWaiting('save')
     const refused = await sent(b, () => request('DELETE', `/brands/${b}/posts/${post.id}`))
+    if (remote && !refused) void loadRoster()
     setWaiting(null)
     if (refused !== null) return
     submitted.current = true

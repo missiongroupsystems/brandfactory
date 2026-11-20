@@ -46,12 +46,17 @@ CREATE TABLE brandbase.influencer_accounts (
     REFERENCES brandbase.influencers (id, org_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- The company's brands a person works with. The brand's company is the person's: both foreign
--- keys name it.
+-- The company's brands a person has worked with, for good: linked by the import (the brand's
+-- saved collaborators, the old roster's links) or by a post of the brand that went out with them
+-- as a collaborator or a tag (`posted`, with that post). The links a saved post makes are not
+-- kept here: they follow the post (`post_handles`). The brand's company is the person's: both
+-- foreign keys name it.
 CREATE TABLE brandbase.influencer_brands (
   influencer_id uuid NOT NULL,
   brand_id text NOT NULL,
   org_id text NOT NULL,
+  source text NOT NULL DEFAULT 'saved' CHECK (source IN ('saved', 'posted')),
+  post_id text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   PRIMARY KEY (influencer_id, brand_id),
   CONSTRAINT influencer_brands_person FOREIGN KEY (influencer_id, org_id)
@@ -89,6 +94,30 @@ GRANT SELECT, INSERT ON brandbase.influencer_accounts TO pack_runtime;
 GRANT UPDATE (followers, engagement, url, picture, picture_key, read_at)
   ON brandbase.influencer_accounts TO pack_runtime;
 GRANT SELECT, INSERT, DELETE ON brandbase.influencer_brands TO pack_runtime;
+GRANT UPDATE (source, post_id) ON brandbase.influencer_brands TO pack_runtime;
+
+-- The Instagram handles a post's draft names (no "@", in lower case): its collaborators
+-- (details.collab) and every photo's tags (shots[].tags[].handle), each once.
+CREATE FUNCTION brandbase.post_handles(draft jsonb) RETURNS SETOF text
+  LANGUAGE sql STABLE
+  AS $$
+    SELECT DISTINCT lower(regexp_replace(btrim(x.h), '^@+', ''))
+    FROM (
+      SELECT e.v AS h
+      FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(draft -> 'details' -> 'collab') = 'array'
+        THEN draft -> 'details' -> 'collab' ELSE '[]'::jsonb END) AS e(v)
+      UNION ALL
+      SELECT t.v ->> 'handle'
+      FROM jsonb_array_elements(CASE WHEN jsonb_typeof(draft -> 'shots') = 'array'
+        THEN draft -> 'shots' ELSE '[]'::jsonb END) AS s(v),
+        jsonb_array_elements(CASE WHEN jsonb_typeof(s.v -> 'tags') = 'array'
+          THEN s.v -> 'tags' ELSE '[]'::jsonb END) AS t(v)
+      WHERE jsonb_typeof(t.v) = 'object'
+    ) x
+    WHERE x.h IS NOT NULL AND btrim(x.h) <> ''
+  $$;
+
+GRANT EXECUTE ON FUNCTION brandbase.post_handles(jsonb) TO pack_runtime;
 
 -- One person as the moves answer them: their accounts in order (the first is the one they are
 -- known by) and the ids of the brands they are linked to. It reads under the caller's walls.

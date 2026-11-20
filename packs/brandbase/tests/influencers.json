@@ -364,26 +364,26 @@
           "as": "owner",
           "input": {
             "org": "co-a",
-            "slug": "lee-ann-ong",
-            "name": "Lee Ann Ong",
+            "slug": "leo-lee",
+            "name": "Leo Lee",
             "category": "food",
             "status": "active",
             "accounts": [
               {
                 "platform": "instagram",
-                "handle": " @LeeAnn.Eats ",
+                "handle": " @Mr_AgLeoOLeo ",
                 "followers": 36600
               },
               {
                 "platform": "tiktok",
-                "handle": "leeann.eats",
+                "handle": "mr_agleooleo",
                 "followers": 2791
               }
             ]
           },
           "expect": {
             "result": {
-              "slug": "lee-ann-ong",
+              "slug": "leo-lee",
               "made": true,
               "accounts": 2
             }
@@ -394,14 +394,14 @@
           "as": "owner",
           "input": {
             "org": "co-a",
-            "slug": "lee-ann-ong",
+            "slug": "leo-lee",
             "name": "Leo",
             "status": "past",
             "notes": "x",
             "accounts": [
               {
                 "platform": "instagram",
-                "handle": "leeann.eats",
+                "handle": "mr_agleooleo",
                 "followers": 1
               }
             ]
@@ -414,16 +414,16 @@
           }
         },
         {
-          "sql": "select i.name, i.status, i.notes, a.position, a.platform, a.handle, a.followers::int from brandbase.influencers i join brandbase.influencer_accounts a on a.influencer_id = i.id where i.slug = 'lee-ann-ong' order by a.position",
+          "sql": "select i.name, i.status, i.notes, a.position, a.platform, a.handle, a.followers::int from brandbase.influencers i join brandbase.influencer_accounts a on a.influencer_id = i.id where i.slug = 'leo-lee' order by a.position",
           "expect": {
             "rows": [
               {
-                "name": "Lee Ann Ong",
+                "name": "Leo Lee",
                 "status": "active",
                 "notes": "",
                 "position": 0,
                 "platform": "instagram",
-                "handle": "leeann.eats",
+                "handle": "mr_agleooleo",
                 "followers": 36600
               },
               {
@@ -439,21 +439,21 @@
           "as": "owner",
           "input": {
             "org": "co-a",
-            "slug": "lee-ann-ong",
-            "name": "Lee Ann Ong",
+            "slug": "leo-lee",
+            "name": "Leo Lee",
             "mode": "update",
             "status": "past",
             "notes": "From the old roster.",
             "accounts": [
               {
                 "platform": "instagram",
-                "handle": "leeann.eats",
+                "handle": "mr_agleooleo",
                 "followers": 40000,
                 "engagement": 2.5
               },
               {
                 "platform": "xiaohongshu",
-                "handle": "xiaoming.eats",
+                "handle": "罗大雄",
                 "followers": 100
               },
               {
@@ -471,7 +471,7 @@
           }
         },
         {
-          "sql": "select i.status, i.notes, a.position, a.platform, a.handle, a.followers::int, a.engagement::float as engagement from brandbase.influencers i join brandbase.influencer_accounts a on a.influencer_id = i.id where i.slug = 'lee-ann-ong' order by a.position",
+          "sql": "select i.status, i.notes, a.position, a.platform, a.handle, a.followers::int, a.engagement::float as engagement from brandbase.influencers i join brandbase.influencer_accounts a on a.influencer_id = i.id where i.slug = 'leo-lee' order by a.position",
           "expect": {
             "rows": [
               {
@@ -488,7 +488,7 @@
               {
                 "position": 3,
                 "platform": "xiaohongshu",
-                "handle": "xiaoming.eats",
+                "handle": "罗大雄",
                 "followers": 100
               }
             ]
@@ -1062,6 +1062,365 @@
                 "id": "00000000-0000-4000-8000-00000000a001"
               }
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a person named on a saved post of a brand works with it while a post names them, and for good once one goes out",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "d1",
+            "format": "carousel",
+            "hook": "One",
+            "draft": {
+              "details": {
+                "collab": ["@Ana.Cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "osteria",
+            "id": "d2",
+            "format": "carousel",
+            "hook": "Two",
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              }
+            ],
+            "draft": {
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@ana.cooks",
+                      "at": {
+                        "x": 0.5,
+                        "y": 0.5
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "format": "carousel",
+            "hook": "Three",
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.list",
+          "expect": {
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "brands": ["casa", "osteria"]
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "d1",
+            "draft": {
+              "details": {
+                "collab": []
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa", "osteria"]
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "draft": {
+              "details": {
+                "collab": ["@someone.else"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["osteria"]
+            }
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "osteria",
+            "id": "d2"
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": []
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "as": "both",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "format": "carousel",
+            "hook": "Four",
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": []
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "d3",
+            "stage": "posted"
+          }
+        },
+        {
+          "sql": "select brand_id, source, post_id from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "brand_id": "casa",
+                "source": "posted",
+                "post_id": "d3"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "update brandbase.posts set draft = '{}' where id = 'd3'"
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a live Instagram job links each roster person the post names to the brand for good",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "sealed",
+            "details": {
+              "via": "meta"
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-11-22",
+            "time": "18:00",
+            "caption": "Fresh pasta.",
+            "media": [
+              {
+                "src": "/photos/a.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              },
+              "shots": [
+                {
+                  "crop": null,
+                  "tags": [
+                    {
+                      "handle": "@bentan",
+                      "at": null
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig"]
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-11-22T10:00:00Z",
+          "answer": {
+            "externalId": "17890000000000001"
+          }
+        },
+        {
+          "sql": "select status from brandbase.post_jobs where id = 'p1:ig'",
+          "expect": {
+            "rows": [
+              {
+                "status": "live"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select influencer_id::text, brand_id, source, post_id from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "influencer_id": "00000000-0000-4000-8000-00000000a001",
+                "brand_id": "casa",
+                "source": "posted",
+                "post_id": "p1"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "update brandbase.posts set draft = '{}' where id = 'p1'"
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": ["casa"]
+            }
           }
         }
       ]
