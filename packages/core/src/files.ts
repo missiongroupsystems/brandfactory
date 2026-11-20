@@ -90,6 +90,33 @@ export async function withUpload(files: Files | undefined, pack: string, result:
   }
 }
 
+/** How long a storage read URL lives, in seconds, and how long one is handed out again. */
+export const READ_TTL_S = 7200
+export const READ_REUSE_S = 3600
+
+/**
+ * The storage URL a stable address sends the browser on to, with how long the browser may keep
+ * the redirect. A URL is handed out again for an hour, so the browser's copy of the file stays
+ * good across lists and visits instead of a new URL (and a new download) on every one; it lives
+ * two hours, so a redirect kept for the rest of that hour still lands on a live URL.
+ */
+export function readLinks(store: FileStore, now: () => number = Date.now, max = 5000) {
+  const made = new Map<string, { url: string; at: number }>()
+  return async (key: string): Promise<{ url: string; maxAge: number }> => {
+    const t = now()
+    const hit = made.get(key)
+    const age = hit ? Math.floor((t - hit.at) / 1000) : Infinity
+    // A clock that stepped back gives a negative age: a miss, never a longer life.
+    if (hit && age >= 0 && age < READ_REUSE_S) return { url: hit.url, maxAge: READ_REUSE_S - age }
+    const url = await store.signedReadUrl(key, READ_TTL_S)
+    made.delete(key)
+    made.set(key, { url, at: t })
+    // The oldest goes first once the memo is full.
+    if (made.size > max) made.delete(made.keys().next().value!)
+    return { url, maxAge: READ_REUSE_S }
+  }
+}
+
 /** The key a stable address names, or null when its signature is wrong. */
 export function keyOfSrc(files: Files, signature: string, key: string): string | null {
   return KEY.test(key) && verify(files.secret, `file:${key}`, signature) ? key : null

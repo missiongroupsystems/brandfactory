@@ -1,6 +1,7 @@
 import { Refused } from '@brandfactory/core/src/errors'
 import { authenticate, call, type CoreDeps } from '@brandfactory/core/src/run'
 import { type Context, Hono } from 'hono'
+import sharp from 'sharp'
 import { bound, PACK, readAccount, type Who } from './accounts'
 import { type MetaApp, MetaError, MetaReconnect } from './meta'
 import { viaMeta } from './meta-routes'
@@ -38,6 +39,39 @@ const RATE_LIMITED = new Set([4, 17, 32, 613, 80002])
 /** Meta's media hosts: a picture is read from nowhere else, a redirect included. */
 const META_MEDIA = /(^|\.)(fbcdn\.net|cdninstagram\.com)$/
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+/**
+ * The side of the square a picture is kept at. Meta sends up to 1080px (about 120 KB); the
+ * screens show it at 28 to 36px, so 160px covers a 36px avatar on a 3x screen, at a few KB.
+ */
+export const THUMB_PX = 160
+
+/**
+ * The most pixels a picture may have: twice Meta's 1080px a side. A larger one (a 7000px PNG
+ * fits in 5 MB and decodes to about 200 MB) is no profile picture, on a 512 MB machine.
+ */
+export const MAX_PICTURE_PIXELS = 2160 * 2160
+// One picture at a time, and nothing kept between them: memory stays flat through a run.
+sharp.cache(false)
+sharp.concurrency(1)
+
+/**
+ * A picture as it is kept: a small square WebP. Null when the bytes are no picture we take (no
+ * image, or too many pixels): the initials stay. Any other failure throws, so the read counts as
+ * failed, not as an account with no picture.
+ */
+async function thumbnail(bytes: Uint8Array): Promise<Uint8Array | null> {
+  const input = () => sharp(bytes, { limitInputPixels: MAX_PICTURE_PIXELS })
+  const meta = await input()
+    .metadata()
+    .catch(() => null)
+  if (!meta?.width || !meta.height || meta.width * meta.height > MAX_PICTURE_PIXELS) return null
+  const out = await input()
+    .rotate()
+    .resize(THUMB_PX, THUMB_PX, { fit: 'cover' })
+    .webp({ quality: 80 })
+    .toBuffer()
+  return new Uint8Array(out)
+}
 const USERNAME = /^[a-z0-9._]{1,30}$/
 
 /** What one run did, in counts. */
@@ -152,7 +186,10 @@ export function rosterPictureRoutes(
   /** Who a due account is: a roster person's (by person id) or a saved collaborator's (by company). */
   type Due = { id: string; handle: string } | { org: string; handle: string }
 
-  /** Copies one picture into our files; answers its stable address, or null. */
+  /**
+   * Copies one picture into our files; answers its stable address, or null when Meta's answer is
+   * no picture we take. A failure on the way (the network, the storage, the resize) throws.
+   */
   async function copy(who: Who, due: Due, address: string) {
     const got = await readPicture(address)
     if (!got?.ok || !got.body) {
@@ -181,16 +218,19 @@ export function rosterPictureRoutes(
       parts.push(value)
     }
     if (size === 0) return null
-    const bytes = new Uint8Array(size)
+    const read = new Uint8Array(size)
     let at = 0
     for (const part of parts) {
-      bytes.set(part, at)
+      read.set(part, at)
       at += part.byteLength
     }
+    // Kept small: the list of people loads each one at once (THUMB_PX).
+    const bytes = await thumbnail(read)
+    if (!bytes) return null
     const made = (await move(
       who,
       'id' in due ? 'influencer.picture_file' : 'influencer.profile_file',
-      { ...due, mime },
+      { ...due, mime: 'image/webp' },
     )) as {
       src: string
       upload: { url: string; headers: Record<string, string> }
@@ -270,7 +310,15 @@ export function rosterPictureRoutes(
           : null
       let src: string | null = null
       if (typeof found?.profile_picture_url === 'string') {
-        src = await copy(who, account, found.profile_picture_url).catch(() => null)
+        try {
+          src = await copy(who, account, found.profile_picture_url)
+        } catch {
+          // Not "no picture": a failed copy. The read waits like any failed one, and its picture
+          // stays as it was; the followers and the name Meta gave are kept.
+          run.failed++
+          await record(account, null, followers, found?.name).catch(() => undefined)
+          continue
+        }
       }
       if (src) run.pictures++
       else run.noPicture++
@@ -330,7 +378,8 @@ export function rosterPictureRoutes(
             : null
         try {
           const src =
-            typeof p.picture === 'string' ? await copy(who, due, p.picture).catch(() => null) : null
+            // A failed copy throws: the profile counts as failed, not as one with no picture.
+            typeof p.picture === 'string' ? await copy(who, due, p.picture) : null
           if (src) counts.pictures++
           else counts.noPicture++
           await recordRead(who, due, src, followers, p.name)

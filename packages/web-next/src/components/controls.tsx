@@ -79,7 +79,14 @@ export function Switch({
   )
 }
 
-/** Content that folds open and shut by animating its row height. */
+/** How long the fold takes to shut (`bb-fold` in globals.css). */
+const FOLD_MS = 360
+
+/**
+ * Content that folds open and shut by animating its row height. Shut (once it has folded), it is
+ * inert, hidden from screen readers and `visibility: hidden`: nothing in it is seen, hit, found
+ * or focused, even where it overflows its row. It stays mounted, so what was typed in it stays.
+ */
 export function Fold({
   open,
   children,
@@ -89,10 +96,22 @@ export function Fold({
   children: React.ReactNode
   className?: string
 }) {
+  // Shown, or still folding shut.
+  const [held, setHeld] = React.useState(open)
+  if (open && !held) setHeld(true)
+  React.useEffect(() => {
+    if (open || !held) return
+    const t = window.setTimeout(() => setHeld(false), FOLD_MS)
+    return () => window.clearTimeout(t)
+  }, [open, held])
   return (
     <div
       className={`bb-fold ${className}`}
-      style={{ gridTemplateRows: open ? '1fr' : '0fr', opacity: open ? 1 : 0 }}
+      style={{
+        gridTemplateRows: open ? '1fr' : '0fr',
+        opacity: open ? 1 : 0,
+        visibility: open || held ? undefined : 'hidden',
+      }}
       aria-hidden={!open}
       inert={!open}
     >

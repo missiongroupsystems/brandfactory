@@ -1,14 +1,28 @@
 import { createCore } from '@brandfactory/core/src/app'
 import { type Files } from '@brandfactory/core/src/files'
+import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { metaApp } from './meta'
-import { type PictureRun, rosterPictureRoutes } from './roster-pictures'
+import { type PictureRun, rosterPictureRoutes, THUMB_PX } from './roster-pictures'
 import { NOW, testCore } from './test-core'
 
 const IG = '17841400000000001'
 const TOKEN = 'page-token'
 const PICTURE = 'https://scontent-sin6-1.cdninstagram.com/v/ana.jpg?oe=1'
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])
+// A picture as Meta sends it: 1080px square, far larger than any screen shows it.
+const JPEG = new Uint8Array(
+  await sharp({ create: { width: 1080, height: 1080, channels: 3, background: '#c86' } })
+    .jpeg()
+    .toBuffer(),
+)
+const JUNK = 'https://scontent-sin6-1.cdninstagram.com/v/junk.jpg'
+// Small as a file, huge once decoded: 6000px a side of one colour.
+const WIDE = 'https://scontent-sin6-1.cdninstagram.com/v/wide.png'
+const WIDE_PNG = new Uint8Array(
+  await sharp({ create: { width: 6000, height: 6000, channels: 3, background: '#888' } })
+    .png()
+    .toBuffer(),
+)
 const BOUNCE = 'https://scontent-sin6-1.cdninstagram.com/v/bounce.jpg'
 const HUGE = 'https://scontent-sin6-1.cdninstagram.com/v/huge.jpg'
 const STATED = 'https://scontent-sin6-1.cdninstagram.com/v/stated.jpg'
@@ -32,8 +46,13 @@ const files: Files = {
  */
 function fakes() {
   const asked: string[] = []
-  const stored: number[] = []
-  const state = { limited: false, broken: false, picture: PICTURE as string | null }
+  const stored: Uint8Array[] = []
+  const state = {
+    limited: false,
+    broken: false,
+    storeDown: false,
+    picture: PICTURE as string | null,
+  }
   const json = (data: unknown, status = 200) => Response.json(data, { status })
   const graph = async (input: string | URL | Request) => {
     const url = new URL(String(input))
@@ -77,10 +96,18 @@ function fakes() {
         headers: { 'content-type': 'image/jpeg', 'content-length': String(9 * 1024 * 1024) },
       })
     }
+    // An image type, and bytes that are no image.
+    if (url === JUNK) {
+      return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), {
+        headers: { 'content-type': 'image/jpeg' },
+      })
+    }
+    if (url === WIDE) return new Response(WIDE_PNG, { headers: { 'content-type': 'image/png' } })
     if (url === PAGE_NOT_IMAGE)
       return new Response('<html>', { headers: { 'content-type': 'text/html' } })
     if (url === 'https://storage.test/put' && init?.method === 'PUT') {
-      stored.push((init.body as Uint8Array).length)
+      if (state.storeDown) return new Response(null, { status: 503 })
+      stored.push(init.body as Uint8Array)
       return new Response(null, { status: 200 })
     }
     throw new Error(`unexpected request ${url}`)
@@ -172,9 +199,14 @@ describe('the roster picture fetch', () => {
       { handle: 'casanostrasg', name: 'Casa Nostra', followers: 900, read: true },
       { handle: 'named.by.hand', name: 'Kept Name', followers: null, read: true },
     ])
-    expect(t.stored).toEqual([JPEG.length])
+    // Kept small: a square WebP of THUMB_PX, a few KB, not Meta's 1080px original.
+    expect(t.stored).toHaveLength(1)
+    const kept = await sharp(t.stored[0]!).metadata()
+    expect(kept).toMatchObject({ format: 'webp', width: THUMB_PX, height: THUMB_PX })
+    expect(t.stored[0]!.length).toBeLessThan(JPEG.length / 4)
+    expect(t.stored[0]!.length).toBeLessThan(10_000)
     const [ana, other] = await t.accounts()
-    expect(ana!.picture).toMatch(/^\/files\/[A-Za-z0-9_-]{43}\/brandbase\/[0-9a-f-]{36}\.jpg$/)
+    expect(ana!.picture).toMatch(/^\/files\/[A-Za-z0-9_-]{43}\/brandbase\/[0-9a-f-]{36}\.webp$/)
     expect(ana).toMatchObject({ handle: 'ana.cooks', followers: 12500, read: true })
     expect(other).toMatchObject({ handle: 'private.one', picture: null, read: true })
     // Both read: the next run has nothing due and asks Meta nothing.
@@ -263,11 +295,34 @@ describe('the roster picture fetch', () => {
           { handle: 'casanostrasg', picture: HUGE },
           { handle: 'named.by.hand', picture: STATED },
           { handle: 'other.one', picture: PAGE_NOT_IMAGE },
+          { handle: 'third.one', picture: JUNK },
+          { handle: 'fourth.one', picture: WIDE },
         ],
       }),
     })
-    expect(await res.json()).toMatchObject({ read: 5, pictures: 0, noPicture: 5 })
+    expect(await res.json()).toMatchObject({ read: 7, pictures: 0, noPicture: 7 })
     expect(t.stored).toEqual([])
+  })
+
+  it('counts a copy that failed on the way as failed, never as an account with no picture', async () => {
+    const t = await setUp()
+    t.state.storeDown = true
+    // The run: Meta answered, the storage did not. The followers stay; the picture is not "none".
+    expect(await t.runs('?limit=1')).toMatchObject({
+      read: 1,
+      pictures: 0,
+      noPicture: 0,
+      failed: 1,
+    })
+    const [ana] = await t.accounts()
+    expect(ana).toMatchObject({ handle: 'ana.cooks', picture: null, followers: 12500 })
+    // A profile brought in: counted failed, and not marked read, so the next read tries again.
+    const res = await t.server.request('/roster/profiles?org=co-a', {
+      method: 'POST',
+      headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+      body: JSON.stringify({ profiles: [{ handle: 'casanostrasg', picture: PICTURE }] }),
+    })
+    expect(await res.json()).toEqual({ read: 0, pictures: 0, noPicture: 0, skipped: 0, failed: 1 })
   })
 
   it('lets only a company’s owners and admins start a run or bring in profiles', async () => {

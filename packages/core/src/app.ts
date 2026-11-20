@@ -4,7 +4,14 @@ import { agentSession } from './agents'
 import { Refused } from './errors'
 import { approve } from './effects'
 import { events } from './events'
-import { type DiskFiles, keyOfSrc, MAX_FILE_BYTES, typeOfKey } from './files'
+import {
+  type DiskFiles,
+  type FileStore,
+  keyOfSrc,
+  MAX_FILE_BYTES,
+  readLinks,
+  typeOfKey,
+} from './files'
 import { callGuest } from './guest'
 import { mcp } from './mcp'
 import { call, type CoreDeps } from './run'
@@ -44,6 +51,7 @@ export function createCore(
 
   app.get('/health', (c) => c.json({ ok: true }))
 
+  const links = new WeakMap<FileStore, ReturnType<typeof readLinks>>()
   // A file's stable address, outside the sign-in on purpose: an <img> sends no token. The
   // signature is the right; it sends the browser on to a short-lived storage URL.
   app.get('/files/:sig/*', async (c) => {
@@ -52,8 +60,11 @@ export function createCore(
     if (!files || !keyOfSrc(files, c.req.param('sig'), key)) {
       throw new Refused(404, 'NOT_FOUND', 'not found')
     }
-    c.header('cache-control', 'private, max-age=300')
-    return c.redirect(await files.store.signedReadUrl(key, 3600), 302)
+    let link = links.get(files.store)
+    if (!link) links.set(files.store, (link = readLinks(files.store)))
+    const { url, maxAge } = await link(key)
+    c.header('cache-control', `private, max-age=${maxAge}`)
+    return c.redirect(url, 302)
   })
 
   // Files on this machine (`diskFiles`), for development: a signed URL writes or reads one.
@@ -89,6 +100,9 @@ export function createCore(
       // A named type, never sniffed: an uploaded page must not run on the core's origin.
       c.header('content-type', typeOfKey(key))
       c.header('x-content-type-options', 'nosniff')
+      // What a key holds never changes: the browser keeps it while its URL lives.
+      const left = Number(c.req.query('exp')) - Math.floor(Date.now() / 1000)
+      c.header('cache-control', `private, max-age=${Math.max(0, left)}, immutable`)
       return c.body(new Uint8Array(bytes))
     })
   }

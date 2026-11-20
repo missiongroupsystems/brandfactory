@@ -2469,6 +2469,8 @@ function Details({
         onChange={(collab) => setDetails({ ...details, collab })}
         placeholder={`@account, up to ${COLLAB_MAX}`}
         label="Collaborators"
+        // Under the caption and the media: its list opens down, never over them.
+        scroll
         max={COLLAB_MAX}
         normalize={handleOf}
         options={people.all}
@@ -2623,7 +2625,8 @@ function TagEditor({
   const anchor = (x: number) => `${Math.min(80, Math.max(20, x * 100))}%`
 
   const body = (
-    <div className="flex flex-col gap-3">
+    // The list of accounts stays inside this part of the dialog, clear of Done (`usePlace`).
+    <div data-suggest-bounds className="flex flex-col gap-3">
       <div
         role="img"
         aria-label="The photo: tap where someone is to tag them"
@@ -2789,6 +2792,7 @@ function Chips({
   onRename,
   mark,
   onPicked,
+  scroll,
 }: {
   values: string[]
   onChange: (v: string[]) => void
@@ -2804,6 +2808,8 @@ function Chips({
   mark?: (brandId: string) => React.ReactNode
   /** After a value is added: whether it was one of the options, or typed. */
   onPicked?: (value: string, known: boolean) => void
+  /** The page may scroll for the list to open under the field (`Combobox`). */
+  scroll?: boolean
 }) {
   const [draft, setDraft] = React.useState('')
   const box = React.useRef<HTMLDivElement>(null)
@@ -2826,6 +2832,7 @@ function Chips({
           mark={mark}
           create={normalize}
           anchor={box}
+          scroll={scroll}
           onPick={(value, option) => {
             if (!values.includes(value)) {
               onChange([...values, value])
@@ -2951,6 +2958,7 @@ function MoreCard({
         </span>
         <ChevronIcon open={open} size={10} />
       </button>
+      {/* Shut, nothing inside is seen or pressed (`Fold`); what was typed in it stays. */}
       <Fold className="grid-cols-[minmax(0,1fr)]" open={open}>
         <div className="pb-5">{children}</div>
       </Fold>

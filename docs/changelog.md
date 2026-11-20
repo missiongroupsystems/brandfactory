@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.74.1** — 2026-11-20 — `fix/people-picker`: the post page's people pickers, after a live check. Avatars are kept as 160px WebP thumbnails (a few KB, not Meta's 1080px originals), start loading before the list opens, are cached by the browser for an hour, and show the initials until they load. The Tag people list stays inside its dialog, clear of Done; Collaborators opens down (the page scrolls to make room, for this field only) and turns up only when nothing makes room; a shut More options is hidden and inert, and keeps what was typed in it. No pack change. 1844 tests by count: 1564 pass, 280 skipped without a Postgres server.
 - **2.74.0** — 2026-11-20 — `feat/influencers`: the company's influencer roster is back on the core (pack 1.19.0, migration `0029_influencers.sql`, additive): 146 people and 216 accounts from the old BrandFactory, imported from its own CSV exports (`import-roster`), with brand links, notes, names for the brands' saved collaborators, and a server job for Instagram profile pictures; the post page's Collaborators and Tag people suggest the brand's linked people first, search the whole roster, and fix any row's name from a pencil. No roster page. 1823 tests by count: 1543 pass, 280 skipped without a Postgres server.
 - **2.73.0** — 2026-11-18 — `feat/capture-simple`: capture with no LINK code (pack 1.18.0, migration `0028_capture_open.sql`, additive). Anyone who DMs a reel or a post to the capture account taps a brand of the capture brand's company and it lands under Shared, "Added by @handle"; the tile opens the post on Instagram, or our copy when Meta gives no address. `META_CAPTURE_SENDERS` optionally limits who is captured. 1792 tests by count: 1520 pass, 272 skipped without a Postgres server.
 - **2.72.0** — 2026-11-18 — `feat/failed-clear`: "N failed" on the calendar always opens its list (one failure too); each row shows a quiet × on hover or keyboard focus (always on touch) that takes the post to drafts without posting it, as the post page's "Move to drafts" does, and the row folds away. A long list scrolls inside the menu with faded edges. No server or pack change. 1741 tests by count: 1473 pass, 266 skipped without a Postgres server.
@@ -152,6 +153,48 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.74.1 — 2026-11-20
+
+- **Why.** A live check of the post page's Collaborators and Tag people found four problems: most
+  avatars were empty 2 s after the list opened (all came by 6 s); the Tag people list spilled out
+  of its dialog over Done and the hint; Collaborators opened up over the media and the caption; and
+  "Tag on the photo" stayed in the page, unseen, while More options was shut, where a click on it
+  landed on something else.
+- **Avatars.** Meta sends a profile picture at up to 1080px (about 120 KB each; 8 rows came to
+  about 1 MB). `roster-pictures.ts` (packages/connect) now keeps a 160px square WebP
+  (`THUMB_PX`, sharp), about 5 KB. Bytes that are no image, or a picture over 2160x2160 pixels,
+  keep the initials; sharp decodes one picture at a time with no cache, for the 512 MB machine. A
+  copy that fails on the way (network, storage, resize) counts as failed, not as "no picture". The core's
+  `/files/<sig>/<key>` hands out the same storage URL for an hour (`readLinks`, signed for two),
+  with `cache-control: private, max-age` for the rest of that hour (a clock that steps back signs
+  a new one), so the browser keeps the
+  redirect and the file; files on disk are served with `immutable`. On the core the list starts
+  its first rows' pictures loading as soon as the roster is known (`preloadPictures`), and a row
+  shows its initials until its picture has loaded, which then fades in (`ProfilePicture
+  placeholder`). Pictures already copied stay at full size until they are read again: run
+  `import-profiles` with a fresh read, or wait for the 30-day re-read.
+- **Where a list opens** (`placeList`, `usePlace` in `components/suggest.tsx`). Down when the list
+  fits, or when four rows and a half do (capped). Otherwise, for a field that asks (`scroll`:
+  Collaborators only) and with a mouse or a trackpad, the page scrolls just enough, once, for it to
+  open down; the caption's "@", Location and the Shoot page never move the page. It turns up only when neither makes room and there is
+  more room above. Inside a dialog, a sheet or a `[data-suggest-bounds]` part (the Tag people photo,
+  hint and strip, above Done) it stays inside that box, capped to the room on its side, and
+  scrolls inside. A list with no room for one row is not shown.
+- **More options.** A shut `Fold` is `visibility: hidden` once it has folded (360 ms), as well as
+  inert and hidden from screen readers, so nothing in it is seen, hit or focused. It stays mounted,
+  so a handle typed and not yet added is still there when it opens again.
+- **Review fixes (round 2).** The first version unmounted a shut More options and lost typed
+  text; the page scroll ran for every suggestion field; the dialog test laid out no dialog (and
+  jsdom's 0 page width hid a 0-wide list); the pixel cap was 50 million; any resize error read as
+  "no picture"; a clock step back lengthened a cached redirect. Each has a test.
+- **Server.** packages/connect takes `sharp` 0.35.3 (prebuilt for Alpine, no install script). A
+  deploy (`Production`, `deploy`) is needed for the thumbnails and the cache.
+- **Tests:** 1844 by count: 1564 pass and 280 are skipped without a Postgres server. Typecheck,
+  lint, format and the web build pass. Browser: Chromium at 1440x900 (scale 2) on a local core
+  with the imported roster and its pictures: Collaborators opening down with every avatar shown,
+  the Tag people list inside its dialog (low, high, and a tall photo that turns it up), and the
+  initials while pictures load.
 
 ## 2.74.0 — 2026-11-20
 

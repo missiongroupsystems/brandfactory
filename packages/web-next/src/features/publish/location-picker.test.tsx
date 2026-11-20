@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import * as React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LocationPicker } from './location-picker'
 import { resetLocations } from './locations-store'
@@ -163,5 +163,36 @@ describe('the Location field', () => {
       document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
     })
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+})
+
+describe('the Location menu low on the page', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('opens without moving the page', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q === '(pointer: fine)',
+      addEventListener() {},
+      removeEventListener() {},
+    }))
+    vi.spyOn(document.documentElement, 'scrollHeight', 'get').mockReturnValue(2768)
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 640,
+      bottom: 676,
+      left: 200,
+      right: 800,
+      width: 600,
+      height: 36,
+      x: 200,
+      y: 640,
+    } as DOMRect)
+    render(<Field />)
+    fireEvent.click(trigger())
+    expect(menu()).toBeInTheDocument()
+    expect(scrollBy).not.toHaveBeenCalled()
   })
 })

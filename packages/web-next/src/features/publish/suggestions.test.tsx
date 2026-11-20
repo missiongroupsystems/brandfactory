@@ -79,6 +79,19 @@ describe('Labels', () => {
   })
 })
 
+describe('More options, shut and opened again', () => {
+  it('keeps what was typed in a field and not yet added', async () => {
+    show()
+    const labels = () => screen.getByRole('combobox', { name: /^e\.g\. TMP_Wine/, hidden: true })
+    fireEvent.change(labels(), { target: { value: 'half typed' } })
+    fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: true }))
+    // Longer than the fold takes to shut.
+    await new Promise((r) => setTimeout(r, 500))
+    fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: false }))
+    expect(labels()).toHaveValue('half typed')
+  })
+})
+
 describe('the caption', () => {
   it('offers people after an "@" and swaps the word for the pick', () => {
     show()

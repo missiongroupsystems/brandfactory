@@ -212,6 +212,25 @@ describe('a new post in the demo', () => {
     expect(screen.getAllByRole('button', { name: /^Location/ })).toHaveLength(1)
   })
 
+  it('hides all of More options while it is shut, so no unseen control takes a click', async () => {
+    show()
+    const fold = () =>
+      screen.getByPlaceholderText('Booking link, hashtags…').closest<HTMLElement>('.bb-fold')!
+    // Shut: not seen, not hit, not focused, not read out.
+    const shut = () => {
+      expect(fold().style.visibility).toBe('hidden')
+      expect(fold()).toHaveAttribute('inert')
+      expect(fold()).toHaveAttribute('aria-hidden', 'true')
+    }
+    shut()
+    fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: false }))
+    expect(fold().style.visibility).toBe('')
+    expect(fold()).not.toHaveAttribute('inert')
+    fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: true }))
+    // It folds shut first, then hides.
+    await waitFor(shut)
+  })
+
   it('takes tomorrow in two clicks, and an hour with one more, on the page', () => {
     show()
     fireEvent.click(when())

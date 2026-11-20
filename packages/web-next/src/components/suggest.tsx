@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 
 import { PlusIcon } from './icons'
 import { PlatformLogo, type PlatformLogoKey } from './platform-logos'
-import { ProfilePicture } from './profile-picture'
+import { preloadPictures, ProfilePicture } from './profile-picture'
 
 /**
  * Suggestions under a field: what the brand typed before, offered again as the user types. One
@@ -104,34 +104,138 @@ function useActive(rows: Row[], query: string, first: boolean) {
   return { index, move, set: (i: number) => setNav({ query, index: i }) }
 }
 
+/** The tallest a list grows; a longer one scrolls inside. */
+const MAX_LIST = 320
+/** A row with a name and a handle, and the list's own padding, for the height a list asks. */
+const ROW_PX = 50
+const LIST_PAD = 12
+/** Room for four rows and a half under the field is room enough: the list opens down, capped. */
+const ENOUGH = 240
+/** The least room a list is shown in: one row. */
+const MIN_LIST = 40
+
+interface Box {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
 /**
- * Where the list goes: under the field, as wide as it, inside the screen with a 16px edge. On a
- * phone the keyboard takes the bottom of the screen (the visual viewport ends above it): the list
- * stops there, and turns above the field when there is more room on that side.
+ * Where a list of `want` px goes beside a field, inside `area` (the screen, or the part of a
+ * dialog it must stay in). It opens down when it fits there, or when four rows and a half do. When it does not and the page can
+ * scroll (`room`, px), the page scrolls just enough (`scroll`) for it to fit down, so it never
+ * covers what is above the field. It turns up only when neither makes room and there is more
+ * room above. Either way its height is capped to the room on its side, and a long list scrolls.
  */
-export function usePlace(anchor: React.RefObject<HTMLElement | null>, open: boolean) {
+export function placeList({
+  field,
+  area,
+  screen,
+  want,
+  room = 0,
+  edge = 14,
+}: {
+  field: Box
+  area: Box
+  /** The page's width, for the 16px edge. */
+  screen: number
+  want: number
+  /** How far the page could scroll down to make room under the field; 0 inside a dialog. */
+  room?: number
+  /** The space kept to the edge of the area. */
+  edge?: number
+}): { place: React.CSSProperties; up: boolean; scroll: number } {
+  const need = Math.min(MAX_LIST, want)
+  const enough = Math.min(need, ENOUGH)
+  // A wide field still gets a list that reads at a glance: the meta stays near the name.
+  const left0 = Math.max(16, area.left)
+  const right0 = Math.min(screen - 16, area.right)
+  const width = Math.min(Math.max(field.right - field.left, 280), 400, Math.max(0, right0 - left0))
+  const left = Math.min(Math.max(field.left, left0), right0 - width)
+  const GAP = 6
+  const below = area.bottom - field.bottom - edge - GAP
+  const above = field.top - area.top - edge - GAP
+  // A scroll may not take the field out of sight, under the page's sticky header.
+  const scroll =
+    below < enough ? Math.max(0, Math.min(room, need - below, field.top - area.top - 96)) : 0
+  const down = below + scroll >= enough || above <= below
+  const shift = down ? scroll : 0
+  return {
+    up: !down,
+    scroll: shift,
+    place: {
+      left,
+      width,
+      maxHeight: Math.max(0, Math.min(need, down ? below + shift : above)),
+      ...(down
+        ? { top: field.bottom - shift + GAP }
+        : { bottom: window.innerHeight - field.top + GAP }),
+    },
+  }
+}
+
+/**
+ * Where the list goes: under the field, as wide as it, inside the screen with a 16px edge. Inside
+ * a dialog or a sheet it stays inside that box, or inside the closest `[data-suggest-bounds]`, so
+ * it never spills over the dimmed page or covers the dialog's buttons. On a phone the keyboard
+ * takes the bottom of the screen (the visual viewport ends above it): the list stops there.
+ * `rows` is how many rows it shows, for the height it asks (`placeList`). With `scroll`, the page
+ * may scroll once, as the list opens, to make room for it under the field; without, it never moves.
+ * A list with no room for one row is not shown.
+ */
+export function usePlace(
+  anchor: React.RefObject<HTMLElement | null>,
+  open: boolean,
+  {
+    rows = Math.floor(MAX_LIST / ROW_PX),
+    scroll = false,
+  }: { rows?: number; scroll?: boolean } = {},
+) {
   const [place, setPlace] = React.useState<React.CSSProperties | null>(null)
+  const want = rows * ROW_PX + LIST_PAD
+  // The page scrolls to make room once, when the list opens; not again while it stays open.
+  const opened = React.useRef(false)
   React.useLayoutEffect(() => {
-    if (!open) return
+    if (!open) {
+      opened.current = false
+      return
+    }
+    let first = !opened.current
+    opened.current = true
     function measure() {
-      const box = anchor.current?.getBoundingClientRect()
-      if (!box) return
+      const el = anchor.current
+      const box = el?.getBoundingClientRect()
+      if (!el || !box) return
       const view = window.visualViewport
       const top = view?.offsetTop ?? 0
       const bottom = top + (view?.height ?? window.innerHeight)
-      const screen = document.documentElement.clientWidth
-      // A wide field still gets a list that reads at a glance: the meta stays near the name.
-      const width = Math.min(Math.max(box.width, 280), 400, screen - 32)
-      const left = Math.min(Math.max(box.left, 16), screen - 16 - width)
-      const below = bottom - box.bottom - 14
-      const above = box.top - top - 14
-      const up = below < 180 && above > below
-      setPlace({
-        left,
-        width,
-        maxHeight: Math.min(320, up ? above : below),
-        ...(up ? { bottom: window.innerHeight - box.top + 6 } : { top: box.bottom + 6 }),
-      })
+      // Without the scroll bar; a page not laid out yet reads 0, so the window's width then.
+      const screen = document.documentElement.clientWidth || window.innerWidth
+      // The part it is bound to, and the dialog around it (which may scroll its content).
+      const frames = [el.closest('[data-suggest-bounds]'), el.closest('[role="dialog"]')]
+        .filter((f): f is Element => f !== null)
+        .map((f) => f.getBoundingClientRect())
+      const frame = frames.length > 0
+      const area = {
+        top: Math.max(top, ...frames.map((f) => f.top)),
+        bottom: Math.min(bottom, ...frames.map((f) => f.bottom)),
+        left: Math.max(0, ...frames.map((f) => f.left)),
+        right: Math.min(screen, ...frames.map((f) => f.right)),
+      }
+      // Only the page itself scrolls for it, and only with a mouse or a trackpad: not inside a
+      // dialog, nor on a touch screen, where the keyboard is about to take the bottom.
+      const fine = window.matchMedia?.('(pointer: fine)').matches ?? false
+      const page = document.scrollingElement ?? document.documentElement
+      const room =
+        scroll && first && !frame && fine
+          ? page.scrollHeight - window.scrollY - window.innerHeight
+          : 0
+      first = false
+      const at = placeList({ field: box, area, screen, want, room, edge: frame ? 8 : 14 })
+      if (at.scroll > 0) window.scrollBy({ top: at.scroll, behavior: 'instant' })
+      // Too little room for one row: an open list no one could see is no list.
+      setPlace((at.place.maxHeight as number) < MIN_LIST ? null : at.place)
     }
     measure()
     const view = window.visualViewport
@@ -145,7 +249,7 @@ export function usePlace(anchor: React.RefObject<HTMLElement | null>, open: bool
       view?.removeEventListener('resize', measure)
       view?.removeEventListener('scroll', measure)
     }
-  }, [anchor, open])
+  }, [anchor, open, want, scroll])
   return open ? place : null
 }
 
@@ -252,7 +356,9 @@ function List({
                   <ProfilePicture
                     src={row.picture}
                     size={28}
-                    className="rounded-full shadow-[inset_0_0_0_1px_var(--line)]"
+                    placeholder
+                    // A hairline over the picture, so a pale one keeps its round edge.
+                    className="rounded-full after:pointer-events-none after:absolute after:inset-0 after:rounded-full after:shadow-[inset_0_0_0_1px_var(--line)]"
                   >
                     <span
                       aria-hidden="true"
@@ -399,6 +505,7 @@ export function Combobox({
   limit,
   onRename,
   mark,
+  scroll,
   ...input
 }: {
   value: string
@@ -418,6 +525,8 @@ export function Combobox({
   onRename?: (handle: string, name: string | null) => void
   /** The small logo of the brand a row's person is linked to (`Suggestion.linkedTo`). */
   mark?: (brandId: string) => React.ReactNode
+  /** The page may scroll as the list opens, so it opens under the field (`usePlace`). */
+  scroll?: boolean
 } & Pick<
   React.InputHTMLAttributes<HTMLInputElement>,
   'aria-label' | 'placeholder' | 'className' | 'autoFocus'
@@ -440,7 +549,14 @@ export function Combobox({
   const typed = query.trim().toLowerCase()
   const exact = rows[0] !== undefined && rows[0].value.toLowerCase() === typed
   const active = useActive(rows, query, typed !== '' && (create !== undefined || exact))
-  const place = usePlace(anchor ?? own, open && rows.length > 0)
+  const place = usePlace(anchor ?? own, open && rows.length > 0, { rows: rows.length, scroll })
+  // The pictures of the rows the list opens with start loading as soon as they are known (the
+  // roster has loaded), so the list shows them at once instead of filling in.
+  const first = (idle ?? options)
+    .slice(0, limit ?? LIMIT)
+    .map((o) => o.picture ?? '')
+    .join(' ')
+  React.useEffect(() => preloadPictures(first.split(' ')), [first])
 
   // The list opens again with no row active, as it did the first time.
   function close() {
@@ -551,7 +667,7 @@ export function useMention({
   const rows = word ? rank(word.sigil === '@' ? people : hashtags, word.query) : []
   // Keyed by where the word starts too: a new word starts on its best match.
   const active = useActive(rows, word ? `${word.start}${word.sigil}${word.query}` : '', true)
-  const place = usePlace(ref, rows.length > 0)
+  const place = usePlace(ref, rows.length > 0, { rows: rows.length })
 
   React.useLayoutEffect(() => {
     if (caret.current === null) return
