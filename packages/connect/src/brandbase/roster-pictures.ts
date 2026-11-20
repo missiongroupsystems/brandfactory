@@ -22,8 +22,11 @@ import { viaMeta } from './meta-routes'
  * `gapMs`, and stops at Meta's first rate limit. The log holds counts only, never a handle.
  */
 
-/** Business Discovery's calls count against the Instagram account's hourly limit (200). */
-export const DEFAULT_LIMIT = 50
+/**
+ * Business Discovery's calls count against the Instagram account's hourly limit (about 200),
+ * which the brand's own reads (the Inbox, the Feed) share: a run takes a small part of it.
+ */
+export const DEFAULT_LIMIT = 30
 export const MAX_LIMIT = 150
 const DEFAULT_GAP_MS = 2_000
 /** A profile picture is small; anything larger is not one. */
@@ -78,6 +81,22 @@ export function rosterPictureRoutes(
 
   const move = (who: Who, op: string, input: Record<string, unknown>) =>
     call(core, { authorization: who.authorization, pack: PACK, op, input, internal: true })
+
+  /**
+   * The companies the caller is an owner or an admin of (`account.me`): only they start a picture
+   * run or bring in profiles, which spend the company's Meta calls and write its files.
+   */
+  async function managed(who: Who): Promise<string[]> {
+    const me = (await call(core, {
+      authorization: who.authorization,
+      pack: PACK,
+      op: 'account.me',
+      input: {},
+    })) as { companies?: { id: string; role: string }[] }
+    return (me.companies ?? [])
+      .filter((c) => c.role === 'owner' || c.role === 'admin')
+      .map((c) => c.id)
+  }
 
   /** The first of the caller's brands (or the one named) with Instagram linked through Meta. */
   async function linked(who: Who, brand: string | undefined) {
@@ -140,9 +159,34 @@ export function rosterPictureRoutes(
       void got?.body?.cancel().catch(() => undefined)
       return null
     }
+    // The type and the stated length first: nothing else is read.
     const mime = (got.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase()
-    const bytes = new Uint8Array(await got.arrayBuffer())
-    if (!TYPES.has(mime) || bytes.length === 0 || bytes.length > MAX_PICTURE_BYTES) return null
+    const stated = Number(got.headers.get('content-length') ?? NaN)
+    if (!TYPES.has(mime) || (Number.isFinite(stated) && stated > MAX_PICTURE_BYTES)) {
+      void got.body.cancel().catch(() => undefined)
+      return null
+    }
+    // Read with a cap: a body longer than it says is cut off at the cap.
+    const parts: Uint8Array[] = []
+    let size = 0
+    const reader = got.body.getReader()
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > MAX_PICTURE_BYTES) {
+        void reader.cancel().catch(() => undefined)
+        return null
+      }
+      parts.push(value)
+    }
+    if (size === 0) return null
+    const bytes = new Uint8Array(size)
+    let at = 0
+    for (const part of parts) {
+      bytes.set(part, at)
+      at += part.byteLength
+    }
     const made = (await move(
       who,
       'id' in due ? 'influencer.picture_file' : 'influencer.profile_file',
@@ -214,7 +258,9 @@ export function rosterPictureRoutes(
           await record(account, null, null, null)
           continue
         }
+        // Read again in 30 days, not first in every run: the run moves on to the others.
         run.failed++
+        await record(account, null, null, null).catch(() => undefined)
         continue
       }
       run.read++
@@ -234,14 +280,21 @@ export function rosterPictureRoutes(
 
   return new Hono()
     .post('/roster/profiles', async (c: Context) => {
-      // Profiles read elsewhere (the Production workflow's `roster-profiles` task, through
-      // Business Discovery): each picture is copied into our files from Meta's hosts, and the
+      // Profiles read elsewhere through Business Discovery (one JSON object a line, as a read
+      // made on the server prints them): each picture is copied into our files from Meta's hosts, and the
       // name fills only an empty one. A roster account is matched by its handle in the company;
       // any other handle is a saved account of the company.
       const who: Who = { authorization: c.req.header('authorization') }
       await authenticate(core.auth, who.authorization)
       const org = c.req.query('org') ?? ''
       if (!/^[A-Za-z0-9_-]{1,80}$/.test(org)) throw new Refused(400, 'VALIDATION', 'send org')
+      if (!(await managed(who)).includes(org)) {
+        throw new Refused(
+          403,
+          'FORBIDDEN',
+          "only the company's owners and admins bring in profiles",
+        )
+      }
       const body = (await c.req.json().catch(() => null)) as { profiles?: unknown } | null
       const list = Array.isArray(body?.profiles)
         ? (body.profiles as Record<string, unknown>[])
@@ -293,6 +346,13 @@ export function rosterPictureRoutes(
       if (!meta) throw new Refused(503, 'PLATFORM_OFF', 'Facebook and Instagram are not set up')
       const who: Who = { authorization: c.req.header('authorization') }
       await authenticate(core.auth, who.authorization)
+      if ((await managed(who)).length === 0) {
+        throw new Refused(
+          403,
+          'FORBIDDEN',
+          "only a company's owners and admins start a picture run",
+        )
+      }
       if (current) throw new Refused(409, 'RUNNING', 'a picture run is on its way')
       const asked = Number(c.req.query('limit') ?? DEFAULT_LIMIT)
       const limit =

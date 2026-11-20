@@ -9,6 +9,10 @@ const IG = '17841400000000001'
 const TOKEN = 'page-token'
 const PICTURE = 'https://scontent-sin6-1.cdninstagram.com/v/ana.jpg?oe=1'
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])
+const BOUNCE = 'https://scontent-sin6-1.cdninstagram.com/v/bounce.jpg'
+const HUGE = 'https://scontent-sin6-1.cdninstagram.com/v/huge.jpg'
+const STATED = 'https://scontent-sin6-1.cdninstagram.com/v/stated.jpg'
+const PAGE_NOT_IMAGE = 'https://scontent-sin6-1.cdninstagram.com/v/page.jpg'
 
 const files: Files = {
   secret: 'x'.repeat(32),
@@ -29,7 +33,7 @@ const files: Files = {
 function fakes() {
   const asked: string[] = []
   const stored: number[] = []
-  const state = { limited: false, picture: PICTURE as string | null }
+  const state = { limited: false, broken: false, picture: PICTURE as string | null }
   const json = (data: unknown, status = 200) => Response.json(data, { status })
   const graph = async (input: string | URL | Request) => {
     const url = new URL(String(input))
@@ -37,6 +41,7 @@ function fakes() {
     expect(url.searchParams.get('access_token')).toBe(TOKEN)
     const name = /username\(([^)]+)\)/.exec(url.searchParams.get('fields') ?? '')?.[1] ?? ''
     asked.push(name)
+    if (state.broken) return json({ error: { message: 'An unknown error occurred', code: 1 } }, 500)
     if (state.limited) {
       return json({ error: { message: 'Application request limit reached', code: 4 } }, 400)
     }
@@ -58,6 +63,22 @@ function fakes() {
   const media = async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url === PICTURE) return new Response(JPEG, { headers: { 'content-type': 'image/jpeg' } })
+    // Meta's host sending the read elsewhere, a picture larger than it says, and one too large.
+    if (url === BOUNCE) {
+      return new Response(null, { status: 302, headers: { location: 'https://evil.test/x.jpg' } })
+    }
+    if (url === HUGE) {
+      return new Response(new Uint8Array(6 * 1024 * 1024), {
+        headers: { 'content-type': 'image/jpeg' },
+      })
+    }
+    if (url === STATED) {
+      return new Response(JPEG, {
+        headers: { 'content-type': 'image/jpeg', 'content-length': String(9 * 1024 * 1024) },
+      })
+    }
+    if (url === PAGE_NOT_IMAGE)
+      return new Response('<html>', { headers: { 'content-type': 'text/html' } })
     if (url === 'https://storage.test/put' && init?.method === 'PUT') {
       stored.push((init.body as Uint8Array).length)
       return new Response(null, { status: 200 })
@@ -97,7 +118,7 @@ async function setUp({ linked = true } = {}) {
     insert into brandbase.influencer_accounts (influencer_id, org_id, position, platform, handle) values
       ('00000000-0000-4000-8000-00000000a002', 'co-a', 0, 'instagram', 'private.one');
   `)
-  const send = async (method: string, path: string, token = 'member') => {
+  const send = async (method: string, path: string, token = 'owner') => {
     const res = await server.request(path, {
       method,
       headers: { authorization: `Bearer ${token}` },
@@ -186,7 +207,7 @@ describe('the roster picture fetch', () => {
     const t = await setUp()
     const res = await t.server.request('/roster/profiles?org=co-a', {
       method: 'POST',
-      headers: { authorization: 'Bearer member', 'content-type': 'application/json' },
+      headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
       body: JSON.stringify({
         profiles: [
           { handle: 'ana.cooks', name: 'Ignored For A Person', followers: 13000, picture: PICTURE },
@@ -216,10 +237,11 @@ describe('the roster picture fetch', () => {
     ])
     const refused = await t.server.request('/roster/profiles?org=co-b', {
       method: 'POST',
-      headers: { authorization: 'Bearer member', 'content-type': 'application/json' },
+      headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
       body: JSON.stringify({ profiles: [{ handle: 'bentan', followers: 1 }] }),
     })
-    expect(await refused.json()).toMatchObject({ read: 0, failed: 1 })
+    // A company the caller does not manage is refused outright.
+    expect(refused.status).toBe(403)
   })
 
   it('does nothing without a brand linked through Meta, and refuses a caller with no account', async () => {
@@ -227,5 +249,43 @@ describe('the roster picture fetch', () => {
     expect(await t.runs()).toMatchObject({ stopped: 'no linked account', read: 0 })
     expect(t.asked).toEqual([])
     expect((await t.send('POST', '/roster/pictures', 'stranger')).status).not.toBe(202)
+  })
+
+  it('copies a picture only from Meta’s hosts, as an image, within 5 MB', async () => {
+    const t = await setUp()
+    const res = await t.server.request('/roster/profiles?org=co-a', {
+      method: 'POST',
+      headers: { authorization: 'Bearer owner', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        profiles: [
+          { handle: 'ana.cooks', picture: BOUNCE },
+          { handle: 'private.one', picture: 'https://evil.test/x.jpg' },
+          { handle: 'casanostrasg', picture: HUGE },
+          { handle: 'named.by.hand', picture: STATED },
+          { handle: 'other.one', picture: PAGE_NOT_IMAGE },
+        ],
+      }),
+    })
+    expect(await res.json()).toMatchObject({ read: 5, pictures: 0, noPicture: 5 })
+    expect(t.stored).toEqual([])
+  })
+
+  it('lets only a company’s owners and admins start a run or bring in profiles', async () => {
+    const t = await setUp()
+    expect((await t.send('POST', '/roster/pictures', 'member')).status).toBe(403)
+    const res = await t.server.request('/roster/profiles?org=co-a', {
+      method: 'POST',
+      headers: { authorization: 'Bearer member', 'content-type': 'application/json' },
+      body: JSON.stringify({ profiles: [] }),
+    })
+    expect(res.status).toBe(403)
+    expect(t.asked).toEqual([])
+  })
+
+  it('marks an account whose read failed as read, so the next run goes on to the others', async () => {
+    const t = await setUp()
+    t.state.broken = true
+    expect(await t.runs()).toMatchObject({ due: 4, read: 0, failed: 4 })
+    expect((await t.accounts()).every((a) => a.read)).toBe(true)
   })
 })

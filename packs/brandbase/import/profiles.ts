@@ -2,15 +2,15 @@
  * Brings Instagram profiles read through Business Discovery into a company's roster: each
  * picture is copied into our files by the server (Meta's addresses expire within days), the
  * followers are kept, and a name fills only an account that has none (a researched or a team name
- * stays). The profiles are the `PROFILE` lines of the Production workflow's `roster-profiles`
- * task, one JSON object a line: {handle, name, followers_count, profile_picture_url}.
+ * stays). The profiles are a Business Discovery read made on the server, one JSON object a line
+ * (a `PROFILE ` prefix is dropped): {handle, name, followers_count, profile_picture_url}.
  *
  *   CORE_URL=http://localhost:3013 CORE_TOKEN=admin@local \
  *     pnpm -F @brandfactory/pack-brandbase import-profiles --org <company> --file <profiles.jsonl>
  *     [--yes-production]
  *
  * It sends them to the server (`POST /roster/profiles`, packages/connect), 25 at a time, as the
- * signed-in person, and prints counts only. Run it soon after the read: an old picture address no
+ * signed-in person (an owner or admin of the company), and prints counts only. Run it soon after the read: an old picture address no
  * longer answers, and its account keeps its initials until the next read.
  */
 import { readFileSync } from 'node:fs'

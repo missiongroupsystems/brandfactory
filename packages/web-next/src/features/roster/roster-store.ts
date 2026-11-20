@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { DEMO_ROSTER, type RosterPerson } from '@/data/roster'
-import { CORE_URL, currentBrand, onAccount, push, remote, request } from '@/lib/remote'
+import { CORE_URL, currentBrand, onAccount, push, remote, request, settled } from '@/lib/remote'
 
 /**
  * The company's influencer roster: every person, their accounts and the brands they are linked
@@ -53,15 +53,28 @@ const withAddresses = (list: RosterPerson[]) =>
     })),
   }))
 
-export async function loadRoster() {
+/** Reads started, and changes made here: an answer older than either is not shown. */
+let reads = 0
+let changes = 0
+
+export async function loadRoster(): Promise<void> {
+  const read = ++reads
+  const before = changes
+  // After the changes on their way: a read must not put back what the screen moved past.
+  await settled()
   try {
     const [list, named] = await Promise.all([
       request<RosterPerson[]>('GET', '/roster'),
       request<HandleProfile[]>('GET', '/roster/profiles'),
     ])
+    // A newer read is on its way: it answers instead.
+    if (read !== reads) return
+    // Changed while this read was out: read again once the change is sent.
+    if (changes !== before) return loadRoster()
     people = withAddresses(list)
     profiles = named.map((p) => ({ ...p, picture: address(p.picture) }))
   } catch (err) {
+    if (read !== reads) return
     // A core still on brandbase 1.18.0 has no roster yet: the screens show none.
     console.error('roster', err)
     people = []
@@ -91,10 +104,11 @@ export function useProfiles(): HandleProfile[] {
 
 /**
  * Names a saved collaborator's account for the company (null takes the name away): the post
- * page's pickers and the Creators page show it at once.
+ * page's pickers show it at once.
  */
 export function nameHandle(orgId: string, handle: string, name: string | null) {
   const h = handle.replace(/^@+/, '').toLowerCase()
+  changes++
   const had = profiles.find((p) => p.orgId === orgId && p.handle === h)
   profiles = had
     ? profiles.map((p) => (p === had ? { ...p, name } : p))
@@ -117,6 +131,7 @@ export function useRosterLoaded(): boolean {
 }
 
 function change(id: string, update: (p: RosterPerson) => RosterPerson) {
+  changes++
   people = people.map((p) => (p.id === id ? update(p) : p))
   emit()
 }
@@ -133,21 +148,11 @@ function send(make: () => Promise<unknown>) {
   })
 }
 
-export type PersonEdit = Partial<Pick<RosterPerson, 'name' | 'category' | 'status' | 'notes'>>
+export type PersonEdit = Partial<Pick<RosterPerson, 'name'>>
 
 export function editPerson(id: string, edit: PersonEdit) {
   change(id, (p) => ({ ...p, ...edit }))
   send(() => request('PATCH', `/roster/${id}`, edit))
-}
-
-export function linkBrand(id: string, brand: string) {
-  change(id, (p) => (p.brands.includes(brand) ? p : { ...p, brands: [...p.brands, brand].sort() }))
-  send(() => request('PUT', `/roster/${id}/brands/${encodeURIComponent(brand)}`))
-}
-
-export function unlinkBrand(id: string, brand: string) {
-  change(id, (p) => ({ ...p, brands: p.brands.filter((b) => b !== brand) }))
-  send(() => request('DELETE', `/roster/${id}/brands/${encodeURIComponent(brand)}`))
 }
 
 /** Back to the demo's roster, for the tests. */

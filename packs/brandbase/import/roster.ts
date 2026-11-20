@@ -9,8 +9,10 @@
  * `<dir>` holds the old Supabase project's own exports: `influencers.csv`,
  * `influencer_accounts.csv`, `brands.csv` (id,name) and, if there is one, `influencer_brands.csv`.
  * They hold private notes: keep them out of git. Each person is written by their slug and each
- * account by its platform and handle, in mode update: each field the export holds is written over
- * the stored one, notes included, so a second run changes nothing.
+ * account by its platform and handle. By default (mode add) a new person or account is added with
+ * all it holds, notes included, and one already there stays as it is: a name fixed with the
+ * pencil, or notes the team wrote, are never written over. `--update` writes each field the export
+ * holds over the stored one. Either way a second run changes nothing.
  *
  * Brands: an old link (`influencer_brands.csv`) is mapped to our brand by the old brand's name
  * (Casa Vostra → casa-vostra), and a brand we do not have is skipped. Beside those, a person is
@@ -50,10 +52,11 @@ const org = value('--org')
 const csvDir = value('--csv')
 if (!org || !csvDir) {
   throw new Error(
-    'usage: import-roster --org <company> --csv <dir> [--names <file>] [--workspace <uuid>] [--dry-run] [--yes-production]',
+    'usage: import-roster --org <company> --csv <dir> [--update] [--names <file>] [--workspace <uuid>] [--dry-run] [--yes-production]',
   )
 }
 const dryRun = flag('--dry-run')
+const mode: 'add' | 'update' = flag('--update') ? 'update' : 'add'
 const core = (process.env.CORE_URL ?? 'http://localhost:3013').replace(/\/$/, '')
 if (!/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(core) && !flag('--yes-production')) {
   throw new Error(`${core} is not on this machine: add --yes-production to import into it`)
@@ -157,7 +160,7 @@ for (const p of people) {
       name: p.name,
       category: p.category,
       status: p.status,
-      mode: 'update',
+      mode,
       notes: p.notes ?? null,
       accounts: p.accounts,
     })

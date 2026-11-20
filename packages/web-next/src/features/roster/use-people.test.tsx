@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { DEMO_ROSTER } from '@/data/roster'
+
 import { resetRoster, useProfiles, useRoster } from './roster-store'
 import { usePeople } from './use-people'
 
@@ -32,5 +34,21 @@ describe('the people fields in the demo', () => {
         followers: null,
       },
     ])
+  })
+
+  it('offers only the people of the brand’s own company', () => {
+    const other = {
+      ...DEMO_ROSTER[0]!,
+      id: 'other-1',
+      orgId: 'other-company',
+      slug: 'other',
+      name: 'Other Company Person',
+      accounts: [{ ...DEMO_ROSTER[0]!.accounts[0]!, handle: 'othercompany.person' }],
+      brands: [],
+    }
+    resetRoster([...DEMO_ROSTER, other])
+    const { result } = fields('casa-vostra')
+    expect(result.current.api.all.some((r) => r.value === '@othercompany.person')).toBe(false)
+    expect(result.current.api.all.length).toBeGreaterThan(0)
   })
 })

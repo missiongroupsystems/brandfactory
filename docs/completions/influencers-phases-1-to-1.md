@@ -1,6 +1,6 @@
 # The influencer roster on the core: completion
 
-Plan: `docs/executing/influencers-plan.md` (it moves here once the code lands). Branch
+Plan: `docs/completions/influencers-plan.md`, beside this file. Branch
 `feat/influencers`, pack brandbase 1.19.0, migration `0029_influencers.sql` (additive, not applied
 to production). Not merged, released or deployed: the owner picks a layout first.
 
@@ -24,12 +24,17 @@ to production). Not merged, released or deployed: the owner picks a layout first
   - `influencer_json()` builds one person as the moves answer them.
 - Moves:
   - `influencer.list`, `influencer.read` and `influencer.edit` (name, category, status, notes).
-    A person's brands are their links for good, plus every brand with a post that names them now.
+    The list leaves the private notes out; `influencer.read` has them.
+    A person's brands are their links for good, plus every brand with an Instagram feed post or
+    reel that names them now (a story, or a post for Facebook alone, sends no collaborators or
+    tags, so it links nobody).
     The second kind follows the posts: when no post of the brand names them any more, the link
     goes.
-  - `post.publish_job` (a live job) and `post.mark` (marked posted) link each roster person the
-    post names to the brand for good (`source` `posted`), so a later edit does not remove it.
-  - `influencer.brand_link` and `influencer.brand_unlink`.
+  - `post.publish_job` (a live Instagram job of a feed post or a reel) and `post.mark` (marked
+    posted, for Instagram, not a story) link each roster person the post names to the brand for
+    good (`source` `posted`), so a later edit does not remove it.
+  - `influencer.brand_link` and `influencer.brand_unlink` (for the import; an unlink keeps a link a
+    post made).
   - `influencer.import` (owners and admins; by slug and handle; mode `add` keeps what is stored,
     mode `update` writes what it is given).
   - `influencer.profile_list` and `influencer.profile_name` (any member; `fill` names only an
@@ -48,7 +53,8 @@ to production). Not merged, released or deployed: the owner picks a layout first
 
 ```
 CORE_URL=… CORE_TOKEN=… pnpm -F @brandfactory/pack-brandbase import-roster --org <company> \
-  --csv <dir> [--names <handle-names.csv>] [--workspace <uuid>] [--dry-run] [--yes-production]
+  --csv <dir> [--update] [--names <handle-names.csv>] [--workspace <uuid>] [--dry-run] \
+  [--yes-production]
 ```
 
 - `<dir>` holds the old project's exports: `influencers.csv` (id, workspace_id, slug, name,
@@ -57,6 +63,9 @@ CORE_URL=… CORE_TOKEN=… pnpm -F @brandfactory/pack-brandbase import-roster -
   `influencer_brands.csv` is optional.
 - Each person is written by slug and each account by platform and handle, so a second run adds
   nothing (checked locally: "0 people added, 146 already there").
+- By default a person or an account already stored stays as it is: a name fixed with the pencil
+  and notes the team wrote are never written over. `--update` writes the export's fields over the
+  stored ones.
 - Old brand links map by brand name (Casa Vostra → `casa-vostra`), and a brand we do not have is
   skipped.
 - Besides those, a person is linked to each brand whose saved collaborators hold their Instagram or
@@ -71,12 +80,15 @@ CORE_URL=… CORE_TOKEN=… pnpm -F @brandfactory/pack-brandbase import-roster -
 
 ### Pictures (`packages/connect/src/brandbase/roster-pictures.ts`)
 
-- `POST /roster/pictures?limit=N[&brand=id]` starts one run in the background, as the caller. It
-  reads up to `limit` due accounts (default 50, at most 150). Each one is one Business Discovery
+- `POST /roster/pictures?limit=N[&brand=id]` starts one run in the background, as the caller, who
+  must be an owner or admin of a company. It reads up to `limit` due accounts (default 30, at
+  most 150: the brand's own reads share its hourly Business Discovery limit). Each one is one Business Discovery
   call (`name,profile_picture_url,followers_count`) through the first brand the caller reaches
   whose Instagram is linked through our Meta app. The calls are 2 seconds apart, and the run stops
   at Meta's first rate limit.
-- The picture is read only from Meta's hosts (redirects checked), at most 5 MB, JPEG, PNG or WebP.
+- The picture is read only from Meta's hosts (redirects checked), JPEG, PNG or WebP. Its type and
+  stated length are checked before its body is read, and the body is read with a 5 MB cap.
+- An account whose read fails is marked read too, so the next run goes on to the others.
   It is copied into the core's files, and its path is kept.
 - An account Business Discovery does not find is marked read, so it is not asked again for 30
   days, and it keeps its initials.
@@ -84,13 +96,14 @@ CORE_URL=… CORE_TOKEN=… pnpm -F @brandfactory/pack-brandbase import-roster -
   only.
 - The Production workflow's new task `roster-pictures` (input `limit`) signs in as the release
   person, starts the run and polls it until it ends.
-- Profiles read elsewhere: `POST /roster/profiles?org=<company>` takes up to 150 profiles at a
+- Profiles read elsewhere: `POST /roster/profiles?org=<company>` (the company's owners and
+  admins only) takes up to 150 profiles at a
   time ({handle, name, followers, picture}). For each one it copies the picture from Meta's hosts
   only, keeps the followers, and fills the name only where none is stored. A roster account is
   matched by its handle in the company; any other handle is a saved account.
 - `pnpm -F @brandfactory/pack-brandbase import-profiles --org <company> --file <profiles.jsonl>`
-  sends the `PROFILE` lines of a Business Discovery read to that route, 25 at a time, and prints
-  counts only.
+  sends the profiles of a Business Discovery read made on the server (one JSON object a line) to
+  that route, 25 at a time, and prints counts only.
 - Locally, it read all 164 profiles of the owner's read and copied 164 pictures. The read covered
   127 of the 139 roster Instagram handles and 37 of the 38 saved handles.
 - Run it soon after the read: Meta's picture addresses expire within days.
@@ -135,15 +148,15 @@ The files are in the session's scratchpad (`roster-shots/final2/`) and are not c
 ### Gate
 
 - Typecheck, lint, format and the web build pass.
-- Tests: 1816 by count. 1535 pass and 280 are skipped without a Postgres server.
-- One test fails: `posted-remote.test.tsx` ("the feed on the core"). It fails the same way on
-  `origin/main` at c0dd4d4, and it is not in this change.
-- The pack's tests also pass on Postgres 16 (`scripts/test-pg.sh src/packs.test.ts`).
+- Tests: 1823 by count. 1543 pass and 280 are skipped without a Postgres server.
+- `posted-remote.test.tsx` failed on `origin/main` too: the Feed counts the last 30 days by the
+  real clock and its posts are of October. It now runs on a fixed clock.
+- The pack's tests also pass on Postgres 16 (`scripts/test-pg.sh src/packs.test.ts`: 488 of 488).
 
 ### Left
 
 - Release pack 1.19.0, then deploy the server.
 - Run the import against production with the owner's exports and `--names`.
-- Run `import-profiles` with a fresh `roster-profiles` read, or run the `roster-pictures` task.
+- Run the `roster-pictures` task, or `import-profiles` with a fresh Business Discovery read.
 - Editing a person's status, notes or accounts from the UI (the moves exist; no screen yet),
   unlinking a brand from the UI, and removing a saved collaborator.

@@ -1,6 +1,6 @@
 {
   "name": "influencer.brand_unlink",
-  "description": "Takes a brand off a person's links; not linked, nothing changes. Answers the ids of the person's brands.",
+  "description": "Takes a brand off a person's links made by the import; a link a post that went out made stays, and so does one a saved post makes. Not linked, nothing changes. Answers the ids of the person's brands linked for good.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -18,5 +18,5 @@
   },
   "before": ["influencer.found", "brand.reachable"],
   "returns": "one",
-  "sql": "with gone as (\n  delete from brandbase.influencer_brands l where l.influencer_id = :id::uuid and l.brand_id = :brand\n  returning l.brand_id\n)\nselect jsonb_build_object('id', :id::uuid, 'brands', coalesce((select jsonb_agg(l.brand_id order by l.brand_id) from brandbase.influencer_brands l where l.influencer_id = :id::uuid and l.brand_id not in (select g.brand_id from gone g)), '[]'::jsonb)) as result"
+  "sql": "with gone as (\n  delete from brandbase.influencer_brands l where l.influencer_id = :id::uuid and l.brand_id = :brand and l.source <> 'posted'\n  returning l.brand_id\n)\nselect jsonb_build_object('id', :id::uuid, 'brands', coalesce((select jsonb_agg(l.brand_id order by l.brand_id) from brandbase.influencer_brands l where l.influencer_id = :id::uuid and l.brand_id not in (select g.brand_id from gone g)), '[]'::jsonb)) as result"
 }

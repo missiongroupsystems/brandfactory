@@ -18,7 +18,6 @@
                 "name": "Ana Lee",
                 "category": "food",
                 "status": "active",
-                "notes": "Cooks at home.",
                 "accounts": [
                   {
                     "platform": "instagram",
@@ -1076,6 +1075,7 @@
             "id": "d1",
             "format": "carousel",
             "hook": "One",
+            "channels": ["ig"],
             "draft": {
               "details": {
                 "collab": ["@Ana.Cooks"]
@@ -1101,6 +1101,7 @@
             "id": "d2",
             "format": "carousel",
             "hook": "Two",
+            "channels": ["ig"],
             "media": [
               {
                 "src": "/photos/a.jpg",
@@ -1132,6 +1133,7 @@
             "id": "d3",
             "format": "carousel",
             "hook": "Three",
+            "channels": ["ig"],
             "draft": {
               "details": {
                 "collab": ["@ana.cooks"]
@@ -1226,12 +1228,72 @@
         },
         {
           "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Story",
+            "channels": ["ig"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "format": "carousel",
+            "hook": "Facebook",
+            "channels": ["fb"],
+            "draft": {
+              "details": {
+                "collab": ["@ana.cooks"]
+              }
+            }
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "brands": []
+            }
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "stage": "posted"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.influencer_brands",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.create_draft",
           "as": "both",
           "input": {
             "brand": "temper",
             "id": "t1",
             "format": "carousel",
             "hook": "Four",
+            "channels": ["ig"],
             "draft": {
               "details": {
                 "collab": ["@ana.cooks"]

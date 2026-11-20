@@ -56,7 +56,7 @@ const fold = (text: string) => text.toLowerCase().replace(/^[@#]/, '')
  * The suggestions that match what was typed, best first: a value or a name that starts with it
  * (or a word of the name that does), then one that only contains it. The order of `options` is
  * the brand's own, recent and frequent first, and breaks every tie. A row's `tier` comes before
- * all of that. Nothing typed keeps the order whole.
+ * all of that, and the value typed in full before the tiers. Nothing typed keeps the order whole.
  */
 export function rank(options: Suggestion[], typed: string, limit = LIMIT): Suggestion[] {
   const q = fold(typed.trim())
@@ -71,12 +71,21 @@ export function rank(options: Suggestion[], typed: string, limit = LIMIT): Sugge
     if (value.includes(q) || (tight && value.includes(tight)) || name.includes(q)) return 1
     return 2
   }
-  return options
-    .map((o, i) => ({ o, i, s: score(o) }))
-    .filter((x) => x.s < 2)
-    .sort((a, b) => (a.o.tier ?? 0) - (b.o.tier ?? 0) || a.s - b.s || a.i - b.i)
-    .slice(0, limit)
-    .map((x) => x.o)
+  return (
+    options
+      .map((o, i) => ({ o, i, s: score(o) }))
+      .filter((x) => x.s < 2)
+      // The value typed in full comes first, whatever its tier: Enter then takes what was typed.
+      .sort(
+        (a, b) =>
+          Number(fold(b.o.value) === q) - Number(fold(a.o.value) === q) ||
+          (a.o.tier ?? 0) - (b.o.tier ?? 0) ||
+          a.s - b.s ||
+          a.i - b.i,
+      )
+      .slice(0, limit)
+      .map((x) => x.o)
+  )
 }
 
 /**
@@ -260,10 +269,11 @@ function List({
                   <NameField
                     handle={row.rename}
                     start={row.name && row.name !== row.rename ? row.name : ''}
-                    onDone={(next) => {
+                    onDone={(next, back) => {
                       setNaming(null)
                       if (next !== undefined) onRename?.(row.rename!, next)
-                      onBack?.()
+                      // Enter or Escape goes back to the field; a name left for elsewhere does not.
+                      if (back) onBack?.()
                     }}
                   />
                 ) : (
@@ -332,8 +342,11 @@ function NameField({
 }: {
   handle: string
   start: string
-  /** The name to save (null for none), or undefined when nothing changes. */
-  onDone: (name: string | null | undefined) => void
+  /**
+   * The name to save (null for none), or undefined when nothing changes; `back` when a key ended
+   * it (Enter, Escape), so the focus goes back to the field.
+   */
+  onDone: (name: string | null | undefined, back: boolean) => void
 }) {
   const [value, setValue] = React.useState(start)
   const field = React.useRef<HTMLInputElement>(null)
@@ -352,14 +365,14 @@ function NameField({
           e.preventDefault()
           e.stopPropagation()
           const next = value.trim()
-          onDone(next === start ? undefined : next || null)
+          onDone(next === start ? undefined : next || null, true)
         } else if (e.key === 'Escape') {
           e.preventDefault()
           e.stopPropagation()
-          onDone(undefined)
+          onDone(undefined, true)
         }
       }}
-      onBlur={() => onDone(undefined)}
+      onBlur={() => onDone(undefined, false)}
       aria-label={`Name for @${handle}`}
       placeholder={handle}
       maxLength={200}

@@ -15,9 +15,11 @@ import { editPerson, nameHandle, useOrgOf, useProfiles, useRoster } from './rost
  * core derives it: `influencer.list`), so a pick links nothing here.
  */
 export function usePeople(brandId: string) {
-  const roster = useRoster()
+  const everyone = useRoster()
   const saved = useCollaborators(brandId, 'ig')
   const org = useOrgOf()(brandId)
+  // The brand's own company's people only: a picked name or a fixed one is that company's.
+  const roster = everyone.filter((p) => p.orgId === org)
   const profiles = useProfiles()
   const names = new Map(profiles.filter((p) => p.orgId === org).map((p) => [p.handle, p]))
   return {

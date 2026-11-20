@@ -35,8 +35,8 @@ export interface RosterPerson {
   /** What they make content about: food, fashion, parenting… */
   category: string | null
   status: RosterStatus
-  /** The team's own notes: rates, replies, who to ask. Never published. */
-  notes: string
+  /** The team's own notes: rates, replies, who to ask. Never published; not in the list. */
+  notes?: string
   /** The first is the account they are known by. */
   accounts: RosterAccount[]
   /** The ids of the brands they are linked to. */
