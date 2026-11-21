@@ -56,8 +56,16 @@ export type Own = {
  */
 export function filesFor(media: File[], channel: string): File[] {
   if (channel !== 'fb') return media
-  return media.map((f) => ('missing' in f || !f.source ? f : f.source))
+  return media.map((f) =>
+    'missing' in f || !f.source || (f.source.bytes ?? 0) > SOURCE_MAX_BYTES ? f : f.source,
+  )
 }
+
+/**
+ * The largest source Facebook is sent: a whole photo larger than this (a camera's raw PNG) may be
+ * refused, so the Page gets the cut instead (at most 1440 px, as Instagram does).
+ */
+export const SOURCE_MAX_BYTES = 8 * 1024 * 1024
 
 /** What the Make scenario gets (the plan's contract). */
 export interface MakeRequest {

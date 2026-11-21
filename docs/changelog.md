@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.75.1** — 2026-11-21 — `fix/facebook-uncut`: Facebook gets the whole photo (or the person's own crop), never the cut the post makes by itself to the part Instagram shows; Instagram keeps that cut, which its tags are fractions of (pack 1.20.0, migration `0030_post_file_source.sql`, additive). 1870 tests by count: 1589 pass, 281 skipped without a Postgres server.
+- **2.75.1** — 2026-11-21 — `fix/facebook-uncut`: Facebook gets the whole photo (or the person's own crop), never the cut the post makes by itself to the part Instagram shows; Instagram keeps that cut, which its tags are fractions of (pack 1.20.0, migration `0030_post_file_source.sql`, additive). 1873 tests by count: 1592 pass, 281 skipped without a Postgres server.
 - **2.75.0** — 2026-11-21 — `fix/tag-crop`: the tag editor, the phone preview and the photos a post sends show the same frame, the one Instagram shows: a feed photo between 4:5 and 1.91:1 whole, one outside it as its centred part in the nearest of those shapes (sent as that cut), and in a carousel every slide in the first slide's shape (believed, not verified: `CAROUSEL_TAKES_FIRST_SHAPE`). Tags stay on their spot of the photo when the frame changes; a tag the new frame leaves out is removed, with one quiet line. A tag's arrow points at its spot. No server or pack change. 1862 tests by count: 1582 pass, 280 skipped without a Postgres server.
 - **2.74.2** — 2026-11-21 — `fix/list-cap`: the post page (new and edit) is on the app's own white (`--page`), as the Schedule behind it, where it was on the warmer `--surface-2`; its header matches. The cards keep their hairline edge and their grey fields. The suggestion lists (Collaborators, Tag people, and every list of the same kind) end on a whole row, with a soft fade on an edge that has more rows past it. No server or pack change. 1847 tests by count: 1567 pass, 280 skipped without a Postgres server.
 - **2.74.1** — 2026-11-20 — `fix/people-picker`: the post page's people pickers, after a live check. Avatars are kept as 160px WebP thumbnails (a few KB, not Meta's 1080px originals), start loading before the list opens, are cached by the browser for an hour, and show the initials until they load. The Tag people list stays inside its dialog, clear of Done; Collaborators opens down (the page scrolls to make room, for this field only) and turns up only when nothing makes room; a shut More options is hidden and inert, and keeps what was typed in it. No pack change. 1844 tests by count: 1564 pass, 280 skipped without a Postgres server.
@@ -174,9 +174,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Web.** A save names the source only for a photo the post cut by itself beyond the person's
   choice: the whole photo (already the post's own file, so nothing more is uploaded), or the
   person's crop, cut and uploaded once. A photo Instagram shows as it is names none.
-- **Known limit.** The idea page's photo picker writes a planned post's files without a source;
-  Facebook then gets the cut, as before this change.
-- **Tests:** 1870 by count: 1589 pass and 281 are skipped without a Postgres server. The pack's tests pass on Postgres 16. Typecheck, lint, format and the web build
+- **Review fixes (round 1).** The person's crop cut for Facebook is kept with the post
+  (`draft.shots[].source`) and known again when the post opens, so a save with no change sends
+  the same files and a yes already given still matches. A save that a core on a pack before 1.20.0
+  refuses only for `source` goes again without it, so the window between the web deploy and the
+  pack release saves as 2.75.0 did (Facebook gets the cut). Facebook gets the cut, not the source,
+  when the source is over 8 MB (`SOURCE_MAX_BYTES`).
+- **Known limits.** The idea page's photo picker writes a planned post's files without a source;
+  Facebook then gets the cut, as before this change. A save that adds a source changes every
+  account's files, so a scheduled post's yes is given again (as for any change of its files). A
+  whole photo goes to Facebook as uploaded, up to 8 MB, not as a smaller copy. A replaced source cut
+  stays in storage, as replaced cuts already do.
+- **Tests:** 1873 by count: 1592 pass and 281 are skipped without a Postgres server. The pack's tests pass on Postgres 16. Typecheck, lint, format and the web build
   pass. End to end (the core, the pack, the scheduler and a stand-in for Graph): the Page's photos
   are the whole photo and the second slide, Instagram's are the cut and the second slide.
 

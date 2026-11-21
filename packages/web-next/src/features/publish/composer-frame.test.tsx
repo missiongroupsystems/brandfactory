@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -22,7 +22,16 @@ const sent = vi.fn(
     new Promise<string | null>((resolve) => (answer = resolve)),
 )
 const bodies: Array<{ call: string; body: unknown }> = []
-const core = vi.hoisted(() => ({ loaded: false, shots: null as unknown }))
+const core = vi.hoisted(() => ({
+  loaded: false,
+  shots: null as unknown,
+  media: null as unknown,
+  /**
+   * A refusal of the save's media: `source` as a core on a pack before 1.20.0 refuses it, or
+   * another property, which no save may get past.
+   */
+  refuse: null as null | 'source' | 'other',
+}))
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   return {
@@ -31,6 +40,20 @@ vi.mock('@/lib/remote', async (original) => {
     sent: (brandId: string, send: () => Promise<unknown>) => sent(brandId, send),
     request: async (method: string, path: string, body?: unknown) => {
       bodies.push({ call: `${method} ${path}`, body })
+      const media = (body as { media?: Array<{ source?: string }> } | undefined)?.media
+      const named = core.refuse === 'other' || media?.some((m) => m.source !== undefined)
+      if (core.refuse && method === 'PATCH' && named) {
+        const { RemoteError } = await import('@/lib/remote')
+        const at = (media ?? []).findIndex((m) => m.source !== undefined)
+        throw new RemoteError(400, 'VALIDATION', 'validation failed', [
+          {
+            instancePath: `/media/${at}`,
+            keyword: 'additionalProperties',
+            params: { additionalProperty: core.refuse },
+            message: 'must NOT have additional properties',
+          },
+        ])
+      }
       return {}
     },
     push: vi.fn(),
@@ -42,6 +65,10 @@ vi.mock('@/lib/remote', async (original) => {
       if (core.shots) {
         const p = state.posts.find((x) => x.id === 'ravioli') as { draft: unknown }
         p.draft = { shots: core.shots }
+      }
+      if (core.media) {
+        const p = state.posts.find((x) => x.id === 'ravioli') as { media: unknown }
+        p.media = core.media
       }
       hydrate('casa-vostra', state)
       return () => undefined
@@ -78,13 +105,22 @@ vi.mock('./shot', async (original) => ({
     }),
 }))
 // The cuts a save makes, by the part of each photo.
+// The cuts a save makes, by the part of each photo; as in the browser, one tab cuts the same part
+// of a photo once, and a cut the post already has is known (`knownCut`). A new tab knows none.
 const cuts = vi.hoisted(() => [] as Array<{ src: string; box: Box }>)
+const known = vi.hoisted(() => new Map<string, string>())
+const partKey = (src: string, box: Box) =>
+  [src, ...[box.left, box.top, box.width, box.height].map((v) => v.toFixed(6))].join('|')
 vi.mock('./cut', () => ({
   cutPhoto: async (_b: string, src: string, box: Box) => {
+    const had = known.get(partKey(src, box))
+    if (had) return had
     cuts.push({ src, box })
-    return `https://core.test/files/s/brandbase/cut-${cuts.length}.jpg`
+    const made = `https://core.test/files/s/brandbase/cut-${cuts.length}.jpg`
+    known.set(partKey(src, box), made)
+    return made
   },
-  knownCut: () => undefined,
+  knownCut: (src: string, box: Box, cut: string) => known.set(partKey(src, box), cut),
 }))
 vi.stubGlobal('matchMedia', () => ({
   matches: false,
@@ -106,7 +142,10 @@ beforeEach(() => {
   sent.mockClear()
   bodies.length = 0
   cuts.length = 0
+  known.clear()
   core.shots = null
+  core.media = null
+  core.refuse = null
   shapes.ratio = 9 / 16
   shapes.hold = false
   shapes.broken = false
@@ -127,11 +166,17 @@ const [frame] = feedFrames(
 )
 const tagged = [{ handle: '@ana', at: { x: 0.5, y: 0.9 } }]
 
+/** The post as the app opens it: from the brand's state, as the server keeps it. */
+function Opened() {
+  const post = useBrand().byId('ravioli')!
+  return <Composer post={{ ...post, channels: [...ravioli.channels] }} />
+}
+
 async function open() {
   render(
     <BrandProvider>
       <Loaded>
-        <Composer post={{ ...ravioli, channels: [...ravioli.channels] }} />
+        <Opened />
       </Loaded>
     </BrandProvider>,
   )
@@ -265,5 +310,53 @@ describe('what Facebook gets of a photo the post cut by itself', () => {
     await save()
     expect(cuts).toEqual([])
     expect(sentMedia().every((m) => m.source === undefined)).toBe(true)
+  })
+})
+
+describe('a post opened again and saved with no change', () => {
+  it('sends the same files, so the yes given for them still matches', async () => {
+    // The second photo carries the person's own crop, and Instagram cuts it further to 4:5.
+    const tall = { aspect: '9:16' as const, zoom: 1.5, x: 0, y: 0, ratio: 9 / 16 }
+    core.shots = [
+      { crop: null, tags: [] },
+      { crop: tall, tags: [] },
+    ]
+    await open()
+    await save()
+    const first = {
+      media: sentMedia(),
+      shots: (bodies.at(-1)!.body as { draft: { shots: unknown } }).draft.shots,
+    }
+    expect(first.media[1]!.source).toMatch(/cut-\d+\.jpg$/)
+    // A new tab: the post as the server keeps it, and no cut known yet.
+    cleanup()
+    known.clear()
+    bodies.length = 0
+    core.media = first.media.map((m) => ({ ...m, kind: 'photo' }))
+    core.shots = first.shots
+    await open()
+    await save()
+    expect(sentMedia()).toEqual(first.media)
+  })
+})
+
+describe('a save to a core whose pack does not take a source yet', () => {
+  it('saves again without it, so the post saves as before and Facebook gets the cut', async () => {
+    core.refuse = 'source'
+    await open()
+    await save()
+    const patches = bodies.filter((b) => b.call === 'PATCH /brands/casa-vostra/posts/ravioli')
+    expect(patches).toHaveLength(2)
+    const media = (patches[1]!.body as { media: Array<{ src: string; source?: string }> }).media
+    expect(media.every((m) => m.source === undefined)).toBe(true)
+    expect(media[0]!.src).toMatch(/cut-\d+\.jpg$/)
+  })
+
+  it('does not try again for any other refusal', async () => {
+    core.refuse = 'other'
+    await open()
+    fireEvent.click(screen.getAllByRole('button', { name: /^Save/ })[0]!)
+    await expect(sent.mock.calls.at(-1)![1]()).rejects.toMatchObject({ code: 'VALIDATION' })
+    expect(bodies.filter((b) => b.call.startsWith('PATCH'))).toHaveLength(1)
   })
 })

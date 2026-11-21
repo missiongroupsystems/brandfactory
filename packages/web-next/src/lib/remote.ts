@@ -267,6 +267,8 @@ export class RemoteError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /** What the core said of the refusal, when it said more: a validation's errors. */
+    readonly details?: unknown,
   ) {
     super(message)
   }
@@ -326,7 +328,12 @@ async function answer<T>(
       writeSession(null)
       if (typeof window !== 'undefined') window.location.assign('/sign-in')
     }
-    throw new RemoteError(res.status, data?.code ?? 'ERROR', data?.message ?? res.statusText)
+    throw new RemoteError(
+      res.status,
+      data?.code ?? 'ERROR',
+      data?.message ?? res.statusText,
+      data?.details,
+    )
   }
   return data as T
 }

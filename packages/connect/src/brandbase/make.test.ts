@@ -2,7 +2,7 @@ import { type Files } from '@brandfactory/core/src/files'
 import { tick } from '@brandfactory/core/src/scheduler'
 import { describe, expect, it } from 'vitest'
 import { platformsFromEnv } from './env'
-import { filesFor, type MakeApp, type MakeRequest, socialConnector } from './make'
+import { filesFor, type MakeApp, type MakeRequest, socialConnector, SOURCE_MAX_BYTES } from './make'
 import { serve } from './test-core'
 
 const SIG = 'A'.repeat(43)
@@ -390,9 +390,13 @@ describe('Instagram and Facebook through Make', () => {
     expect(urls[1]).toEqual([
       `https://storage.test/${JPG}?ttl=7200`,
       `https://storage.test/${JPG2}?ttl=7200`,
-    ]) // Every other account takes the files as they are: TikTok too.
+    ])
+    // Every other account takes the files as they are: TikTok too.
     expect(filesFor(media, 'tt')).toBe(media)
     expect(filesFor(media, 'ig')).toBe(media)
+    // A source too large for Facebook to be sure to take: the Page gets the cut.
+    const huge = [{ ...media[0]!, source: { ...media[0]!.source!, bytes: SOURCE_MAX_BYTES + 1 } }]
+    expect(filesFor(huge, 'fb')).toEqual([huge[0]])
   })
 
   it('reads Make’s answer: refused, not run, or unknown, each in words', async () => {
