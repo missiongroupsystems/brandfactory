@@ -438,6 +438,9 @@ describe('Instagram and Facebook through Make', () => {
     // Nor to a source that is no photo.
     const clip = sourced({ kind: 'video', mime: 'video/mp4' })
     expect(fb(clip)).toBe(clip[0])
+    // A source named a video gives the cut, whatever type it says it is.
+    const named = sourced({ kind: 'video', mime: 'image/jpeg' })
+    expect(fb(named)).toBe(named[0])
   })
 
   it('sends Instagram the cut, not a source the job carries', async () => {
