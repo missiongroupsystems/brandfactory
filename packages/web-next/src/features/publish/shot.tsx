@@ -72,12 +72,18 @@ export function Boxed({ src, shown, sizes }: { src: string; shown: Shown; sizes:
   )
 }
 
-/** A photo's width over its height, once it has loaded; square if it cannot load. */
-export function ratioOf(src: string): Promise<number> {
+/**
+ * A photo's width over its height, once it has loaded; null when it cannot load, so a photo that
+ * did not load is never framed, cut or retagged on a guessed shape.
+ */
+export function ratioOf(src: string): Promise<number | null> {
   return new Promise((resolve) => {
     const img = new window.Image()
-    img.onload = () => resolve(img.naturalWidth / img.naturalHeight)
-    img.onerror = () => resolve(1)
+    img.onload = () =>
+      resolve(
+        img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : null,
+      )
+    img.onerror = () => resolve(null)
     img.src = src
   })
 }

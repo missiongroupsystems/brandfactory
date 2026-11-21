@@ -511,6 +511,9 @@ function InstagramNav({ on }: { on: 'home' | 'reels' }) {
   )
 }
 
+/** Below this share of the photo's height, a tag's label sits above its arrow (as the editor). */
+const LOW = 0.8
+
 /**
  * The box tags sit in: the part of the photo Instagram shows, letterboxed as `Boxed` draws it, or
  * the crop's frame, or the whole area.
@@ -578,14 +581,22 @@ function InstagramPost({
                 // The arrow points at the spot; the label, near an edge, stays inside the photo.
                 <Fragment key={t.handle}>
                   <span
-                    className="absolute size-0 -translate-x-1/2 border-x-[3px] border-b-[3px] border-x-transparent border-b-black/80"
-                    style={{ left: `${t.at.x * 100}%`, top: `${t.at.y * 100}%` }}
+                    className={`absolute size-0 -translate-x-1/2 border-x-[3px] border-x-transparent ${t.at.y > LOW ? 'border-t-[3px] border-t-black/80' : 'border-b-[3px] border-b-black/80'}`}
+                    style={{
+                      left: `${t.at.x * 100}%`,
+                      top: t.at.y > LOW ? `calc(${t.at.y * 100}% - 3px)` : `${t.at.y * 100}%`,
+                    }}
                   />
                   <span
                     className="absolute -translate-x-1/2 rounded-[3px] bg-black/80 px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-white"
                     style={{
                       left: `${Math.min(80, Math.max(20, t.at.x * 100))}%`,
-                      top: `calc(${t.at.y * 100}% + 3px)`,
+                      top:
+                        t.at.y > LOW
+                          ? `calc(${t.at.y * 100}% - 3px)`
+                          : `calc(${t.at.y * 100}% + 3px)`,
+                      // Near the bottom, the label sits above the arrow, inside the photo.
+                      ...(t.at.y > LOW && { translate: '-50% -100%' }),
                     }}
                   >
                     {t.handle.slice(1)}

@@ -472,6 +472,9 @@ export function feedFrames(
   // Until every photo is measured, no frame: a slide's shape can hang on the first's.
   if (own.some((o, i) => o === null && !video(shots[i]!.src))) return shots.map(() => null)
   const fit = (r: number) => Math.min(FEED_SHAPE.max, Math.max(FEED_SHAPE.min, r))
+  // A carousel whose first slide is a video: its shape is not measured here, so each photo keeps
+  // its own (fitted) shape. Instagram may set the carousel's shape from the video too; that sits
+  // with CAROUSEL_TAKES_FIRST_SHAPE and needs the same live check.
   const first = own[0] ? fit(boxRatio(own[0].base, own[0].photo)) : null
   return own.map((o, i) => {
     if (!o) return null
@@ -514,6 +517,8 @@ export function retag(tags: Tag[], from: Box, to: Box): { tags: Tag[]; removed: 
  * and the ones left out are named in `removed`.
  */
 export function reframe(shots: Shot[], frames: (Shown | null)[]): Shot[] | null {
+  // A tag taken off stays off: putting the slides back in their order, or the crop back, does not
+  // bring it back (the line under Tag people says it went, so the person can tag again).
   let changed = false
   const next = shots.map((s, i) => {
     const frame = frames[i]
