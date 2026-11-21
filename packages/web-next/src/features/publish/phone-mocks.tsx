@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 
 import { isVideo } from '@/components/media'
 import { ProfilePicture } from '@/components/profile-picture'
@@ -7,7 +7,7 @@ import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
-import { collabHeader, frameRatio, type ChannelKey, type Crop, type Shot, type Tag } from './model'
+import { boxRatio, collabHeader, frameRatio, type ChannelKey, type Shot, type Tag } from './model'
 import {
   Carousel,
   Dots,
@@ -511,10 +511,14 @@ function InstagramNav({ on }: { on: 'home' | 'reels' }) {
   )
 }
 
-/** The box tags sit in: the crop's frame, letterboxed as `Framed` draws it, or the whole area. */
-function TagLayer({ crop, children }: { crop: Crop | null; children: ReactNode }) {
-  if (!crop) return <>{children}</>
-  const ratio = frameRatio(crop)
+/**
+ * The box tags sit in: the part of the photo Instagram shows, letterboxed as `Boxed` draws it, or
+ * the crop's frame, or the whole area.
+ */
+function TagLayer({ shot, children }: { shot: Shot | undefined; children: ReactNode }) {
+  const crop = shot?.crop ?? null
+  if (!shot?.shown && !crop) return <>{children}</>
+  const ratio = shot?.shown ? boxRatio(shot.shown.box, shot.shown.photo) : frameRatio(crop!)
   return (
     <span className="pointer-events-none absolute inset-0 flex items-center justify-center [container-type:size]">
       <span
@@ -567,23 +571,26 @@ function InstagramPost({
         <Photo media={media} slides />
         {/* Tags show as a tap reveals them, so the preview says who is where: on a cropped photo,
             inside its frame, as the tag editor and Instagram place them. */}
-        <TagLayer crop={media.shots[0]?.crop ?? null}>
+        <TagLayer shot={media.shots[0]}>
           {people.tags.map(
             (t) =>
               t.at && (
-                <span
-                  key={t.handle}
-                  className="absolute flex -translate-x-1/2 flex-col items-center"
-                  style={{
-                    left: `${Math.min(80, Math.max(20, t.at.x * 100))}%`,
-                    top: `${t.at.y * 100}%`,
-                  }}
-                >
-                  <span className="size-0 border-x-[3px] border-b-[3px] border-x-transparent border-b-black/80" />
-                  <span className="rounded-[3px] bg-black/80 px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-white">
+                // The arrow points at the spot; the label, near an edge, stays inside the photo.
+                <Fragment key={t.handle}>
+                  <span
+                    className="absolute size-0 -translate-x-1/2 border-x-[3px] border-b-[3px] border-x-transparent border-b-black/80"
+                    style={{ left: `${t.at.x * 100}%`, top: `${t.at.y * 100}%` }}
+                  />
+                  <span
+                    className="absolute -translate-x-1/2 rounded-[3px] bg-black/80 px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-white"
+                    style={{
+                      left: `${Math.min(80, Math.max(20, t.at.x * 100))}%`,
+                      top: `calc(${t.at.y * 100}% + 3px)`,
+                    }}
+                  >
                     {t.handle.slice(1)}
                   </span>
-                </span>
+                </Fragment>
               ),
           )}
         </TagLayer>

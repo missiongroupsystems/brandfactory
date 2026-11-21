@@ -24,6 +24,19 @@ import {
   tiktokSettings,
   youtubeTitle,
   type Draft,
+  boxRatio,
+  CAROUSEL_TAKES_FIRST_SHAPE,
+  cutBox,
+  feedFrames,
+  reframe,
+  retag,
+  sameBox,
+  shotOf,
+  WHOLE,
+  type Crop,
+  type Shot,
+  type Shown,
+  type Tag,
 } from './model'
 
 const CAPTION =
@@ -380,5 +393,133 @@ describe('what Make can post to Instagram and Facebook', () => {
   it('leaves other accounts and files of no known type to the server', () => {
     expect(makeBlockers('carousel', ['tt'], [png])).toEqual([])
     expect(makeBlockers('carousel', ['ig'], [sample])).toEqual([])
+  })
+})
+
+describe('the part of a photo Instagram shows in a feed post', () => {
+  const photo = (src: string, tags: Tag[] = []): Shot => ({ ...shotOf(src), tags })
+  const box = (f: Shown | null) => f && { ...f.box }
+
+  it('shows a photo between 4:5 and 1.91:1 whole', () => {
+    const [f] = feedFrames([photo('wide.jpg')], { 'wide.jpg': 16 / 9 }, 'carousel', true)
+    expect(box(f!)).toEqual(WHOLE)
+  })
+
+  it('keeps the centred 4:5 of a tall photo and the centred 1.91:1 of a wide one', () => {
+    const [tall, wide] = feedFrames(
+      [photo('tall.jpg')],
+      { 'tall.jpg': 9 / 16 },
+      'carousel',
+      true,
+    ).concat(feedFrames([photo('pano.jpg')], { 'pano.jpg': 3 }, 'carousel', true))
+    // 9:16 at 4:5: the full width, 70.3% of the height, centred.
+    expect(tall!.box.left).toBe(0)
+    expect(tall!.box.width).toBe(1)
+    expect(tall!.box.height).toBeCloseTo(0.703125, 6)
+    expect(tall!.box.top).toBeCloseTo(0.1484375, 6)
+    expect(boxRatio(tall!.box, 9 / 16)).toBeCloseTo(0.8, 6)
+    expect(boxRatio(wide!.box, 3)).toBeCloseTo(1.91, 6)
+    expect(wide!.box.left).toBeCloseTo((1 - 1.91 / 3) / 2, 6)
+  })
+
+  it('shows every slide of a carousel in the first slide’s shape', () => {
+    expect(CAROUSEL_TAKES_FIRST_SHAPE).toBe(true)
+    const [first, second] = feedFrames(
+      [photo('wide.jpg'), photo('tall.jpg')],
+      { 'wide.jpg': 16 / 9, 'tall.jpg': 9 / 16 },
+      'carousel',
+      true,
+    )
+    expect(boxRatio(first!.box, 16 / 9)).toBeCloseTo(16 / 9, 6)
+    expect(boxRatio(second!.box, 9 / 16)).toBeCloseTo(16 / 9, 6)
+  })
+
+  it('keeps a crop, then fits it to the shapes Instagram shows', () => {
+    // A 16:9 photo cut to 9:16 by hand: the centred 4:5 of that cut.
+    const cut: Shot = {
+      ...photo('wide.jpg'),
+      crop: { aspect: '9:16', zoom: 1, x: 0, y: 0, ratio: 16 / 9 },
+    }
+    const [f] = feedFrames([cut], {}, 'carousel', true)
+    expect(boxRatio(f!.box, 16 / 9)).toBeCloseTo(0.8, 6)
+    const inside = cutBox(cut.crop!)
+    expect(f!.box.left).toBeGreaterThanOrEqual(inside.left - 1e-9)
+    expect(f!.box.left + f!.box.width).toBeLessThanOrEqual(inside.left + inside.width + 1e-9)
+  })
+
+  it('draws and moves nothing on a guess: no frame until every photo is measured', () => {
+    expect(feedFrames([photo('a.jpg'), photo('b.jpg')], { 'a.jpg': 1 }, 'carousel', true)).toEqual([
+      null,
+      null,
+    ])
+  })
+
+  it('leaves reels, stories, videos and posts Instagram does not get alone', () => {
+    const r = { 'a.jpg': 9 / 16 }
+    expect(feedFrames([photo('a.jpg')], r, 'story', true)).toEqual([null])
+    expect(feedFrames([photo('a.jpg')], r, 'carousel', false)).toEqual([null])
+    expect(feedFrames([photo('clip.mp4#video')], {}, 'carousel', true)).toEqual([null])
+  })
+})
+
+describe('tags when the part of the photo changes', () => {
+  // A 16:9 photo, then cut to its centred 4:5: the columns from 27.5% to 72.5% stay.
+  const four: Crop = { aspect: '4:5', zoom: 1, x: 0, y: 0, ratio: 16 / 9 }
+
+  it('keeps a tag on the same spot of the photo', () => {
+    const { tags, removed } = retag(
+      [{ handle: '@centre', at: { x: 0.55, y: 0.55 } }],
+      WHOLE,
+      cutBox(four),
+    )
+    expect(removed).toEqual([])
+    const kept = cutBox(four)
+    expect(tags[0]!.at!.x).toBeCloseTo((0.55 - kept.left) / kept.width, 6)
+    expect(tags[0]!.at!.y).toBeCloseTo(0.55, 6)
+  })
+
+  it('takes off a tag the new part leaves out, never moving it to an edge', () => {
+    const { tags, removed } = retag(
+      [
+        { handle: '@a6.edge', at: { x: 0.05, y: 0.55 } },
+        { handle: '@reel.name', at: null },
+      ],
+      WHOLE,
+      cutBox(four),
+    )
+    expect(removed).toEqual(['@a6.edge'])
+    expect(tags).toEqual([{ handle: '@reel.name', at: null }])
+  })
+
+  it('moves a photo’s tags with the part Instagram shows, once, and names the ones taken off', () => {
+    const shot: Shot = {
+      ...shotOf('wide.jpg'),
+      crop: four,
+      tags: [
+        { handle: '@a6.edge', at: { x: 0.05, y: 0.55 } },
+        { handle: '@centre', at: { x: 0.55, y: 0.55 } },
+      ],
+    }
+    // The tags were placed on the whole photo, before the crop (a post saved before has no box).
+    const placed: Shot = { ...shot, tagBox: WHOLE }
+    const frames = feedFrames([placed], {}, 'carousel', true)
+    const next = reframe([placed], frames)!
+    expect(next[0]!.tags.map((t) => t.handle)).toEqual(['@centre'])
+    expect(next[0]!.removed).toEqual(['@a6.edge'])
+    expect(sameBox(next[0]!.tagBox!, frames[0]!.box)).toBe(true)
+    // Done once: the tags now sit on the part Instagram shows.
+    expect(reframe(next, frames)).toBeNull()
+  })
+
+  it('reads the tags of a post saved before on its crop, as the editor placed them then', () => {
+    const shot: Shot = {
+      ...shotOf('wide.jpg'),
+      crop: four,
+      tags: [{ handle: '@centre', at: { x: 0.5, y: 0.5 } }],
+    }
+    const frames = feedFrames([shot], {}, 'carousel', true)
+    const next = reframe([shot], frames)!
+    expect(next[0]!.tags[0]!.at).toEqual({ x: 0.5, y: 0.5 })
+    expect(next[0]!.removed).toBeUndefined()
   })
 })

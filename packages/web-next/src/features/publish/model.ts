@@ -344,6 +344,15 @@ export interface Shot {
   src: string
   crop: Crop | null
   tags: Tag[]
+  /** The part of the photo the tags' spots are fractions of (`reframe`); saved as `frame`. */
+  tagBox?: Box
+  /**
+   * The tags a new crop or frame took off, because their spot is outside it (`retag`): the tag
+   * editor says so once. Not saved with the post.
+   */
+  removed?: string[]
+  /** What Instagram shows of the photo (`feedFrames`), for the editor and the preview. Not saved. */
+  shown?: Shown
 }
 
 export function shotOf(src: string): Shot {
@@ -373,6 +382,156 @@ export function frameRatio(crop: Crop): number {
 export function cropScale(crop: Crop): { w: number; h: number } {
   const over = crop.ratio / frameRatio(crop)
   return over >= 1 ? { w: over * crop.zoom, h: crop.zoom } : { w: crop.zoom, h: crop.zoom / over }
+}
+
+/**
+ * The part of the photo a crop keeps, as fractions of the photo: the same frame `Framed` draws.
+ * The photo is `w` frames wide and `h` frames tall, slid off centre by the crop's offset.
+ */
+export function cutBox(crop: Crop) {
+  const { w, h } = cropScale(crop)
+  const tx = (crop.x * (w - 1)) / 2
+  const ty = (crop.y * (h - 1)) / 2
+  return { left: (w / 2 - 0.5 - tx) / w, top: (h / 2 - 0.5 - ty) / h, width: 1 / w, height: 1 / h }
+}
+
+/** A part of a photo, as fractions of it: what a crop keeps, or what Instagram shows. */
+export interface Box {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+/** The whole photo. */
+export const WHOLE: Box = { left: 0, top: 0, width: 1, height: 1 }
+
+/** The same part of the photo, within what a float leaves after a round trip. */
+export function sameBox(a: Box, b: Box): boolean {
+  const near = (x: number, y: number) => Math.abs(x - y) < 1e-6
+  return (
+    near(a.left, b.left) && near(a.top, b.top) && near(a.width, b.width) && near(a.height, b.height)
+  )
+}
+
+/** The width over the height of a part of a photo whose own shape is `photo`. */
+export function boxRatio(box: Box, photo: number): number {
+  return (photo * box.width) / box.height
+}
+
+/** The centred part of `box` in the shape `shape`, as Instagram keeps it. */
+function centred(box: Box, photo: number, shape: number): Box {
+  const now = boxRatio(box, photo)
+  if (Math.abs(now - shape) < 1e-3) return box
+  if (now > shape) {
+    const width = (box.width * shape) / now
+    return { ...box, left: box.left + (box.width - width) / 2, width }
+  }
+  const height = (box.height * now) / shape
+  return { ...box, top: box.top + (box.height - height) / 2, height }
+}
+
+/** The shapes Instagram shows a feed photo in whole, width over height: 4:5 to 1.91:1. */
+export const FEED_SHAPE = { min: 4 / 5, max: 1.91 }
+
+/**
+ * Whether Instagram shows every slide of a carousel in the first slide's shape. Believed from the
+ * app and Meta's documents, NOT verified on a live post: check it with a real carousel. The tag
+ * editor, the preview and the photos the post sends all follow it.
+ */
+export const CAROUSEL_TAKES_FIRST_SHAPE = true
+
+/** What Instagram shows of a feed photo, and the photo's own shape, for the frame to draw it. */
+export interface Shown {
+  box: Box
+  photo: number
+}
+
+/**
+ * The part of each photo Instagram shows in a feed post: the photo's crop (or the whole photo),
+ * then, outside 4:5 to 1.91:1, its centred part in the nearest of those shapes; in a carousel,
+ * every slide in the first slide's shape (`CAROUSEL_TAKES_FIRST_SHAPE`). Null for a video, for a
+ * post Instagram does not get (`ig` false), for a reel or a story, and while a photo's shape is
+ * not known yet: then nothing is drawn or moved on a guess.
+ */
+export function feedFrames(
+  shots: Shot[],
+  ratios: Record<string, number>,
+  format: Format,
+  ig: boolean,
+): (Shown | null)[] {
+  if (format !== 'carousel' || !ig) return shots.map(() => null)
+  // A video's address ends in "#video" (`isVideo` in components/media).
+  const video = (src: string) => src.endsWith('#video')
+  const own = shots.map((s) => {
+    if (video(s.src)) return null
+    const photo = s.crop ? s.crop.ratio : ratios[s.src]
+    if (photo === undefined) return null
+    return { base: s.crop ? cutBox(s.crop) : WHOLE, photo }
+  })
+  // Until every photo is measured, no frame: a slide's shape can hang on the first's.
+  if (own.some((o, i) => o === null && !video(shots[i]!.src))) return shots.map(() => null)
+  const fit = (r: number) => Math.min(FEED_SHAPE.max, Math.max(FEED_SHAPE.min, r))
+  const first = own[0] ? fit(boxRatio(own[0].base, own[0].photo)) : null
+  return own.map((o, i) => {
+    if (!o) return null
+    const shape =
+      CAROUSEL_TAKES_FIRST_SHAPE && i > 0 && first !== null ? first : fit(boxRatio(o.base, o.photo))
+    return { box: centred(o.base, o.photo, shape), photo: o.photo }
+  })
+}
+
+/**
+ * A photo's tags once the part of it they sit on changes from `from` to `to`. A tag's spot is a
+ * fraction of that part, so it is taken back to the photo, then into the new part: the tag stays
+ * on the same person. A tag whose spot the new part leaves out is taken off, never moved to an
+ * edge, which would tag whoever is there: `removed` names them, so the person can tag again.
+ */
+export function retag(tags: Tag[], from: Box, to: Box): { tags: Tag[]; removed: string[] } {
+  const EDGE = 1e-6
+  const kept: Tag[] = []
+  const removed: string[] = []
+  for (const t of tags) {
+    if (!t.at) {
+      kept.push(t)
+      continue
+    }
+    const x = (from.left + t.at.x * from.width - to.left) / to.width
+    const y = (from.top + t.at.y * from.height - to.top) / to.height
+    if (x < -EDGE || x > 1 + EDGE || y < -EDGE || y > 1 + EDGE) {
+      removed.push(t.handle)
+      continue
+    }
+    kept.push({ ...t, at: { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) } })
+  }
+  return { tags: kept, removed }
+}
+
+/**
+ * The photos with their tags on the part Instagram shows (`feedFrames`), or null when every tag
+ * is there already. A photo's tags sit on `tagBox`, the part they were placed on (before it was
+ * kept: the crop, or the whole photo); when the shown part differs, they move with it (`retag`)
+ * and the ones left out are named in `removed`.
+ */
+export function reframe(shots: Shot[], frames: (Shown | null)[]): Shot[] | null {
+  let changed = false
+  const next = shots.map((s, i) => {
+    const frame = frames[i]
+    if (!frame || !s.tags.some((t) => t.at)) return s
+    const from = s.tagBox ?? (s.crop ? cutBox(s.crop) : WHOLE)
+    if (s.tagBox && sameBox(from, frame.box)) return s
+    changed = true
+    if (sameBox(from, frame.box)) return { ...s, tagBox: frame.box }
+    const moved = retag(s.tags, from, frame.box)
+    const removed = [...(s.removed ?? []), ...moved.removed]
+    return {
+      ...s,
+      tags: moved.tags,
+      tagBox: frame.box,
+      ...(removed.length > 0 && { removed }),
+    }
+  })
+  return changed ? next : null
 }
 
 /** The CSS translate, in percent of the frame, that puts the photo where the crop says. */
