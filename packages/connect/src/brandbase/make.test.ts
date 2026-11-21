@@ -2,7 +2,7 @@ import { type Files } from '@brandfactory/core/src/files'
 import { tick } from '@brandfactory/core/src/scheduler'
 import { describe, expect, it } from 'vitest'
 import { platformsFromEnv } from './env'
-import { type MakeApp, type MakeRequest, socialConnector } from './make'
+import { filesFor, type MakeApp, type MakeRequest, socialConnector } from './make'
 import { serve } from './test-core'
 
 const SIG = 'A'.repeat(43)
@@ -347,6 +347,52 @@ describe('Instagram and Facebook through Make', () => {
       sent: false,
       message: 'Instagram is not set up.',
     })
+  })
+
+  it('sends Facebook the photo a post was cut from, and Instagram the cut, through Make', async () => {
+    const make = fakeMake()
+    const send = socialConnector({ make: make.app, signedReadUrl: files.store.signedReadUrl }).send
+    const PNG = 'brandbase/00000000-0000-4000-8000-0000000000c1.png'
+    const media = [
+      {
+        kind: 'photo',
+        mime: 'image/jpeg',
+        bytes: 1,
+        key: JPG,
+        source: { kind: 'photo', mime: 'image/png', bytes: 2, key: PNG },
+      },
+      { kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG2 },
+    ]
+    const job = (channel: 'ig' | 'fb', account: string) => ({
+      pack: 'brandbase',
+      op: 'post.publish_job',
+      payload: {
+        brand: 'casa',
+        job: `p:${channel}`,
+        post: 'p',
+        channel,
+        format: 'carousel',
+        text: 'Hi',
+        media,
+        account,
+        shareToFeed: true,
+        via: 'make',
+      },
+      principal: 'owner',
+    })
+    await send(job('fb', PAGE_ID))
+    await send(job('ig', IG_ID))
+    const urls = make.seen.map((s) => s.body.media.map((m) => m.url))
+    expect(urls[0]).toEqual([
+      `https://storage.test/${PNG}?ttl=7200`,
+      `https://storage.test/${JPG2}?ttl=7200`,
+    ])
+    expect(urls[1]).toEqual([
+      `https://storage.test/${JPG}?ttl=7200`,
+      `https://storage.test/${JPG2}?ttl=7200`,
+    ]) // Every other account takes the files as they are: TikTok too.
+    expect(filesFor(media, 'tt')).toBe(media)
+    expect(filesFor(media, 'ig')).toBe(media)
   })
 
   it('reads Make’s answer: refused, not run, or unknown, each in words', async () => {

@@ -45,6 +45,12 @@
             "kind": {
               "enum": ["photo", "video"]
             },
+            "source": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^(?!blob:)"
+            },
             "mediaId": {
               "type": "string",
               "maxLength": 80

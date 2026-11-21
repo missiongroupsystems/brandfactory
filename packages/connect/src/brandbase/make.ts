@@ -36,7 +36,28 @@ export interface Payload {
 }
 
 type File = { missing: true } | Own
-export type Own = { kind: string; mime: string; bytes: number | null; key: string }
+/**
+ * One of the post's files. `source` is the file a photo was cut from when the web app cut it by
+ * itself to the part Instagram shows (pack 1.20.0, `post_files`): the whole photo, or the person's
+ * own crop.
+ */
+export type Own = {
+  kind: string
+  mime: string
+  bytes: number | null
+  key: string
+  source?: { kind: string; mime: string; bytes: number | null; key: string }
+}
+
+/**
+ * The post's files as an account takes them. Facebook shows a photo of any shape whole, so it
+ * takes the file a photo was cut from, never Instagram's own cut; every other account takes the
+ * files as they are (Instagram's tags are fractions of the cut).
+ */
+export function filesFor(media: File[], channel: string): File[] {
+  if (channel !== 'fb') return media
+  return media.map((f) => ('missing' in f || !f.source ? f : f.source))
+}
 
 /** What the Make scenario gets (the plan's contract). */
 export interface MakeRequest {
@@ -94,7 +115,7 @@ function requestOf(p: Payload): Omit<MakeRequest, 'media'> & { files: Own[] } {
   }
   if (p.format === 'story') throw new NotSent('Stories are not available yet.')
   if (!p.account) throw new NotSent(`Connect ${name} first.`)
-  const files = p.media
+  const files = filesFor(p.media, p.channel)
   if (files.length === 0) throw new NotSent('Add a photo or video.')
   if (files.some((f) => 'missing' in f)) {
     throw new NotSent('Upload this post’s photos and videos again: some are only samples.')

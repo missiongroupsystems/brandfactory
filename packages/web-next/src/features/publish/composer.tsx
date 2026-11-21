@@ -692,7 +692,22 @@ export function Composer({
           return sameBox(part, WHOLE) ? m.src : cutPhoto(b, m.src, part)
         }),
       )
-      content.media = files.map((src) => mediaItem(src))
+      // Facebook shows a photo of any shape whole: a photo the post cut by itself to Instagram's
+      // part also names the file it was cut from (`source`), the whole photo or the person's own
+      // crop, which Facebook's sender takes. Nothing more is uploaded when no such cut was made.
+      const sources = await Promise.all(
+        out.map((m, i) => {
+          const shown = framesNow[i]
+          if (isVideo(m.src) || !shown) return undefined
+          const own = m.crop ? cutBox(m.crop) : WHOLE
+          if (sameBox(own, shown.box)) return undefined
+          return sameBox(own, WHOLE) ? m.src : cutPhoto(b, m.src, own)
+        }),
+      )
+      content.media = files.map((src, i) => ({
+        ...mediaItem(src),
+        ...(sources[i] && { source: sources[i] }),
+      }))
       content.draft.shots = out.map((m, i) => {
         // The part the tags sit on stays with the post, also while Instagram is off.
         const frame = m.tagBox ?? framesNow[i]?.box

@@ -1,6 +1,7 @@
 import { call, type CoreDeps } from '@brandfactory/core/src/run'
 import { type Account, bound, PACK } from './accounts'
 import {
+  filesFor,
   MayHavePosted,
   NAME,
   NotSent,
@@ -62,11 +63,12 @@ export const definite = (err: unknown) =>
 function checked(p: Payload) {
   const name = NAME[p.channel]!
   if (!p.account) throw new NotSent(`Connect ${name} first.`)
-  if (p.media.length === 0) throw new NotSent('Add a photo or video.')
-  if (p.media.some((f) => 'missing' in f)) {
+  const media = filesFor(p.media, p.channel)
+  if (media.length === 0) throw new NotSent('Add a photo or video.')
+  if (media.some((f) => 'missing' in f)) {
     throw new NotSent('Upload this post’s photos and videos again: some are only samples.')
   }
-  const files = p.media as Own[]
+  const files = media as Own[]
   const photos = files.filter((f) => f.kind === 'photo')
   const videos = files.filter((f) => f.kind === 'video')
   if (photos.length + videos.length !== files.length) {

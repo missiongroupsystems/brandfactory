@@ -62,14 +62,19 @@ vi.mock('next/navigation', () => ({
 }))
 // Each photo's shape, as the browser would measure it once it loads: both tall, 9:16. `hold`
 // keeps them unmeasured until a test lets them load.
-const shapes = vi.hoisted(() => ({ hold: false, broken: false, waiting: [] as Array<() => void> }))
+const shapes = vi.hoisted(() => ({
+  ratio: 9 / 16,
+  hold: false,
+  broken: false,
+  waiting: [] as Array<() => void>,
+}))
 vi.mock('./shot', async (original) => ({
   ...(await original<typeof Shot>()),
   ratioOf: (_src: string) =>
     new Promise<number | null>((resolve) => {
       if (shapes.broken) resolve(null)
-      else if (shapes.hold) shapes.waiting.push(() => resolve(9 / 16))
-      else resolve(9 / 16)
+      else if (shapes.hold) shapes.waiting.push(() => resolve(shapes.ratio))
+      else resolve(shapes.ratio)
     }),
 }))
 // The cuts a save makes, by the part of each photo.
@@ -102,6 +107,7 @@ beforeEach(() => {
   bodies.length = 0
   cuts.length = 0
   core.shots = null
+  shapes.ratio = 9 / 16
   shapes.hold = false
   shapes.broken = false
   shapes.waiting.length = 0
@@ -132,6 +138,14 @@ async function open() {
   // The photos load.
   await act(async () => undefined)
 }
+/** The files the last save sent, as the PATCH carried them. */
+const sentMedia = () =>
+  (
+    bodies.find((b) => b.call === 'PATCH /brands/casa-vostra/posts/ravioli')?.body as {
+      media: Array<{ src: string; source?: string }>
+    }
+  ).media
+
 async function save() {
   // "Save", or "Save and send …" once the accounts changed.
   fireEvent.click(screen.getAllByRole('button', { name: /^Save/ })[0]!)
@@ -213,5 +227,43 @@ describe('a tag near the bottom of the photo', () => {
     expect(arrow.className).toContain('border-t-black/80')
     const label = screen.getByRole('button', { name: 'Remove the tag @ana' }).parentElement!
     expect(label.style.translate).toBe('-50% -100%')
+  })
+})
+
+describe('what Facebook gets of a photo the post cut by itself', () => {
+  it('names the whole photo as the source of a photo cut to Instagram’s part', async () => {
+    await open()
+    await save()
+    const media = sentMedia()
+    // Both tall photos are cut to their middle 4:5; each names its whole photo for Facebook.
+    expect(media[0]!.src).toMatch(/cut-\d+\.jpg$/)
+    expect(media[0]!.source).toBe(PHOTO.ravioli)
+    expect(media[1]!.source).toBe(PHOTO.tagliatelle)
+    // No cut beyond those two: the whole photos are already the post's own files.
+    expect(cuts).toHaveLength(2)
+  })
+
+  it('names the person’s own crop when Instagram cuts it further', async () => {
+    // A tall crop, zoomed in: still 9:16, so Instagram shows its middle 4:5.
+    const tall = { aspect: '9:16' as const, zoom: 1.5, x: 0, y: 0, ratio: 9 / 16 }
+    core.shots = [
+      { crop: tall, tags: [] },
+      { crop: null, tags: [] },
+    ]
+    await open()
+    await save()
+    // The crop is cut too, for Facebook: the photo of the crop, not Instagram's 4:5 of it.
+    const own = cuts.find((c) => c.src === PHOTO.ravioli && Math.abs(c.box.height - 1 / 1.5) < 1e-6)
+    expect(own).toBeDefined()
+    expect(sentMedia()[0]!.source).toMatch(/cut-\d+\.jpg$/)
+    expect(sentMedia()[0]!.source).not.toBe(sentMedia()[0]!.src)
+  })
+
+  it('names nothing, and cuts nothing more, when Instagram shows the photo as it is', async () => {
+    shapes.ratio = 4 / 5
+    await open()
+    await save()
+    expect(cuts).toEqual([])
+    expect(sentMedia().every((m) => m.source === undefined)).toBe(true)
   })
 })
