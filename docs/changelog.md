@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.75.2** — 2026-11-21 — `fix/facebook-source-review`: review fixes for Facebook's uncut photo. Only Facebook's job carries a photo's `source`, so a source added to a post leaves Instagram's payload and its yes as they were (pack 1.20.1, no migration); a save that asks no new yes adds no source to a post saved before 2.75.1; Facebook gets the cut for a source over Meta's 10 MB, of a size not known, or of a type Meta does not list (WebP, HEIC); a video never swaps. 1880 tests by count: 1598 pass, 282 skipped without a Postgres server.
+- **2.75.2** — 2026-11-21 — `fix/facebook-source-review`: review fixes for Facebook's uncut photo (no pack change). A save that asks no new yes adds no source and changes no file, so no yes already given stops matching; Facebook gets the cut for a source over Meta's 10 MB, of a size not known, or of a type Meta does not list (WebP, HEIC); a video never swaps. 1878 tests by count: 1597 pass, 281 skipped without a Postgres server.
 - **2.75.1** — 2026-11-21 — `fix/facebook-uncut`: Facebook gets the whole photo (or the person's own crop), never the cut the post makes by itself to the part Instagram shows; Instagram keeps that cut, which its tags are fractions of (pack 1.20.0, migration `0030_post_file_source.sql`, additive). 1873 tests by count: 1592 pass, 281 skipped without a Postgres server.
 - **2.75.0** — 2026-11-21 — `fix/tag-crop`: the tag editor, the phone preview and the photos a post sends show the same frame, the one Instagram shows: a feed photo between 4:5 and 1.91:1 whole, one outside it as its centred part in the nearest of those shapes (sent as that cut), and in a carousel every slide in the first slide's shape (believed, not verified: `CAROUSEL_TAKES_FIRST_SHAPE`). Tags stay on their spot of the photo when the frame changes; a tag the new frame leaves out is removed, with one quiet line. A tag's arrow points at its spot. No server or pack change. 1862 tests by count: 1582 pass, 280 skipped without a Postgres server.
 - **2.74.2** — 2026-11-21 — `fix/list-cap`: the post page (new and edit) is on the app's own white (`--page`), as the Schedule behind it, where it was on the warmer `--surface-2`; its header matches. The cards keep their hairline edge and their grey fields. The suggestion lists (Collaborators, Tag people, and every list of the same kind) end on a whole row, with a soft fade on an edge that has more rows past it. No server or pack change. 1847 tests by count: 1567 pass, 280 skipped without a Postgres server.
@@ -160,13 +160,14 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ## 2.75.2 — 2026-11-21
 
-- **Why.** A review of 2.75.1 found that every account's job carried the photo's `source`, so a
-  source added to a post changed Instagram's payload and voided its yes. It also found that an
-  unchanged save of a post saved before 2.75.1 added a source inside the window where no new yes
-  is asked, so the waiting Facebook send was refused at its time.
-- **Pack 1.20.1** (no migration). `post.publish_job` strips `source` from the files of every job
-  but Facebook's. An item without a source reads byte for byte as before, so a yes already given
-  still matches.
+- **Why.** A review of 2.75.1 found that an unchanged save of a post saved before 2.75.1 added a
+  source inside the window where no new yes is asked, so the waiting sends were refused at their
+  time. Each account's job carries the post's files with their sources, so a new source changes
+  the payload of every account, Instagram's too.
+- **No pack change.** A first fix stripped `source` from every job but Facebook's (pack 1.20.1).
+  A second review found that this changes the payload of an Instagram job approved under 1.20.0
+  with a source, so its yes stops matching. The web fix below already keeps every yes, so the
+  pack stays at 1.20.0.
 - **Server.** `filesFor` swaps only a photo item, never a video, and only for a source that is a
   photo of a type Meta lists for Page photos (JPEG, PNG, BMP, GIF, TIFF) and of a known size up to
   10 MB (`SOURCE_MAX_BYTES`, was 8 MB). Meta's Page photo reference
@@ -176,10 +177,11 @@ One line each — full write-ups are under the matching `##` heading further dow
   time) keeps each unchanged file as it was saved, with or without its source. A changed file, and
   every save that asks a new yes, names the source as before. The calendar keeps each saved file's
   source for this (`Saved.sources`).
-- **Known limits.** Meta recommends a PNG of at most 1 MB, or it may look pixelated; a larger PNG
+- **Known limits.** The Make path uses the same limits as Meta's Page photos; Make's own Facebook
+  Pages module was not checked. Meta recommends a PNG of at most 1 MB, or it may look pixelated; a larger PNG
   source still goes to Facebook. A post saved before 2.75.1 gets its source at its next save that
   asks a new yes.
-- **Tests:** 1880 by count: 1598 pass and 282 are skipped without a Postgres server. Typecheck,
+- **Tests:** 1878 by count: 1597 pass and 281 are skipped without a Postgres server. Typecheck,
   lint, format and the web build pass.
 
 ## 2.75.1 — 2026-11-21
