@@ -329,7 +329,8 @@ function List({
   const list = frame ?? own
   // The row whose name is being written, by its handle.
   const [naming, setNaming] = React.useState<string | null>(null)
-  // The active row stays in sight when the arrows move past the edge of a short list.
+  // The active row stays in sight when the arrows move past the edge of a short list; the
+  // box's scroll padding keeps it clear of the fades.
   React.useEffect(() => {
     list.current
       ?.querySelector<HTMLElement>(`[id="${id}-${active}"]`)
@@ -367,7 +368,7 @@ function List({
       }}
       onScroll={(e) => showFades(e.currentTarget)}
       style={place}
-      className="bb-menu fixed z-[60] flex flex-col overflow-y-auto overscroll-contain rounded-[14px] bg-page p-1.5 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
+      className="bb-menu fixed z-[60] flex flex-col overflow-y-auto overscroll-contain scroll-py-4 rounded-[14px] bg-page p-1.5 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
     >
       <span
         aria-hidden="true"
