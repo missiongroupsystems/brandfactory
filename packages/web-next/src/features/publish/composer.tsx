@@ -74,6 +74,7 @@ import {
   PRIVACY,
   shapeFix,
   shotOf,
+  boxRatio,
   TAG_MAX,
   textFor,
   tiktokConsent,
@@ -85,6 +86,12 @@ import {
   type Draft,
   type Outcome,
   type Shot,
+  cutBox,
+  feedFrames,
+  reframe,
+  sameBox,
+  WHOLE,
+  type Box,
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
 import { PostedPost } from './posted'
@@ -178,9 +185,10 @@ interface KeptDraft {
   /**
    * Each file's crop and tags. A cropped photo is sent as its cut (the post's media, kept as
    * `cut`); `original` is the whole photo it was cut from, which the editor opens again while the
-   * post's file is still that cut.
+   * post's file is still that cut. `frame` is the part of the photo Instagram shows and the tags
+   * sit on (`feedFrames`).
    */
-  shots?: (Pick<Shot, 'crop' | 'tags'> & { original?: string; cut?: string })[]
+  shots?: (Pick<Shot, 'crop' | 'tags'> & { original?: string; cut?: string; frame?: Box })[]
 }
 
 export function Composer({
@@ -311,12 +319,15 @@ export function Composer({
       const shot = shotOf(src)
       const was = keptDraft.shots?.[i]
       if (!was) return shot
+      // The part of the photo the tags sit on, as saved; a post saved before has none.
+      const tagBox = was.frame && { tagBox: was.frame }
       // A cut photo opens on the whole photo, with the cut it has remembered for the next save.
-      if (was.original && was.crop && was.cut === src) {
-        knownCut(was.original, was.crop, src)
-        return { ...shotOf(was.original), crop: was.crop, tags: was.tags }
+      if (was.original && was.cut === src) {
+        const part = was.frame ?? (was.crop ? cutBox(was.crop) : null)
+        if (part) knownCut(was.original, part, src)
+        return { ...shotOf(was.original), crop: was.crop, tags: was.tags, ...tagBox }
       }
-      return { ...shot, crop: was.crop, tags: was.tags }
+      return { ...shot, crop: was.crop, tags: was.tags, ...tagBox }
     }),
     note: null,
   }))
@@ -392,7 +403,17 @@ export function Composer({
     }
   }
   /** The media as the person edits it: a crop, a tag, a removal. The line about an add goes. */
-  const setMedia = (next: Shot[]) => setStrip({ media: next, note: null })
+  const setMedia = (next: Shot[]) =>
+    setStrip({ media: next.map(({ shown: _shown, ...m }) => m), note: null })
+  // What Instagram shows of each photo (`feedFrames`): the tag editor, the preview and the files the
+  // post sends all show that part. When it changes (a crop, a new first slide), the tags move with
+  // the photo, and a tag left outside is taken off (`reframe`).
+  const ratios = useRatios(media)
+  const onIg = activeChannels(draft).some((c) => c.key === 'ig')
+  const frames = feedFrames(media, ratios, draft.format, onIg)
+  const reframed = reframe(media, frames)
+  if (reframed) setStrip({ media: reframed, note: strip.note })
+  const shown = media.map((m, i) => (frames[i] ? { ...m, shown: frames[i]! } : m))
   // Until a format is picked it follows the media: one video is a Reel, anything else a photo
   // post, so nobody has to fix it after. A chosen format stays whatever comes in.
   React.useEffect(() => {
@@ -635,21 +656,53 @@ export function Composer({
         details,
         labels,
         extra,
-        shots: media.map((m) => ({ crop: m.crop, tags: m.tags }) as Shots[number]),
+        shots: media.map((m, i) => {
+          const frame = m.tagBox ?? frames[i]?.box
+          return { crop: m.crop, tags: m.tags, ...(frame && { frame }) } as Shots[number]
+        }),
       },
     }
     // The brand's posts link the people they name: the roster loads again once the post is saved.
     const saved = sent(b, async () => {
-      // A cropped photo goes out as the preview shows it: its cut, made and uploaded once.
+      // The frames as they are now: a photo not measured yet is measured first, so the cut that
+      // goes out and the part its tags sit on are one (`reframe`). One that cannot load goes as it
+      // was, cropped or whole.
+      const measured = { ...ratios }
+      // Only where a frame can be: a feed post that Instagram gets.
+      const framing = onIg && draft.format === 'carousel'
+      await Promise.all(
+        media.map(async (m) => {
+          if (!framing || isVideo(m.src) || m.crop || measured[m.src] !== undefined) return
+          // A photo that hangs is not waited for past SAVE_WAIT_MS: it goes as it was.
+          const r = await Promise.race([
+            ratioOf(m.src),
+            new Promise<null>((done) => window.setTimeout(() => done(null), SAVE_WAIT_MS)),
+          ])
+          if (r !== null) measured[m.src] = r
+        }),
+      )
+      const framesNow = feedFrames(media, measured, draft.format, onIg)
+      const out = reframe(media, framesNow) ?? media
+      // A photo goes out as the preview shows it: the part Instagram shows (or its crop), cut and
+      // uploaded once; a photo shown whole goes as it is.
       const files = await Promise.all(
-        media.map((m) => (m.crop && !isVideo(m.src) ? cutPhoto(b, m.src, m.crop) : m.src)),
+        out.map((m, i) => {
+          if (isVideo(m.src)) return m.src
+          const part = framesNow[i]?.box ?? (m.crop ? cutBox(m.crop) : WHOLE)
+          return sameBox(part, WHOLE) ? m.src : cutPhoto(b, m.src, part)
+        }),
       )
       content.media = files.map((src) => mediaItem(src))
-      content.draft.shots = media.map((m, i) => ({
-        crop: m.crop,
-        tags: m.tags,
-        ...(files[i] !== m.src && { original: m.src, cut: files[i] }),
-      }))
+      content.draft.shots = out.map((m, i) => {
+        // The part the tags sit on stays with the post, also while Instagram is off.
+        const frame = m.tagBox ?? framesNow[i]?.box
+        return {
+          crop: m.crop,
+          tags: m.tags,
+          ...(frame && { frame }),
+          ...(files[i] !== m.src && { original: m.src, cut: files[i] }),
+        }
+      })
       if (isNew) {
         await request('POST', `/brands/${b}/posts`, {
           id,
@@ -1114,7 +1167,7 @@ export function Composer({
       setDetails={setDetails}
       labels={labels}
       setLabels={setLabels}
-      media={media}
+      media={shown}
       setMedia={setMedia}
       extra={extra}
       setExtra={setExtra}
@@ -1145,7 +1198,7 @@ export function Composer({
       body: (
         <Preview
           api={api}
-          media={media}
+          media={shown}
           people={people}
           onFiles={addFiles}
           counts={counts}
@@ -1268,6 +1321,7 @@ export function Composer({
             pickFormat={pickFormat}
             formatLocked={post !== undefined}
             perAccountAsked={perAccountAsked}
+            framed={frames.map((f) => f !== null)}
           />
           {/* What a post often changes stays in view; the rest folds into More options. */}
           <KeyDetails>
@@ -1277,7 +1331,7 @@ export function Composer({
               setDetails={setDetails}
               labels={labels}
               setLabels={setLabels}
-              media={media}
+              media={shown}
               setMedia={setMedia}
               part="main"
             />
@@ -1330,7 +1384,7 @@ export function Composer({
         <div className="sticky top-[calc(var(--header)+24px)] flex flex-col gap-3 max-lg:static max-md:hidden">
           <Preview
             api={api}
-            media={media}
+            media={shown}
             people={people}
             onFiles={addFiles}
             counts={counts}
@@ -1633,6 +1687,7 @@ function Content({
   leftOut,
   room,
   perAccountAsked,
+  framed,
 }: {
   api: PublishDraftApi
   media: Shot[]
@@ -1648,6 +1703,8 @@ function Content({
   formatLocked: boolean
   /** A caption per account was asked for in More options. */
   perAccountAsked: boolean
+  /** Each photo the post cuts by itself to what Instagram shows (`feedFrames`). */
+  framed: boolean[]
 }) {
   const { draft, update } = api
   const active = activeChannels(draft)
@@ -1684,7 +1741,8 @@ function Content({
    */
   async function openCrop(index: number, aspect?: Aspect) {
     const shot = media[index]!
-    const crop = shot.crop ?? defaultCrop(await ratioOf(shot.src))
+    // A photo that does not load opens square: the crop editor shows it as it can.
+    const crop = shot.crop ?? defaultCrop((await ratioOf(shot.src)) ?? 1)
     setEditing({ index, crop: aspect ? { ...crop, aspect } : crop })
   }
   /** The shape this photo needs for the format, or `null` when it fits or is not measured yet. */
@@ -1841,8 +1899,20 @@ function Content({
                     {i + 1}
                   </span>
                 )}
-                {/* The wrong shape for this format: said quietly, fixed in one tap. */}
-                {fix ? (
+                {/* A shape Instagram cuts by itself: said as a choice, not a fault. The post sends
+                    the middle (Facebook gets the same file); a crop picks another part. */}
+                {fix && framed[i] ? (
+                  <button
+                    type="button"
+                    aria-label={`Instagram and Facebook show the middle ${fix === '4:5' ? '4:5' : '1.91:1'}. Crop to choose the part.`}
+                    title={`Instagram and Facebook show the middle ${fix === '4:5' ? '4:5' : '1.91:1'}. Crop to choose the part.`}
+                    onClick={() => void openCrop(i, fix)}
+                    className="absolute right-1.5 bottom-1.5 flex h-6 items-center gap-1 rounded-full bg-page px-2 text-[12px] font-medium text-ink-2 shadow-soft transition-transform hover:-translate-y-px hover:text-ink max-md:h-8 max-md:px-2.5"
+                  >
+                    Middle {fix === '4:5' ? '4:5' : '1.91:1'}
+                  </button>
+                ) : /* The wrong shape for this format: said quietly, fixed in one tap. */
+                fix ? (
                   <button
                     type="button"
                     aria-label={`Wrong shape for a ${FORMAT_LABEL[draft.format].toLowerCase()}: crop to ${fix}`}
@@ -2318,7 +2388,10 @@ function useRatios(media: Shot[]): Record<string, number> {
     for (const { src } of media) {
       if (isVideo(src)) continue
       // A photo already measured comes back from the browser's cache at once.
-      void ratioOf(src).then((r) => live && setRatios((o) => (src in o ? o : { ...o, [src]: r })))
+      // A photo that did not load stays unmeasured: no frame, nothing moved (`feedFrames`).
+      void ratioOf(src).then(
+        (r) => live && r !== null && setRatios((o) => (src in o ? o : { ...o, [src]: r })),
+      )
     }
     return () => {
       live = false
@@ -2384,6 +2457,8 @@ function Details({
   // A feed photo takes a tag at a spot; a reel, or a post that is one video, takes names only.
   const spot = api.draft.format === 'carousel' && media.some((m) => !isVideo(m.src))
   const tagged = taggedIn(media)
+  // Tags a new crop took off, on any photo: said here too, until the tag editor has been opened.
+  const removed = [...new Set(media.flatMap((m) => m.removed ?? []))]
   const people = usePeople(brand.id)
   const saved = useCollaborators(brand.id, 'ig')
   const rows: Array<{ key: keyof typeof DETAIL_ON; label: string; to: ChannelKey[] }> = [
@@ -2512,6 +2587,9 @@ function Details({
               {r.key === 'collab' && <PublicNote brandId={brand.id} handles={details.collab} />}
               {/* While the tag editor is open, it shows the line itself. */}
               {r.key === 'tags' && !tagging && <PublicNote brandId={brand.id} handles={tagged} />}
+              {r.key === 'tags' && !tagging && removed.length > 0 && (
+                <RemovedNote handles={removed} align="start" />
+              )}
             </div>
           </div>
         ))}
@@ -2587,18 +2665,10 @@ function TagEditor({
   const brandId = useBrand().brand.id
   const people = usePeople(brandId)
   const shot = media[index]!
-  // The photo as it will post: its crop's shape, or its own. A tag's spot is a fraction of that
-  // photo, as Instagram reads it, so the frame is never cut to a shape the post does not have.
-  const [own, setOwn] = React.useState<Record<string, number>>({})
-  React.useEffect(() => {
-    if (shot.crop || own[shot.src] !== undefined) return
-    let on = true
-    void ratioOf(shot.src).then((r) => on && setOwn((o) => ({ ...o, [shot.src]: r })))
-    return () => {
-      on = false
-    }
-  }, [shot.src, shot.crop, own])
-  const ratio = shot.crop ? frameRatio(shot.crop) : (own[shot.src] ?? 4 / 5)
+  // The photo as Instagram shows it (`feedFrames`): a tag's spot is a fraction of that part, and
+  // only that part can be tapped. Until the photo is measured, nothing can be placed on a guess.
+  const ready = shot.shown !== undefined
+  const ratio = shot.shown ? boxRatio(shot.shown.box, shot.shown.photo) : 4 / 5
   // The account box takes the typing as soon as it opens at the tapped spot.
   React.useEffect(() => {
     if (pending) form.current?.querySelector('input')?.focus()
@@ -2606,23 +2676,46 @@ function TagEditor({
   const full = shot.tags.length >= TAG_MAX
 
   function place(e: React.PointerEvent<HTMLDivElement>) {
-    if (full) return
+    if (full || !ready) return
     const r = e.currentTarget.getBoundingClientRect()
-    setPending({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height })
+    const inside = (v: number) => Math.min(1, Math.max(0, v))
+    setPending({
+      x: inside((e.clientX - r.left) / r.width),
+      y: inside((e.clientY - r.top) / r.height),
+    })
     setTyped('')
   }
   function keep(handle = handleOf(typed)) {
-    if (!pending || !handle) return
+    if (!pending || !handle || !shot.shown) return
     const tags = [...shot.tags.filter((t) => t.handle !== handle), { handle, at: pending }]
-    setMedia(media.map((m, i) => (i === index ? { ...m, tags } : m)))
+    setMedia(media.map((m, i) => (i === index ? { ...m, tags, tagBox: shot.shown!.box } : m)))
     setPending(null)
+  }
+  // The line about tags a crop took off is said once: it goes when the editor closes.
+  function close() {
+    if (media.some((m) => m.removed)) setMedia(media.map(({ removed: _r, ...m }) => m))
+    onClose()
   }
   function untag(handle: string) {
     const tags = shot.tags.filter((t) => t.handle !== handle)
     setMedia(media.map((m, i) => (i === index ? { ...m, tags } : m)))
   }
-  // A label near an edge would run off the photo: it is held inside it.
+  // A tag's arrow points at its spot; its label, near an edge, is held inside the photo: beside
+  // a side edge it slides in, and near the bottom it sits above the arrow (`TAG_LOW`).
   const anchor = (x: number) => `${Math.min(80, Math.max(20, x * 100))}%`
+  const arrowAt = (at: { x: number; y: number }) => ({
+    left: `${at.x * 100}%`,
+    top: at.y > TAG_LOW ? `calc(${at.y * 100}% - 5px)` : `${at.y * 100}%`,
+  })
+  const labelAt = (at: { x: number; y: number }) => ({
+    left: anchor(at.x),
+    top: at.y > TAG_LOW ? `calc(${at.y * 100}% - 5px)` : `calc(${at.y * 100}% + 5px)`,
+    ...(at.y > TAG_LOW && { translate: '-50% -100%' }),
+  })
+  const arrowClass = (at: { x: number; y: number }, colour: 'black' | 'page') =>
+    at.y > TAG_LOW
+      ? `border-t-[5px] ${colour === 'black' ? 'border-t-black/80' : 'border-t-page'}`
+      : `border-b-[5px] ${colour === 'black' ? 'border-b-black/80' : 'border-b-page'}`
 
   const body = (
     // The list of accounts stays inside this part of the dialog, clear of Done (`usePlace`).
@@ -2632,20 +2725,24 @@ function TagEditor({
         aria-label="The photo: tap where someone is to tag them"
         onPointerUp={place}
         style={{ aspectRatio: ratio, maxWidth: `min(340px, ${Math.round(425 * ratio)}px)` }}
-        className={`relative mx-auto w-full overflow-hidden rounded-[12px] bg-tile select-none ${full ? '' : 'cursor-crosshair'}`}
+        className={`relative mx-auto w-full overflow-hidden rounded-[12px] bg-tile select-none ${full || !ready ? '' : 'cursor-crosshair'}`}
       >
         <ShotView shot={shot} sizes="680px" />
         {shot.tags.map(
           (t) =>
             t.at && (
-              <span
-                key={t.handle}
-                onPointerUp={(e) => e.stopPropagation()}
-                className="absolute flex -translate-x-1/2 flex-col items-center"
-                style={{ left: anchor(t.at.x), top: `${t.at.y * 100}%` }}
-              >
-                <span className="size-0 border-x-[5px] border-b-[5px] border-x-transparent border-b-black/80" />
-                <span className="flex h-7 items-center gap-1 rounded-[7px] bg-black/80 pr-1 pl-2.5 text-[12px] font-medium text-white">
+              <React.Fragment key={t.handle}>
+                <span
+                  aria-hidden="true"
+                  data-arrow={t.handle}
+                  className={`absolute size-0 -translate-x-1/2 border-x-[5px] border-x-transparent ${arrowClass(t.at, 'black')}`}
+                  style={arrowAt(t.at)}
+                />
+                <span
+                  onPointerUp={(e) => e.stopPropagation()}
+                  className="absolute flex h-7 -translate-x-1/2 items-center gap-1 rounded-[7px] bg-black/80 pr-1 pl-2.5 text-[12px] font-medium text-white"
+                  style={labelAt(t.at)}
+                >
                   {t.handle.slice(1)}
                   <button
                     type="button"
@@ -2656,16 +2753,22 @@ function TagEditor({
                     <CloseIcon />
                   </button>
                 </span>
-              </span>
+              </React.Fragment>
             ),
         )}
         {pending && (
           <span
+            aria-hidden="true"
+            className={`absolute size-0 -translate-x-1/2 border-x-[5px] border-x-transparent ${arrowClass(pending, 'page')}`}
+            style={arrowAt(pending)}
+          />
+        )}
+        {pending && (
+          <span
             onPointerUp={(e) => e.stopPropagation()}
-            className="absolute flex -translate-x-1/2 flex-col items-center"
-            style={{ left: anchor(pending.x), top: `${pending.y * 100}%` }}
+            className="absolute -translate-x-1/2"
+            style={labelAt(pending)}
           >
-            <span className="size-0 border-x-[5px] border-b-[5px] border-x-transparent border-b-page" />
             <form
               ref={form}
               onSubmit={(e) => {
@@ -2707,6 +2810,7 @@ function TagEditor({
           ? `${TAG_MAX} tags is the most a photo takes.`
           : 'Tap the photo where someone is to tag them.'}
       </p>
+      {shot.removed && <RemovedNote handles={shot.removed} />}
       <div className="text-center">
         <PublicNote brandId={brandId} handles={shot.tags.map((t) => t.handle)} />
       </div>
@@ -2738,24 +2842,51 @@ function TagEditor({
   )
   if (phone) {
     return (
-      <Sheet title="Tag people" onClose={onClose}>
+      <Sheet title="Tag people" onClose={close}>
         {body}
       </Sheet>
     )
   }
   return (
-    <Dialog title="Tag people" onClose={onClose}>
+    <Dialog title="Tag people" onClose={close}>
       {body}
       <div className="flex justify-end pt-4">
         <button
           type="button"
-          onClick={onClose}
+          onClick={close}
           className="bb-press h-10 rounded-full bg-ink px-5 text-[13px] font-medium text-page"
         >
           Done
         </button>
       </div>
     </Dialog>
+  )
+}
+
+/** The longest a save waits for a photo to load, to cut it to what Instagram shows. */
+const SAVE_WAIT_MS = 10_000
+
+/** Below this share of the photo's height, a tag's label sits above its arrow, inside the photo. */
+const TAG_LOW = 0.8
+
+/** The tags a new crop or frame took off, said once and quietly, so the person can tag again. */
+function RemovedNote({
+  handles,
+  align = 'center',
+}: {
+  handles: string[]
+  align?: 'center' | 'start'
+}) {
+  const names =
+    handles.length === 1 ? handles[0] : `${handles.slice(0, -1).join(', ')} and ${handles.at(-1)}`
+  return (
+    <p
+      role="status"
+      className={`text-[12.5px] text-ink-3 max-md:text-[13.5px] ${align === 'center' ? 'text-center' : ''}`}
+    >
+      {names} {handles.length === 1 ? 'was' : 'were'} outside the new crop and{' '}
+      {handles.length === 1 ? 'was' : 'were'} removed.
+    </p>
   )
 }
 

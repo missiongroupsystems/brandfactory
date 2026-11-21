@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.75.0** — 2026-11-21 — `fix/tag-crop`: the tag editor, the phone preview and the photos a post sends show the same frame, the one Instagram shows: a feed photo between 4:5 and 1.91:1 whole, one outside it as its centred part in the nearest of those shapes (sent as that cut), and in a carousel every slide in the first slide's shape (believed, not verified: `CAROUSEL_TAKES_FIRST_SHAPE`). Tags stay on their spot of the photo when the frame changes; a tag the new frame leaves out is removed, with one quiet line. A tag's arrow points at its spot. No server or pack change. 1862 tests by count: 1582 pass, 280 skipped without a Postgres server.
 - **2.74.2** — 2026-11-21 — `fix/list-cap`: the post page (new and edit) is on the app's own white (`--page`), as the Schedule behind it, where it was on the warmer `--surface-2`; its header matches. The cards keep their hairline edge and their grey fields. The suggestion lists (Collaborators, Tag people, and every list of the same kind) end on a whole row, with a soft fade on an edge that has more rows past it. No server or pack change. 1847 tests by count: 1567 pass, 280 skipped without a Postgres server.
 - **2.74.1** — 2026-11-20 — `fix/people-picker`: the post page's people pickers, after a live check. Avatars are kept as 160px WebP thumbnails (a few KB, not Meta's 1080px originals), start loading before the list opens, are cached by the browser for an hour, and show the initials until they load. The Tag people list stays inside its dialog, clear of Done; Collaborators opens down (the page scrolls to make room, for this field only) and turns up only when nothing makes room; a shut More options is hidden and inert, and keeps what was typed in it. No pack change. 1844 tests by count: 1564 pass, 280 skipped without a Postgres server.
 - **2.74.0** — 2026-11-20 — `feat/influencers`: the company's influencer roster is back on the core (pack 1.19.0, migration `0029_influencers.sql`, additive): 146 people and 216 accounts from the old BrandFactory, imported from its own CSV exports (`import-roster`), with brand links, notes, names for the brands' saved collaborators, and a server job for Instagram profile pictures; the post page's Collaborators and Tag people suggest the brand's linked people first, search the whole roster, and fix any row's name from a pencil. No roster page. 1823 tests by count: 1543 pass, 280 skipped without a Postgres server.
@@ -154,6 +155,51 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.75.0 — 2026-11-21
+
+- **Why.** The owner asked why the tag editor's photo had another shape than the preview's, and
+  what happens to a tag outside the post. Found on a local core with grid photos: the preview
+  filled a fixed box with the photo (`object-cover`), so a 16:9 photo showed its middle half while
+  the editor and Instagram showed it whole, and its tags were drawn on the wrong spots; a crop made
+  after tagging kept each tag's fraction, so a tag pointed at other content, or at whoever the crop
+  left there; a tag near an edge drew its arrow at 20% or 80%, not at its spot. A tag never went
+  out of range: `meta-post.ts` clamps it to 0–1.
+- **One frame** (`feedFrames`, `publish/model.ts`). For a feed post that Instagram gets, each
+  photo's frame is its crop (or the whole photo), then, outside 4:5 to 1.91:1, its centred part in
+  the nearest of those shapes; in a carousel, every slide in the first slide's shape. That last rule
+  is believed, not verified on a live post: it sits behind `CAROUSEL_TAKES_FIRST_SHAPE`, which says
+  so. Until every photo is measured there is no frame, so nothing is drawn or moved on a guess.
+  Reels, stories, videos and posts without Instagram are unchanged.
+- **The editor and the preview** draw that frame (`Boxed`, `publish/shot.tsx`): the preview
+  letterboxes it in the post box, as Instagram does, and its tags sit on it. The editor takes a tap
+  only inside the frame, and only once it is known.
+- **What is sent.** A photo whose frame is not the whole photo goes out as that cut (`cutPhoto`,
+  now by the part of the photo), so a 9:16 photo in a post sends its centred 4:5. The post keeps
+  the frame (`shots[].frame`) and the original, as for a crop.
+- **Tags** (`retag`, `reframe`). A tag's spot is a fraction of the frame it was placed on
+  (`tagBox`). When the frame changes (a crop, a new first slide), the tag is taken back to the photo
+  and into the new frame, so it stays on the same person. A tag the new frame leaves out is
+  removed, not moved to an edge (that would tag whoever is there), and one quiet line says so in the
+  tag editor and under Tag people: "@x was outside the new crop and was removed." It goes once the
+  editor has been closed. A post saved before reads its tags on its crop, as the editor placed them.
+- **Arrows.** A tag's arrow points at its spot, in the editor and the preview; only the label is
+  held inside the photo, and near the bottom edge it sits above the arrow.
+- **Review fixes (round 1).** A save keeps the part the tags sit on (`frame`) also while Instagram
+  is off, and measures a photo not loaded yet before it cuts, so the file sent and its tags' part
+  are one. A photo that does not load is never framed or cut, and its tags stay. The shape chip on
+  a photo the post cuts by itself says "Middle 4:5" (or 1.91:1), as a choice: "Instagram and
+  Facebook show the middle 4:5. Crop to choose the part."
+- **Known limits.** Facebook gets the same cut as Instagram: a post's files are one list for every
+  account (`brandbase.post_files`), so an uncut copy for Facebook would need a pack change.
+  Changing the first slide or the slides' order changes every slide's frame, and a tag it takes
+  off stays off. A carousel whose first slide is a video leaves each photo in its own shape.
+- **Tests.** jsdom loads no image and never says so; the test setup now makes an image fail at
+  once, as a browser reports one it cannot load, so a save that waits for a photo's shape goes on.
+- **Tests:** 1862 by count: 1582 pass and 280 are skipped without a Postgres server. Typecheck, lint, format and the web build pass. Browser: Chromium at 1440x900
+  (scale 2) on a local core, with grid photos: a wide photo in the preview and the editor, a tag on
+  A6 then a 4:5 crop (the line and the kept tag), a tall 9:16 photo, and a carousel of a wide and a
+  tall photo. A saved draft of the tall photo sends a 1080x1350 cut.
 
 ## 2.74.2 — 2026-11-21
 

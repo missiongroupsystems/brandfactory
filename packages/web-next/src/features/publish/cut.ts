@@ -1,38 +1,30 @@
 import { upload } from '@/lib/remote'
 
-import { cropScale, type Crop } from './model'
+import type { Box } from './model'
 
 /** Instagram shows a feed photo at most 1440 pixels wide; a larger cut only costs upload time. */
 const LONGEST = 1440
 
-/**
- * The part of the photo a crop keeps, as fractions of the photo: the same frame `Framed` draws.
- * The photo is `w` frames wide and `h` frames tall, slid off centre by the crop's offset.
- */
-export function cutBox(crop: Crop) {
-  const { w, h } = cropScale(crop)
-  const tx = (crop.x * (w - 1)) / 2
-  const ty = (crop.y * (h - 1)) / 2
-  return { left: (w / 2 - 0.5 - tx) / w, top: (h / 2 - 0.5 - ty) / h, width: 1 / w, height: 1 / h }
-}
-
-/** The crop's own key: the same photo cut the same way is one file. */
-const keyOf = (src: string, crop: Crop) =>
-  `${src}|${crop.aspect}|${crop.zoom}|${crop.x}|${crop.y}|${crop.ratio}`
+/** The cut's own key: the same part of the same photo is one file. */
+const keyOf = (src: string, box: Box) =>
+  [src, box.left, box.top, box.width, box.height]
+    .map((v) => (typeof v === 'number' ? v.toFixed(6) : v))
+    .join('|')
 
 /** Each cut already uploaded in this tab, by its key. */
 const made = new Map<string, Promise<string>>()
 
 /**
- * The photo cut as the preview shows it, as a JPEG the brand owns, uploaded once per crop: the
- * file the post sends, so Instagram and Facebook get the crop, not the original. The original
- * stays with the post, so the next edit starts from the whole photo.
+ * The part of the photo the preview shows (its crop, and the shape Instagram shows it in:
+ * `feedFrames`), as a JPEG the brand owns, uploaded once per part: the file the post sends, so
+ * Instagram and Facebook get what the preview and the tag editor show. The original stays with
+ * the post, so the next edit starts from the whole photo.
  */
-export function cutPhoto(brandId: string, src: string, crop: Crop): Promise<string> {
-  const key = keyOf(src, crop)
+export function cutPhoto(brandId: string, src: string, box: Box): Promise<string> {
+  const key = keyOf(src, box)
   let cut = made.get(key)
   if (!cut) {
-    cut = render(src, crop).then((blob) =>
+    cut = render(src, box).then((blob) =>
       upload(brandId, new File([blob], 'crop.jpg', { type: 'image/jpeg' })),
     )
     // A failed cut is tried again on the next save.
@@ -43,11 +35,11 @@ export function cutPhoto(brandId: string, src: string, crop: Crop): Promise<stri
 }
 
 /** Remembers a cut the post already has, so saving it again uploads nothing. */
-export function knownCut(src: string, crop: Crop, cutSrc: string) {
-  made.set(keyOf(src, crop), Promise.resolve(cutSrc))
+export function knownCut(src: string, box: Box, cutSrc: string) {
+  made.set(keyOf(src, box), Promise.resolve(cutSrc))
 }
 
-async function render(src: string, crop: Crop): Promise<Blob> {
+async function render(src: string, box: Box): Promise<Blob> {
   const unread = new Error('The cropped photo could not be made. Save again, or crop it again.')
   let photo: ImageBitmap
   try {
@@ -57,7 +49,6 @@ async function render(src: string, crop: Crop): Promise<Blob> {
   } catch {
     throw unread
   }
-  const box = cutBox(crop)
   const sw = box.width * photo.width
   const sh = box.height * photo.height
   const scale = Math.min(1, LONGEST / Math.max(sw, sh))

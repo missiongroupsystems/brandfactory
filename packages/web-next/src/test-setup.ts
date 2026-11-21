@@ -15,3 +15,22 @@ vi.stubGlobal(
     disconnect() {}
   },
 )
+
+// jsdom loads no image and never says so. A browser reports an image it cannot load: an `Image`
+// here fails at once, so code that waits for one (a photo's shape, `ratioOf`) goes on. jsdom's
+// `Image` makes a plain <img>, so the failing `src` is set on each one; on the window itself,
+// which jsdom's code reads, as well as on the test's globals.
+const DomImage = window.Image
+function FailingImage(width?: number, height?: number) {
+  const img = new DomImage(width, height)
+  Object.defineProperty(img, 'src', {
+    get: () => img.getAttribute('src') ?? '',
+    set: (value: string) => {
+      img.setAttribute('src', value)
+      queueMicrotask(() => img.onerror?.(new Event('error')))
+    },
+  })
+  return img
+}
+window.Image = FailingImage as unknown as typeof window.Image
+globalThis.Image = FailingImage as unknown as typeof window.Image

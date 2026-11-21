@@ -1,6 +1,14 @@
 import { Media } from '@/components/media'
 
-import { cropOffset, cropScale, frameRatio, type Crop, type Shot } from './model'
+import {
+  boxRatio,
+  cropOffset,
+  cropScale,
+  frameRatio,
+  type Crop,
+  type Shot,
+  type Shown,
+} from './model'
 
 /**
  * A photo cut to its crop, inside a positioned parent. The frame keeps the crop's shape and fits
@@ -34,19 +42,56 @@ export function Framed({ src, crop, sizes }: { src: string; crop: Crop; sizes: s
   )
 }
 
-/** A photo's width over its height, once it has loaded; square if it cannot load. */
-export function ratioOf(src: string): Promise<number> {
+/**
+ * The part of a photo Instagram shows (`Shown`), inside a positioned parent: the frame keeps that
+ * part's shape and fits the parent, letterboxed as the app shows a photo that is not the post's
+ * shape; the photo inside is sized and slid so only that part is in the frame.
+ */
+export function Boxed({ src, shown, sizes }: { src: string; shown: Shown; sizes: string }) {
+  const { box, photo } = shown
+  const ratio = boxRatio(box, photo)
+  return (
+    <span className="absolute inset-0 flex items-center justify-center [container-type:size]">
+      <span
+        className="relative overflow-hidden"
+        style={{ aspectRatio: ratio, width: `min(100%, ${ratio * 100}cqh)` }}
+      >
+        <span
+          className="absolute"
+          style={{
+            width: `${100 / box.width}%`,
+            height: `${100 / box.height}%`,
+            left: `${(-box.left / box.width) * 100}%`,
+            top: `${(-box.top / box.height) * 100}%`,
+          }}
+        >
+          <Media src={src} sizes={sizes} />
+        </span>
+      </span>
+    </span>
+  )
+}
+
+/**
+ * A photo's width over its height, once it has loaded; null when it cannot load, so a photo that
+ * did not load is never framed, cut or retagged on a guessed shape.
+ */
+export function ratioOf(src: string): Promise<number | null> {
   return new Promise((resolve) => {
     const img = new window.Image()
-    img.onload = () => resolve(img.naturalWidth / img.naturalHeight)
-    img.onerror = () => resolve(1)
+    img.onload = () =>
+      resolve(
+        img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : null,
+      )
+    img.onerror = () => resolve(null)
     img.src = src
   })
 }
 
 /**
- * A shot as the post shows it: cropped if it was, otherwise filling its parent. A video shows its
- * poster frame unless `play` (the preview) asks it to run; a video is never cropped.
+ * A shot as the post shows it: the part Instagram shows when it is known (`shot.shown`), else
+ * cropped if it was, else filling its parent. A video shows its poster frame unless `play` (the
+ * preview) asks it to run; a video is never cropped.
  */
 export function ShotView({
   shot,
@@ -57,6 +102,7 @@ export function ShotView({
   sizes: string
   play?: boolean
 }) {
+  if (shot.shown) return <Boxed src={shot.src} shown={shot.shown} sizes={sizes} />
   return shot.crop ? (
     <Framed src={shot.src} crop={shot.crop} sizes={sizes} />
   ) : (
