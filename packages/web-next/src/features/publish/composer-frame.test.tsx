@@ -358,6 +358,33 @@ describe('a post opened again and saved with no change', () => {
   })
 })
 
+describe('a post whose tags sit on another part than its cut', () => {
+  it('sends the same files after a reload, as the cut is known by the part it was made of', async () => {
+    // As after a crop change on a photo with no tags placed: the saved frame is the one from
+    // before, the cut is of the new part.
+    core.shots = [
+      { crop: null, tags: [] },
+      { crop: null, tags: [] },
+    ]
+    await open()
+    await save()
+    const media = sentMedia()
+    const shots = (bodies.at(-1)!.body as { draft: { shots: Array<Record<string, unknown>> } })
+      .draft.shots
+    expect(shots[0]!.cutAt).toBeDefined()
+    cleanup()
+    known.clear()
+    bodies.length = 0
+    core.media = media.map((m) => ({ ...m, kind: 'photo' }))
+    core.shots = shots.map((shot, i) =>
+      i === 0 ? { ...shot, frame: { left: 0, top: 0, width: 0.5, height: 0.5 } } : shot,
+    )
+    await open()
+    await save()
+    expect(sentMedia()).toEqual(media)
+  })
+})
+
 describe('a save to a core whose pack does not take a source yet', () => {
   it('saves again without it, so the post saves as before and Facebook gets the cut', async () => {
     core.refuse = 'source'
