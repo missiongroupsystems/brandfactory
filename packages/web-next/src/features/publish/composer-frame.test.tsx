@@ -419,6 +419,17 @@ describe('a scheduled post saved before 2.75.1, with no source, opened and saved
     expect(sentMedia()[1]!.source).toBeUndefined()
   })
 
+  it('names the source the crop now gives, not a saved one the crop no longer gives', async () => {
+    // As after a crop change whose Instagram cut is the same file: the saved source is another
+    // crop's, and the photo is now shown whole beyond Instagram's part.
+    const first = await savedBefore()
+    core.media = first.map((m, i) => (i === 0 ? { ...m, source: PHOTO.tagliatelle } : m))
+    clock.soon = true
+    await open()
+    await save()
+    expect(sentMedia()[0]!.source).toBe(PHOTO.ravioli)
+  })
+
   it('names the source once the save asks a new yes of the waiting sends', async () => {
     await savedBefore()
     await open()
