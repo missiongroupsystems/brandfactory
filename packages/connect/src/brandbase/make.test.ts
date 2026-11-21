@@ -399,6 +399,84 @@ describe('Instagram and Facebook through Make', () => {
     expect(filesFor(huge, 'fb')).toEqual([huge[0]])
   })
 
+  it('sends Facebook a source only of a type and a known size Meta lists, and only for a photo', () => {
+    const cut = { kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG }
+    const sourced = (source: Partial<{ kind: string; mime: string; bytes: number | null }>) => [
+      { ...cut, source: { kind: 'photo', mime: 'image/png', bytes: 2, key: JPG2, ...source } },
+    ]
+    const fb = (media: ReturnType<typeof sourced>) => filesFor(media, 'fb')[0]
+    // Meta: "Files can not exceed 10MB." A source past the old 8 MB, within 10 MB, still goes.
+    const nine = sourced({ mime: 'image/jpeg', bytes: 9 * 1000 * 1000 })
+    expect(fb(nine)).toBe(nine[0]!.source)
+    const edge = sourced({ bytes: SOURCE_MAX_BYTES })
+    expect(fb(edge)).toBe(edge[0]!.source)
+    // Past the limit, or of a size no one knows: the cut.
+    const over = sourced({ bytes: SOURCE_MAX_BYTES + 1 })
+    expect(fb(over)).toBe(over[0])
+    const unknown = sourced({ bytes: null })
+    expect(fb(unknown)).toBe(unknown[0])
+    // Meta lists ".jpeg, .bmp, .png, .gif, .tiff": a WebP or a HEIC source gives the cut.
+    for (const mime of ['image/webp', 'image/heic', 'image/avif']) {
+      const other = sourced({ mime })
+      expect(fb(other)).toBe(other[0])
+    }
+    for (const mime of ['image/bmp', 'image/gif', 'image/tiff']) {
+      const listed = sourced({ mime })
+      expect(fb(listed)).toBe(listed[0]!.source)
+    }
+    // A video never swaps, whatever it names.
+    const video = [
+      {
+        kind: 'video',
+        mime: 'video/mp4',
+        bytes: 1,
+        key: JPG,
+        source: { kind: 'photo', mime: 'image/png', bytes: 2, key: JPG2 },
+      },
+    ]
+    expect(fb(video)).toBe(video[0])
+    // Nor to a source that is no photo.
+    const clip = sourced({ kind: 'video', mime: 'video/mp4' })
+    expect(fb(clip)).toBe(clip[0])
+    // A source named a video gives the cut, whatever type it says it is.
+    const named = sourced({ kind: 'video', mime: 'image/jpeg' })
+    expect(fb(named)).toBe(named[0])
+  })
+
+  it('sends Instagram the cut, not a source the job carries', async () => {
+    const make = fakeMake()
+    const send = socialConnector({ make: make.app, signedReadUrl: files.store.signedReadUrl }).send
+    const media = [
+      {
+        kind: 'photo',
+        mime: 'image/jpeg',
+        bytes: 1,
+        key: JPG,
+        source: { kind: 'photo', mime: 'image/jpeg', bytes: 2, key: JPG2 },
+      },
+    ]
+    await send({
+      pack: 'brandbase',
+      op: 'post.publish_job',
+      payload: {
+        brand: 'casa',
+        job: 'p:ig',
+        post: 'p',
+        channel: 'ig',
+        format: 'carousel',
+        text: 'Hi',
+        media,
+        account: IG_ID,
+        shareToFeed: true,
+        via: 'make',
+      },
+      principal: 'owner',
+    })
+    expect(make.seen[0]!.body.media.map((m) => m.url)).toEqual([
+      `https://storage.test/${JPG}?ttl=7200`,
+    ])
+  })
+
   it('reads Make’s answer: refused, not run, or unknown, each in words', async () => {
     const make = fakeMake()
     const send = socialConnector({ make: make.app, signedReadUrl: files.store.signedReadUrl }).send

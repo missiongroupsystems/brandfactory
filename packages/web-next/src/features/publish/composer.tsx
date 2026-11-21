@@ -201,6 +201,8 @@ interface KeptDraft {
   shots?: (Pick<Shot, 'crop' | 'tags'> & {
     original?: string
     cut?: string
+    /** The part `cut` was made of; a post saved before 2.75.2 has none (`frame` then stands in). */
+    cutAt?: Box
     frame?: Box
     /** The person's crop, cut for Facebook when Instagram cuts it further (the media's `source`). */
     source?: string
@@ -339,7 +341,7 @@ export function Composer({
       const tagBox = was.frame && { tagBox: was.frame }
       // A cut photo opens on the whole photo, with the cut it has remembered for the next save.
       if (was.original && was.cut === src) {
-        const part = was.frame ?? (was.crop ? cutBox(was.crop) : null)
+        const part = was.cutAt ?? was.frame ?? (was.crop ? cutBox(was.crop) : null)
         if (part) knownCut(was.original, part, src)
         // The crop Facebook gets, as uploaded: the next save sends the same file, not a new one.
         if (was.crop && was.source) knownCut(was.original, cutBox(was.crop), was.source)
@@ -706,18 +708,29 @@ export function Composer({
       const out = reframe(media, framesNow) ?? media
       // A photo goes out as the preview shows it: the part Instagram shows (or its crop), cut and
       // uploaded once; a photo shown whole goes as it is.
-      const files = await Promise.all(
-        out.map((m, i) => {
-          if (isVideo(m.src)) return m.src
-          const part = framesNow[i]?.box ?? (m.crop ? cutBox(m.crop) : WHOLE)
-          return sameBox(part, WHOLE) ? m.src : cutPhoto(b, m.src, part)
-        }),
+      const parts = out.map((m, i) =>
+        isVideo(m.src) ? WHOLE : (framesNow[i]?.box ?? (m.crop ? cutBox(m.crop) : WHOLE)),
       )
+      const files = await Promise.all(
+        out.map((m, i) =>
+          isVideo(m.src) || sameBox(parts[i]!, WHOLE) ? m.src : cutPhoto(b, m.src, parts[i]!),
+        ),
+      )
+      // A save that asks no new yes of a send that waits (one too close to its time keeps the old
+      // send) leaves each file it does not change as it was saved, with or without its source: a
+      // source added now would change Facebook's payload, and void its yes, with no new yes asked.
+      // A post saved before 2.75.1 gains its source at its next save that asks a new yes. A file
+      // saved with a source names it again as the crop now gives it: the same crop gives the same
+      // source (its cut is known again on load), and a changed crop its own one, even when
+      // Instagram's cut of both is the same file.
+      const keepsYes = send === null && (post?.waiting?.length ?? 0) > 0
       // Facebook shows a photo of any shape whole: a photo the post cut by itself to Instagram's
       // part also names the file it was cut from (`source`), the whole photo or the person's own
       // crop, which Facebook's sender takes. Nothing more is uploaded when no such cut was made.
       const sources = await Promise.all(
         out.map((m, i) => {
+          if (keepsYes && post?.images.includes(files[i]!) && !kept?.sources?.[files[i]!])
+            return undefined
           const shown = framesNow[i]
           if (isVideo(m.src) || !shown) return undefined
           const own = m.crop ? cutBox(m.crop) : WHOLE
@@ -736,7 +749,9 @@ export function Composer({
           crop: m.crop,
           tags: m.tags,
           ...(frame && { frame }),
-          ...(files[i] !== m.src && { original: m.src, cut: files[i] }),
+          // The part the cut was made of, which can differ from the tags' part: on load, the same
+          // part is known to give the same cut, so a save with no change uploads nothing new.
+          ...(files[i] !== m.src && { original: m.src, cut: files[i], cutAt: parts[i] }),
           ...(sources[i] && sources[i] !== m.src && { source: sources[i] }),
         }
       })

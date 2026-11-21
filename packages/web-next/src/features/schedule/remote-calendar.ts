@@ -18,6 +18,8 @@ interface ServerMedia {
   src: string
   kind: 'photo' | 'video'
   duration?: string
+  /** The file a photo was cut from, which Facebook takes instead (pack 1.20.0). */
+  source?: string
 }
 
 export interface ServerPost {
@@ -146,7 +148,15 @@ export function postOf(p: ServerPost): Post {
 }
 
 /** What the composer saved with each post: its caption and the rest of its draft. */
-export type Saved = Record<string, { caption: string; draft: Record<string, unknown> }>
+export type Saved = Record<
+  string,
+  {
+    caption: string
+    draft: Record<string, unknown>
+    /** Each saved file that names a source, by its src as the post's `images` read it. */
+    sources?: Record<string, string>
+  }
+>
 
 export function calendarOf(
   brandId: BrandId,
@@ -235,7 +245,19 @@ export function calendarOf(
     }
   })
   const saved: Saved = Object.fromEntries(
-    all.map((p) => [p.id, { caption: p.caption, draft: p.draft }]),
+    all.map((p) => {
+      const named = (p.media ?? []).flatMap((m) =>
+        typeof m.source === 'string' ? [[srcOf(m), m.source] as const] : [],
+      )
+      return [
+        p.id,
+        {
+          caption: p.caption,
+          draft: p.draft,
+          ...(named.length > 0 && { sources: Object.fromEntries(named) }),
+        },
+      ]
+    }),
   )
   return { posts, weeks, saved }
 }
