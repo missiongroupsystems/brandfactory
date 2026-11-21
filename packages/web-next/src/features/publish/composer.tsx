@@ -713,11 +713,17 @@ export function Composer({
           return sameBox(part, WHOLE) ? m.src : cutPhoto(b, m.src, part)
         }),
       )
+      // A save that asks no new yes of a send that waits (one too close to its time keeps the old
+      // send) leaves each file it does not change as it was saved, with or without its source: a
+      // source added now would change Facebook's payload, and void its yes, with no new yes asked.
+      // A post saved before 2.75.1 gains its source at its next save that asks a new yes.
+      const keepsYes = send === null && (post?.waiting?.length ?? 0) > 0
       // Facebook shows a photo of any shape whole: a photo the post cut by itself to Instagram's
       // part also names the file it was cut from (`source`), the whole photo or the person's own
       // crop, which Facebook's sender takes. Nothing more is uploaded when no such cut was made.
       const sources = await Promise.all(
         out.map((m, i) => {
+          if (keepsYes && post?.images.includes(files[i]!)) return kept?.sources?.[files[i]!]
           const shown = framesNow[i]
           if (isVideo(m.src) || !shown) return undefined
           const own = m.crop ? cutBox(m.crop) : WHOLE

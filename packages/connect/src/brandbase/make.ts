@@ -52,20 +52,44 @@ export type Own = {
 /**
  * The post's files as an account takes them. Facebook shows a photo of any shape whole, so it
  * takes the file a photo was cut from, never Instagram's own cut; every other account takes the
- * files as they are (Instagram's tags are fractions of the cut).
+ * files as they are (Instagram's tags are fractions of the cut). Only a photo swaps, and only for a
+ * source Facebook is sure to take (`pageTakes`): otherwise the Page gets the cut.
  */
 export function filesFor(media: File[], channel: string): File[] {
   if (channel !== 'fb') return media
   return media.map((f) =>
-    'missing' in f || !f.source || (f.source.bytes ?? 0) > SOURCE_MAX_BYTES ? f : f.source,
+    'missing' in f || f.kind !== 'photo' || !f.source || !pageTakes(f.source) ? f : f.source,
   )
 }
 
 /**
- * The largest source Facebook is sent: a whole photo larger than this (a camera's raw PNG) may be
- * refused, so the Page gets the cut instead (at most 1440 px, as Instagram does).
+ * The largest source Facebook is sent. Meta's Page photo reference
+ * (developers.facebook.com/docs/graph-api/reference/page/photos/, "Photo Specifications"): "Files
+ * can not exceed 10MB." Counted in decimal megabytes, the smaller reading.
  */
-export const SOURCE_MAX_BYTES = 8 * 1024 * 1024
+export const SOURCE_MAX_BYTES = 10 * 1000 * 1000
+
+/** The file types the same reference lists: ".jpeg, .bmp, .png, .gif, .tiff". */
+export const PAGE_PHOTO_TYPES: ReadonlySet<string> = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/bmp',
+  'image/gif',
+  'image/tiff',
+])
+
+/**
+ * A source Facebook takes: a photo of a type it lists, of a known size within its limit. A size
+ * the media row does not know counts as too big, not as nothing.
+ */
+function pageTakes(source: NonNullable<Own['source']>): boolean {
+  return (
+    source.kind === 'photo' &&
+    PAGE_PHOTO_TYPES.has(source.mime.toLowerCase()) &&
+    typeof source.bytes === 'number' &&
+    source.bytes <= SOURCE_MAX_BYTES
+  )
+}
 
 /** What the Make scenario gets (the plan's contract). */
 export interface MakeRequest {

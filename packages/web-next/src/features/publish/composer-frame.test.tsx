@@ -8,6 +8,7 @@ import { resetIdeas } from '@/features/ideate/ideas-store'
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import type * as NotAvailable from '@/features/connections/not-available'
 import type * as RosterStore from '@/features/roster/roster-store'
+import type * as MovePost from '@/features/schedule/move-post'
 import type * as Remote from '@/lib/remote'
 
 import { Composer } from './composer'
@@ -31,7 +32,18 @@ const core = vi.hoisted(() => ({
    * another property, which no save may get past.
    */
   refuse: null as null | 'source' | 'other',
+  /** The post's jobs as the core has them: a send that waits has a person's yes. */
+  jobs: null as unknown,
 }))
+// `soon`: the post's time is too close for a save to ask a new yes (`tooSoon`).
+const clock = vi.hoisted(() => ({ soon: false }))
+vi.mock('@/features/schedule/move-post', async (original) => {
+  const real = await original<typeof MovePost>()
+  return {
+    ...real,
+    tooSoon: (...args: Parameters<typeof real.tooSoon>) => clock.soon || real.tooSoon(...args),
+  }
+})
 vi.mock('@/lib/remote', async (original) => {
   const { demoAsCore } = await import('@/test-core-state')
   return {
@@ -69,6 +81,10 @@ vi.mock('@/lib/remote', async (original) => {
       if (core.media) {
         const p = state.posts.find((x) => x.id === 'ravioli') as { media: unknown }
         p.media = core.media
+      }
+      if (core.jobs) {
+        const p = state.posts.find((x) => x.id === 'ravioli') as { jobs: unknown }
+        p.jobs = core.jobs
       }
       hydrate('casa-vostra', state)
       return () => undefined
@@ -146,6 +162,8 @@ beforeEach(() => {
   core.shots = null
   core.media = null
   core.refuse = null
+  core.jobs = null
+  clock.soon = false
   shapes.ratio = 9 / 16
   shapes.hold = false
   shapes.broken = false
@@ -358,5 +376,56 @@ describe('a save to a core whose pack does not take a source yet', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^Save/ })[0]!)
     await expect(sent.mock.calls.at(-1)![1]()).rejects.toMatchObject({ code: 'VALIDATION' })
     expect(bodies.filter((b) => b.call.startsWith('PATCH'))).toHaveLength(1)
+  })
+})
+
+describe('a scheduled post saved before 2.75.1, with no source, opened and saved with no change', () => {
+  /** As 2.75.0 saved it: each photo cut to Instagram's 4:5, and no source named. */
+  async function savedBefore() {
+    await open()
+    await save()
+    const first = sentMedia().map(({ source: _source, ...m }) => ({ ...m, kind: 'photo' }))
+    const shots = (bodies.at(-1)!.body as { draft: { shots: Array<Record<string, unknown>> } })
+      .draft.shots
+    cleanup()
+    known.clear()
+    bodies.length = 0
+    core.media = first
+    core.shots = shots.map(({ source: _source, ...shot }) => shot)
+    core.jobs = [
+      { channel: 'fb', status: 'scheduled', error: null },
+      { channel: 'ig', status: 'scheduled', error: null },
+    ]
+    return first
+  }
+
+  it('adds no source when the save asks no new yes, so the waiting Facebook send still matches', async () => {
+    const first = await savedBefore()
+    clock.soon = true
+    await open()
+    await save()
+    expect(sentMedia()).toEqual(first.map(({ kind: _kind, ...m }) => ({ ...m, kind: 'photo' })))
+    expect(sentMedia().every((m) => m.source === undefined)).toBe(true)
+    expect(bodies.some((b) => b.call.endsWith('/send'))).toBe(false)
+  })
+
+  it('keeps a source it was saved with when the save asks no new yes', async () => {
+    const first = await savedBefore()
+    core.media = first.map((m, i) => (i === 0 ? { ...m, source: PHOTO.ravioli } : m))
+    clock.soon = true
+    await open()
+    await save()
+    expect(sentMedia()[0]!.source).toBe(PHOTO.ravioli)
+    expect(sentMedia()[1]!.source).toBeUndefined()
+  })
+
+  it('names the source once the save asks a new yes of the waiting sends', async () => {
+    await savedBefore()
+    await open()
+    await save()
+    expect(sentMedia()[0]!.source).toBe(PHOTO.ravioli)
+    expect(sentMedia()[1]!.source).toBe(PHOTO.tagliatelle)
+    const again = bodies.find((b) => b.call === 'POST /brands/casa-vostra/posts/ravioli/send')
+    expect(again?.body).toEqual({ when: 'slot', channels: ['ig', 'fb'] })
   })
 })
