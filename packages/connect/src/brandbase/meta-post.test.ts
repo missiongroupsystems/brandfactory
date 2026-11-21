@@ -10,6 +10,7 @@ import { serve } from './test-core'
 const SIG = 'A'.repeat(43)
 const JPG = 'brandbase/00000000-0000-4000-8000-0000000000a1.jpg'
 const JPG2 = 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg'
+const PNG = 'brandbase/00000000-0000-4000-8000-0000000000c1.png'
 const MP4 = 'brandbase/00000000-0000-4000-8000-0000000000b1.mp4'
 const IG = '17841400000000001'
 const PAGE = '100000000000001'
@@ -284,6 +285,58 @@ describe('posting through our own Meta app', () => {
     const attached = [0, 1].map((i) => JSON.parse(fb[2]!.params[`attached_media[${i}]`]!))
     expect(attached[0]).toEqual({ media_fbid: expect.stringMatching(/^ph\d+$/) })
     expect(attached[1]).not.toEqual(attached[0])
+  })
+
+  it('end to end: the Page gets the whole photo a post was cut from, Instagram the cut', async () => {
+    const t = await setUp()
+    await t.db.query(
+      `insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes)
+       values ('whole', 'casa', $1, 'photo', 'image/png', 9000)`,
+      [PNG],
+    )
+    // As the web app saves a photo it cut by itself to Instagram's part: the cut, and its source,
+    // through the same move as the composer's save, before the post is scheduled.
+    const made = await t.call(
+      'POST',
+      '/ops/brandbase/post.create_draft',
+      {
+        brand: 'casa',
+        id: 'p1',
+        format: 'carousel',
+        hook: 'p1',
+        day: '2026-10-08',
+        time: '18:00',
+        caption: 'Fresh pasta tonight.',
+        channels: ['ig', 'fb'],
+        media: [
+          { src: src(JPG), kind: 'photo', source: src(PNG) },
+          { src: src(JPG2), kind: 'photo' },
+        ],
+      },
+      'owner',
+    )
+    expect(made.status).toBe(200)
+    const scheduled = await t.call(
+      'POST',
+      '/ops/brandbase/post.schedule',
+      { brand: 'casa', id: 'p1', when: 'slot', channels: ['ig', 'fb'] },
+      'owner',
+    )
+    expect(scheduled.status).toBe(200)
+    expect((await due(t)).map((j) => [j.id, j.status, j.error])).toEqual([
+      ['p1:fb', 'live', null],
+      ['p1:ig', 'live', null],
+    ])
+    const page = t.graph.calls.filter((c) => c.path === `/${PAGE}/photos`).map((c) => c.params.url)
+    expect(page).toEqual([
+      `https://storage.test/${PNG}?ttl=7200`,
+      `https://storage.test/${JPG2}?ttl=7200`,
+    ])
+    const ig = t.graph.calls.filter((c) => c.path === `/${IG}/media` && c.params.image_url)
+    expect(ig.map((c) => c.params.image_url)).toEqual([
+      `https://storage.test/${JPG}?ttl=7200`,
+      `https://storage.test/${JPG2}?ttl=7200`,
+    ])
   })
 
   it('posts a story to Instagram and to the Page, which Make cannot', async () => {
@@ -710,6 +763,28 @@ describe('the people and the first comment of a post sent through Meta', () => {
     const [reel] = containers(r)
     expect(JSON.parse(reel!.user_tags!)).toEqual([{ username: 'giulia.cooks' }])
     expect(JSON.parse(reel!.collaborators!)).toEqual(['chef.antonio'])
+  })
+
+  it('sends Facebook the photo a post was cut from, and Instagram the cut its tags sit on', async () => {
+    // The web app cut the first photo to Instagram's part by itself, and named the whole photo.
+    const cut = {
+      ...photo,
+      source: { kind: 'photo', mime: 'image/png', bytes: 2, key: PNG },
+    }
+    const second = { kind: 'photo', mime: 'image/jpeg', bytes: 1, key: JPG2 }
+    const fb = fakeGraph()
+    await send(fb, job({ channel: 'fb', account: PAGE, media: [cut, second] }))
+    const photos = fb.calls.filter((c) => c.path === `/${PAGE}/photos`).map((c) => c.params.url)
+    expect(photos).toEqual([`https://storage.test/${PNG}`, `https://storage.test/${JPG2}`])
+    // One photo, and a story: the source too.
+    const one = fakeGraph()
+    await send(one, job({ channel: 'fb', account: PAGE, media: [cut] }))
+    expect(one.calls.find((c) => c.path === `/${PAGE}/photos`)!.params.url).toBe(
+      `https://storage.test/${PNG}`,
+    )
+    const ig = fakeGraph()
+    await send(ig, job({ media: [cut], tags: [[{ handle: '@ana', at: { x: 0.5, y: 0.5 } }]] }))
+    expect(containers(ig)[0]!.image_url).toBe(`https://storage.test/${JPG}`)
   })
 
   it('sends no people on a Story or to Facebook, and none when the post has none', async () => {

@@ -41,7 +41,17 @@ import { noteUsed } from '@/features/roster/recent'
 import { loadRoster } from '@/features/roster/roster-store'
 import { usePeople } from '@/features/roster/use-people'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
-import { demoOf, loadBrand, newId, quietly, remote, report, request, sent } from '@/lib/remote'
+import {
+  demoOf,
+  loadBrand,
+  newId,
+  quietly,
+  remote,
+  RemoteError,
+  report,
+  request,
+  sent,
+} from '@/lib/remote'
 import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
@@ -188,7 +198,13 @@ interface KeptDraft {
    * post's file is still that cut. `frame` is the part of the photo Instagram shows and the tags
    * sit on (`feedFrames`).
    */
-  shots?: (Pick<Shot, 'crop' | 'tags'> & { original?: string; cut?: string; frame?: Box })[]
+  shots?: (Pick<Shot, 'crop' | 'tags'> & {
+    original?: string
+    cut?: string
+    frame?: Box
+    /** The person's crop, cut for Facebook when Instagram cuts it further (the media's `source`). */
+    source?: string
+  })[]
 }
 
 export function Composer({
@@ -325,6 +341,8 @@ export function Composer({
       if (was.original && was.cut === src) {
         const part = was.frame ?? (was.crop ? cutBox(was.crop) : null)
         if (part) knownCut(was.original, part, src)
+        // The crop Facebook gets, as uploaded: the next save sends the same file, not a new one.
+        if (was.crop && was.source) knownCut(was.original, cutBox(was.crop), was.source)
         return { ...shotOf(was.original), crop: was.crop, tags: was.tags, ...tagBox }
       }
       return { ...shot, crop: was.crop, tags: was.tags, ...tagBox }
@@ -645,7 +663,10 @@ export function Composer({
         // are kept, not dropped by a save.
         ...others,
       ] as string[],
-      media: media.map((m) => mediaItem(m.src)),
+      // A photo's `source` is the file Facebook takes instead (pack 1.20.0), named on the way out.
+      media: media.map((m) => mediaItem(m.src)) as Array<
+        ReturnType<typeof mediaItem> & { source?: string }
+      >,
       draft: {
         overrides: isStory ? {} : draft.overrides,
         youtubeTitle: draft.youtubeTitle,
@@ -692,7 +713,22 @@ export function Composer({
           return sameBox(part, WHOLE) ? m.src : cutPhoto(b, m.src, part)
         }),
       )
-      content.media = files.map((src) => mediaItem(src))
+      // Facebook shows a photo of any shape whole: a photo the post cut by itself to Instagram's
+      // part also names the file it was cut from (`source`), the whole photo or the person's own
+      // crop, which Facebook's sender takes. Nothing more is uploaded when no such cut was made.
+      const sources = await Promise.all(
+        out.map((m, i) => {
+          const shown = framesNow[i]
+          if (isVideo(m.src) || !shown) return undefined
+          const own = m.crop ? cutBox(m.crop) : WHOLE
+          if (sameBox(own, shown.box)) return undefined
+          return sameBox(own, WHOLE) ? m.src : cutPhoto(b, m.src, own)
+        }),
+      )
+      content.media = files.map((src, i) => ({
+        ...mediaItem(src),
+        ...(sources[i] && { source: sources[i] }),
+      }))
       content.draft.shots = out.map((m, i) => {
         // The part the tags sit on stays with the post, also while Instagram is off.
         const frame = m.tagBox ?? framesNow[i]?.box
@@ -701,6 +737,7 @@ export function Composer({
           tags: m.tags,
           ...(frame && { frame }),
           ...(files[i] !== m.src && { original: m.src, cut: files[i] }),
+          ...(sources[i] && sources[i] !== m.src && { source: sources[i] }),
         }
       })
       if (isNew) {
@@ -714,7 +751,15 @@ export function Composer({
         // A plain save that keeps the day and the time is a PATCH alone, not a move.
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
       }
-      await request('PATCH', `/brands/${b}/posts/${id}`, content)
+      try {
+        await request('PATCH', `/brands/${b}/posts/${id}`, content)
+      } catch (err) {
+        if (!refusesSource(err)) throw err
+        // The core's live pack predates `source` (pack 1.20.0): saved as before it, Facebook then
+        // gets Instagram's cut. The refusal changed nothing, so the save goes again once.
+        content.media = content.media.map(({ source: _source, ...item }) => item)
+        await request('PATCH', `/brands/${b}/posts/${id}`, content)
+      }
       if (send === 'again') {
         // A saved change to a scheduled post: its waiting sends again, at their slot, with a new
         // yes. The others are left as they are.
@@ -2860,6 +2905,31 @@ function TagEditor({
         </button>
       </div>
     </Dialog>
+  )
+}
+
+/**
+ * A save refused only because a media item names `source`: what a core on a pack before 1.20.0
+ * answers (`post.edit`'s media items take no other keys). Any other refusal is not this one.
+ */
+function refusesSource(err: unknown): boolean {
+  if (!(err instanceof RemoteError) || err.status !== 400 || err.code !== 'VALIDATION') return false
+  const details = Array.isArray(err.details) ? (err.details as unknown[]) : []
+  return (
+    details.length > 0 &&
+    details.every((d) => {
+      const e = d as {
+        instancePath?: unknown
+        keyword?: unknown
+        params?: { additionalProperty?: unknown }
+      }
+      return (
+        e.keyword === 'additionalProperties' &&
+        e.params?.additionalProperty === 'source' &&
+        typeof e.instancePath === 'string' &&
+        /^\/media\/\d+$/.test(e.instancePath)
+      )
+    })
   )
 }
 
