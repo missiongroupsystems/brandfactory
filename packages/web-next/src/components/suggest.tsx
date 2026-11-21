@@ -253,6 +253,51 @@ export function usePlace(
   return open ? place : null
 }
 
+/** The list's padding under its last row (`p-1.5`). */
+const LIST_PAD_END = 6
+
+/**
+ * The height a list shows, so its edge falls between two rows, never across one: the bottom of
+ * the last row that fits in `max`, with the list's padding under it. `bottoms` is each row's
+ * bottom, from the list's top edge. A list whose rows all fit keeps `max`; one whose first row
+ * does not fit keeps `max` too (it scrolls).
+ */
+export function fitRows(bottoms: number[], max: number, pad = LIST_PAD_END): number {
+  const content = (bottoms.at(-1) ?? 0) + pad
+  if (content <= max) return max
+  let fit = 0
+  for (const b of bottoms) {
+    if (b + pad > max) break
+    fit = b + pad
+  }
+  return fit > 0 ? fit : max
+}
+
+/**
+ * Ends a list's box on a whole row (`fitRows`), measured as the rows are drawn: a row with a name
+ * and a handle is taller than "Use @handle". It is set on the box after `place`: React leaves the
+ * height alone until `place` gives a new one, and the list fits it again then.
+ */
+function fitBox(box: HTMLElement, cap: number) {
+  const bottoms = [...box.querySelectorAll<HTMLElement>('[role="option"]')].map(
+    (o) => o.offsetTop + o.offsetHeight,
+  )
+  box.style.maxHeight = `${fitRows(bottoms, cap)}px`
+  showFades(box)
+}
+
+/** A soft fade on an edge with more rows past it: the bottom until the end, the top once scrolled. */
+function showFades(box: HTMLElement) {
+  const more = {
+    top: box.scrollTop > 1,
+    bottom: box.scrollTop + box.clientHeight < box.scrollHeight - 1,
+  }
+  for (const edge of ['top', 'bottom'] as const) {
+    const fade = box.querySelector<HTMLElement>(`[data-fade="${edge}"]`)
+    if (fade) fade.style.opacity = more[edge] ? '1' : '0'
+  }
+}
+
 function List({
   id,
   rows,
@@ -290,6 +335,12 @@ function List({
       ?.querySelector<HTMLElement>(`[id="${id}-${active}"]`)
       ?.scrollIntoView({ block: 'nearest' })
   }, [id, active, list])
+  // The box ends on a whole row, with a fade on an edge that has more past it (`fitBox`).
+  const cap = Number.parseFloat(String(place.maxHeight))
+  const shape = rows.map((r) => r.value).join('\n')
+  React.useLayoutEffect(() => {
+    if (list.current && Number.isFinite(cap)) fitBox(list.current, cap)
+  }, [cap, shape, naming, list])
   // The row under the pointer. The keys stay with the field, so the rows take no handlers of
   // their own: the frame reads which row a press or a move is on.
   const rowAt = (e: React.MouseEvent) =>
@@ -314,9 +365,15 @@ function List({
         const i = rowAt(e)
         if (i >= 0 && i !== active) onHover(i)
       }}
+      onScroll={(e) => showFades(e.currentTarget)}
       style={place}
       className="bb-menu fixed z-[60] flex flex-col overflow-y-auto overscroll-contain rounded-[14px] bg-page p-1.5 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
     >
+      <span
+        aria-hidden="true"
+        data-fade="top"
+        className={`pointer-events-none sticky -top-1.5 z-10 -mx-1.5 -mt-1.5 -mb-4 h-5.5 shrink-0 bg-linear-to-b from-page to-transparent opacity-0 transition-opacity duration-150`}
+      />
       <div role="listbox" id={id} aria-label="Suggestions" className="flex flex-col">
         {rows.map((row, i) => {
           const typed = 'typed' in row
@@ -419,6 +476,11 @@ function List({
           )
         })}
       </div>
+      <span
+        aria-hidden="true"
+        data-fade="bottom"
+        className={`pointer-events-none sticky -bottom-1.5 z-10 -mx-1.5 -mt-4 -mb-1.5 h-5.5 shrink-0 bg-linear-to-t from-page to-transparent opacity-0 transition-opacity duration-150`}
+      />
     </div>,
     document.body,
   )

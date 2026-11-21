@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { Combobox, placeList, rank, type Suggestion, useMention } from './suggest'
+import { Combobox, fitRows, placeList, rank, type Suggestion, useMention } from './suggest'
 
 beforeAll(() => {
   // jsdom lays nothing out: the list keeps its active row in sight with this.
@@ -432,5 +432,79 @@ describe('a list low on the page', () => {
     fireEvent.change(caption, { target: { value: 'With @chef', selectionStart: 10 } })
     expect(screen.getByRole('listbox')).toBeInTheDocument()
     expect(scrolled).toEqual([])
+  })
+})
+
+describe('a list that ends on a whole row', () => {
+  // Rows 49px high under the list's 6px padding: their bottoms from the list's top edge.
+  const bottoms = Array.from({ length: 8 }, (_, i) => 6 + 49 * (i + 1))
+
+  it('cuts no row at its edge: it ends under the last row that fits, with its padding', () => {
+    expect(fitRows(bottoms, 320)).toBe(300 + 6)
+    expect(fitRows(bottoms, 250)).toBe(202 + 6)
+  })
+
+  it('keeps the room it had when every row fits, or when not even one does', () => {
+    expect(fitRows(bottoms, 500)).toBe(500)
+    expect(fitRows(bottoms, 40)).toBe(40)
+  })
+
+  describe('drawn', () => {
+    const PEOPLE_8: Suggestion[] = Array.from({ length: 8 }, (_, i) => ({
+      value: `@person${i}`,
+      name: `Person ${i}`,
+      detail: `@person${i}`,
+    }))
+    beforeEach(() => {
+      layout({ field: rect(380, 416, 200, 800) })
+      const row = (el: HTMLElement) => Number(el.getAttribute('data-row') ?? -1)
+      vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return row(this) >= 0 ? 6 + 49 * row(this) : 0
+      })
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return row(this) >= 0 ? 49 : 0
+      })
+      // The box: its rows are 404px with the padding, and it shows what its height allows.
+      vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.querySelector('[role="listbox"]') ? 404 : 0
+      })
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.querySelector('[role="listbox"]') ? parseFloat(this.style.maxHeight) || 0 : 0
+      })
+    })
+    afterEach(() => vi.restoreAllMocks())
+
+    it('sizes the box to whole rows, and fades the bottom edge while rows are past it', () => {
+      render(
+        <Combobox
+          value=""
+          onChange={() => {}}
+          options={PEOPLE_8}
+          onPick={() => {}}
+          limit={8}
+          aria-label="A"
+        />,
+      )
+      fireEvent.focus(screen.getByRole('combobox'))
+      const box = screen.getByRole('listbox').parentElement!
+      // 320px of room: six rows and their padding, not six and a half.
+      expect(box.style.maxHeight).toBe('306px')
+      const fade = (edge: string) => box.querySelector<HTMLElement>(`[data-fade="${edge}"]`)!
+      expect(fade('bottom').style.opacity).toBe('1')
+      expect(fade('top').style.opacity).toBe('0')
+      // Scrolled to the end: the top fades, the bottom does not.
+      box.scrollTop = 404 - 306
+      fireEvent.scroll(box)
+      expect(fade('top').style.opacity).toBe('1')
+      expect(fade('bottom').style.opacity).toBe('0')
+    })
   })
 })
