@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.74.2** — 2026-11-21 — `fix/list-cap`: the post page (new and edit) is on the app's own white (`--page`), as the Schedule behind it, where it was on the warmer `--surface-2`; its header matches. The cards keep their hairline edge and their grey fields. The suggestion lists (Collaborators, Tag people, and every list of the same kind) end on a whole row, with a soft fade on an edge that has more rows past it. No server or pack change. 1847 tests by count: 1567 pass, 280 skipped without a Postgres server.
 - **2.74.1** — 2026-11-20 — `fix/people-picker`: the post page's people pickers, after a live check. Avatars are kept as 160px WebP thumbnails (a few KB, not Meta's 1080px originals), start loading before the list opens, are cached by the browser for an hour, and show the initials until they load. The Tag people list stays inside its dialog, clear of Done; Collaborators opens down (the page scrolls to make room, for this field only) and turns up only when nothing makes room; a shut More options is hidden and inert, and keeps what was typed in it. No pack change. 1844 tests by count: 1564 pass, 280 skipped without a Postgres server.
 - **2.74.0** — 2026-11-20 — `feat/influencers`: the company's influencer roster is back on the core (pack 1.19.0, migration `0029_influencers.sql`, additive): 146 people and 216 accounts from the old BrandFactory, imported from its own CSV exports (`import-roster`), with brand links, notes, names for the brands' saved collaborators, and a server job for Instagram profile pictures; the post page's Collaborators and Tag people suggest the brand's linked people first, search the whole roster, and fix any row's name from a pencil. No roster page. 1823 tests by count: 1543 pass, 280 skipped without a Postgres server.
 - **2.73.0** — 2026-11-18 — `feat/capture-simple`: capture with no LINK code (pack 1.18.0, migration `0028_capture_open.sql`, additive). Anyone who DMs a reel or a post to the capture account taps a brand of the capture brand's company and it lands under Shared, "Added by @handle"; the tile opens the post on Instagram, or our copy when Meta gives no address. `META_CAPTURE_SENDERS` optionally limits who is captured. 1792 tests by count: 1520 pass, 272 skipped without a Postgres server.
@@ -153,6 +154,26 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.74.2 — 2026-11-21
+
+- **Why.** The owner saw that the post page, opened from the Schedule, had a warmer background than
+  the rest of brand base.
+- **What changed.** `publish/post-page.tsx`: the page is `bg-page` (#ffffff, the body's and the
+  Schedule's) in place of `bg-surface-2` (#f7f7f4). `AppHeader` loses `tinted`, which only this
+  page used, so the header is the same white everywhere. The cards on the page are unchanged: white
+  with a 1px `--line` edge, and their fields stay `--surface-2`. The app has no dark mode.
+- **Whole rows.** A live check said the Collaborators list ended 60–100 px below the window at
+  1440x900. That was not reproduced: on a local core and on production (read only), in Chromium and
+  WebKit, at window heights from 650 to 900, the box ends 14 px inside the window; its content (404
+  or 444 px) scrolls inside it, and its last row was cut at its edge. The owner chose whole rows:
+  the list's box now ends under the last row that fits (`fitRows`, rows measured as drawn, with the
+  list's padding), and a soft fade in the page colour shows on the bottom edge while rows are past
+  it, and on the top once scrolled. `placeList`, its 14 px margin and `MIN_LIST` are unchanged.
+- **Tests:** 1847 by count: 1567 pass and 280 are skipped without a Postgres server. Typecheck,
+  lint, format and the web build pass. Browser: Chromium at 1440x900 (scale 2): the Schedule, the
+  post page before and after, and the Collaborators and Tag people lists, empty, with "a" typed
+  and scrolled.
 
 ## 2.74.1 — 2026-11-20
 
