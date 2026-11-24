@@ -635,8 +635,14 @@ function PersonBody({ person }: { person: RosterPerson }) {
  */
 function Tags({ person }: { person: RosterPerson }) {
   const [draft, setDraft] = React.useState('')
+  // Escape leaves the field by a blur, which would add what it held: it adds nothing.
+  const cancelled = React.useRef(false)
   const tags = person.tags ?? []
   const add = () => {
+    if (cancelled.current) {
+      cancelled.current = false
+      return
+    }
     const tag = tagOf(draft)
     if (tag) addTag(person.id, tag)
     if (tag || draft.trim() === '') setDraft('')
@@ -671,6 +677,7 @@ function Tags({ person }: { person: RosterPerson }) {
             } else if (e.key === 'Escape') {
               // Only the field: the panel stays.
               e.stopPropagation()
+              cancelled.current = true
               setDraft('')
               ;(e.target as HTMLInputElement).blur()
             }

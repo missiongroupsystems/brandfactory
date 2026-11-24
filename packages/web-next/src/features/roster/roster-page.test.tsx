@@ -226,9 +226,12 @@ describe('the Creators page in the demo', () => {
     fireEvent.blur(field)
     expect(field).toHaveValue('!!')
     expect(field).toHaveAttribute('aria-invalid', 'true')
-    // Escape empties the field and leaves the panel open.
+    // Escape empties the field, adds nothing (a valid tag too) and leaves the panel open.
+    fireEvent.change(field, { target: { value: 'oops' } })
     fireEvent.keyDown(field, { key: 'Escape' })
+    fireEvent.blur(field)
     expect(field).toHaveValue('')
+    expect(within(tags).queryByText('oops')).toBeNull()
     expect(screen.getByRole('dialog', { name: 'Clara Goh' })).not.toHaveClass('bb-sheet-out')
   })
 

@@ -43,6 +43,8 @@ function fakes() {
     answers: [] as Answer[],
     otherwise: { content: '{"tags": ["home cooking"]}', cost: 0.0002 } as Answer,
     bio: 'Pasta & vino lover' as string | null,
+    /** Meta's error code for every bio read, if any. */
+    error: null as number | null,
   }
   const openrouter = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
@@ -66,6 +68,9 @@ function fakes() {
     expect(url.searchParams.get('access_token')).toBe(TOKEN)
     const name = /username\(([^)]+)\)\{biography\}/.exec(url.searchParams.get('fields') ?? '')?.[1]
     bios.push(name ?? '?')
+    if (state.error !== null) {
+      return Response.json({ error: { message: 'no', code: state.error } }, { status: 400 })
+    }
     if (state.bio === null) {
       return Response.json({ error: { message: 'Cannot find User', code: 110 } }, { status: 400 })
     }
@@ -271,6 +276,43 @@ describe('the creator tags job', () => {
       await t.db.query(`select bio, bio_read_at is not null as read from brandbase.influencers
         where id = '${ANA}'`),
     ).toEqual([{ bio: null, read: true }])
+  })
+
+  it('tags on when the principal may not list the brands, and leaves the bios due', async () => {
+    const t = await setUp({ linked: true })
+    await t.db.exec(
+      `update packs.loadouts set ops = array_remove(ops, 'brand.list') where principal = 'owner'`,
+    )
+    expect(await t.job.once()).toMatchObject({ due: 2, bios: 0, tagged: 2, failed: 0 })
+    expect(t.bios).toEqual([])
+    expect(
+      await t.db.query(`select bio_read_at from brandbase.influencers where id = '${ANA}'`),
+    ).toEqual([{ bio_read_at: null }])
+  })
+
+  it('reads no bio of a company whose sign-in expired, and waits out a rate limit', async () => {
+    const t = await setUp({ linked: true })
+    // Six creators of company A with an Instagram account each, none due a tag.
+    for (let n = 0; n < 6; n++) {
+      const id = `00000000-0000-4000-8000-0000000000c${n}`
+      await t.db.exec(`
+        insert into brandbase.influencers (id, org_id, slug, name, tags_source, tagged_at) values
+          ('${id}', 'co-a', 'bio-${n}', 'Bio ${n}', md5(chr(10) || chr(10)), '2026-01-01T00:00:00Z');
+        insert into brandbase.influencer_accounts (influencer_id, org_id, position, platform, handle) values
+          ('${id}', 'co-a', 0, 'instagram', 'bio.${n}');
+      `)
+    }
+    // A rate limit: one read, then the company's bios wait; the two due a tag are tagged.
+    t.state.error = 4
+    expect(await t.job.once()).toMatchObject({ due: 5, bios: 0, tagged: 2 })
+    expect(t.bios).toHaveLength(1)
+    // An expired sign-in: one read, then every bio of the company counts as read, so the next
+    // runs move on.
+    t.state.error = 190
+    expect(await t.job.once()).toMatchObject({ due: 5, bios: 5 })
+    expect(t.bios).toHaveLength(2)
+    expect(await t.job.once()).toMatchObject({ due: 2, bios: 2 })
+    expect(await t.job.once()).toMatchObject({ due: 0 })
   })
 
   it('asks no model for a person with nothing to tag from', async () => {

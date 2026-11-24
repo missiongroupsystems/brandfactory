@@ -336,26 +336,40 @@ export function creatorTags(
     const due = (await move('influencer.tag_due', { limit })) as Due[]
     counts.due = due.length
     if (due.length === 0) return counts
-    const words = await vocabulary()
-    const from = await readers(new Set(due.filter((p) => p.bioDue).map((p) => p.orgId)))
-    /** Companies whose account Meta stopped this run (a rate limit, a sign-in to renew). */
-    const stoppedOrgs = new Set<string>()
+    // Neither read stops the run: without the company's tags the model makes its own, and
+    // without a reader the bios wait (a principal whose loadout lacks a move, say).
+    const words = await vocabulary().catch((err: unknown) => {
+      console.error('creator tags: no company tags', (err as Error).message)
+      return new Map<string, string[]>()
+    })
+    const from = await readers(new Set(due.filter((p) => p.bioDue).map((p) => p.orgId))).catch(
+      (err: unknown) => {
+        console.error('creator tags: no bio reader', (err as Error).message)
+        return null
+      },
+    )
+    /**
+     * Companies whose reads Meta limited this run: their bios wait for the next run. A company
+     * whose account needs a new sign-in reads no bio for 30 days, as one with no account.
+     */
+    const limited = new Set<string>()
+    const signedOut = new Set<string>()
     for (const [n, p] of due.entries()) {
       if (n > 0) await sleep(gapMs)
       try {
         let bio = p.bio
         let source = p.source
         let tagDue = p.tagDue
-        const reader = from.get(p.orgId)
-        if (p.bioDue && p.handle && USERNAME.test(p.handle) && !stoppedOrgs.has(p.orgId)) {
+        if (from && p.bioDue && p.handle && USERNAME.test(p.handle) && !limited.has(p.orgId)) {
+          const reader = signedOut.has(p.orgId) ? undefined : from.get(p.orgId)
           let read: string | null = null
           try {
             read = reader ? await bioOf(reader, p.handle) : null
-          } catch {
-            // Meta's limit or a sign-in to renew: this company's bios wait for the next run.
-            stoppedOrgs.add(p.orgId)
+          } catch (err) {
+            if (err instanceof MetaReconnect) signedOut.add(p.orgId)
+            else limited.add(p.orgId)
           }
-          if (!stoppedOrgs.has(p.orgId)) {
+          if (!limited.has(p.orgId)) {
             const kept = (await move('influencer.bio_set', { id: p.id, bio: read })) as {
               source: string
             }

@@ -19,5 +19,10 @@
   },
   "before": ["influencer.found", "influencer.tag_valid", "influencer.tag_room"],
   "returns": "one",
-  "sql": "update brandbase.influencers i set\n  tags_team = case when t.v = any (i.tags_team) then i.tags_team else i.tags_team || t.v end,\n  tags_ai = array_remove(i.tags_ai, t.v),\n  tags_hidden = array_remove(i.tags_hidden, t.v)\nfrom (select brandbase.tag_of(:tag::text) as v) t\nwhere i.id = :id::uuid\nreturning jsonb_build_object('id', i.id, 'tags', brandbase.influencer_tags(i.tags_team, i.tags_ai)) as result"
+  "sql": "update brandbase.influencers i set\n  tags_team = case when t.v = any (i.tags_team) then i.tags_team else i.tags_team || t.v end,\n  tags_ai = array_remove(i.tags_ai, t.v),\n  tags_hidden = array_remove(i.tags_hidden, t.v)\nfrom (select brandbase.tag_of(:tag::text) as v) t\nwhere i.id = :id::uuid and (cardinality(i.tags_team) < 20 or t.v = any (i.tags_team))\nreturning jsonb_build_object('id', i.id, 'tags', brandbase.influencer_tags(i.tags_team, i.tags_ai)) as result",
+  "empty": {
+    "status": 409,
+    "code": "TOO_MANY_TAGS",
+    "message": "a creator has at most 20 tags of the team's own"
+  }
 }

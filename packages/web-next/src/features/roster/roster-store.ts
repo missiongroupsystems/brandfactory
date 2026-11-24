@@ -164,13 +164,38 @@ export function addTag(id: string, tag: string) {
     ...p,
     tags: (p.tags ?? []).includes(tag) ? p.tags : [...(p.tags ?? []), tag],
   }))
-  send(() => request('POST', `/roster/${id}/tags`, { tag }))
+  sendTags(id, () => request('POST', `/roster/${id}/tags`, { tag }))
 }
 
 /** Removes a tag; the model never gives it back. */
 export function dropTag(id: string, tag: string) {
   change(id, (p) => ({ ...p, tags: (p.tags ?? []).filter((t) => t !== tag) }))
-  send(() => request('DELETE', `/roster/${id}/tags/${encodeURIComponent(tag)}`))
+  sendTags(id, () => request('DELETE', `/roster/${id}/tags/${encodeURIComponent(tag)}`))
+}
+
+/** Each person's tag changes on their way. */
+const tagChanges = new Map<string, number>()
+
+/**
+ * Sends a tag change; its answer, the tags as the core keeps them in its order (the team's
+ * first), shows once no later tag change of the person is on its way.
+ */
+function sendTags(id: string, make: () => Promise<unknown>) {
+  tagChanges.set(id, (tagChanges.get(id) ?? 0) + 1)
+  send(async () => {
+    try {
+      const tags = ((await make()) as { tags?: unknown } | null)?.tags
+      const last = tagChanges.get(id) === 1
+      if (last && Array.isArray(tags) && tags.every((t) => typeof t === 'string')) {
+        people = people.map((p) => (p.id === id ? { ...p, tags } : p))
+        emit()
+      }
+    } finally {
+      const left = (tagChanges.get(id) ?? 1) - 1
+      if (left > 0) tagChanges.set(id, left)
+      else tagChanges.delete(id)
+    }
+  })
 }
 
 /** Back to the demo's roster, for the tests. */
