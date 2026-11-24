@@ -54,7 +54,8 @@ import {
 
 type Entry = { kind: 'person'; p: RosterPerson } | { kind: 'handle'; h: SavedHandle }
 const entryName = (e: Entry) => (e.kind === 'person' ? e.p.name : (e.h.name ?? e.h.handle))
-const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : `${e.h.orgId}:${e.h.handle}`)
+const handleKey = (h: SavedHandle) => `${h.orgId}:${h.handle}`
+const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : handleKey(e.h))
 
 const STATUSES: RosterStatus[] = ['active', 'prospect', 'past']
 
@@ -104,7 +105,14 @@ export function RosterPage() {
     ...filterRoster(people, filters).map((p) => ({ kind: 'person' as const, p })),
     ...filterHandles(handles, filters).map((h) => ({ kind: 'handle' as const, h })),
   ].sort((a, b) => entryName(a).localeCompare(entryName(b)))
-  const person = people.find((p) => p.id === open) ?? null
+  // The entry the panel shows, from everyone (a filter that hides it leaves the panel open).
+  const person = people.find((p) => p.id === open)
+  const handle = handles.find((h) => handleKey(h) === open)
+  const entry: Entry | null = person
+    ? { kind: 'person', p: person }
+    : handle
+      ? { kind: 'handle', h: handle }
+      : null
   const filtered = query.trim() !== '' || brand !== 'all' || status !== 'all'
 
   return (
@@ -173,7 +181,7 @@ export function RosterPage() {
           <Grid entries={shown} onOpen={openPerson} />
         )}
       </main>
-      {person && <Panel person={person} leaving={leaving} onClose={closePerson} />}
+      {entry && <Panel entry={entry} leaving={leaving} onClose={closePerson} />}
     </div>
   )
 }
@@ -288,93 +296,6 @@ function HandleLine({ h }: { h: SavedHandle }) {
   )
 }
 
-/**
- * A saved handle's name, written in place: its own name (or its handle until it has one) until a
- * press opens the field. Enter saves (an empty field takes the name away), Escape leaves it.
- */
-function HandleName({
-  h,
-  editing,
-  onEditing,
-  className = '',
-}: {
-  h: SavedHandle
-  editing: boolean
-  onEditing: (on: boolean) => void
-  className?: string
-}) {
-  if (!editing) {
-    return (
-      <span className={`truncate ${h.name ? '' : 'text-ink-2'} ${className}`}>
-        {h.name ?? h.handle}
-      </span>
-    )
-  }
-  return <NameInput h={h} onDone={() => onEditing(false)} className={className} />
-}
-
-function NameInput({
-  h,
-  onDone,
-  className,
-}: {
-  h: SavedHandle
-  onDone: () => void
-  className: string
-}) {
-  const [value, setValue] = React.useState(h.name ?? '')
-  const field = React.useRef<HTMLInputElement>(null)
-  React.useEffect(() => {
-    field.current?.focus()
-    field.current?.select()
-  }, [])
-  return (
-    <input
-      ref={field}
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.nativeEvent.isComposing) return
-        e.stopPropagation()
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          const next = value.trim()
-          if (next !== (h.name ?? '')) nameHandle(h.orgId, h.handle, next || null)
-          onDone()
-        } else if (e.key === 'Escape') {
-          e.preventDefault()
-          onDone()
-        }
-      }}
-      onBlur={onDone}
-      aria-label={`Name for @${h.handle}`}
-      placeholder={h.handle}
-      maxLength={200}
-      // As wide as what it holds (at least the handle's width), never wider than the row.
-      size={Math.min(Math.max(value.length, h.handle.length, 8) + 1, 48)}
-      className={`-mx-1 -my-px h-[24px] max-w-full min-w-0 rounded-[6px] ${className.includes('text-center') ? 'self-center' : 'self-start'} bg-page px-1 shadow-[0_0_0_1px_var(--line-strong)] outline-none placeholder:font-normal placeholder:text-ink-5 ${className}`}
-    />
-  )
-}
-
-/** A saved handle's row, card or table row: a press names it in place. */
-function useNaming() {
-  const [editing, setEditing] = React.useState(false)
-  const props = {
-    role: 'button' as const,
-    tabIndex: 0,
-    onClick: () => setEditing(true),
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (!editing && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault()
-        setEditing(true)
-      }
-    },
-  }
-  return { editing, setEditing, props }
-}
-
 function Logo({ platform, size = 12 }: { platform: RosterAccount['platform']; size?: number }) {
   const key = LOGO[platform]
   return key ? (
@@ -459,18 +380,14 @@ function Brands({ ids, size = 18, end = false }: { ids: string[]; size?: number;
 const CARD =
   'flex h-full w-full flex-col items-center gap-3 rounded-[18px] bg-page px-4 pt-6 pb-4 text-center shadow-[0_0_0_1px_var(--line)] outline-none transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] focus-visible:-translate-y-0.5 focus-visible:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] active:translate-y-0 active:scale-[0.98] active:duration-150'
 
-function CardHandle({ h }: { h: SavedHandle }) {
-  const { editing, setEditing, props } = useNaming()
+function CardHandle({ h, onOpen }: { h: SavedHandle; onOpen: (key: string) => void }) {
   return (
-    <div {...props} className={`${CARD} cursor-text`}>
+    <button type="button" onClick={() => onOpen(handleKey(h))} className={CARD}>
       <HandleAvatar h={h} size={64} />
       <span className="flex w-full min-w-0 flex-col items-center gap-0.5">
-        <HandleName
-          h={h}
-          editing={editing}
-          onEditing={setEditing}
-          className="max-w-full text-center text-[15px] font-medium"
-        />
+        <span className={`w-full truncate text-[15px] font-medium ${h.name ? '' : 'text-ink-2'}`}>
+          {h.name ?? h.handle}
+        </span>
         <span className="flex max-w-full justify-center">
           <HandleLine h={h} />
         </span>
@@ -479,11 +396,10 @@ function CardHandle({ h }: { h: SavedHandle }) {
         <CardFollowers n={h.followers} />
         <Brands ids={h.brands} size={16} end />
       </span>
-    </div>
+    </button>
   )
 }
 
-/** A card's followers, in words: the number stays in its place, a dash while none is known. */
 function CardFollowers({ n }: { n: number | null | undefined }) {
   return (
     <span className="whitespace-nowrap text-[13px] text-ink-3 tabular-nums">
@@ -508,7 +424,11 @@ function Grid({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => v
           className="bb-card-in"
           style={{ animationDelay: `${Math.min(i, 12) * 24}ms` }}
         >
-          {e.kind === 'handle' ? <CardHandle h={e.h} /> : <CardPerson p={e.p} onOpen={onOpen} />}
+          {e.kind === 'handle' ? (
+            <CardHandle h={e.h} onOpen={onOpen} />
+          ) : (
+            <CardPerson p={e.p} onOpen={onOpen} />
+          )}
         </li>
       ))}
     </ul>
@@ -558,7 +478,11 @@ function Rows({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => v
           className="bb-card-in border-t border-line first:border-t-0"
           style={{ animationDelay: `${Math.min(i, 12) * 24}ms` }}
         >
-          {e.kind === 'handle' ? <RowHandle h={e.h} /> : <RowPerson p={e.p} onOpen={onOpen} />}
+          {e.kind === 'handle' ? (
+            <RowHandle h={e.h} onOpen={onOpen} />
+          ) : (
+            <RowPerson p={e.p} onOpen={onOpen} />
+          )}
         </li>
       ))}
     </ul>
@@ -578,22 +502,18 @@ function RowPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => voi
   )
 }
 
-function RowHandle({ h }: { h: SavedHandle }) {
-  const { editing, setEditing, props } = useNaming()
+function RowHandle({ h, onOpen }: { h: SavedHandle; onOpen: (key: string) => void }) {
   return (
-    <div {...props} className={`${ROW} cursor-text`}>
+    <button type="button" onClick={() => onOpen(handleKey(h))} className={ROW}>
       <HandleAvatar h={h} size={40} />
       <span className="flex min-w-0 flex-col gap-0.5">
-        <HandleName
-          h={h}
-          editing={editing}
-          onEditing={setEditing}
-          className="text-[15px] font-medium"
-        />
+        <span className={`truncate text-[15px] font-medium ${h.name ? '' : 'text-ink-2'}`}>
+          {h.name ?? h.handle}
+        </span>
         <HandleLine h={h} />
       </span>
       <RowEnd n={h.followers} ids={h.brands} />
-    </div>
+    </button>
   )
 }
 
@@ -602,18 +522,14 @@ function RowHandle({ h }: { h: SavedHandle }) {
 const LABEL = 'text-[12px] font-medium text-ink-4'
 
 function Panel({
-  person,
+  entry,
   leaving,
   onClose,
 }: {
-  person: RosterPerson
+  entry: Entry
   leaving: boolean
   onClose: () => void
 }) {
-  const { brands } = useBrand()
-  const orgOf = useOrgOf()
-  // Only the person's own company's brands can be linked.
-  const theirs = brands.filter((b) => !remote || orgOf(b.id) === person.orgId)
   const close = React.useEffectEvent(onClose)
   const panel = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
@@ -646,7 +562,7 @@ function Panel({
         ref={panel}
         role="dialog"
         aria-modal="true"
-        aria-label={person.name}
+        aria-label={entryName(entry)}
         tabIndex={-1}
         className={`${leaving ? 'bb-sheet-out max-md:bb-push-out' : 'bb-sheet max-md:bb-push'} relative flex h-full w-[440px] max-w-full flex-col overflow-y-auto bg-page shadow-sheet outline-none`}
       >
@@ -660,81 +576,162 @@ function Panel({
             <CloseIcon size={10} />
           </button>
         </div>
-        <div className="flex flex-col gap-8 px-8 pb-10">
-          <div className="flex flex-col items-start gap-4">
-            <Avatar person={person} size={72} />
-            <NameField key={person.id} person={person} />
-          </div>
-
-          <section className="flex flex-col gap-2.5">
-            <span className={LABEL}>Status</span>
-            <div role="radiogroup" aria-label="Status" className="flex gap-1.5">
-              {STATUSES.map((s) => {
-                const on = person.status === s
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => !on && editPerson(person.id, { status: s })}
-                    className={`h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface-2 text-ink-3 hover:text-ink'}`}
-                  >
-                    {STATUS_NAME[s]}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <section className="flex flex-col gap-1">
-            <span className={`${LABEL} pb-1.5`}>Accounts</span>
-            {person.accounts.map((a) => (
-              <a
-                key={`${a.platform}:${a.handle}`}
-                href={profileUrl(a)}
-                target="_blank"
-                rel="noreferrer"
-                className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors hover:bg-surface-2"
-              >
-                <span className="flex size-5 items-center justify-center text-ink-2">
-                  <Logo platform={a.platform} size={15} />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[14px]">@{a.handle}</span>
-                <span className="text-[13.5px] text-ink-3 tabular-nums">
-                  {followersOf(a.followers)}
-                </span>
-              </a>
-            ))}
-          </section>
-
-          <section className="flex flex-col gap-1">
-            <span className={`${LABEL} pb-1.5`}>Brands</span>
-            {/* A person is linked to a brand by the brand's posts that name them. */}
-            {theirs.filter((b) => person.brands.includes(b.id)).length === 0 ? (
-              <span className="text-[13.5px] text-ink-4">
-                Linked when a brand’s post tags them or collaborates with them.
-              </span>
-            ) : (
-              theirs
-                .filter((b) => person.brands.includes(b.id))
-                .map((b) => (
-                  <div key={b.id} className="flex items-center gap-3 py-1.5">
-                    <BrandMark brandId={b.id} size={22} />
-                    <span className="flex-1 text-[14px] text-ink">{b.name}</span>
-                  </div>
-                ))
-            )}
-          </section>
-
-          <section className="flex flex-col gap-2.5">
-            <span className={LABEL}>Notes</span>
-            <NotesField key={person.id} person={person} />
-          </section>
-        </div>
+        {entry.kind === 'person' ? (
+          <PersonBody key={entry.p.id} person={entry.p} />
+        ) : (
+          <HandleBody key={handleKey(entry.h)} h={entry.h} />
+        )}
       </div>
     </div>,
     document.body,
+  )
+}
+
+function PersonBody({ person }: { person: RosterPerson }) {
+  const { brands } = useBrand()
+  const orgOf = useOrgOf()
+  // Only the person's own company's brands can be linked.
+  const theirs = brands.filter((b) => !remote || orgOf(b.id) === person.orgId)
+  return (
+    <div className="flex flex-col gap-8 px-8 pb-10">
+      <div className="flex flex-col items-start gap-4">
+        <Avatar person={person} size={72} />
+        <NameField person={person} />
+      </div>
+
+      <section className="flex flex-col gap-2.5">
+        <span className={LABEL}>Status</span>
+        <div role="radiogroup" aria-label="Status" className="flex gap-1.5">
+          {STATUSES.map((s) => {
+            const on = person.status === s
+            return (
+              <button
+                key={s}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => !on && editPerson(person.id, { status: s })}
+                className={`h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface-2 text-ink-3 hover:text-ink'}`}
+              >
+                {STATUS_NAME[s]}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <span className={`${LABEL} pb-1.5`}>Accounts</span>
+        {person.accounts.map((a) => (
+          <a
+            key={`${a.platform}:${a.handle}`}
+            href={profileUrl(a)}
+            target="_blank"
+            rel="noreferrer"
+            className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors hover:bg-surface-2"
+          >
+            <span className="flex size-5 items-center justify-center text-ink-2">
+              <Logo platform={a.platform} size={15} />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[14px]">@{a.handle}</span>
+            <span className="text-[13.5px] text-ink-3 tabular-nums">
+              {followersOf(a.followers)}
+            </span>
+          </a>
+        ))}
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <span className={`${LABEL} pb-1.5`}>Brands</span>
+        {/* A person is linked to a brand by the brand's posts that name them. */}
+        {theirs.filter((b) => person.brands.includes(b.id)).length === 0 ? (
+          <span className="text-[13.5px] text-ink-4">
+            Linked when a brand’s post tags them or collaborates with them.
+          </span>
+        ) : (
+          theirs
+            .filter((b) => person.brands.includes(b.id))
+            .map((b) => (
+              <div key={b.id} className="flex items-center gap-3 py-1.5">
+                <BrandMark brandId={b.id} size={22} />
+                <span className="flex-1 text-[14px] text-ink">{b.name}</span>
+              </div>
+            ))
+        )}
+      </section>
+
+      <section className="flex flex-col gap-2.5">
+        <span className={LABEL}>Notes</span>
+        <NotesField person={person} />
+      </section>
+    </div>
+  )
+}
+
+/** A saved collaborator no one on the roster holds: its name for the company, its account. */
+function HandleBody({ h }: { h: SavedHandle }) {
+  const { brands } = useBrand()
+  const named = brands.filter((b) => h.brands.includes(b.id))
+  return (
+    <div className="flex flex-col gap-8 px-8 pb-10">
+      <div className="flex flex-col items-start gap-1.5">
+        <HandleAvatar h={h} size={72} />
+        <span className="h-2.5" />
+        <HandleNameField h={h} />
+        <span className="text-[13.5px] text-ink-4">Not on the roster</span>
+      </div>
+
+      <section className="flex flex-col gap-1">
+        <span className={`${LABEL} pb-1.5`}>Accounts</span>
+        <a
+          href={`https://www.instagram.com/${h.handle}/`}
+          target="_blank"
+          rel="noreferrer"
+          className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors hover:bg-surface-2"
+        >
+          <span className="flex size-5 items-center justify-center text-ink-2">
+            <PlatformLogo platform="ig" size={15} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[14px]">@{h.handle}</span>
+          <span className="text-[13.5px] text-ink-3 tabular-nums">{followersOf(h.followers)}</span>
+        </a>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <span className={`${LABEL} pb-1.5`}>Brands</span>
+        {named.map((b) => (
+          <div key={b.id} className="flex items-center gap-3 py-1.5">
+            <BrandMark brandId={b.id} size={22} />
+            <span className="flex-1 text-[14px] text-ink">{b.name}</span>
+          </div>
+        ))}
+      </section>
+    </div>
+  )
+}
+
+/**
+ * A saved handle's name for the company, edited in place; saved when the field is left. An empty
+ * field takes the name away, and the handle shows instead.
+ */
+function HandleNameField({ h }: { h: SavedHandle }) {
+  const [name, setName] = React.useState(h.name ?? '')
+  const save = () => {
+    const next = name.trim()
+    if (next !== (h.name ?? '')) nameHandle(h.orgId, h.handle, next || null)
+    setName(next)
+  }
+  return (
+    <input
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      aria-label="Name"
+      placeholder={h.handle}
+      maxLength={200}
+      className="-mx-1 w-full rounded-[8px] bg-transparent px-1 font-display text-[28px] leading-tight tracking-[-0.03em] outline-none placeholder:text-ink-4 hover:bg-surface-2 focus:bg-surface-2"
+    />
   )
 }
 
