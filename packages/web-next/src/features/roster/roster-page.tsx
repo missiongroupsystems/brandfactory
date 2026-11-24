@@ -1,0 +1,840 @@
+'use client'
+
+import * as React from 'react'
+import { createPortal } from 'react-dom'
+
+import { AppHeader } from '@/components/app-header'
+import { BrandMark } from '@/components/brand-mark'
+import { ChevronIcon, CloseIcon } from '@/components/icons'
+import { PlatformLogo } from '@/components/platform-logos'
+import { ProfilePicture } from '@/components/profile-picture'
+import type { RosterAccount, RosterPerson, RosterStatus } from '@/data/roster'
+import { useSavedIg } from '@/features/publish/collaborators-store'
+import { useBrand } from '@/features/schedule/posts-store'
+import { remote } from '@/lib/remote'
+
+import {
+  filterHandles,
+  filterRoster,
+  followersOf,
+  LOGO,
+  mainOf,
+  PLATFORM_NAME,
+  pictureOf,
+  profileUrl,
+  savedHandles,
+  type SavedHandle,
+  STATUS_NAME,
+  type StatusFilter,
+} from './model'
+import { initialsOf } from './people'
+import {
+  editPerson,
+  nameHandle,
+  useOrgOf,
+  useProfiles,
+  useRoster,
+  useRosterLoaded,
+} from './roster-store'
+
+/**
+ * Creators: the company's influencer roster, every brand's people in one list. At a glance each
+ * person's picture, name, main handle and platforms, followers and the brands they work with; a
+ * search and two quiet filters (brand, status); a person opens in a side panel with all their
+ * accounts, their status, the brands they are linked to and the team's notes.
+ *
+ * Beside the people, the Instagram accounts the brands saved as collaborators that no one on the
+ * roster holds: each named in place (a press on it opens a field; Enter saves, Escape leaves), the
+ * name the post page then shows for it.
+ *
+ * Three layouts on the same data, picked by `?look=` for the owner to choose one: `a` a list of
+ * rows, `b` a grid of cards, `c` a compact table.
+ */
+export type Look = 'a' | 'b' | 'c'
+
+type Entry = { kind: 'person'; p: RosterPerson } | { kind: 'handle'; h: SavedHandle }
+const entryName = (e: Entry) => (e.kind === 'person' ? e.p.name : (e.h.name ?? e.h.handle))
+const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : `${e.h.orgId}:${e.h.handle}`)
+
+const STATUSES: RosterStatus[] = ['active', 'prospect', 'past']
+
+export function RosterPage({ look }: { look: Look }) {
+  const people = useRoster()
+  const loaded = useRosterLoaded()
+  const { brands } = useBrand()
+  const [query, setQuery] = React.useState('')
+  const [brand, setBrand] = React.useState<string>('all')
+  const [status, setStatus] = React.useState<StatusFilter>('all')
+  const [open, setOpen] = React.useState<string | null>(null)
+  const orgOf = useOrgOf()
+  const profiles = useProfiles()
+  const saved = useSavedIg(brands.map((b) => b.id))
+  const handles = savedHandles(saved, orgOf, people, profiles)
+  const filters = { query, brand, status }
+  const shown: Entry[] = [
+    ...filterRoster(people, filters).map((p) => ({ kind: 'person' as const, p })),
+    ...filterHandles(handles, filters).map((h) => ({ kind: 'handle' as const, h })),
+  ].sort((a, b) => entryName(a).localeCompare(entryName(b)))
+  const person = people.find((p) => p.id === open) ?? null
+  const filtered = query.trim() !== '' || brand !== 'all' || status !== 'all'
+
+  return (
+    <div className="flex min-h-svh flex-col">
+      <AppHeader />
+      <main className="mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
+        <div className="flex items-end justify-between gap-6 pt-8 pb-7 max-md:flex-col max-md:items-stretch max-md:pt-4">
+          <h1 className="font-display text-[40px] leading-none tracking-[-0.035em] max-md:text-[30px]">
+            Creators
+            <span className="ml-3 align-middle font-sans text-[15px] tracking-normal text-ink-4 tabular-nums">
+              {loaded ? people.length + handles.length : ''}
+            </span>
+          </h1>
+          <div className="flex items-center gap-2 max-md:flex-wrap">
+            <label className="relative">
+              <span className="sr-only">Search creators</span>
+              <SearchGlyph />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search"
+                className="h-9 w-[220px] rounded-full bg-surface-2 pr-3 pl-9 [&::-webkit-search-cancel-button]:appearance-none text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface max-md:w-full"
+              />
+            </label>
+            <Select
+              label="Brand"
+              value={brand}
+              onChange={setBrand}
+              options={[
+                { value: 'all', label: 'All brands' },
+                ...brands.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
+            <Select
+              label="Status"
+              value={status}
+              onChange={(v) => setStatus(v as StatusFilter)}
+              options={[
+                { value: 'all', label: 'Any status' },
+                ...STATUSES.map((s) => ({ value: s, label: STATUS_NAME[s] })),
+              ]}
+            />
+          </div>
+        </div>
+
+        {!loaded ? (
+          <p className="py-16 text-center text-[14px] text-ink-4">Loading…</p>
+        ) : shown.length === 0 ? (
+          <p className="py-16 text-center text-[14px] text-ink-4">
+            {filtered ? 'No one matches.' : 'No creators yet.'}
+          </p>
+        ) : look === 'b' ? (
+          <Grid entries={shown} onOpen={setOpen} />
+        ) : look === 'c' ? (
+          <Table entries={shown} onOpen={setOpen} />
+        ) : (
+          <List entries={shown} onOpen={setOpen} />
+        )}
+      </main>
+      {person && <Panel person={person} onClose={() => setOpen(null)} />}
+    </div>
+  )
+}
+
+// ── Parts ───────────────────────────────────────────────────────────────────────────────────
+
+function SearchGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-4"
+    >
+      <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="m10.5 10.5 3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <label className="relative flex items-center">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 cursor-pointer appearance-none rounded-full bg-surface-2 pr-8 pl-3.5 text-[13.5px] text-ink-2 outline-none hover:bg-surface focus:bg-surface"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="pointer-events-none absolute right-3 text-ink-4">
+        <ChevronIcon open={false} size={9} />
+      </span>
+    </label>
+  )
+}
+
+/** A person's picture, or their initials on the app's avatar colour. */
+export function Avatar({ person, size }: { person: RosterPerson; size: number }) {
+  const picture = pictureOf(person)
+  return (
+    <ProfilePicture
+      src={picture ?? undefined}
+      size={size}
+      className="rounded-full shadow-[inset_0_0_0_1px_var(--line)]"
+    >
+      <span
+        aria-hidden="true"
+        className="flex shrink-0 items-center justify-center rounded-full font-semibold"
+        style={{
+          width: size,
+          height: size,
+          fontSize: Math.round(size * 0.36),
+          background: 'var(--avatar)',
+          color: 'var(--avatar-ink)',
+        }}
+      >
+        {initialsOf(person.name)}
+      </span>
+    </ProfilePicture>
+  )
+}
+
+/** A saved handle's picture, or the initials of its name (else of its handle). */
+function HandleAvatar({ h, size }: { h: SavedHandle; size: number }) {
+  return (
+    <ProfilePicture
+      src={h.picture ?? undefined}
+      size={size}
+      className="rounded-full shadow-[inset_0_0_0_1px_var(--line)]"
+    >
+      <span
+        aria-hidden="true"
+        className="flex shrink-0 items-center justify-center rounded-full font-semibold"
+        style={{
+          width: size,
+          height: size,
+          fontSize: Math.round(size * 0.36),
+          background: 'var(--avatar)',
+          color: 'var(--avatar-ink)',
+        }}
+      >
+        {initialsOf(h.name ?? h.handle)}
+      </span>
+    </ProfilePicture>
+  )
+}
+
+/** Line two of a saved handle: its platform and handle, or the platform alone until it is named. */
+function HandleLine({ h }: { h: SavedHandle }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
+      <span className="truncate">{h.name ? `@${h.handle}` : 'Instagram'}</span>
+      <PlatformLogo platform="ig" size={11} />
+    </span>
+  )
+}
+
+/**
+ * A saved handle's name, written in place: its own name (or its handle until it has one) until a
+ * press opens the field. Enter saves (an empty field takes the name away), Escape leaves it.
+ */
+function HandleName({
+  h,
+  editing,
+  onEditing,
+  className = '',
+}: {
+  h: SavedHandle
+  editing: boolean
+  onEditing: (on: boolean) => void
+  className?: string
+}) {
+  if (!editing) {
+    return (
+      <span className={`truncate ${h.name ? '' : 'text-ink-2'} ${className}`}>
+        {h.name ?? h.handle}
+      </span>
+    )
+  }
+  return <NameInput h={h} onDone={() => onEditing(false)} className={className} />
+}
+
+function NameInput({
+  h,
+  onDone,
+  className,
+}: {
+  h: SavedHandle
+  onDone: () => void
+  className: string
+}) {
+  const [value, setValue] = React.useState(h.name ?? '')
+  const field = React.useRef<HTMLInputElement>(null)
+  React.useEffect(() => {
+    field.current?.focus()
+    field.current?.select()
+  }, [])
+  return (
+    <input
+      ref={field}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return
+        e.stopPropagation()
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          const next = value.trim()
+          if (next !== (h.name ?? '')) nameHandle(h.orgId, h.handle, next || null)
+          onDone()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          onDone()
+        }
+      }}
+      onBlur={onDone}
+      aria-label={`Name for @${h.handle}`}
+      placeholder={h.handle}
+      maxLength={200}
+      // As wide as what it holds (at least the handle's width), never wider than the row.
+      size={Math.min(Math.max(value.length, h.handle.length, 8) + 1, 48)}
+      className={`-mx-1 -my-px h-[24px] max-w-full min-w-0 rounded-[6px] ${className.includes('text-center') ? 'self-center' : 'self-start'} bg-page px-1 shadow-[0_0_0_1px_var(--line-strong)] outline-none placeholder:font-normal placeholder:text-ink-5 ${className}`}
+    />
+  )
+}
+
+/** A saved handle's row, card or table row: a press names it in place. */
+function useNaming() {
+  const [editing, setEditing] = React.useState(false)
+  const props = {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: () => setEditing(true),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (!editing && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault()
+        setEditing(true)
+      }
+    },
+  }
+  return { editing, setEditing, props }
+}
+
+function Logo({ platform, size = 12 }: { platform: RosterAccount['platform']; size?: number }) {
+  const key = LOGO[platform]
+  return key ? (
+    <PlatformLogo platform={key} size={size} />
+  ) : (
+    <span className="font-mono text-[9.5px] leading-none font-medium tracking-tight">XHS</span>
+  )
+}
+
+/** The main handle, with the logo of each platform the person is on. */
+function Handle({ person }: { person: RosterPerson }) {
+  const main = mainOf(person)
+  if (!main) return null
+  const platforms = [...new Set(person.accounts.map((a) => a.platform))]
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
+      <span className="truncate">@{main.handle}</span>
+      <span className="flex shrink-0 items-center gap-1">
+        {platforms.map((p) => (
+          <span key={p} title={PLATFORM_NAME[p]} className="flex">
+            <Logo platform={p} size={11} />
+          </span>
+        ))}
+      </span>
+    </span>
+  )
+}
+
+/** How many brand coins show before the row scrolls sideways. */
+const BRANDS_SHOWN = 4
+const BRAND_GAP = 4
+
+/** The width the brand coins take: the same on every row, so the columns line up. */
+const brandsWidth = (size: number) => BRANDS_SHOWN * size + (BRANDS_SHOWN - 1) * BRAND_GAP
+
+/**
+ * The brands a person works with, as coins side by side. Past four, the row scrolls sideways
+ * (a thin, quiet bar) and fades at the edge where more wait. `end` puts a short row at the right.
+ */
+function Brands({ ids, size = 18, end = false }: { ids: string[]; size?: number; end?: boolean }) {
+  const { brands } = useBrand()
+  // In the switcher's order, so the same brand sits in the same place on every row.
+  const named = brands.filter((b) => ids.includes(b.id))
+  const row = React.useRef<HTMLSpanElement>(null)
+  const [fade, setFade] = React.useState({ left: false, right: false })
+  const measure = React.useCallback(() => {
+    const el = row.current
+    if (!el) return
+    const left = el.scrollLeft > 1
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+    setFade((f) => (f.left === left && f.right === right ? f : { left, right }))
+  }, [])
+  React.useLayoutEffect(measure, [measure, named.length])
+  const mask =
+    fade.left || fade.right
+      ? `linear-gradient(to right, ${fade.left ? 'transparent, black 14px' : 'black'}, ${fade.right ? 'black calc(100% - 14px), transparent' : 'black'})`
+      : undefined
+  return (
+    <span
+      ref={row}
+      onScroll={measure}
+      aria-label={named.map((b) => b.name).join(', ') || undefined}
+      className="flex shrink-0 items-center overflow-x-auto overscroll-x-contain [scrollbar-color:var(--line-strong)_transparent] [scrollbar-width:thin]"
+      style={{ width: brandsWidth(size), gap: BRAND_GAP, maskImage: mask, WebkitMaskImage: mask }}
+    >
+      {named.map((b, i) => (
+        <span
+          key={b.id}
+          className={`flex shrink-0 ${end && i === 0 ? 'ms-auto' : ''}`}
+          title={b.name}
+        >
+          <BrandMark brandId={b.id} size={size} />
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/** Followers as a short number, always in its place: a quiet dash while none is known. */
+function Followers({
+  n,
+  className = '',
+  cell = false,
+}: {
+  n: number | null | undefined
+  className?: string
+  cell?: boolean
+}) {
+  return (
+    <span
+      role={cell ? 'cell' : undefined}
+      className={`text-right tabular-nums ${n == null ? 'text-ink-5' : ''} ${className}`}
+    >
+      {n == null ? '–' : followersOf(n)}
+    </span>
+  )
+}
+
+// ── Look a: a list of rows ──────────────────────────────────────────────────────────────────
+
+const LIST_COLS = 'grid w-full grid-cols-[40px_minmax(0,1fr)_72px_84px] items-center gap-x-4'
+
+function ListHandle({ h }: { h: SavedHandle }) {
+  const { editing, setEditing, props } = useNaming()
+  return (
+    <div
+      {...props}
+      className={`${LIST_COLS} cursor-text rounded-[12px] px-3 py-3 text-left transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface-2`}
+    >
+      <HandleAvatar h={h} size={40} />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <HandleName
+          h={h}
+          editing={editing}
+          onEditing={setEditing}
+          className="text-[15px] font-medium"
+        />
+        <HandleLine h={h} />
+      </span>
+      <Followers n={h.followers} className="text-[14px] text-ink-2" />
+      <Brands ids={h.brands} />
+    </div>
+  )
+}
+
+function List({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
+  return (
+    <ul className="flex flex-col">
+      {entries.map((e) => (
+        <li key={entryKey(e)} className="border-t border-line first:border-t-0">
+          {e.kind === 'handle' ? <ListHandle h={e.h} /> : <ListPerson p={e.p} onOpen={onOpen} />}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ListPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(p.id)}
+      className={`${LIST_COLS} rounded-[12px] px-3 py-3 text-left transition-colors hover:bg-surface-2`}
+    >
+      <Avatar person={p} size={40} />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-medium">{p.name}</span>
+        <Handle person={p} />
+      </span>
+      <Followers n={mainOf(p)?.followers} className="text-[14px] text-ink-2" />
+      <Brands ids={p.brands} />
+    </button>
+  )
+}
+
+// ── Look b: a grid of cards ─────────────────────────────────────────────────────────────────
+
+const CARD =
+  'flex h-full w-full flex-col items-center gap-3 rounded-[18px] bg-page px-4 pt-6 pb-4 text-center shadow-[0_0_0_1px_var(--line)] transition-shadow outline-none hover:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] focus-visible:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)]'
+
+function CardHandle({ h }: { h: SavedHandle }) {
+  const { editing, setEditing, props } = useNaming()
+  return (
+    <div {...props} className={`${CARD} cursor-text`}>
+      <HandleAvatar h={h} size={64} />
+      <span className="flex w-full min-w-0 flex-col items-center gap-0.5">
+        <HandleName
+          h={h}
+          editing={editing}
+          onEditing={setEditing}
+          className="max-w-full text-center text-[15px] font-medium"
+        />
+        <span className="flex max-w-full justify-center">
+          <HandleLine h={h} />
+        </span>
+      </span>
+      <span className="mt-auto flex w-full items-center justify-between pt-1">
+        <CardFollowers n={h.followers} />
+        <Brands ids={h.brands} size={16} end />
+      </span>
+    </div>
+  )
+}
+
+/** A card's followers, in words: the number stays in its place, a dash while none is known. */
+function CardFollowers({ n }: { n: number | null | undefined }) {
+  return (
+    <span className="text-[13px] text-ink-3 tabular-nums">
+      {n == null ? (
+        <span className="text-ink-5">–</span>
+      ) : (
+        <>
+          <span className="font-medium text-ink">{followersOf(n)}</span> followers
+        </>
+      )}
+    </span>
+  )
+}
+
+function Grid({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
+  return (
+    <ul className="grid grid-cols-4 gap-3 max-lg:grid-cols-3 max-md:grid-cols-2">
+      {entries.map((e) => (
+        <li key={entryKey(e)}>
+          {e.kind === 'handle' ? <CardHandle h={e.h} /> : <CardPerson p={e.p} onOpen={onOpen} />}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function CardPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
+  return (
+    <button type="button" onClick={() => onOpen(p.id)} className={CARD}>
+      <Avatar person={p} size={64} />
+      <span className="flex w-full min-w-0 flex-col items-center gap-0.5">
+        <span className="w-full truncate text-[15px] font-medium">{p.name}</span>
+        <span className="flex max-w-full justify-center">
+          <Handle person={p} />
+        </span>
+      </span>
+      <span className="mt-auto flex w-full items-center justify-between pt-1">
+        <CardFollowers n={mainOf(p)?.followers} />
+        <Brands ids={p.brands} size={16} end />
+      </span>
+    </button>
+  )
+}
+
+// ── Look c: a compact table ─────────────────────────────────────────────────────────────────
+
+const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+
+const TABLE_COLS = 'grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_72px_76px_76px]'
+const TABLE_ROW = `grid ${TABLE_COLS} items-center gap-4 border-t border-line px-3 py-2 transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface-2`
+
+function Table({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
+  return (
+    <div role="table" aria-label="Creators" className="flex flex-col">
+      <div role="row" className={`grid ${TABLE_COLS} gap-4 px-3 pb-2`}>
+        <span role="columnheader" className={EYEBROW}>
+          Name
+        </span>
+        <span role="columnheader" className={EYEBROW}>
+          Handle
+        </span>
+        <span role="columnheader" className={`${EYEBROW} text-right`}>
+          Followers
+        </span>
+        <span role="columnheader" className={EYEBROW}>
+          Status
+        </span>
+        <span role="columnheader" className={EYEBROW}>
+          Brands
+        </span>
+      </div>
+      {entries.map((e) =>
+        e.kind === 'handle' ? (
+          <TableHandle key={entryKey(e)} h={e.h} />
+        ) : (
+          <TablePerson key={entryKey(e)} p={e.p} onOpen={onOpen} />
+        ),
+      )}
+    </div>
+  )
+}
+
+function TableHandle({ h }: { h: SavedHandle }) {
+  const { editing, setEditing, props } = useNaming()
+  return (
+    <div role="row" className={`${TABLE_ROW} cursor-text`}>
+      <span role="cell" className="flex min-w-0 items-center gap-2.5">
+        <HandleAvatar h={h} size={26} />
+        <span {...props} className="min-w-0 flex-1 outline-none">
+          <HandleName
+            h={h}
+            editing={editing}
+            onEditing={setEditing}
+            className="block text-[14px] font-medium"
+          />
+        </span>
+      </span>
+      <span role="cell" className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
+        <span className="truncate">@{h.handle}</span>
+        <PlatformLogo platform="ig" size={11} />
+      </span>
+      <Followers cell n={h.followers} className="text-[13.5px] text-ink-2" />
+      <span role="cell" />
+      <span role="cell" className="flex">
+        <Brands ids={h.brands} size={16} />
+      </span>
+    </div>
+  )
+}
+
+function TablePerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
+  return (
+    <div
+      role="row"
+      tabIndex={0}
+      onClick={() => onOpen(p.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen(p.id)
+        }
+      }}
+      className={`${TABLE_ROW} cursor-pointer`}
+    >
+      <span role="cell" className="flex min-w-0 items-center gap-2.5">
+        <Avatar person={p} size={26} />
+        <span className="truncate text-[14px] font-medium">{p.name}</span>
+      </span>
+      <span role="cell" className="min-w-0">
+        <Handle person={p} />
+      </span>
+      <Followers cell n={mainOf(p)?.followers} className="text-[13.5px] text-ink-2" />
+      <span role="cell" className="text-[13px] text-ink-3">
+        {STATUS_NAME[p.status]}
+      </span>
+      <span role="cell" className="flex">
+        <Brands ids={p.brands} size={16} />
+      </span>
+    </div>
+  )
+}
+
+// ── The person ──────────────────────────────────────────────────────────────────────────────
+
+const LABEL = 'text-[12px] font-medium text-ink-4'
+
+function Panel({ person, onClose }: { person: RosterPerson; onClose: () => void }) {
+  const { brands } = useBrand()
+  const orgOf = useOrgOf()
+  // Only the person's own company's brands can be linked.
+  const theirs = brands.filter((b) => !remote || orgOf(b.id) === person.orgId)
+  const close = React.useEffectEvent(onClose)
+  const panel = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('keydown', onKey)
+    const opener = document.activeElement as HTMLElement | null
+    panel.current?.focus()
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      opener?.focus()
+    }
+  }, [])
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <button
+        type="button"
+        aria-label="Close"
+        tabIndex={-1}
+        onClick={onClose}
+        className="bb-fade absolute inset-0 bg-ink/10"
+      />
+      <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-label={person.name}
+        tabIndex={-1}
+        className="relative flex h-full w-[440px] max-w-full flex-col overflow-y-auto bg-page shadow-sheet outline-none"
+      >
+        <div className="flex justify-end px-4 pt-4">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="flex size-8 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface hover:text-ink"
+          >
+            <CloseIcon size={10} />
+          </button>
+        </div>
+        <div className="flex flex-col gap-8 px-8 pb-10">
+          <div className="flex flex-col items-start gap-4">
+            <Avatar person={person} size={72} />
+            <NameField key={person.id} person={person} />
+          </div>
+
+          <section className="flex flex-col gap-2.5">
+            <span className={LABEL}>Status</span>
+            <div role="radiogroup" aria-label="Status" className="flex gap-1.5">
+              {STATUSES.map((s) => {
+                const on = person.status === s
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => !on && editPerson(person.id, { status: s })}
+                    className={`h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface-2 text-ink-3 hover:text-ink'}`}
+                  >
+                    {STATUS_NAME[s]}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-1">
+            <span className={`${LABEL} pb-1.5`}>Accounts</span>
+            {person.accounts.map((a) => (
+              <a
+                key={`${a.platform}:${a.handle}`}
+                href={profileUrl(a)}
+                target="_blank"
+                rel="noreferrer"
+                className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors hover:bg-surface-2"
+              >
+                <span className="flex size-5 items-center justify-center text-ink-2">
+                  <Logo platform={a.platform} size={15} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[14px]">@{a.handle}</span>
+                <span className="text-[13.5px] text-ink-3 tabular-nums">
+                  {followersOf(a.followers)}
+                </span>
+              </a>
+            ))}
+          </section>
+
+          <section className="flex flex-col gap-1">
+            <span className={`${LABEL} pb-1.5`}>Brands</span>
+            {/* A person is linked to a brand by the brand's posts that name them. */}
+            {theirs.filter((b) => person.brands.includes(b.id)).length === 0 ? (
+              <span className="text-[13.5px] text-ink-4">
+                Linked when a brand’s post tags them or collaborates with them.
+              </span>
+            ) : (
+              theirs
+                .filter((b) => person.brands.includes(b.id))
+                .map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 py-1.5">
+                    <BrandMark brandId={b.id} size={22} />
+                    <span className="flex-1 text-[14px] text-ink">{b.name}</span>
+                  </div>
+                ))
+            )}
+          </section>
+
+          <section className="flex flex-col gap-2.5">
+            <span className={LABEL}>Notes</span>
+            <NotesField key={person.id} person={person} />
+          </section>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** The name, edited in place; saved when the field is left with a name that changed. */
+function NameField({ person }: { person: RosterPerson }) {
+  const [name, setName] = React.useState(person.name)
+  const save = () => {
+    const next = name.trim()
+    if (next && next !== person.name) editPerson(person.id, { name: next })
+    else setName(person.name)
+  }
+  return (
+    <input
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      aria-label="Name"
+      maxLength={120}
+      className="-mx-1 w-full rounded-[8px] bg-transparent px-1 font-display text-[28px] leading-tight tracking-[-0.03em] outline-none hover:bg-surface-2 focus:bg-surface-2"
+    />
+  )
+}
+
+/** The team's notes on the person, never published; saved when the field is left. */
+function NotesField({ person }: { person: RosterPerson }) {
+  const [notes, setNotes] = React.useState(person.notes)
+  const field = React.useRef<HTMLTextAreaElement>(null)
+  // The field grows with what it holds.
+  React.useLayoutEffect(() => {
+    const el = field.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [notes])
+  return (
+    <textarea
+      ref={field}
+      value={notes}
+      onChange={(e) => setNotes(e.target.value)}
+      onBlur={() => notes !== person.notes && editPerson(person.id, { notes })}
+      aria-label="Notes"
+      placeholder="Rates, replies, who to ask…"
+      rows={3}
+      maxLength={20000}
+      className="min-h-[88px] resize-none rounded-[12px] bg-surface-2 px-3.5 py-3 text-[14px] leading-[1.5] whitespace-pre-wrap outline-none placeholder:text-ink-5 focus:bg-surface"
+    />
+  )
+}

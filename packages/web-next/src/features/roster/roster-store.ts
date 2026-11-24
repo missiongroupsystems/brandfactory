@@ -148,7 +148,7 @@ function send(make: () => Promise<unknown>) {
   })
 }
 
-export type PersonEdit = Partial<Pick<RosterPerson, 'name'>>
+export type PersonEdit = Partial<Pick<RosterPerson, 'name' | 'category' | 'status' | 'notes'>>
 
 export function editPerson(id: string, edit: PersonEdit) {
   change(id, (p) => ({ ...p, ...edit }))
