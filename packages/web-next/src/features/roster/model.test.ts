@@ -78,5 +78,9 @@ describe('the Creators page', () => {
       'Lee Ann Ong',
     ])
     expect(filterRoster(people, { ...all, status: 'past' })).toEqual([])
+    // A prospect from the old roster counts as active: the filter has Active and Past only.
+    expect(filterRoster(people, { ...all, status: 'active' }).map((p) => p.status)).toContain(
+      'prospect',
+    )
   })
 })

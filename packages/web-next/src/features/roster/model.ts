@@ -54,6 +54,13 @@ export const pictureOf = (p: RosterPerson) => p.accounts.find((a) => a.picture)?
 
 export type StatusFilter = RosterStatus | 'all'
 
+/**
+ * The two statuses the team sorts creators into. A prospect, from the old roster, counts as
+ * active: its stored status is kept until someone sets one.
+ */
+export const shownStatus = (s: RosterStatus): 'active' | 'past' =>
+  s === 'past' ? 'past' : 'active'
+
 export const STATUS_NAME: Record<RosterStatus, string> = {
   active: 'Active',
   prospect: 'Prospect',
@@ -77,7 +84,7 @@ export function filterRoster(
   const q = fold(query.trim().replace(/^@+/, ''))
   return people.filter((p) => {
     if (brand !== 'all' && !p.brands.includes(brand)) return false
-    if (status !== 'all' && p.status !== status) return false
+    if (status !== 'all' && shownStatus(p.status) !== status) return false
     if (!q) return true
     const name = fold(p.name)
     return (

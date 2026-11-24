@@ -26,6 +26,7 @@ import {
   savedHandles,
   type SavedHandle,
   STATUS_NAME,
+  shownStatus,
   type StatusFilter,
 } from './model'
 import { initialsOf } from './people'
@@ -57,7 +58,8 @@ const entryName = (e: Entry) => (e.kind === 'person' ? e.p.name : (e.h.name ?? e
 const handleKey = (h: SavedHandle) => `${h.orgId}:${h.handle}`
 const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : handleKey(e.h))
 
-const STATUSES: RosterStatus[] = ['active', 'prospect', 'past']
+/** The statuses to filter by and to set: a prospect counts as active (`shownStatus`). */
+const STATUSES: RosterStatus[] = ['active', 'past']
 
 const noop = () => () => {}
 const yes = () => true
@@ -604,7 +606,7 @@ function PersonBody({ person }: { person: RosterPerson }) {
         <span className={LABEL}>Status</span>
         <div role="radiogroup" aria-label="Status" className="flex gap-1.5">
           {STATUSES.map((s) => {
-            const on = person.status === s
+            const on = shownStatus(person.status) === s
             return (
               <button
                 key={s}
