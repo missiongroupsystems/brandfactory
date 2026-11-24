@@ -51,8 +51,6 @@ export function profileUrl(a: RosterAccount): string {
 /** The account a person is known by, and the picture to show: the first account that has one. */
 export const mainOf = (p: RosterPerson) => p.accounts[0] ?? null
 export const pictureOf = (p: RosterPerson) => p.accounts.find((a) => a.picture)?.picture ?? null
-/** Everyone who follows them, on every account. */
-export const reachOf = (p: RosterPerson) => p.accounts.reduce((n, a) => n + (a.followers ?? 0), 0)
 
 export type StatusFilter = RosterStatus | 'all'
 

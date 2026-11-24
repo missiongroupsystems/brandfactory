@@ -64,3 +64,28 @@ describe('the roster on the core', () => {
     ])
   })
 })
+
+describe('a person’s notes on the core', () => {
+  it('are read on their own, and are unknown (no field) until the read answers', async () => {
+    const { useNotes } = await import('./roster-store')
+    gate.answers.length = 0
+    gate.sent.length = 0
+    const person = {
+      id: '11111111-1111-1111-1111-111111111111',
+      orgId: 'co-a',
+      slug: 'aiko-tan',
+      name: 'Aiko Tan',
+      category: null,
+      status: 'active' as const,
+      accounts: [],
+      brands: [],
+    }
+    const { result } = renderHook(() => useNotes(person))
+    expect(result.current).toBeNull()
+    await vi.waitFor(() =>
+      expect(gate.sent).toContainEqual(['GET', `/roster/${person.id}`, undefined]),
+    )
+    gate.answers.shift()!({ ...person, notes: 'Rates sent.' })
+    await vi.waitFor(() => expect(result.current).toBe('Rates sent.'))
+  })
+})

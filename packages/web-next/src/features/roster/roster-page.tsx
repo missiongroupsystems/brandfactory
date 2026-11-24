@@ -35,6 +35,7 @@ import {
   useOrgOf,
   useProfiles,
   useRoster,
+  useNotes,
   useRosterLoaded,
 } from './roster-store'
 
@@ -57,6 +58,10 @@ const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : `${e.h.orgId}:${e
 
 const STATUSES: RosterStatus[] = ['active', 'prospect', 'past']
 
+const noop = () => () => {}
+const yes = () => true
+const no = () => false
+
 /** How long the panel takes to slide out (bb-sheet-out). */
 const PANEL_OUT_MS = 240
 
@@ -70,6 +75,8 @@ export function RosterPage() {
   const [open, setOpen] = React.useState<string | null>(null)
   // A phone lists the people in rows; a wider screen shows them as cards.
   const phone = usePhone()
+  // The server cannot tell a phone: the people show once the browser has said which it is.
+  const client = React.useSyncExternalStore(noop, yes, no)
   // The panel slides out before it goes: closing marks it leaving, then takes it away.
   const [leaving, setLeaving] = React.useState(false)
   const leave = React.useRef<number | undefined>(undefined)
@@ -79,6 +86,8 @@ export function RosterPage() {
     setOpen(id)
   }
   const closePerson = () => {
+    // A second close while the panel leaves starts no second timer.
+    window.clearTimeout(leave.current)
     setLeaving(true)
     leave.current = window.setTimeout(() => {
       setOpen(null)
@@ -152,7 +161,7 @@ export function RosterPage() {
           </div>
         </div>
 
-        {!loaded ? (
+        {!client ? null : !loaded ? (
           <p className="py-16 text-center text-[14px] text-ink-4">Loading…</p>
         ) : shown.length === 0 ? (
           <p className="py-16 text-center text-[14px] text-ink-4">
@@ -219,7 +228,7 @@ function Select({
 }
 
 /** A person's picture, or their initials on the app's avatar colour. */
-export function Avatar({ person, size }: { person: RosterPerson; size: number }) {
+function Avatar({ person, size }: { person: RosterPerson; size: number }) {
   const picture = pictureOf(person)
   return (
     <ProfilePicture
@@ -427,6 +436,7 @@ function Brands({ ids, size = 18, end = false }: { ids: string[]; size?: number;
     <span
       ref={row}
       onScroll={measure}
+      role={named.length > 0 ? 'img' : undefined}
       aria-label={named.map((b) => b.name).join(', ') || undefined}
       className="flex shrink-0 items-center overflow-x-auto overscroll-x-contain [scrollbar-color:var(--line-strong)_transparent] [scrollbar-width:thin]"
       style={{ width: brandsWidth(size), gap: BRAND_GAP, maskImage: mask, WebkitMaskImage: mask }}
@@ -481,9 +491,7 @@ function CardFollowers({ n }: { n: number | null | undefined }) {
         <span className="text-ink-5">–</span>
       ) : (
         <>
-          <span className="font-medium text-ink">{followersOf(n)}</span>
-          {/* A phone's card is narrow: the number says it there. */}
-          <span className="max-md:sr-only"> followers</span>
+          <span className="font-medium text-ink">{followersOf(n)}</span> followers
         </>
       )}
     </span>
@@ -492,7 +500,7 @@ function CardFollowers({ n }: { n: number | null | undefined }) {
 
 function Grid({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
   return (
-    <ul className="grid grid-cols-4 gap-3 max-lg:grid-cols-3 max-md:grid-cols-2">
+    <ul className="grid grid-cols-4 gap-3 max-lg:grid-cols-3">
       {entries.map((e, i) => (
         // A card that comes into the grid rises in; the first screen's cards follow each other.
         <li
@@ -609,7 +617,13 @@ function Panel({
   const close = React.useEffectEvent(onClose)
   const panel = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      // A field being typed in saves on blur: it blurs before the panel goes.
+      const field = document.activeElement
+      if (field instanceof HTMLElement && panel.current?.contains(field)) field.blur()
+      close()
+    }
     window.addEventListener('keydown', onKey)
     const opener = document.activeElement as HTMLElement | null
     panel.current?.focus()
@@ -747,7 +761,15 @@ function NameField({ person }: { person: RosterPerson }) {
 
 /** The team's notes on the person, never published; saved when the field is left. */
 function NotesField({ person }: { person: RosterPerson }) {
-  const [notes, setNotes] = React.useState(person.notes)
+  const known = useNotes(person)
+  if (known === null)
+    return <div aria-hidden="true" className="h-[88px] rounded-[12px] bg-surface-2" />
+  return <NotesInput person={person} saved={known} />
+}
+
+function NotesInput({ person, saved }: { person: RosterPerson; saved: string }) {
+  const [notes, setNotes] = React.useState(saved)
+  const was = React.useRef(saved)
   const field = React.useRef<HTMLTextAreaElement>(null)
   // The field grows with what it holds.
   React.useLayoutEffect(() => {
@@ -761,7 +783,11 @@ function NotesField({ person }: { person: RosterPerson }) {
       ref={field}
       value={notes}
       onChange={(e) => setNotes(e.target.value)}
-      onBlur={() => notes !== person.notes && editPerson(person.id, { notes })}
+      onBlur={() => {
+        if (notes === was.current) return
+        was.current = notes
+        editPerson(person.id, { notes })
+      }}
       aria-label="Notes"
       placeholder="Rates, replies, who to ask…"
       rows={3}

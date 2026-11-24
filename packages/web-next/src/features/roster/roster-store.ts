@@ -177,3 +177,30 @@ export function useOrgOf(): (brandId: string) => string {
   const orgs = React.useSyncExternalStore(subscribe, orgSnapshot, orgSnapshot)
   return (brandId) => (remote ? (orgs[brandId] ?? '') : DEMO_ORG)
 }
+
+/**
+ * A person's notes, which the list leaves out: read on their own on the core (after the changes
+ * on their way, so a note just saved comes back), the demo's own otherwise. Null until known: the
+ * panel then shows no field, so a field never saves over notes it has not read.
+ */
+export function useNotes(person: RosterPerson): string | null {
+  const [read, setRead] = React.useState<{ id: string; notes: string } | null>(null)
+  React.useEffect(() => {
+    if (!remote) return
+    let live = true
+    void (async () => {
+      await settled()
+      try {
+        const one = await request<RosterPerson>('GET', `/roster/${person.id}`)
+        if (live) setRead({ id: person.id, notes: one.notes ?? '' })
+      } catch (err) {
+        console.error('roster notes', err)
+      }
+    })()
+    return () => {
+      live = false
+    }
+  }, [person.id])
+  if (!remote) return person.notes ?? ''
+  return read?.id === person.id ? read.notes : null
+}

@@ -38,7 +38,9 @@ const ROUTES: Route[] = [
     /^\/roster\/profiles\/([^/]+)\/([^/]+)$/,
     ([org, handle], body) => ({ op: 'influencer.profile_name', input: { ...body, org, handle } }),
   ],
-  // A roster person's name, fixed from a row.
+  // One roster person with the team's notes (the list leaves them out).
+  ['GET', /^\/roster\/([^/]+)$/, ([id]) => ({ op: 'influencer.read', input: { id } })],
+  // A roster person's name, status or notes, fixed from a row or the Creators panel.
   [
     'PATCH',
     /^\/roster\/([^/]+)$/,

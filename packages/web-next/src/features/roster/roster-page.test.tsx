@@ -36,10 +36,40 @@ describe('the Creators page in the demo', () => {
         <RosterPage />
       </BrandProvider>,
     )
-    // A row holds the followers without the word: a card on a laptop says "followers".
+    // Rows, not cards: a row holds the followers without the word a card has.
     expect(screen.queryByText(/followers/)).toBeNull()
     fireEvent.click(screen.getByText('Clara Goh'))
-    expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toHaveClass('max-md:bb-push')
+    expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toBeInTheDocument()
+  })
+
+  it('shows cards on a laptop', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    expect(screen.getAllByText(/followers/).length).toBeGreaterThan(0)
+  })
+
+  it('saves a note being typed when Escape closes the panel', () => {
+    vi.useFakeTimers()
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByText('Aiko Tan'))
+    const notes = screen.getByRole('textbox', { name: 'Notes' })
+    notes.focus()
+    fireEvent.change(notes, { target: { value: 'Rates sent.' } })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    vi.useRealTimers()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(screen.getByText('Aiko Tan'))
+    expect(screen.getByRole('textbox', { name: 'Notes' })).toHaveValue('Rates sent.')
   })
 
   it('lists the roster as cards, searches it and opens a person in a side panel', () => {

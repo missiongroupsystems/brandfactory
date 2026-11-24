@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.76.0** — 2026-11-24 — `feat/creators-page`: the Creators page is back, at the team's request: the roster as cards on a laptop (look B, the owner's pick) and as rows on a phone, with a Creators tab on the phone. Search, two filters and a side panel that edits a name, a status and the notes; brands there are read only, as they follow the brand's posts. Cards rise in and lift, the panel slides in and out. Notes are read on their own (`GET /roster/:id`, `influencer.read`), so the panel never saves over notes it has not read. No pack or server change. 1892 tests by count: 1611 pass, 281 skipped without a Postgres server.
 - **2.75.2** — 2026-11-21 — `fix/facebook-source-review`: review fixes for Facebook's uncut photo (no pack change). A save that asks no new yes adds no source and changes no file, so no yes already given stops matching; Facebook gets the cut for a source over Meta's 10 MB, of a size not known, or of a type Meta does not list (WebP, HEIC); a video never swaps. 1880 tests by count: 1599 pass, 281 skipped without a Postgres server.
 - **2.75.1** — 2026-11-21 — `fix/facebook-uncut`: Facebook gets the whole photo (or the person's own crop), never the cut the post makes by itself to the part Instagram shows; Instagram keeps that cut, which its tags are fractions of (pack 1.20.0, migration `0030_post_file_source.sql`, additive). 1873 tests by count: 1592 pass, 281 skipped without a Postgres server.
 - **2.75.0** — 2026-11-21 — `fix/tag-crop`: the tag editor, the phone preview and the photos a post sends show the same frame, the one Instagram shows: a feed photo between 4:5 and 1.91:1 whole, one outside it as its centred part in the nearest of those shapes (sent as that cut), and in a carousel every slide in the first slide's shape (believed, not verified: `CAROUSEL_TAKES_FIRST_SHAPE`). Tags stay on their spot of the photo when the frame changes; a tag the new frame leaves out is removed, with one quiet line. A tag's arrow points at its spot. No server or pack change. 1862 tests by count: 1582 pass, 280 skipped without a Postgres server.
@@ -157,6 +158,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.76.0 — 2026-11-24
+
+- **Why.** The team asked for the Creators page again. It was dropped on 20 Nov (2.74.x) and
+  comes back from the code before that, with one layout.
+- **Layout.** A laptop shows the roster as a grid of cards; a phone shows rows (the old look A's
+  list), with the followers and brands at the end. The phone's tab bar gets Creators. The layout
+  waits for the browser, so a phone never flashes the cards first. `?look=` is gone.
+- **The panel.** A click opens a person's panel: name, status, accounts, brands and notes. Brands
+  are read only: a person is linked by the brand's posts that name them (2.74.x). Escape saves a
+  field being typed in before the panel goes. A second close starts no second timer.
+- **Notes.** The list (`influencer.list`) leaves notes out, so the panel reads them on their own
+  through a new web route, `GET /roster/:id` (`influencer.read`, already in the pack). Until they
+  are read the panel shows no field, so it cannot save over notes it has not read.
+- **Motion.** Cards and rows rise in (`bb-card-in`, a short stagger); cards lift on hover and press
+  in; the panel slides in and out (`bb-sheet-out`; on a phone `bb-push` from the right edge).
+  Reduced motion turns these off. The search has its own clear button.
+- **Checked** in Chromium and WebKit at 1440 px and on Pixel 7 and iPhone 15 sizes: load, search,
+  open, close, clear; no console errors.
+- **Known limits.** The status buttons do not move with the arrow keys.
+- **Tests:** 1892 by count: 1611 pass and 281 are skipped without a Postgres server. Typecheck,
+  lint and format pass. The web build passes in CI; here it fails on Google Fonts, as `main` does.
 
 ## 2.75.2 — 2026-11-21
 
