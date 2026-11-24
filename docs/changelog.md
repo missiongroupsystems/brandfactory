@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.76.1** — 2026-11-24 — `fix/creators-all-open`: every card and row on the Creators page opens the sidebar. A saved collaborator no one on the roster holds opened an in-place name field instead, so some cards seemed not to work; its name is now edited in its sidebar, which also shows its Instagram account and the brands that saved it. No pack or server change. 882 web tests pass.
 - **2.76.0** — 2026-11-24 — `feat/creators-page`: the Creators page is back, at the team's request: the roster as cards on a laptop (look B, the owner's pick) and as rows on a phone, with a Creators tab on the phone. Search, two filters and a side panel that edits a name, a status and the notes; brands there are read only, as they follow the brand's posts. Cards rise in and lift, the panel slides in and out. Notes are read on their own (`GET /roster/:id`, `influencer.read`), so the panel never saves over notes it has not read. No pack or server change. 1892 tests by count: 1611 pass, 281 skipped without a Postgres server.
 - **2.75.2** — 2026-11-21 — `fix/facebook-source-review`: review fixes for Facebook's uncut photo (no pack change). A save that asks no new yes adds no source and changes no file, so no yes already given stops matching; Facebook gets the cut for a source over Meta's 10 MB, of a size not known, or of a type Meta does not list (WebP, HEIC); a video never swaps. 1880 tests by count: 1599 pass, 281 skipped without a Postgres server.
 - **2.75.1** — 2026-11-21 — `fix/facebook-uncut`: Facebook gets the whole photo (or the person's own crop), never the cut the post makes by itself to the part Instagram shows; Instagram keeps that cut, which its tags are fractions of (pack 1.20.0, migration `0030_post_file_source.sql`, additive). 1873 tests by count: 1592 pass, 281 skipped without a Postgres server.
@@ -158,6 +159,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.76.1 — 2026-11-24
+
+- **Why.** The owner found that only some cards opened the sidebar, and that a press on others
+  edited the name. Those were saved collaborators no one on the roster holds, which named in place.
+- **Change.** Every card and row is a button that opens the sidebar. A saved handle's sidebar has
+  its name (left empty, the handle shows), its Instagram account with followers, and the brands
+  that saved it. Names are edited only in the sidebar. The in-place naming parts are gone.
+- **Checked** in Chromium and WebKit at 1440 px and on Pixel 7 and iPhone 15 sizes: each of the
+  26 demo cards opens the sidebar, none edits in place, no page errors.
+- **Tests:** 882 web tests pass (a saved handle named in its sidebar; every card opens it).
+  Typecheck, lint and format pass; the web build runs in CI.
 
 ## 2.76.0 — 2026-11-24
 

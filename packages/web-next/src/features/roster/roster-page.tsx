@@ -400,6 +400,7 @@ function CardHandle({ h, onOpen }: { h: SavedHandle; onOpen: (key: string) => vo
   )
 }
 
+/** A card's followers, in words: the number stays in its place, a dash while none is known. */
 function CardFollowers({ n }: { n: number | null | undefined }) {
   return (
     <span className="whitespace-nowrap text-[13px] text-ink-3 tabular-nums">
