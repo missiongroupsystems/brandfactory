@@ -6,7 +6,6 @@ import { createPortal } from 'react-dom'
 import { AppHeader } from '@/components/app-header'
 import { BrandMark } from '@/components/brand-mark'
 import { ArrowUpRightIcon, ChevronIcon, CloseIcon } from '@/components/icons'
-import { usePhone } from '@/components/use-phone'
 import { PlatformLogo } from '@/components/platform-logos'
 import { ProfilePicture } from '@/components/profile-picture'
 import type { RosterAccount, RosterPerson, RosterStatus } from '@/data/roster'
@@ -50,7 +49,7 @@ import {
  * roster holds: each named in place (a press on it opens a field; Enter saves, Escape leaves), the
  * name the post page then shows for it.
  *
- * The people show as a grid of cards, and as a list of rows on a phone.
+ * The people show as a list of rows. The status filter starts on Active.
  */
 
 type Entry = { kind: 'person'; p: RosterPerson } | { kind: 'handle'; h: SavedHandle }
@@ -64,10 +63,6 @@ const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : handleKey(e.h))
 /** The statuses to filter by and to set: a prospect counts as active (`shownStatus`). */
 const STATUSES: RosterStatus[] = ['active', 'past']
 
-const noop = () => () => {}
-const yes = () => true
-const no = () => false
-
 /** How long the panel takes to slide out (bb-sheet-out). */
 const PANEL_OUT_MS = 240
 
@@ -77,13 +72,10 @@ export function RosterPage() {
   const { brands } = useBrand()
   const [query, setQuery] = React.useState('')
   const [brand, setBrand] = React.useState<string>('all')
-  const [status, setStatus] = React.useState<StatusFilter>('all')
+  // Active creators first: the team looks for who to work with now.
+  const [status, setStatus] = React.useState<StatusFilter>('active')
   const [sort, setSort] = React.useState<'name' | 'followers'>('name')
   const [open, setOpen] = React.useState<string | null>(null)
-  // A phone lists the people in rows; a wider screen shows them as cards.
-  const phone = usePhone()
-  // The server cannot tell a phone: the people show once the browser has said which it is.
-  const client = React.useSyncExternalStore(noop, yes, no)
   // The panel slides out before it goes: closing marks it leaving, then takes it away.
   const [leaving, setLeaving] = React.useState(false)
   const leave = React.useRef<number | undefined>(undefined)
@@ -190,16 +182,14 @@ export function RosterPage() {
           </div>
         </div>
 
-        {!client ? null : !loaded ? (
+        {!loaded ? (
           <p className="py-16 text-center text-[14px] text-ink-4">Loading…</p>
         ) : shown.length === 0 ? (
           <p className="py-16 text-center text-[14px] text-ink-4">
             {filtered ? 'No one matches.' : 'No creators yet.'}
           </p>
-        ) : phone ? (
-          <Rows entries={shown} onOpen={openPerson} />
         ) : (
-          <Grid entries={shown} onOpen={openPerson} />
+          <Rows entries={shown} onOpen={openPerson} />
         )}
       </main>
       {entry && <Panel entry={entry} leaving={leaving} onClose={closePerson} />}
@@ -396,97 +386,22 @@ function Brands({ ids, size = 18, end = false }: { ids: string[]; size?: number;
   )
 }
 
-// ── The grid of cards ───────────────────────────────────────────────────────────────────────
+// ── The list ────────────────────────────────────────────────────────────────────────────────
 
-const CARD =
-  'flex h-full w-full flex-col items-center gap-3 rounded-[18px] bg-page px-4 pt-6 pb-4 text-center shadow-[0_0_0_1px_var(--line)] outline-none transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] focus-visible:-translate-y-0.5 focus-visible:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] active:translate-y-0 active:scale-[0.98] active:duration-150'
-
-function CardHandle({ h, onOpen }: { h: SavedHandle; onOpen: (key: string) => void }) {
-  return (
-    <button type="button" onClick={() => onOpen(handleKey(h))} className={CARD}>
-      <HandleAvatar h={h} size={64} />
-      <span className="flex w-full min-w-0 flex-col items-center gap-0.5">
-        <span className={`w-full truncate text-[15px] font-medium ${h.name ? '' : 'text-ink-2'}`}>
-          {h.name ?? h.handle}
-        </span>
-        <span className="flex max-w-full justify-center">
-          <HandleLine h={h} />
-        </span>
-      </span>
-      <span className="mt-auto flex w-full items-center justify-between pt-1">
-        <CardFollowers n={h.followers} />
-        <Brands ids={h.brands} size={20} end />
-      </span>
-    </button>
-  )
-}
-
-/** A card's followers, in words: the number stays in its place, a dash while none is known. */
-function CardFollowers({ n }: { n: number | null | undefined }) {
-  return (
-    <span className="whitespace-nowrap text-[13px] text-ink-3 tabular-nums">
-      {n == null ? (
-        <span className="text-ink-5">–</span>
-      ) : (
-        <>
-          <span className="font-medium text-ink">{followersOf(n)}</span> followers
-        </>
-      )}
-    </span>
-  )
-}
-
-function Grid({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
-  return (
-    <ul className="grid grid-cols-4 gap-3 max-lg:grid-cols-3">
-      {entries.map((e, i) => (
-        // A card that comes into the grid rises in; the first screen's cards follow each other.
-        <li
-          key={entryKey(e)}
-          className="bb-card-in"
-          style={{ animationDelay: `${Math.min(i, 12) * 24}ms` }}
-        >
-          {e.kind === 'handle' ? (
-            <CardHandle h={e.h} onOpen={onOpen} />
-          ) : (
-            <CardPerson p={e.p} onOpen={onOpen} />
-          )}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function CardPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
-  return (
-    <button type="button" onClick={() => onOpen(p.id)} className={CARD}>
-      <Avatar person={p} size={64} />
-      <span className="flex w-full min-w-0 flex-col items-center gap-0.5">
-        <span className="w-full truncate text-[15px] font-medium">{p.name}</span>
-        <span className="flex max-w-full justify-center">
-          <Handle person={p} />
-        </span>
-      </span>
-      <span className="mt-auto flex w-full items-center justify-between pt-1">
-        <CardFollowers n={mainOf(p)?.followers} />
-        <Brands ids={p.brands} size={20} end />
-      </span>
-    </button>
-  )
-}
-
-// ── The rows, on a phone ────────────────────────────────────────────────────────────────────
-
+/**
+ * A row: picture, name and handle, then followers and brands, in columns on a wide screen and
+ * stacked at the end on a phone.
+ */
 const ROW =
-  'grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-[12px] px-2 py-3 text-left outline-none transition-[background-color,transform] duration-200 active:scale-[0.985] active:bg-surface-2'
+  'grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-[12px] px-2 py-3 text-left outline-none transition-[background-color,transform] duration-200 hover:bg-surface-2 focus-visible:bg-surface-2 active:scale-[0.99] active:bg-surface-2 md:grid-cols-[44px_minmax(0,1fr)_88px_92px] md:gap-x-4 md:px-3'
 
 function RowEnd({ n, ids }: { n: number | null | undefined; ids: string[] }) {
   return (
-    <span className="flex flex-col items-end gap-1">
-      <span className="text-[14px] text-ink-2 tabular-nums">
+    <span className="flex flex-col items-end gap-1 md:contents">
+      <span className="text-[14px] text-ink-2 tabular-nums md:text-right">
         {n == null ? <span className="text-ink-5">–</span> : followersOf(n)}
       </span>
-      <Brands ids={ids} size={18} end />
+      <Brands ids={ids} size={20} end />
     </span>
   )
 }

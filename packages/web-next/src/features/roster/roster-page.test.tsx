@@ -13,10 +13,6 @@ function Names() {
   return <output>{useProfiles().map((p) => `${p.handle}=${p.name}`)}</output>
 }
 
-/** A card's followers line, "141K followers": a row shows the number alone. */
-const cardFollowers = (_: string, el: Element | null) =>
-  el?.tagName === 'SPAN' && /^[\d.]+[KM]? followers$/.test(el.textContent ?? '')
-
 /** A laptop, or a phone (below 768px): the page shows cards, or rows. */
 function screenWidth(phone: boolean) {
   vi.stubGlobal('matchMedia', (q: string) => ({
@@ -36,26 +32,37 @@ describe('the Creators page in the demo', () => {
     vi.unstubAllGlobals()
   })
 
-  it('lists the roster as rows on a phone, and opens a person from a row', () => {
-    screenWidth(true)
-    render(
-      <BrandProvider>
-        <RosterPage />
-      </BrandProvider>,
-    )
-    // Rows, not cards: a row holds the followers without the word a card has.
-    expect(screen.queryAllByText(cardFollowers)).toHaveLength(0)
-    fireEvent.click(screen.getByText('Clara Goh'))
-    expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toBeInTheDocument()
+  it('lists the roster as rows on a laptop and on a phone', () => {
+    for (const phone of [false, true]) {
+      screenWidth(phone)
+      const { unmount } = render(
+        <BrandProvider>
+          <RosterPage />
+        </BrandProvider>,
+      )
+      expect(screen.getByText('Clara Goh').closest('li')?.parentElement?.tagName).toBe('UL')
+      fireEvent.click(screen.getByText('Clara Goh'))
+      expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toBeInTheDocument()
+      unmount()
+    }
   })
 
-  it('shows cards on a laptop', () => {
+  it('shows active creators first, and past ones once the filter asks', () => {
     render(
       <BrandProvider>
         <RosterPage />
       </BrandProvider>,
     )
-    expect(screen.getAllByText(cardFollowers).length).toBeGreaterThan(0)
+    // Dev Patel is past in the demo: the page opens on Active, so he is not listed.
+    const status = screen.getByRole('combobox', { name: 'Status' })
+    expect(status).toHaveValue('active')
+    expect(screen.queryByText('Dev Patel')).toBeNull()
+    fireEvent.change(status, { target: { value: 'past' } })
+    expect(screen.getByText('Dev Patel')).toBeInTheDocument()
+    expect(screen.queryByText('Aiko Tan')).toBeNull()
+    fireEvent.change(status, { target: { value: 'all' } })
+    expect(screen.getByText('Dev Patel')).toBeInTheDocument()
+    expect(screen.getByText('Aiko Tan')).toBeInTheDocument()
   })
 
   it('saves a note being typed when Escape closes the panel', () => {

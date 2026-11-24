@@ -158,14 +158,15 @@ export function savedHandles(
   return [...out.values()]
 }
 
-/** The saved handles a search and the brand filter leave; a status filter leaves none. */
+/** The saved handles a search and the brand filter leave; they count as active, never past. */
 export function filterHandles(
   handles: SavedHandle[],
   { query, brand, status }: { query: string; brand: string | 'all'; status: StatusFilter },
 ): SavedHandle[] {
   const q = fold(query.trim().replace(/^@+/, ''))
   return handles.filter((h) => {
-    if (status !== 'all') return false
+    // A saved collaborator has no status of its own: a brand works with it now, so it is active.
+    if (status === 'past') return false
     if (brand !== 'all' && !h.brands.includes(brand)) return false
     if (!q) return true
     const name = fold(h.name ?? '')

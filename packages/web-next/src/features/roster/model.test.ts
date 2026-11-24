@@ -59,8 +59,9 @@ describe('the Creators page', () => {
       'casanostrasg',
     ])
     expect(filterHandles(handles, { ...all, brand: 'casa' })).toHaveLength(1)
-    // A saved handle has no status: a status filter leaves only people.
-    expect(filterHandles(handles, { ...all, status: 'active' })).toEqual([])
+    // A saved handle has no status of its own: it counts as active, never as past.
+    expect(filterHandles(handles, { ...all, status: 'active' })).toEqual(handles)
+    expect(filterHandles(handles, { ...all, status: 'past' })).toEqual([])
   })
 
   it('finds a person by a word of the name or a handle, and filters by brand and status', () => {
