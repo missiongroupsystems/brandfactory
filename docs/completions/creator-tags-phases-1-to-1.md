@@ -24,7 +24,8 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
 - **Due rule** (`tag_due`). Due when the bio can be read (a brand of the creator's company has
   Instagram linked by our Meta app) and was not read for 30 days, or when the source hash differs
   from `tags_source` and the last try is older than the last edit, the last bio read or six hours.
-  People due a tag come first, then those never tagged. An answer to notes that changed while the
+  The companies take turns (one row of each, then the next); in a company, people due a tag come
+  first, then those never tagged. An answer to notes that changed while the
   model answered keeps the old try time, so the person is due again at once.
 - **The job** (`packages/connect/src/brandbase/creator-tags.ts`, started in `host.ts`). Off
   without `TAGS_OPENROUTER_API_KEY`, and off (one warning) without a principal (`TAGS_AS`, else
@@ -48,7 +49,9 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
   need a bio are not tagged until it is read. An expired sign-in counts every bio of the company as
   read (none found) for 30 days, as a company with no account. A principal that may not list the
   brands reads no bio and still tags. A run reads up to 15 due rows and works on 5: the rows a
-  rate limit puts off do not count, so they cannot fill a run.
+  rate limit puts off do not count, so they cannot fill a run. A bio read that fails for a moment
+  (the network, a timeout, a server or transient error) leaves that person to the next run; only
+  Meta's own answer that there is no bio counts as read.
 - **Web.** `RosterPerson.tags`. The Creators sidebar shows the tags as chips under the name, each
   with ×, and an "Add tag" field (Enter or leaving the field adds; Escape empties it and keeps the
   panel; text still in the field when the panel goes is added). The search matches a word of a tag from its start (a leading `#` is ignored), and a row
@@ -85,6 +88,10 @@ Two fresh reviewer sessions read the whole diff.
    every run on that person, now they wait six hours; a company under a Meta rate limit could fill
    every run, now its put-off rows do not count; the release's loadout step lacked
    `account.meta_list`; the 100-removal limit is now in the move's text.
+4. Round 4: nothing blocking. One company with many people due filled every run, now the
+   companies take turns; a brief Meta failure marked a bio read for 30 days, now that person waits
+   for the next run; an empty `TAGS_DAILY_USD` stopped the server, now it means the default.
+5. Round 5: see the PR.
 
 ### Known limits
 

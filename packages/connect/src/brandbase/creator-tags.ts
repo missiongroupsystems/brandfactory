@@ -35,6 +35,8 @@ const HOLD_USD = 0.005
 /** As the pack's `tag_ok`, after `tag_of`. */
 const TAG = /^[a-z0-9]([a-z0-9 &'-]{0,28}[a-z0-9])?$/
 const USERNAME = /^[a-z0-9._]{1,30}$/
+/** A bio read that failed for a moment: the person waits for the next run. */
+const LATER = Symbol('later')
 /** Meta's code for "Cannot find User" on Business Discovery. */
 const NOT_FOUND = 110
 const RATE_LIMITED = new Set([4, 17, 32, 613, 80002])
@@ -71,7 +73,7 @@ export interface TagsConfig {
 export function tagsFromEnv(env: NodeJS.ProcessEnv = process.env): TagsConfig | undefined {
   const apiKey = env.TAGS_OPENROUTER_API_KEY
   if (!apiKey) return undefined
-  const dailyUsd = Number(env.TAGS_DAILY_USD ?? 1)
+  const dailyUsd = Number(env.TAGS_DAILY_USD || 1)
   if (!Number.isFinite(dailyUsd) || dailyUsd <= 0) {
     throw new Error('invalid environment:\n  - TAGS_DAILY_USD: a dollar amount')
   }
@@ -241,7 +243,10 @@ export function creatorTags(
     return out
   }
 
-  /** The bio Business Discovery gives; null when it cannot be read. Throws at a rate limit. */
+  /**
+   * The bio Business Discovery gives; null when Meta says it cannot be read; LATER after a brief
+   * failure. Throws at a rate limit or an expired sign-in.
+   */
   async function bioOf(from: { igId: string; token: string }, handle: string) {
     try {
       const got = await meta!.graph<{ business_discovery?: { biography?: unknown } }>(
@@ -256,8 +261,15 @@ export function creatorTags(
     } catch (err) {
       if (err instanceof MetaReconnect) throw err
       if (err instanceof MetaError && err.code !== null && RATE_LIMITED.has(err.code)) throw err
-      if (err instanceof MetaError && err.code === NOT_FOUND) return null
-      return null
+      // Meta's own answer that there is no bio to read: read, none found.
+      if (
+        err instanceof MetaError &&
+        (err.code === NOT_FOUND || (err.code !== null && !err.transient))
+      ) {
+        return null
+      }
+      // The network, a timeout, a server error or a transient one: this person, later.
+      return LATER
     }
   }
 
@@ -376,13 +388,15 @@ export function creatorTags(
         let tagDue = p.tagDue
         if (from && p.bioDue && p.handle && USERNAME.test(p.handle) && !limited.has(p.orgId)) {
           const reader = signedOut.has(p.orgId) ? undefined : from.get(p.orgId)
-          let read: string | null = null
+          let read: string | null | typeof LATER = null
           try {
             read = reader ? await bioOf(reader, p.handle) : null
           } catch (err) {
             if (err instanceof MetaReconnect) signedOut.add(p.orgId)
             else limited.add(p.orgId)
           }
+          // Neither read nor tagged now: the next run reads the bio again.
+          if (read === LATER) continue
           if (!limited.has(p.orgId)) {
             const kept = (await move('influencer.bio_set', { id: p.id, bio: read })) as {
               source: string

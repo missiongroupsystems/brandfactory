@@ -714,6 +714,56 @@
           }
         }
       ]
+    },
+    {
+      "name": "the companies take turns: one with many people due does not fill the list",
+      "steps": [
+        {
+          "sql": "insert into brandbase.influencers (id, org_id, slug, name, notes) values ('00000000-0000-4000-8000-00000000a009', 'co-a', 'ana-two', 'Ana Two', 'Bakes.')"
+        },
+        {
+          "sql": "update brandbase.influencers set notes = 'Steak.' where slug = 'ben-tan'"
+        },
+        {
+          "call": "influencer.tag_due",
+          "as": "both",
+          "input": {
+            "limit": 2
+          },
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "orgId": "co-a"
+              },
+              {
+                "orgId": "co-b"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "as": "both",
+          "input": {
+            "limit": 3
+          },
+          "expect": {
+            "length": 3,
+            "result": [
+              {
+                "orgId": "co-a"
+              },
+              {
+                "orgId": "co-b"
+              },
+              {
+                "orgId": "co-a"
+              }
+            ]
+          }
+        }
+      ]
     }
   ]
 }

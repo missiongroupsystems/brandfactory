@@ -45,6 +45,8 @@ function fakes() {
     bio: 'Pasta & vino lover' as string | null,
     /** Meta's error code for every bio read, if any. */
     error: null as number | null,
+    /** Meta's servers answer with no Graph error. */
+    down: false,
   }
   const openrouter = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
@@ -68,6 +70,7 @@ function fakes() {
     expect(url.searchParams.get('access_token')).toBe(TOKEN)
     const name = /username\(([^)]+)\)\{biography\}/.exec(url.searchParams.get('fields') ?? '')?.[1]
     bios.push(name ?? '?')
+    if (state.down) return new Response('busy', { status: 502 })
     if (state.error !== null) {
       return Response.json({ error: { message: 'no', code: state.error } }, { status: 400 })
     }
@@ -140,6 +143,10 @@ describe('the creator tags settings', () => {
         TAGS_DAILY_USD: '0.5',
       }),
     ).toMatchObject({ as: 'p/tags', model: 'other/model', dailyUsd: 0.5 })
+    // An empty cap is the default, not zero.
+    expect(
+      tagsFromEnv({ TAGS_OPENROUTER_API_KEY: KEY, TAGS_AS: 'p', TAGS_DAILY_USD: '' }),
+    ).toMatchObject({ dailyUsd: 1 })
   })
 
   it('stop the server on a daily cap that is no amount', () => {
@@ -334,6 +341,18 @@ describe('the creator tags job', () => {
     expect(t.bios).toHaveLength(2)
     expect(await t.job.once()).toMatchObject({ due: 2, bios: 2 })
     expect(await t.job.once()).toMatchObject({ due: 0 })
+  })
+
+  it('leaves a bio Meta failed to read for a moment to the next run', async () => {
+    const t = await setUp({ linked: true })
+    t.state.down = true
+    // Ana is neither read nor tagged now; Mia, with no Instagram, is tagged.
+    expect(await t.job.once()).toMatchObject({ due: 2, bios: 0, tagged: 1 })
+    expect(await t.tagsOfAna()).toMatchObject({ tried: false })
+    t.state.down = false
+    expect(await t.job.once()).toMatchObject({ due: 1, bios: 1, tagged: 1 })
+    const user = JSON.parse((t.asked.at(-1)!.body.messages as { content: string }[])[1]!.content)
+    expect(user).toMatchObject({ handle: 'ana.cooks', bio: 'Pasta & vino lover' })
   })
 
   it('asks no model for a person with nothing to tag from', async () => {
