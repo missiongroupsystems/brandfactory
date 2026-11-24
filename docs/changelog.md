@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.77.0** — 2026-11-24 — `feat/creator-tags`: creators get short topic tags (pack 1.21.0, migration `0031_influencer_tags.sql`, additive). The Creators sidebar shows them as chips to remove and add, the search finds creators by tag, and a server job asks OpenRouter (`deepseek/deepseek-v4.1-flash`) for at most six from the notes, the category and the Instagram bio, reusing the company's tags, never against a person's edit; off without `TAGS_OPENROUTER_API_KEY`, capped at `TAGS_DAILY_USD` (default $1). 1931 tests by count: 1643 pass, 288 skipped without a Postgres server.
+- **2.77.0** — 2026-11-24 — `feat/creator-tags`: creators get short topic tags (pack 1.21.0, migration `0031_influencer_tags.sql`, additive). The Creators sidebar shows them as chips to remove and add, the search finds creators by tag, and a server job asks OpenRouter (`deepseek/deepseek-v4.1-flash`) for at most six from the notes, the category and the Instagram bio, reusing the company's tags, never against a person's edit; off without `TAGS_OPENROUTER_API_KEY`, capped at `TAGS_DAILY_USD` (default $1). 1935 tests by count: 1646 pass, 289 skipped without a Postgres server.
 - **2.76.2** — 2026-11-24 — `feat/creators-list`: the Creators page is a list at every width (look A's rows; the cards are gone), with followers and brands in their own columns on a wide screen. The status filter opens on Active; saved collaborators count as active. No pack or server change. 883 web tests pass.
 - **2.76.1** — 2026-11-24 — `fix/creators-all-open`: every card and row on the Creators page opens the sidebar. A saved collaborator no one on the roster holds opened an in-place name field instead, so some cards seemed not to work; its name is now edited in its sidebar, which also shows its Instagram account and the brands that saved it. The status filter and the sidebar offer Active and Past only; a prospect from the old roster counts as active, its stored status unchanged. The brand logos on cards and rows are larger (20 and 18 px). A sort, by name or by followers. Each account in the sidebar is a link card to the creator's page on its platform. No pack or server change. 882 web tests pass.
 - **2.76.0** — 2026-11-24 — `feat/creators-page`: the Creators page is back, at the team's request: the roster as cards on a laptop (look B, the owner's pick) and as rows on a phone, with a Creators tab on the phone. Search, two filters and a side panel that edits a name, a status and the notes; brands there are read only, as they follow the brand's posts. Cards rise in and lift, the panel slides in and out. Notes are read on their own (`GET /roster/:id`, `influencer.read`), so the panel never saves over notes it has not read. No pack or server change. 1892 tests by count: 1611 pass, 281 skipped without a Postgres server.
@@ -182,7 +182,7 @@ One line each — full write-ups are under the matching `##` heading further dow
   `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list account.meta_list`; then the
   owner sets `TAGS_OPENROUTER_API_KEY` on Fly.
 - **Docs.** `docs/completions/creator-tags-phases-1-to-1.md`, with its proposal and plan.
-- **Tests:** 1931 tests by count: 1643 pass, 288 skipped without a Postgres server.
+- **Tests:** 1935 tests by count: 1646 pass, 289 skipped without a Postgres server.
 
 ## 2.76.2 — 2026-11-24
 

@@ -37,6 +37,8 @@ const TAG = /^[a-z0-9]([a-z0-9 &'-]{0,28}[a-z0-9])?$/
 const USERNAME = /^[a-z0-9._]{1,30}$/
 /** A bio read that failed for a moment: the person waits for the next run. */
 const LATER = Symbol('later')
+/** Bio reads in a row that may fail for a moment before the bio counts as not found. */
+const LATER_TRIES = 3
 /** Meta's code for "Cannot find User" on Business Discovery. */
 const NOT_FOUND = 110
 const RATE_LIMITED = new Set([4, 17, 32, 613, 80002])
@@ -181,6 +183,8 @@ export function creatorTags(
   const limit = opts.limit ?? DEFAULT_LIMIT
   const spend = { day: '', usd: 0 }
   let running = false
+  /** Each person's bio reads in a row that failed for a moment; past LATER_TRIES, none found. */
+  const later = new Map<string, number>()
 
   const today = () => {
     const day = core.now().toISOString().slice(0, 10)
@@ -396,7 +400,16 @@ export function creatorTags(
             else limited.add(p.orgId)
           }
           // Neither read nor tagged now: the next run reads the bio again.
-          if (read === LATER) continue
+          if (read === LATER) {
+            const tries = (later.get(p.id) ?? 0) + 1
+            if (tries < LATER_TRIES) {
+              later.set(p.id, tries)
+              continue
+            }
+            // A read that keeps failing is no read: tagged from what is known, read in 30 days.
+            read = null
+          }
+          later.delete(p.id)
           if (!limited.has(p.orgId)) {
             const kept = (await move('influencer.bio_set', { id: p.id, bio: read })) as {
               source: string

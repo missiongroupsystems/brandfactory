@@ -355,6 +355,17 @@ describe('the creator tags job', () => {
     expect(user).toMatchObject({ handle: 'ana.cooks', bio: 'Pasta & vino lover' })
   })
 
+  it('tags a person whose bio read keeps failing on the third run, from what is known', async () => {
+    const t = await setUp({ linked: true })
+    t.state.down = true
+    await t.job.once()
+    expect(await t.job.once()).toMatchObject({ due: 1, bios: 0, tagged: 0 })
+    expect(await t.job.once()).toMatchObject({ due: 1, bios: 1, tagged: 1 })
+    const user = JSON.parse((t.asked.at(-1)!.body.messages as { content: string }[])[1]!.content)
+    expect(user).toMatchObject({ handle: 'ana.cooks', bio: null })
+    expect(await t.job.once()).toMatchObject({ due: 0 })
+  })
+
   it('asks no model for a person with nothing to tag from', async () => {
     const t = await setUp()
     await t.db.exec(`update brandbase.influencers set notes = '', category = null`)

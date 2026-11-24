@@ -50,8 +50,8 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
   read (none found) for 30 days, as a company with no account. A principal that may not list the
   brands reads no bio and still tags. A run reads up to 15 due rows and works on 5: the rows a
   rate limit puts off do not count, so they cannot fill a run. A bio read that fails for a moment
-  (the network, a timeout, a server or transient error) leaves that person to the next run; only
-  Meta's own answer that there is no bio counts as read.
+  (the network, a timeout, a server or transient error) leaves that person to the next run, three
+  times at most; Meta's own answer that there is no bio counts as read.
 - **Web.** `RosterPerson.tags`. The Creators sidebar shows the tags as chips under the name, each
   with ×, and an "Add tag" field (Enter or leaving the field adds; Escape empties it and keeps the
   panel; text still in the field when the panel goes is added). The search matches a word of a tag from its start (a leading `#` is ignored), and a row
@@ -91,7 +91,9 @@ Two fresh reviewer sessions read the whole diff.
 4. Round 4: nothing blocking. One company with many people due filled every run, now the
    companies take turns; a brief Meta failure marked a bio read for 30 days, now that person waits
    for the next run; an empty `TAGS_DAILY_USD` stopped the server, now it means the default.
-5. Round 5: see the PR.
+5. Round 5: no confirmed finding. A bio read that kept failing for a moment held one person
+   back for good; after three such tries in a row the bio counts as not found and the person is
+   tagged from what is known.
 
 ### Known limits
 
