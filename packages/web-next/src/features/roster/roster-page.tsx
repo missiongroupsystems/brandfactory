@@ -396,7 +396,7 @@ function CardHandle({ h, onOpen }: { h: SavedHandle; onOpen: (key: string) => vo
       </span>
       <span className="mt-auto flex w-full items-center justify-between pt-1">
         <CardFollowers n={h.followers} />
-        <Brands ids={h.brands} size={16} end />
+        <Brands ids={h.brands} size={20} end />
       </span>
     </button>
   )
@@ -450,7 +450,7 @@ function CardPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => vo
       </span>
       <span className="mt-auto flex w-full items-center justify-between pt-1">
         <CardFollowers n={mainOf(p)?.followers} />
-        <Brands ids={p.brands} size={16} end />
+        <Brands ids={p.brands} size={20} end />
       </span>
     </button>
   )
@@ -467,7 +467,7 @@ function RowEnd({ n, ids }: { n: number | null | undefined; ids: string[] }) {
       <span className="text-[14px] text-ink-2 tabular-nums">
         {n == null ? <span className="text-ink-5">–</span> : followersOf(n)}
       </span>
-      <Brands ids={ids} size={14} end />
+      <Brands ids={ids} size={18} end />
     </span>
   )
 }
