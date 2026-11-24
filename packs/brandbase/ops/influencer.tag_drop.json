@@ -1,6 +1,6 @@
 {
   "name": "influencer.tag_drop",
-  "description": "Removes a tag from a person, the team's or the model's, and keeps the model from giving it back. Every member of the person's company may. Answers the person's tags.",
+  "description": "Removes a tag from a person, the team's or the model's, and keeps the model from giving it back (the newest 100 removals of a person are kept). Every member of the person's company may. Answers the person's tags.",
   "input": {
     "type": "object",
     "additionalProperties": false,

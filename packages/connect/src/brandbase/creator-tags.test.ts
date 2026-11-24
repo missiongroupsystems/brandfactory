@@ -255,7 +255,7 @@ describe('the creator tags job', () => {
 
   it('keeps the hold of an answer that states no cost, and owes nothing for a refusal', async () => {
     const t = await setUp()
-    t.state.answers = [{ status: 503 }]
+    t.state.answers = [{ status: 429 }]
     expect(await t.job.once()).toMatchObject({ tagged: 0, stopped: 'upstream' })
     expect(t.job.spentToday).toBe(0)
     // Nothing recorded: the person is due on the next run.
@@ -275,10 +275,14 @@ describe('the creator tags job', () => {
     await t.asOwner('influencer.edit', { id: ANA, notes: 'Pasta nights.' })
     t.setNow(new Date('2026-11-24T04:05:00Z'))
     await t.asOwner('influencer.edit', { id: ANA, notes: 'Pasta nights, often.' })
-    for (const status of [401, 402, 429, 500]) {
+    for (const status of [401, 402, 429]) {
       t.state.answers = [{ status }]
       expect(await t.job.once()).toMatchObject({ due: 1, refused: 0, stopped: 'upstream' })
     }
+    // A server error may be this person's input: the run stops, and they wait six hours.
+    t.state.answers = [{ status: 500 }]
+    expect(await t.job.once()).toMatchObject({ due: 1, stopped: 'upstream' })
+    expect(await t.job.once()).toMatchObject({ due: 0 })
   })
 
   it('tags from the notes alone where no bio can be read, and keeps a bio Meta does not find', async () => {
@@ -321,12 +325,12 @@ describe('the creator tags job', () => {
     // A rate limit: one read, then the company's bios wait; the two due a tag are tagged.
     t.state.error = 4
     // Ana's bio was put off: she is tagged once it is read, so only Mia is tagged now.
-    expect(await t.job.once()).toMatchObject({ due: 5, bios: 0, tagged: 1 })
+    expect(await t.job.once()).toMatchObject({ due: 8, bios: 0, tagged: 1 })
     expect(t.bios).toHaveLength(1)
     // An expired sign-in: one read, then every bio of the company counts as read, so the next
     // runs move on.
     t.state.error = 190
-    expect(await t.job.once()).toMatchObject({ due: 5, bios: 5 })
+    expect(await t.job.once()).toMatchObject({ due: 7, bios: 5 })
     expect(t.bios).toHaveLength(2)
     expect(await t.job.once()).toMatchObject({ due: 2, bios: 2 })
     expect(await t.job.once()).toMatchObject({ due: 0 })

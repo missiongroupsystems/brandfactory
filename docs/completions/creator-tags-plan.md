@@ -43,7 +43,7 @@ Read `creator-tags-proposal.md` first (both now in `docs/completions/`). Branch 
 ## Release (the owner)
 
 1. Merge, then the Production workflow's `release` task with version 1.21.0, then `deploy`.
-2. `agent-loadout` with ops `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list`
+2. `agent-loadout` with ops `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list account.meta_list`
    if the job runs as the webhook's agent (`META_WEBHOOK_AS`).
 3. `fly secrets set -a brandfactory TAGS_OPENROUTER_API_KEY=...` (a key with its own credit limit
    on OpenRouter). Optional: `TAGS_DAILY_USD`, `TAGS_MODEL`, `TAGS_AS`.

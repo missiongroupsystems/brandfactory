@@ -38,7 +38,7 @@ const USERNAME = /^[a-z0-9._]{1,30}$/
 /** Meta's code for "Cannot find User" on Business Discovery. */
 const NOT_FOUND = 110
 const RATE_LIMITED = new Set([4, 17, 32, 613, 80002])
-/** OpenRouter's answers that stop a run: the key, the credit, a timeout, a rate limit. */
+/** OpenRouter's answers that stop a run and record nothing: the key, the credit, a limit. */
 const STOP = new Set([401, 402, 408, 429])
 
 export const SYSTEM = [
@@ -266,7 +266,7 @@ export function creatorTags(
     p: Due,
     bio: string | null,
     words: string[],
-  ): Promise<string[] | null | 'budget' | 'upstream' | 'refused'> {
+  ): Promise<string[] | null | 'budget' | 'upstream' | 'down' | 'refused'> {
     if (overBudget()) return 'budget'
     const input = {
       handle: p.handle,
@@ -306,15 +306,16 @@ export function creatorTags(
       })
     } catch {
       // No answer in time: it may still be paid for, so the hold stays.
-      return 'upstream'
+      return 'down'
     }
     if (!res.ok) {
       // OpenRouter charges only for an answer.
       charge(-HOLD_USD)
       void res.body?.cancel().catch(() => undefined)
-      // OpenRouter down, our key or credit refused, or a limit: the run stops and tries again.
-      // Any other refusal is of this person's input: they wait, so they cannot hold up the rest.
-      return STOP.has(res.status) || res.status >= 500 ? 'upstream' : 'refused'
+      // Our key or credit refused, or a limit: the run stops and tries again. A server error
+      // stops the run too, and may be this person's input. Any other refusal is of the input.
+      if (STOP.has(res.status)) return 'upstream'
+      return res.status >= 500 ? 'down' : 'refused'
     }
     const body = (await res.json().catch(() => null)) as {
       choices?: { message?: { content?: unknown } }[]
@@ -340,7 +341,8 @@ export function creatorTags(
       counts.stopped = 'budget'
       return counts
     }
-    const due = (await move('influencer.tag_due', { limit })) as Due[]
+    // More rows than a run works on: the people a Meta limit puts off do not fill the run.
+    const due = (await move('influencer.tag_due', { limit: Math.min(limit * 3, 50) })) as Due[]
     counts.due = due.length
     if (due.length === 0) return counts
     // Neither read stops the run: without the company's tags the model makes its own, and
@@ -361,8 +363,13 @@ export function creatorTags(
      */
     const limited = new Set<string>()
     const signedOut = new Set<string>()
-    for (const [n, p] of due.entries()) {
-      if (n > 0) await sleep(gapMs)
+    let worked = 0
+    for (const p of due) {
+      if (worked === limit) break
+      // Put off by a Meta limit on the company's reads: neither read nor tagged, nor counted.
+      if (p.bioDue && limited.has(p.orgId) && from) continue
+      if (worked > 0) await sleep(gapMs)
+      worked++
       try {
         let bio = p.bio
         let source = p.source
@@ -400,11 +407,13 @@ export function creatorTags(
           counts.stopped = tags
           break
         }
-        await move('influencer.tag_set', {
-          id: p.id,
-          source,
-          tags: tags === 'refused' ? null : tags,
-        })
+        // A refusal, a timeout or a server error on this person: they wait six hours.
+        const failed = tags === 'refused' || tags === 'down'
+        await move('influencer.tag_set', { id: p.id, source, tags: failed ? null : tags })
+        if (tags === 'down') {
+          counts.stopped = 'upstream'
+          break
+        }
         if (tags === 'refused') counts.refused++
         else if (tags === null) counts.malformed++
         else counts.tagged++

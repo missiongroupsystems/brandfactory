@@ -40,13 +40,15 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
   the hold; a refusal owes nothing; a timeout keeps the hold. At `TAGS_DAILY_USD` (default 1) a
   run stops until the next UTC day. The count lives in the process: a restart starts it at zero.
 - **Answers.** The tags are read from the first `{` to the last `}`; anything else, or no `tags`
-  list, is malformed: no tag changes, and the person waits six hours. A timeout, a 5xx, 401, 402,
-  408 or 429 stops the run and records nothing; any other 4xx is a refusal of that person's input,
-  who then waits six hours, so one person cannot hold up the rest.
+  list, is malformed: no tag changes, and the person waits six hours. A 401, 402, 408 or 429 stops
+  the run and records nothing. A timeout or a 5xx stops the run, and the person waits six hours (it
+  may be their input); any other 4xx is a refusal of that person's input, who waits six hours and
+  the run goes on. So one person cannot hold up the rest.
 - **Bios.** A Meta rate limit puts the company's bio reads off to the next run, and its people who
   need a bio are not tagged until it is read. An expired sign-in counts every bio of the company as
   read (none found) for 30 days, as a company with no account. A principal that may not list the
-  brands reads no bio and still tags.
+  brands reads no bio and still tags. A run reads up to 15 due rows and works on 5: the rows a
+  rate limit puts off do not count, so they cannot fill a run.
 - **Web.** `RosterPerson.tags`. The Creators sidebar shows the tags as chips under the name, each
   with ×, and an "Add tag" field (Enter or leaving the field adds; Escape empties it and keeps the
   panel; text still in the field when the panel goes is added). The search matches a word of a tag from its start (a leading `#` is ignored), and a row
@@ -63,7 +65,7 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
 
 1. The Production workflow's `release` task with version 1.21.0, then `deploy`.
 2. `agent-loadout` with ops
-   `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list` when the
+   `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list account.meta_list` when the
    job runs as the webhook's agent (an agent's loadout does not follow a release).
 3. `fly secrets set -a brandfactory TAGS_OPENROUTER_API_KEY=...`, a key with its own credit limit.
 
@@ -79,7 +81,10 @@ Two fresh reviewer sessions read the whole diff.
 2. Round 2: nothing serious. A 4xx refusal of one person's input blocked the job, now that person
    waits; a bio put off by a rate limit caused two model calls, now one; a tag typed when the panel
    went was lost, now added; an invalid tag has a hint for screen readers; the changelog entry.
-3. Round 3: see the changelog entry.
+3. Round 3: nothing that breaks the feature. A timeout or a 5xx on one person's input stopped
+   every run on that person, now they wait six hours; a company under a Meta rate limit could fill
+   every run, now its put-off rows do not count; the release's loadout step lacked
+   `account.meta_list`; the 100-removal limit is now in the move's text.
 
 ### Known limits
 

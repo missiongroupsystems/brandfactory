@@ -179,7 +179,7 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Web.** Chips with × and an "Add tag" field under the name in the sidebar; the search matches
   tags, and a row found by a tag shows it. The demo roster has tags.
 - **Release.** Production `release` 1.21.0, then `deploy`; `agent-loadout` with
-  `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list`; then the
+  `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list account.meta_list`; then the
   owner sets `TAGS_OPENROUTER_API_KEY` on Fly.
 - **Docs.** `docs/completions/creator-tags-phases-1-to-1.md`, with its proposal and plan.
 - **Tests:** 1931 tests by count: 1643 pass, 288 skipped without a Postgres server.
