@@ -41,6 +41,11 @@ export interface RosterPerson {
   accounts: RosterAccount[]
   /** The ids of the brands they are linked to. */
   brands: string[]
+  /**
+   * Short topics in lower case ("italian food", "wine"): the team's own, then the ones a model
+   * gave from the notes and the bio (pack 1.21.0). A core before it sends none.
+   */
+  tags?: string[]
 }
 
 const slugOf = (name: string) =>
@@ -50,6 +55,36 @@ const slugOf = (name: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
+
+/** The demo's tags, by name: what each creator makes content about. */
+const TAGS: Record<string, string[]> = {
+  'Daniel Ang': ['hawker food', 'budget eats', 'singapore'],
+  'Antonio Ferri': ['italian food', 'fine dining', 'wine'],
+  'Sfoglina Bologna': ['fresh pasta', 'italian food', 'cooking classes'],
+  'Marco Rossi': ['italian food', 'chef', 'recipes'],
+  'Giulia Conti': ['italian food', 'home cooking', 'family'],
+  'Raffles City': ['shopping', 'singapore'],
+  'Nat Lim': ['food videos', 'restaurants'],
+  'Clara Goh': ['fine dining', 'wine', 'date night'],
+  'Maison Vauclair': ['french food', 'pastry'],
+  'Duxton Hill Collective': ['restaurants', 'bars', 'singapore'],
+  'Elise Moreau': ['wine', 'cocktails', 'bars'],
+  'Lena Koh': ['brunch', 'cafes'],
+  'Sam Lee': ['budget eats', 'hawker food'],
+  'Farid Rahman': ['halal food', 'family'],
+  'Flamenco SG': ['spanish food', 'live music'],
+  'Carlos Ruiz': ['spanish food', 'tapas', 'wine'],
+  'Lucía Romero': ['spanish food', 'home cooking'],
+  'Javier Ortega': ['tapas', 'bars'],
+  'Aiko Tan': ['japanese food', 'budget eats'],
+  'Ben Lim': ['home cooking', 'recipes'],
+  'Chloe Ng': ['street style', 'beauty'],
+  'Dev Patel': ['indian food', 'restaurants'],
+  'Ella Wong': ['family', 'kids', 'parenting'],
+  'Hana Sato': ['coffee', 'cafes', 'japanese food'],
+  'Mei Chen': ['fitness', 'healthy eating'],
+  'Nora Lee': ['family', 'home'],
+}
 
 /** Followers the demo shows: a plausible spread, the same on every load. */
 const FOLLOWERS = [48_200, 12_600, 215_000, 8_900, 33_400, 96_100, 5_300, 21_800, 140_500, 3_700]
@@ -121,6 +156,7 @@ function build(): RosterPerson[] {
             : []),
         ],
         brands: [brand],
+        tags: TAGS[a.name] ?? [],
       })
     }
   }
@@ -157,6 +193,7 @@ function build(): RosterPerson[] {
       notes: '',
       accounts,
       brands: [],
+      tags: TAGS[u.name] ?? [],
     })
   }
   return [...people.values()].sort((a, b) => a.name.localeCompare(b.name))

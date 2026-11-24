@@ -51,7 +51,11 @@ described below; it is not deployed.
   Instagram account, linked through Meta, is the capture account (`meta-capture.ts`; capture is off
   without it). `META_CAPTURE_SENDERS` (optional, comma-separated Instagram usernames) captures only
   those senders. `META_POLL_DMS=off` stops the DM read every 30 seconds (`meta-poll.ts`), which stands in
-  while Meta sends no webhooks. `pnpm -F @brandfactory/connect serve` starts it with the core's
+  while Meta sends no webhooks. `TAGS_OPENROUTER_API_KEY` turns on the creator tags job
+  (`creator-tags.ts`): every five minutes it tags up to five creators with an OpenRouter model,
+  as `TAGS_AS` (else `META_WEBHOOK_AS`); off without the key. `TAGS_DAILY_USD` (default 1) caps the
+  spend per UTC day, `TAGS_MODEL` (default `deepseek/deepseek-v4.1-flash`) and `TAGS_PROVIDERS`
+  pick the model and its hosts. `pnpm -F @brandfactory/connect serve` starts it with the core's
   own variables too.
 
 ## The brand rule

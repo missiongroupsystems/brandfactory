@@ -1,0 +1,23 @@
+{
+  "name": "influencer.tag_drop",
+  "description": "Removes a tag from a person, the team's or the model's, and keeps the model from giving it back (the newest 100 removals of a person are kept). Every member of the person's company may. Answers the person's tags.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "tag"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "tag": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 60
+      }
+    }
+  },
+  "before": ["influencer.found", "influencer.tag_valid"],
+  "returns": "one",
+  "sql": "update brandbase.influencers i set\n  tags_team = array_remove(i.tags_team, t.v),\n  tags_ai = array_remove(i.tags_ai, t.v),\n  tags_hidden = case when t.v = any (i.tags_hidden) then i.tags_hidden else (i.tags_hidden || t.v)[greatest(1, cardinality(i.tags_hidden) - 98):] end\nfrom (select brandbase.tag_of(:tag::text) as v) t\nwhere i.id = :id::uuid\nreturning jsonb_build_object('id', i.id, 'tags', brandbase.influencer_tags(i.tags_team, i.tags_ai)) as result"
+}

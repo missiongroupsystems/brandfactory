@@ -1,0 +1,769 @@
+{
+  "name": "tags",
+  "now": "2026-11-24T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "a member adds and removes a creator's tags, in one spelling, and the list and the read answer them",
+      "steps": [
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": " #Italian   Food "
+          },
+          "expect": {
+            "result": {
+              "id": "00000000-0000-4000-8000-00000000a001",
+              "tags": ["italian food"]
+            }
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "as": "owner",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "wine"
+          },
+          "expect": {
+            "result": {
+              "tags": ["italian food", "wine"]
+            }
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "Wine"
+          },
+          "expect": {
+            "result": {
+              "tags": ["italian food", "wine"]
+            }
+          }
+        },
+        {
+          "call": "influencer.list",
+          "expect": {
+            "result": [
+              {
+                "name": "Ana Lee",
+                "tags": ["italian food", "wine"]
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.read",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001"
+          },
+          "expect": {
+            "result": {
+              "tags": ["italian food", "wine"],
+              "notes": "Cooks at home."
+            }
+          }
+        },
+        {
+          "call": "influencer.tag_drop",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "WINE"
+          },
+          "expect": {
+            "result": {
+              "tags": ["italian food"]
+            }
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "!!"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "a tag that is far too long to be one"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "influencer.tag_drop",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "-"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "sql": "select tags_team, tags_hidden, tagged_at, updated_at = created_at as unedited from brandbase.influencers where slug = 'ana-lee'",
+          "expect": {
+            "rows": [
+              {
+                "tags_team": ["italian food"],
+                "tags_hidden": ["wine"],
+                "tagged_at": null,
+                "unedited": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "wine"
+          },
+          "expect": {
+            "result": {
+              "tags": ["italian food", "wine"]
+            }
+          }
+        },
+        {
+          "sql": "select tags_hidden from brandbase.influencers where slug = 'ana-lee'",
+          "expect": {
+            "rows": [
+              {
+                "tags_hidden": []
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a creator of another company is not found, and a stranger or a deactivated account reaches no one",
+      "steps": [
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "tag": "steak"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.tag_drop",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "tag": "steak"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "as": "b-owner",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "tag": "steak"
+          },
+          "expect": {
+            "result": {
+              "tags": ["steak"]
+            }
+          }
+        },
+        {
+          "call": "influencer.list",
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "name": "Ana Lee",
+                "tags": []
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "as": "stranger",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "as": "gone",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "status": 403,
+            "code": "ACCOUNT_DEACTIVATED"
+          }
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "source": "9afb9ddb3f5fcf58f47b51344d2c8081",
+            "tags": ["wine"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "influencer.bio_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000b001",
+            "bio": "Steak."
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "select tags_team, tags_ai, bio from brandbase.influencers where slug = 'ben-tan'",
+          "expect": {
+            "rows": [
+              {
+                "tags_team": ["steak"],
+                "tags_ai": [],
+                "bio": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a creator has at most 20 tags of the team's own; one they have already is no new one",
+      "steps": [
+        {
+          "sql": "update brandbase.influencers set tags_team = array(select 'tag ' || n from generate_series(1, 20) n) where slug = 'ana-lee'"
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "wine"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TOO_MANY_TAGS"
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "Tag 7"
+          },
+          "expect": {
+            "result": {
+              "id": "00000000-0000-4000-8000-00000000a001"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the model's tags never take the place of a person's: a removed tag stays away, an added one stays, six at most",
+      "steps": [
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "orgId": "co-a",
+                "handle": "ana.cooks",
+                "category": "food",
+                "notes": "Cooks at home.",
+                "bio": null,
+                "source": "9afb9ddb3f5fcf58f47b51344d2c8081",
+                "bioDue": false,
+                "tagDue": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_add",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "budget eats"
+          }
+        },
+        {
+          "call": "influencer.tag_drop",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "wine"
+          }
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "source": "9afb9ddb3f5fcf58f47b51344d2c8081",
+            "tags": [
+              "Wine",
+              "Italian Food",
+              "italian food",
+              "budget eats",
+              "home cooking",
+              "!!",
+              "family",
+              "comfort food",
+              "singapore",
+              "recipes",
+              "baking"
+            ]
+          },
+          "expect": {
+            "result": {
+              "tags": [
+                "budget eats",
+                "italian food",
+                "home cooking",
+                "family",
+                "comfort food",
+                "singapore",
+                "recipes"
+              ]
+            }
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "influencer.tag_drop",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "tag": "family"
+          },
+          "expect": {
+            "result": {
+              "tags": [
+                "budget eats",
+                "italian food",
+                "home cooking",
+                "comfort food",
+                "singapore",
+                "recipes"
+              ]
+            }
+          }
+        },
+        {
+          "call": "influencer.edit",
+          "now": "2026-11-24T04:01:00Z",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "notes": "Cooks at home. Loves wine."
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "result": [
+              {
+                "source": "9b26dea98f7085e3de642a161718a79e",
+                "tagDue": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "source": "9b26dea98f7085e3de642a161718a79e",
+            "tags": ["family", "wine", "home cooking", "Budget Eats"]
+          },
+          "expect": {
+            "result": {
+              "tags": ["budget eats", "home cooking"]
+            }
+          }
+        },
+        {
+          "sql": "select tags_team, tags_ai, tags_hidden, tags_source from brandbase.influencers where slug = 'ana-lee'",
+          "expect": {
+            "rows": [
+              {
+                "tags_team": ["budget eats"],
+                "tags_ai": ["home cooking"],
+                "tags_hidden": ["wine", "family"],
+                "tags_source": "9b26dea98f7085e3de642a161718a79e"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a failed answer changes no tag and waits six hours, unless the notes change",
+      "steps": [
+        {
+          "sql": "update brandbase.influencers set updated_at = '2026-11-20T00:00:00Z' where slug = 'ana-lee'"
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "source": "9afb9ddb3f5fcf58f47b51344d2c8081",
+            "tags": null
+          },
+          "expect": {
+            "result": {
+              "tags": []
+            }
+          }
+        },
+        {
+          "sql": "select tags_source, tagged_at is not null as tried from brandbase.influencers where slug = 'ana-lee'",
+          "expect": {
+            "rows": [
+              {
+                "tags_source": null,
+                "tried": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "now": "2026-11-24T09:59:00Z",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "now": "2026-11-24T10:01:00Z",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "source": "9afb9ddb3f5fcf58f47b51344d2c8081",
+            "tags": null
+          }
+        },
+        {
+          "call": "influencer.edit",
+          "now": "2026-11-24T10:02:00Z",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "category": "food"
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "the bio is due where a brand of the company has Instagram through our Meta app; a read that fails keeps the bio",
+      "steps": [
+        {
+          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\"}', 'owner')"
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "result": [
+              {
+                "handle": "ana.cooks",
+                "bioDue": true,
+                "tagDue": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.bio_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "bio": " Pasta & vino lover "
+          },
+          "expect": {
+            "result": {
+              "id": "00000000-0000-4000-8000-00000000a001",
+              "source": "c8ab538104faa53e08c5b4c1241c3a09"
+            }
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "result": [
+              {
+                "bio": "Pasta & vino lover",
+                "bioDue": false,
+                "tagDue": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "source": "c8ab538104faa53e08c5b4c1241c3a09",
+            "tags": ["pasta"]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "influencer.bio_set",
+          "now": "2026-12-25T04:00:00Z",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "bio": null
+          },
+          "expect": {
+            "result": {
+              "source": "c8ab538104faa53e08c5b4c1241c3a09"
+            }
+          }
+        },
+        {
+          "sql": "select bio, bio_read_at = '2026-12-25T04:00:00Z'::timestamptz as read from brandbase.influencers where slug = 'ana-lee'",
+          "expect": {
+            "rows": [
+              {
+                "bio": "Pasta & vino lover",
+                "read": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "an answer to notes edited while the model answered keeps the person due, and people due a tag come before bios",
+      "steps": [
+        {
+          "sql": "update brandbase.influencers set updated_at = '2026-11-20T00:00:00Z' where slug = 'ana-lee'"
+        },
+        {
+          "call": "influencer.edit",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "notes": "Cooks at home. Loves wine."
+          }
+        },
+        {
+          "call": "influencer.tag_set",
+          "input": {
+            "id": "00000000-0000-4000-8000-00000000a001",
+            "source": "9afb9ddb3f5fcf58f47b51344d2c8081",
+            "tags": ["home cooking"]
+          },
+          "expect": {
+            "result": {
+              "tags": ["home cooking"]
+            }
+          }
+        },
+        {
+          "sql": "select tagged_at from brandbase.influencers where slug = 'ana-lee'",
+          "expect": {
+            "rows": [
+              {
+                "tagged_at": null
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "tagDue": true
+              }
+            ]
+          }
+        },
+        {
+          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('casa', 'instagram', '17841400000000001', 'casavostra', 'sealed', '{\"via\": \"meta\"}', 'owner')"
+        },
+        {
+          "sql": "insert into brandbase.influencers (id, org_id, slug, name, tags_source, tagged_at) values ('00000000-0000-4000-8000-00000000a002', 'co-a', 'old-one', 'Old One', md5(chr(10) || chr(10)), '2026-01-01T00:00:00Z')"
+        },
+        {
+          "sql": "insert into brandbase.influencer_accounts (influencer_id, org_id, position, platform, handle) values ('00000000-0000-4000-8000-00000000a002', 'co-a', 0, 'instagram', 'old.one')"
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 1
+          },
+          "expect": {
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001",
+                "tagDue": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "input": {
+            "limit": 10
+          },
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "id": "00000000-0000-4000-8000-00000000a001"
+              },
+              {
+                "id": "00000000-0000-4000-8000-00000000a002",
+                "bioDue": true,
+                "tagDue": false
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "the companies take turns: one with many people due does not fill the list",
+      "steps": [
+        {
+          "sql": "insert into brandbase.influencers (id, org_id, slug, name, notes) values ('00000000-0000-4000-8000-00000000a009', 'co-a', 'ana-two', 'Ana Two', 'Bakes.')"
+        },
+        {
+          "sql": "update brandbase.influencers set notes = 'Steak.' where slug = 'ben-tan'"
+        },
+        {
+          "call": "influencer.tag_due",
+          "as": "both",
+          "input": {
+            "limit": 2
+          },
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "orgId": "co-a"
+              },
+              {
+                "orgId": "co-b"
+              }
+            ]
+          }
+        },
+        {
+          "call": "influencer.tag_due",
+          "as": "both",
+          "input": {
+            "limit": 3
+          },
+          "expect": {
+            "length": 3,
+            "result": [
+              {
+                "orgId": "co-a"
+              },
+              {
+                "orgId": "co-b"
+              },
+              {
+                "orgId": "co-a"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

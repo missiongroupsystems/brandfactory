@@ -1,0 +1,28 @@
+{
+  "name": "influencer.tag_add",
+  "description": "Adds a tag to a person, after the team's others: a short topic in lower case (a leading # and extra spaces are dropped). Every member of the person's company may. The model's job never takes it away, and a tag the team removed before may be added again. Answers the person's tags.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "tag"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "tag": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 60
+      }
+    }
+  },
+  "before": ["influencer.found", "influencer.tag_valid", "influencer.tag_room"],
+  "returns": "one",
+  "sql": "update brandbase.influencers i set\n  tags_team = case when t.v = any (i.tags_team) then i.tags_team else i.tags_team || t.v end,\n  tags_ai = array_remove(i.tags_ai, t.v),\n  tags_hidden = array_remove(i.tags_hidden, t.v)\nfrom (select brandbase.tag_of(:tag::text) as v) t\nwhere i.id = :id::uuid and (cardinality(i.tags_team) < 20 or t.v = any (i.tags_team))\nreturning jsonb_build_object('id', i.id, 'tags', brandbase.influencer_tags(i.tags_team, i.tags_ai)) as result",
+  "empty": {
+    "status": 409,
+    "code": "TOO_MANY_TAGS",
+    "message": "a creator has at most 20 tags of the team's own"
+  }
+}

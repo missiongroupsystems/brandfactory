@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.77.0** — 2026-11-24 — `feat/creator-tags`: creators get short topic tags (pack 1.21.0, migration `0031_influencer_tags.sql`, additive). The Creators sidebar shows them as chips to remove and add, the search finds creators by tag, and a server job asks OpenRouter (`deepseek/deepseek-v4.1-flash`) for at most six from the notes, the category and the Instagram bio, reusing the company's tags, never against a person's edit; off without `TAGS_OPENROUTER_API_KEY`, capped at `TAGS_DAILY_USD` (default $1). 1935 tests by count: 1646 pass, 289 skipped without a Postgres server.
 - **2.76.2** — 2026-11-24 — `feat/creators-list`: the Creators page is a list at every width (look A's rows; the cards are gone), with followers and brands in their own columns on a wide screen. The status filter opens on Active; saved collaborators count as active. No pack or server change. 883 web tests pass.
 - **2.76.1** — 2026-11-24 — `fix/creators-all-open`: every card and row on the Creators page opens the sidebar. A saved collaborator no one on the roster holds opened an in-place name field instead, so some cards seemed not to work; its name is now edited in its sidebar, which also shows its Instagram account and the brands that saved it. The status filter and the sidebar offer Active and Past only; a prospect from the old roster counts as active, its stored status unchanged. The brand logos on cards and rows are larger (20 and 18 px). A sort, by name or by followers. Each account in the sidebar is a link card to the creator's page on its platform. No pack or server change. 882 web tests pass.
 - **2.76.0** — 2026-11-24 — `feat/creators-page`: the Creators page is back, at the team's request: the roster as cards on a laptop (look B, the owner's pick) and as rows on a phone, with a Creators tab on the phone. Search, two filters and a side panel that edits a name, a status and the notes; brands there are read only, as they follow the brand's posts. Cards rise in and lift, the panel slides in and out. Notes are read on their own (`GET /roster/:id`, `influencer.read`), so the panel never saves over notes it has not read. No pack or server change. 1892 tests by count: 1611 pass, 281 skipped without a Postgres server.
@@ -160,6 +161,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.77.0 — 2026-11-24
+
+- **Why.** The team finds creators by what they make content about, and the roster had only one
+  coarse category and free notes.
+- **Pack 1.21.0.** `influencers` gains the team's tags, the model's tags, the tags a person
+  removed, the source the model last tagged and the Instagram bio. `influencer.list` and `.read`
+  answer `tags`. New moves `influencer.tag_add` and `.tag_drop` (every member of the company);
+  internal `influencer.tag_due`, `.bio_set` and `.tag_set`. A person's choice wins: the model never
+  removes a tag a person added, nor gives back one a person removed.
+- **Job.** `packages/connect/src/brandbase/creator-tags.ts`, started in `host.ts`: every five
+  minutes, up to five creators due, the bio through Business Discovery, one OpenRouter call each
+  with JSON output, a 30 s timeout and `data_collection: deny`. It sends the handle, the category,
+  the bio, the notes and the company's tags only. A daily cap from OpenRouter's reported cost. Runs
+  as `TAGS_AS`, else `META_WEBHOOK_AS`.
+- **Web.** Chips with × and an "Add tag" field under the name in the sidebar; the search matches
+  tags, and a row found by a tag shows it. The demo roster has tags.
+- **Release.** Production `release` 1.21.0, then `deploy`; `agent-loadout` with
+  `influencer.tag_due influencer.bio_set influencer.tag_set influencer.list brand.list account.meta_list`; then the
+  owner sets `TAGS_OPENROUTER_API_KEY` on Fly.
+- **Docs.** `docs/completions/creator-tags-phases-1-to-1.md`, with its proposal and plan.
+- **Tests:** 1935 tests by count: 1646 pass, 289 skipped without a Postgres server.
 
 ## 2.76.2 — 2026-11-24
 

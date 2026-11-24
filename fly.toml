@@ -30,6 +30,12 @@
 #                          Make's x-make-apikey header (docs/executing/make-publishing-plan.md).
 #   MISSION_EVENTS_URL, MISSION_EVENTS_SERVICE_KEY: both or none (src/env.ts). The Mission Events
 #                          feed that `event.pull` reads (src/feeds.ts).
+#   TAGS_OPENROUTER_API_KEY  the creator tags job's OpenRouter key, best one of its own with a
+#                          credit limit (packages/connect/src/brandbase/creator-tags.ts); without
+#                          it no tag job runs. It runs as TAGS_AS, else META_WEBHOOK_AS.
+#                          TAGS_DAILY_USD (default 1) caps its spend per UTC day, counted in
+#                          the process (a restart starts at 0): the key's own credit limit is
+#                          the hard cap.
 
 app            = "brandfactory"
 primary_region = "sin"
