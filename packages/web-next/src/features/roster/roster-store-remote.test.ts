@@ -89,3 +89,30 @@ describe('a person’s notes on the core', () => {
     await vi.waitFor(() => expect(result.current.notes).toBe('Rates sent.'))
   })
 })
+
+describe('a creator’s tags on the core', () => {
+  it('change at once and are sent behind, the tag in the path for a removal', async () => {
+    const { addTag, dropTag, resetRoster, useRoster } = await import('./roster-store')
+    gate.sent.length = 0
+    const person = {
+      id: '11111111-1111-1111-1111-111111111111',
+      orgId: 'co-a',
+      slug: 'aiko-tan',
+      name: 'Aiko Tan',
+      category: null,
+      status: 'active' as const,
+      accounts: [],
+      brands: [],
+      tags: ['wine'],
+    }
+    resetRoster([person])
+    const { result } = renderHook(() => useRoster())
+    addTag(person.id, 'fine dining')
+    dropTag(person.id, 'wine')
+    await vi.waitFor(() => expect(result.current[0]?.tags).toEqual(['fine dining']))
+    expect(gate.sent).toEqual([
+      ['POST', `/roster/${person.id}/tags`, { tag: 'fine dining' }],
+      ['DELETE', `/roster/${person.id}/tags/wine`, undefined],
+    ])
+  })
+})

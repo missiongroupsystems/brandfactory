@@ -155,6 +155,24 @@ export function editPerson(id: string, edit: PersonEdit) {
   send(() => request('PATCH', `/roster/${id}`, edit))
 }
 
+/**
+ * Adds a tag (in the core's spelling, `tagOf`) after the team's others; one the person has is not
+ * added twice. A model's tag the team adds becomes the team's own, and so never goes away.
+ */
+export function addTag(id: string, tag: string) {
+  change(id, (p) => ({
+    ...p,
+    tags: (p.tags ?? []).includes(tag) ? p.tags : [...(p.tags ?? []), tag],
+  }))
+  send(() => request('POST', `/roster/${id}/tags`, { tag }))
+}
+
+/** Removes a tag; the model never gives it back. */
+export function dropTag(id: string, tag: string) {
+  change(id, (p) => ({ ...p, tags: (p.tags ?? []).filter((t) => t !== tag) }))
+  send(() => request('DELETE', `/roster/${id}/tags/${encodeURIComponent(tag)}`))
+}
+
 /** Back to the demo's roster, for the tests. */
 export function resetRoster(list: RosterPerson[] = DEMO_ROSTER, named: HandleProfile[] = []) {
   people = list

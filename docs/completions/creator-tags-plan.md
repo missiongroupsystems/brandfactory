@@ -1,6 +1,6 @@
 # Creator tags: plan
 
-Read `creator-tags-proposal.md` first. Branch `feat/creator-tags`, from `feat/creators-list`
+Read `creator-tags-proposal.md` first (both now in `docs/completions/`). Branch `feat/creator-tags`, from `feat/creators-list`
 (PR #47). Pack brandbase 1.21.0, migration `0031_influencer_tags.sql`. Completion document:
 `docs/completions/creator-tags-phases-1-to-1.md`.
 

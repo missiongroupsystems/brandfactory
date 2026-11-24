@@ -196,4 +196,63 @@ describe('the Creators page in the demo', () => {
     }
     expect(cards.length).toBeGreaterThan(20)
   })
+
+  it('shows a creator’s tags as chips, removes one and adds one in one spelling', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByText('Clara Goh'))
+    const panel = screen.getByRole('dialog', { name: 'Clara Goh' })
+    const tags = within(panel).getByRole('list', { name: 'Tags' })
+    expect(
+      within(tags)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['fine dining', 'wine', 'date night', ''])
+    fireEvent.click(within(tags).getByRole('button', { name: 'Remove wine' }))
+    expect(within(tags).queryByText('wine')).toBeNull()
+    const field = within(tags).getByRole('textbox', { name: 'Add a tag' })
+    fireEvent.change(field, { target: { value: '#Natural  Wine ' } })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(within(tags).getByText('natural wine')).toBeInTheDocument()
+    expect(field).toHaveValue('')
+    // One it has already is not added twice; one that is no tag stays in the field.
+    fireEvent.change(field, { target: { value: 'Fine Dining' } })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(within(tags).getAllByText('fine dining')).toHaveLength(1)
+    fireEvent.change(field, { target: { value: '!!' } })
+    fireEvent.blur(field)
+    expect(field).toHaveValue('!!')
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+    // Escape empties the field and leaves the panel open.
+    fireEvent.keyDown(field, { key: 'Escape' })
+    expect(field).toHaveValue('')
+    expect(screen.getByRole('dialog', { name: 'Clara Goh' })).not.toHaveClass('bb-sheet-out')
+  })
+
+  it('finds creators by a tag', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Status' }), {
+      target: { value: 'all' },
+    })
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search creators' }), {
+      target: { value: '#tapas' },
+    })
+    const names = screen.getAllByRole('listitem').map((li) => li.textContent ?? '')
+    expect(names).toHaveLength(2)
+    expect(names.some((n) => n.includes('Carlos Ruiz'))).toBe(true)
+    expect(names.some((n) => n.includes('Javier Ortega'))).toBe(true)
+    // Each row says why it is there: the tag the search found.
+    expect(names.every((n) => n.includes('tapas'))).toBe(true)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search creators' }), {
+      target: { value: 'carlos' },
+    })
+    expect(screen.getByRole('listitem')).not.toHaveTextContent('tapas')
+  })
 })

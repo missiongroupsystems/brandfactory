@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { RosterPerson } from '@/data/roster'
 
-import { filterHandles, filterRoster, followersOf, savedHandles } from './model'
+import { filterHandles, filterRoster, followersOf, savedHandles, tagOf } from './model'
 
 const person = (name: string, handle: string, brands: string[] = []): RosterPerson => ({
   id: name,
@@ -83,5 +83,25 @@ describe('the Creators page', () => {
     expect(filterRoster(people, { ...all, status: 'active' }).map((p) => p.status)).toContain(
       'prospect',
     )
+  })
+
+  it('finds a person by a word of a tag, from its start', () => {
+    const ana = { ...person('Ana', 'ana.cooks'), tags: ['italian food', 'wine'] }
+    const ben = person('Ben', 'bentan')
+    const find = (query: string) =>
+      filterRoster([ana, ben], { query, brand: 'all', status: 'all' }).map((p) => p.name)
+    expect(find('ital')).toEqual(['Ana'])
+    expect(find('food')).toEqual(['Ana'])
+    expect(find('#Wine')).toEqual(['Ana'])
+    expect(find('ood')).toEqual([])
+    expect(find('ben')).toEqual(['Ben'])
+  })
+
+  it('spells a tag as the core keeps it', () => {
+    expect(tagOf(' #Italian   Food ')).toBe('italian food')
+    expect(tagOf("mum's & kids")).toBe("mum's & kids")
+    expect(tagOf('!!')).toBeNull()
+    expect(tagOf('x'.repeat(31))).toBeNull()
+    expect(tagOf('   ')).toBeNull()
   })
 })

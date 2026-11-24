@@ -67,6 +67,16 @@ export const STATUS_NAME: Record<RosterStatus, string> = {
   past: 'Past',
 }
 
+/** A tag in one spelling, as the core keeps it (`tag_of`), or null when it is no tag. */
+export function tagOf(raw: string): string | null {
+  const t = raw
+    .replace(/^[\s#]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+  return /^[a-z0-9]([a-z0-9 &'-]{0,28}[a-z0-9])?$/.test(t) ? t : null
+}
+
 const fold = (t: string) =>
   t
     .normalize('NFKD')
@@ -75,13 +85,13 @@ const fold = (t: string) =>
 
 /**
  * The people a search and the filters leave, in the roster's order (by name). A search matches a
- * word of the name, or any handle, from its start; "@" is ignored.
+ * word of the name or of a tag from its start, or any part of a handle; "@" and "#" are ignored.
  */
 export function filterRoster(
   people: RosterPerson[],
   { query, brand, status }: { query: string; brand: string | 'all'; status: StatusFilter },
 ): RosterPerson[] {
-  const q = fold(query.trim().replace(/^@+/, ''))
+  const q = fold(query.trim().replace(/^[@#]+/, ''))
   return people.filter((p) => {
     if (brand !== 'all' && !p.brands.includes(brand)) return false
     if (status !== 'all' && shownStatus(p.status) !== status) return false
@@ -90,9 +100,19 @@ export function filterRoster(
     return (
       name.startsWith(q) ||
       name.split(/[\s-]+/).some((w) => w.startsWith(q)) ||
-      p.accounts.some((a) => fold(a.handle).includes(q))
+      p.accounts.some((a) => fold(a.handle).includes(q)) ||
+      matchedTag(p, query) !== null
     )
   })
+}
+
+/** The first of a person's tags a search matches by a word from its start, or null. */
+export function matchedTag(p: RosterPerson, query: string): string | null {
+  const q = fold(query.trim().replace(/^[@#]+/, ''))
+  if (!q) return null
+  return (
+    (p.tags ?? []).find((t) => t.startsWith(q) || t.split(' ').some((w) => w.startsWith(q))) ?? null
+  )
 }
 
 /**

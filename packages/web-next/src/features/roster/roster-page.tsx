@@ -19,6 +19,7 @@ import {
   followersOf,
   LOGO,
   mainOf,
+  matchedTag,
   PLATFORM_NAME,
   pictureOf,
   profileUrl,
@@ -27,9 +28,12 @@ import {
   STATUS_NAME,
   shownStatus,
   type StatusFilter,
+  tagOf,
 } from './model'
 import { initialsOf } from './people'
 import {
+  addTag,
+  dropTag,
   editPerson,
   nameHandle,
   useOrgOf,
@@ -189,7 +193,7 @@ export function RosterPage() {
             {filtered ? 'No one matches.' : 'No creators yet.'}
           </p>
         ) : (
-          <Rows entries={shown} onOpen={openPerson} />
+          <Rows entries={shown} query={query} onOpen={openPerson} />
         )}
       </main>
       {entry && <Panel entry={entry} leaving={leaving} onClose={closePerson} />}
@@ -406,7 +410,15 @@ function RowEnd({ n, ids }: { n: number | null | undefined; ids: string[] }) {
   )
 }
 
-function Rows({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
+function Rows({
+  entries,
+  query,
+  onOpen,
+}: {
+  entries: Entry[]
+  query: string
+  onOpen: (id: string) => void
+}) {
   return (
     <ul className="-mx-2 flex flex-col">
       {entries.map((e, i) => (
@@ -418,7 +430,7 @@ function Rows({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => v
           {e.kind === 'handle' ? (
             <RowHandle h={e.h} onOpen={onOpen} />
           ) : (
-            <RowPerson p={e.p} onOpen={onOpen} />
+            <RowPerson p={e.p} query={query} onOpen={onOpen} />
           )}
         </li>
       ))}
@@ -426,13 +438,30 @@ function Rows({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => v
   )
 }
 
-function RowPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
+function RowPerson({
+  p,
+  query,
+  onOpen,
+}: {
+  p: RosterPerson
+  query: string
+  onOpen: (id: string) => void
+}) {
+  // A search that finds the person by a tag shows that tag, so the row says why it is there.
+  const tag = matchedTag(p, query)
   return (
     <button type="button" onClick={() => onOpen(p.id)} className={ROW}>
       <Avatar person={p} size={40} />
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-[15px] font-medium">{p.name}</span>
-        <Handle person={p} />
+        <span className="flex min-w-0 items-center gap-2">
+          <Handle person={p} />
+          {tag && (
+            <span className="shrink-0 rounded-full bg-surface-2 px-2 py-px text-[12px] text-ink-3">
+              {tag}
+            </span>
+          )}
+        </span>
       </span>
       <RowEnd n={mainOf(p)?.followers} ids={p.brands} />
     </button>
@@ -533,7 +562,10 @@ function PersonBody({ person }: { person: RosterPerson }) {
     <div className="flex flex-col gap-8 px-8 pb-10">
       <div className="flex flex-col items-start gap-4">
         <Avatar person={person} size={72} />
-        <NameField person={person} />
+        <div className="flex w-full flex-col gap-3">
+          <NameField person={person} />
+          <Tags person={person} />
+        </div>
       </div>
 
       <section className="flex flex-col gap-2.5">
@@ -594,6 +626,63 @@ function PersonBody({ person }: { person: RosterPerson }) {
         <NotesField person={person} />
       </section>
     </div>
+  )
+}
+
+/**
+ * The creator's tags as chips under the name, each with a quiet ×, and a field at the end that
+ * adds one on Enter or when it is left. Escape empties the field and leaves the panel open.
+ */
+function Tags({ person }: { person: RosterPerson }) {
+  const [draft, setDraft] = React.useState('')
+  const tags = person.tags ?? []
+  const add = () => {
+    const tag = tagOf(draft)
+    if (tag) addTag(person.id, tag)
+    if (tag || draft.trim() === '') setDraft('')
+  }
+  return (
+    <ul aria-label="Tags" className="flex flex-wrap items-center gap-1.5">
+      {tags.map((t) => (
+        <li
+          key={t}
+          className="bb-pop flex h-7 items-center gap-0.5 rounded-full bg-surface-2 pr-1 pl-3 text-[13px] text-ink-2"
+        >
+          {t}
+          <button
+            type="button"
+            aria-label={`Remove ${t}`}
+            onClick={() => dropTag(person.id, t)}
+            className="flex size-5 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface hover:text-ink"
+          >
+            <CloseIcon size={7} />
+          </button>
+        </li>
+      ))}
+      <li className="flex">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={add}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              add()
+            } else if (e.key === 'Escape') {
+              // Only the field: the panel stays.
+              e.stopPropagation()
+              setDraft('')
+              ;(e.target as HTMLInputElement).blur()
+            }
+          }}
+          aria-label="Add a tag"
+          aria-invalid={draft.trim() !== '' && tagOf(draft) === null}
+          placeholder="Add tag"
+          maxLength={30}
+          className="h-7 w-[84px] rounded-full bg-transparent px-3 text-[13px] text-ink outline-none shadow-[inset_0_0_0_1px_var(--line)] transition-[width,background-color] duration-200 placeholder:text-ink-4 focus:w-[160px] focus:bg-surface-2 focus:shadow-none aria-invalid:text-fail-ink"
+        />
+      </li>
+    </ul>
   )
 }
 

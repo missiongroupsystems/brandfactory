@@ -38,6 +38,17 @@ const ROUTES: Route[] = [
     /^\/roster\/profiles\/([^/]+)\/([^/]+)$/,
     ([org, handle], body) => ({ op: 'influencer.profile_name', input: { ...body, org, handle } }),
   ],
+  // A creator's tags, added and removed in the Creators panel.
+  [
+    'POST',
+    /^\/roster\/([^/]+)\/tags$/,
+    ([id], body) => ({ op: 'influencer.tag_add', input: { ...body, id } }),
+  ],
+  [
+    'DELETE',
+    /^\/roster\/([^/]+)\/tags\/([^/]+)$/,
+    ([id, tag]) => ({ op: 'influencer.tag_drop', input: { id, tag } }),
+  ],
   // One roster person with the team's notes (the list leaves them out).
   ['GET', /^\/roster\/([^/]+)$/, ([id]) => ({ op: 'influencer.read', input: { id } })],
   // A roster person's name, status or notes, fixed from a row or the Creators panel.

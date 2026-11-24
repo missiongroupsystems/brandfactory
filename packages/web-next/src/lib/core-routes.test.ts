@@ -27,6 +27,17 @@ describe('the routes on the core', () => {
     )
   })
 
+  it('sends a creator’s tag routes to their moves, the tag decoded from the path', () => {
+    expect(coreCall('POST', '/roster/p1/tags', { tag: 'wine', id: 'other' })).toEqual({
+      op: 'influencer.tag_add',
+      input: { tag: 'wine', id: 'p1' },
+    })
+    expect(coreCall('DELETE', '/roster/p1/tags/fine%20dining', undefined)).toEqual({
+      op: 'influencer.tag_drop',
+      input: { id: 'p1', tag: 'fine dining' },
+    })
+  })
+
   it('sends the idea routes to their moves', () => {
     expect(coreCall('POST', '/brands/casa/ideas/i1/plan', { postId: 'p1' })).toEqual({
       op: 'idea.plan',
