@@ -148,7 +148,7 @@ function send(make: () => Promise<unknown>) {
   })
 }
 
-export type PersonEdit = Partial<Pick<RosterPerson, 'name'>>
+export type PersonEdit = Partial<Pick<RosterPerson, 'name' | 'category' | 'status' | 'notes'>>
 
 export function editPerson(id: string, edit: PersonEdit) {
   change(id, (p) => ({ ...p, ...edit }))
@@ -176,4 +176,42 @@ const orgSnapshot = () => orgOf
 export function useOrgOf(): (brandId: string) => string {
   const orgs = React.useSyncExternalStore(subscribe, orgSnapshot, orgSnapshot)
   return (brandId) => (remote ? (orgs[brandId] ?? '') : DEMO_ORG)
+}
+
+/**
+ * A person's notes, which the list leaves out: read on their own on the core (after the changes
+ * on their way, so a note just saved comes back), the demo's own otherwise. Null until known: the
+ * panel then shows no field, so a field never saves over notes it has not read.
+ */
+export function useNotes(person: RosterPerson): {
+  notes: string | null
+  failed: boolean
+  retry: () => void
+} {
+  const [read, setRead] = React.useState<{ id: string; notes: string } | null>(null)
+  const [failed, setFailed] = React.useState(false)
+  const [tries, setTries] = React.useState(0)
+  React.useEffect(() => {
+    if (!remote) return
+    let live = true
+    void (async () => {
+      await settled()
+      try {
+        const one = await request<RosterPerson>('GET', `/roster/${person.id}`)
+        if (live) setRead({ id: person.id, notes: one.notes ?? '' })
+      } catch (err) {
+        console.error('roster notes', err)
+        if (live) setFailed(true)
+      }
+    })()
+    return () => {
+      live = false
+    }
+  }, [person.id, tries])
+  const retry = () => {
+    setFailed(false)
+    setTries((n) => n + 1)
+  }
+  if (!remote) return { notes: person.notes ?? '', failed: false, retry }
+  return { notes: read?.id === person.id ? read.notes : null, failed, retry }
 }

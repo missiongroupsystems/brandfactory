@@ -203,6 +203,24 @@
     transform: translateY(6px) scale(0.97);
   }
 }
+/* A side sheet goes back the way it came. */
+@keyframes bb-sheet-out {
+  to {
+    opacity: 0;
+    transform: translateX(28px) scale(0.985);
+  }
+}
+/* A phone's full-screen page comes in from the right edge and goes back out to it. */
+@keyframes bb-push {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes bb-push-out {
+  to {
+    transform: translateX(100%);
+  }
+}
 @keyframes bb-sheet-down {
   to {
     transform: translateY(100%);
@@ -254,6 +272,19 @@
 }
 @utility bb-leave {
   animation: bb-leave 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@utility bb-sheet-out {
+  animation: bb-sheet-out 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+/* A card of a grid comes in short and soft, so a search that adds cards does not jump. */
+@utility bb-card-in {
+  animation: bb-rise 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-push {
+  animation: bb-push 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-push-out {
+  animation: bb-push-out 240ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 @utility bb-sheet-down {
   animation: bb-sheet-down 240ms cubic-bezier(0.4, 0, 1, 1) both;

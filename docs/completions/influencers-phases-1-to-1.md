@@ -110,8 +110,10 @@ CORE_URL=… CORE_TOKEN=… pnpm -F @brandfactory/pack-brandbase import-roster -
 
 ### Web
 
-- There is no roster page. The owner tried three layouts (`/creators` behind `?look=a|b|c`) and
-  dropped the page on 20 Nov. The roster lives in the post page's people fields.
+- The roster page, `/creators`, was dropped on 20 Nov and came back on 24 Nov at the team's
+  request (2.76.0): cards on a laptop (the owner's pick of three layouts), rows on a phone. Brands
+  there are read only, as they follow the brand's posts; the panel edits a name, a status and the
+  notes. The roster also lives in the post page's people fields.
 - Collaborators is now a field of chips with the same list as Tag people. Both list Instagram
   accounts in this order:
   1. The people linked to the brand, used lately first (the browser keeps the handles used per
