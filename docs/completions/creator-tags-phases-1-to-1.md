@@ -24,6 +24,8 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
 - **Due rule** (`tag_due`). Due when the bio can be read (a brand of the creator's company has
   Instagram linked by our Meta app) and was not read for 30 days, or when the source hash differs
   from `tags_source` and the last try is older than the last edit, the last bio read or six hours.
+  People due a tag come first, then those never tagged. An answer to notes that changed while the
+  model answered keeps the old try time, so the person is due again at once.
 - **The job** (`packages/connect/src/brandbase/creator-tags.ts`, started in `host.ts`). Off
   without `TAGS_OPENROUTER_API_KEY`, and off (one warning) without a principal (`TAGS_AS`, else
   `META_WEBHOOK_AS`). Every 5 minutes, one run at a time, at most 5 creators, 2 s apart: the bio
@@ -38,11 +40,16 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
   the hold; a refusal owes nothing; a timeout keeps the hold. At `TAGS_DAILY_USD` (default 1) a
   run stops until the next UTC day. The count lives in the process: a restart starts it at zero.
 - **Answers.** The tags are read from the first `{` to the last `}`; anything else, or no `tags`
-  list, is malformed: no tag changes, and the person waits six hours. An upstream error or a
-  timeout stops the run and records nothing.
+  list, is malformed: no tag changes, and the person waits six hours. A timeout, a 5xx, 401, 402,
+  408 or 429 stops the run and records nothing; any other 4xx is a refusal of that person's input,
+  who then waits six hours, so one person cannot hold up the rest.
+- **Bios.** A Meta rate limit puts the company's bio reads off to the next run, and its people who
+  need a bio are not tagged until it is read. An expired sign-in counts every bio of the company as
+  read (none found) for 30 days, as a company with no account. A principal that may not list the
+  brands reads no bio and still tags.
 - **Web.** `RosterPerson.tags`. The Creators sidebar shows the tags as chips under the name, each
   with ×, and an "Add tag" field (Enter or leaving the field adds; Escape empties it and keeps the
-  panel). The search matches a word of a tag from its start (a leading `#` is ignored), and a row
+  panel; text still in the field when the panel goes is added). The search matches a word of a tag from its start (a leading `#` is ignored), and a row
   found by a tag shows that tag. Routes `POST /roster/:id/tags` and `DELETE /roster/:id/tags/:tag`.
   The demo roster has tags.
 
@@ -60,10 +67,28 @@ release 2.77.0, pack brandbase 1.21.0, migration `0031_influencer_tags.sql`.
    job runs as the webhook's agent (an agent's loadout does not follow a release).
 3. `fly secrets set -a brandfactory TAGS_OPENROUTER_API_KEY=...`, a key with its own credit limit.
 
+### Review
+
+Two fresh reviewer sessions read the whole diff.
+
+1. Round 1: Escape added the typed tag (blur ran after it), now cancelled; five or more creators
+   whose bio reads kept failing filled every run, now ordered after those due a tag and signed-out
+   companies counted as read; an answer to notes edited meanwhile hid the edit for six hours, now
+   due again at once; two adds at once at 19 tags gave a 500, now `TOO_MANY_TAGS` from the update
+   itself; the screen now takes the core's order of tags after the last change.
+2. Round 2: nothing serious. A 4xx refusal of one person's input blocked the job, now that person
+   waits; a bio put off by a rate limit caused two model calls, now one; a tag typed when the panel
+   went was lost, now added; an invalid tag has a hint for screen readers; the changelog entry.
+3. Round 3: see the changelog entry.
+
 ### Known limits
 
 - Tags are plain lower-case ASCII; "café" is refused.
-- The daily spend resets on a restart or a deploy.
+- The daily spend lives in the process and resets on a restart or a deploy: the OpenRouter key's
+  own credit limit is the hard cap.
+- A creator keeps the newest 100 removed tags; past that the model may give an older one again.
+- The notes go to OpenRouter's providers as they are (rates and contacts included), with
+  `data_collection: deny`.
 - Business Discovery reads share the Instagram account's hourly limit with the picture job and
   the Inbox: at most 60 reads an hour from this job.
 - Saved collaborators who are not on the roster get no tags.

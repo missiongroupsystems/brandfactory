@@ -265,6 +265,22 @@ describe('the creator tags job', () => {
     expect(t.job.spentToday).toBeCloseTo(0.01)
   })
 
+  it('lets a person whose input OpenRouter refuses wait six hours, and tags the rest', async () => {
+    const t = await setUp()
+    t.state.answers = [{ status: 400 }]
+    t.state.otherwise = { content: '{"tags": ["pasta"]}', cost: 0.0001 }
+    expect(await t.job.once()).toMatchObject({ due: 2, refused: 1, tagged: 1, stopped: null })
+    expect(await t.job.once()).toMatchObject({ due: 0 })
+    // Our key, our credit, a limit or OpenRouter down: the run stops and records nothing.
+    await t.asOwner('influencer.edit', { id: ANA, notes: 'Pasta nights.' })
+    t.setNow(new Date('2026-11-24T04:05:00Z'))
+    await t.asOwner('influencer.edit', { id: ANA, notes: 'Pasta nights, often.' })
+    for (const status of [401, 402, 429, 500]) {
+      t.state.answers = [{ status }]
+      expect(await t.job.once()).toMatchObject({ due: 1, refused: 0, stopped: 'upstream' })
+    }
+  })
+
   it('tags from the notes alone where no bio can be read, and keeps a bio Meta does not find', async () => {
     const t = await setUp({ linked: true })
     t.state.bio = null
@@ -304,7 +320,8 @@ describe('the creator tags job', () => {
     }
     // A rate limit: one read, then the company's bios wait; the two due a tag are tagged.
     t.state.error = 4
-    expect(await t.job.once()).toMatchObject({ due: 5, bios: 0, tagged: 2 })
+    // Ana's bio was put off: she is tagged once it is read, so only Mia is tagged now.
+    expect(await t.job.once()).toMatchObject({ due: 5, bios: 0, tagged: 1 })
     expect(t.bios).toHaveLength(1)
     // An expired sign-in: one read, then every bio of the company counts as read, so the next
     // runs move on.

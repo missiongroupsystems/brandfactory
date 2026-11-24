@@ -645,8 +645,22 @@ function Tags({ person }: { person: RosterPerson }) {
     }
     const tag = tagOf(draft)
     if (tag) addTag(person.id, tag)
-    if (tag || draft.trim() === '') setDraft('')
+    if (tag || draft.trim() === '') type('')
   }
+  // What the field holds, for a panel that goes while it holds a tag: it keeps it, as a blur would.
+  const pending = React.useRef('')
+  const type = (text: string) => {
+    pending.current = text
+    setDraft(text)
+  }
+  React.useEffect(
+    () => () => {
+      const tag = tagOf(pending.current)
+      if (tag) addTag(person.id, tag)
+    },
+    [person.id],
+  )
+  const invalid = draft.trim() !== '' && tagOf(draft) === null
   return (
     <ul aria-label="Tags" className="flex flex-wrap items-center gap-1.5">
       {tags.map((t) => (
@@ -668,7 +682,7 @@ function Tags({ person }: { person: RosterPerson }) {
       <li className="flex">
         <input
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => type(e.target.value)}
           onBlur={add}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -678,16 +692,22 @@ function Tags({ person }: { person: RosterPerson }) {
               // Only the field: the panel stays.
               e.stopPropagation()
               cancelled.current = true
-              setDraft('')
+              type('')
               ;(e.target as HTMLInputElement).blur()
             }
           }}
           aria-label="Add a tag"
-          aria-invalid={draft.trim() !== '' && tagOf(draft) === null}
+          aria-invalid={invalid}
+          aria-describedby={invalid ? `tag-hint-${person.id}` : undefined}
           placeholder="Add tag"
-          maxLength={30}
+          maxLength={40}
           className="h-7 w-[84px] rounded-full bg-transparent px-3 text-[13px] text-ink outline-none shadow-[inset_0_0_0_1px_var(--line)] transition-[width,background-color] duration-200 placeholder:text-ink-4 focus:w-[160px] focus:bg-surface-2 focus:shadow-none aria-invalid:text-fail-ink"
         />
+        {invalid && (
+          <span id={`tag-hint-${person.id}`} className="sr-only">
+            Up to 30 letters or digits, with spaces, &amp;, &apos; or - between them
+          </span>
+        )}
       </li>
     </ul>
   )

@@ -38,6 +38,8 @@ const USERNAME = /^[a-z0-9._]{1,30}$/
 /** Meta's code for "Cannot find User" on Business Discovery. */
 const NOT_FOUND = 110
 const RATE_LIMITED = new Set([4, 17, 32, 613, 80002])
+/** OpenRouter's answers that stop a run: the key, the credit, a timeout, a rate limit. */
+const STOP = new Set([401, 402, 408, 429])
 
 export const SYSTEM = [
   'You tag social media creators for a marketing team, so the team can find them by topic.',
@@ -151,6 +153,8 @@ export interface TagRun {
   empty: number
   /** Answers that held no list of tags: tried again in six hours. */
   malformed: number
+  /** Inputs OpenRouter refused (a 4xx of its own): tried again in six hours. */
+  refused: number
   failed: number
   stopped: 'budget' | 'upstream' | null
 }
@@ -262,7 +266,7 @@ export function creatorTags(
     p: Due,
     bio: string | null,
     words: string[],
-  ): Promise<string[] | null | 'budget' | 'upstream'> {
+  ): Promise<string[] | null | 'budget' | 'upstream' | 'refused'> {
     if (overBudget()) return 'budget'
     const input = {
       handle: p.handle,
@@ -308,7 +312,9 @@ export function creatorTags(
       // OpenRouter charges only for an answer.
       charge(-HOLD_USD)
       void res.body?.cancel().catch(() => undefined)
-      return 'upstream'
+      // OpenRouter down, our key or credit refused, or a limit: the run stops and tries again.
+      // Any other refusal is of this person's input: they wait, so they cannot hold up the rest.
+      return STOP.has(res.status) || res.status >= 500 ? 'upstream' : 'refused'
     }
     const body = (await res.json().catch(() => null)) as {
       choices?: { message?: { content?: unknown } }[]
@@ -326,6 +332,7 @@ export function creatorTags(
       tagged: 0,
       empty: 0,
       malformed: 0,
+      refused: 0,
       failed: 0,
       stopped: null,
     }
@@ -381,6 +388,8 @@ export function creatorTags(
           }
         }
         if (!tagDue) continue
+        // A bio Meta put off this run: tagged once it is read, not twice.
+        if (p.bioDue && limited.has(p.orgId)) continue
         if (!p.category && !p.notes.trim() && !bio) {
           await move('influencer.tag_set', { id: p.id, source, tags: [] })
           counts.empty++
@@ -391,8 +400,13 @@ export function creatorTags(
           counts.stopped = tags
           break
         }
-        await move('influencer.tag_set', { id: p.id, source, tags })
-        if (tags === null) counts.malformed++
+        await move('influencer.tag_set', {
+          id: p.id,
+          source,
+          tags: tags === 'refused' ? null : tags,
+        })
+        if (tags === 'refused') counts.refused++
+        else if (tags === null) counts.malformed++
         else counts.tagged++
       } catch (err) {
         counts.failed++

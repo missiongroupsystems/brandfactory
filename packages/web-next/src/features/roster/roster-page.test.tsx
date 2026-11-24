@@ -235,6 +235,32 @@ describe('the Creators page in the demo', () => {
     expect(screen.getByRole('dialog', { name: 'Clara Goh' })).not.toHaveClass('bb-sheet-out')
   })
 
+  it('keeps a tag typed in the field when the panel goes', () => {
+    vi.useFakeTimers()
+    try {
+      render(
+        <BrandProvider>
+          <RosterPage />
+        </BrandProvider>,
+      )
+      fireEvent.click(screen.getByText('Aiko Tan'))
+      fireEvent.change(screen.getByRole('textbox', { name: 'Add a tag' }), {
+        target: { value: 'ramen' },
+      })
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      fireEvent.click(screen.getByText('Aiko Tan'))
+      expect(
+        within(screen.getByRole('list', { name: 'Tags' })).getByText('ramen'),
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('finds creators by a tag', () => {
     render(
       <BrandProvider>
