@@ -13,6 +13,10 @@ function Names() {
   return <output>{useProfiles().map((p) => `${p.handle}=${p.name}`)}</output>
 }
 
+/** A card's followers line, "141K followers": a row shows the number alone. */
+const cardFollowers = (_: string, el: Element | null) =>
+  el?.tagName === 'SPAN' && /^[\d.]+[KM]? followers$/.test(el.textContent ?? '')
+
 /** A laptop, or a phone (below 768px): the page shows cards, or rows. */
 function screenWidth(phone: boolean) {
   vi.stubGlobal('matchMedia', (q: string) => ({
@@ -40,7 +44,7 @@ describe('the Creators page in the demo', () => {
       </BrandProvider>,
     )
     // Rows, not cards: a row holds the followers without the word a card has.
-    expect(screen.queryByText(/followers/)).toBeNull()
+    expect(screen.queryAllByText(cardFollowers)).toHaveLength(0)
     fireEvent.click(screen.getByText('Clara Goh'))
     expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toBeInTheDocument()
   })
@@ -51,7 +55,7 @@ describe('the Creators page in the demo', () => {
         <RosterPage />
       </BrandProvider>,
     )
-    expect(screen.getAllByText(/followers/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(cardFollowers).length).toBeGreaterThan(0)
   })
 
   it('saves a note being typed when Escape closes the panel', () => {
@@ -137,7 +141,7 @@ describe('the Creators page in the demo', () => {
     }
   })
 
-  it('names a handle no one on the roster holds in place: Enter saves, Escape leaves it', () => {
+  it('opens a handle no one on the roster holds in the panel, and names it there', () => {
     // Casa Vostra saves @danielfooddiary; without Daniel on the roster it is a handle alone.
     resetRoster(DEMO_ROSTER.filter((p) => p.name !== 'Daniel Ang'))
     render(
@@ -146,19 +150,43 @@ describe('the Creators page in the demo', () => {
         <Names />
       </BrandProvider>,
     )
+    // A press on its card opens the panel, as for anyone: the card itself edits nothing.
     fireEvent.click(screen.getByText('danielfooddiary'))
-    const field = screen.getByRole('textbox', { name: 'Name for @danielfooddiary' })
-    fireEvent.change(field, { target: { value: 'Ignored' } })
-    fireEvent.keyDown(field, { key: 'Escape' })
-    expect(screen.getByRole('status')).toHaveTextContent('')
-    fireEvent.click(screen.getByText('danielfooddiary'))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Name for @danielfooddiary' }), {
-      target: { value: ' Daniel Ang ' },
-    })
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Name for @danielfooddiary' }), {
-      key: 'Enter',
-    })
+    expect(screen.queryByRole('textbox', { name: /Name for/ })).toBeNull()
+    const panel = screen.getByRole('dialog', { name: 'danielfooddiary' })
+    const field = within(panel).getByRole('textbox', { name: 'Name' })
+    fireEvent.change(field, { target: { value: ' Daniel Ang ' } })
+    fireEvent.blur(field)
     expect(screen.getByRole('status')).toHaveTextContent('danielfooddiary=Daniel Ang')
-    expect(screen.getByText('@danielfooddiary')).toBeInTheDocument()
+    expect(within(panel).getByText('@danielfooddiary')).toBeInTheDocument()
+  })
+
+  it('sorts by followers, most first, or by name', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Aiko Tan')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), {
+      target: { value: 'followers' },
+    })
+    // Ella Wong has the most followers of the demo roster (215K).
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Ella Wong')
+  })
+
+  it('opens every card in the panel', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    const cards = screen.getAllByRole('listitem')
+    for (const card of cards) {
+      fireEvent.click(within(card).getByRole('button'))
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    }
+    expect(cards.length).toBeGreaterThan(20)
   })
 })
