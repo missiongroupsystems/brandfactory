@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
 import { BrandMark } from '@/components/brand-mark'
-import { ChevronIcon, CloseIcon } from '@/components/icons'
+import { ArrowUpRightIcon, ChevronIcon, CloseIcon } from '@/components/icons'
 import { usePhone } from '@/components/use-phone'
 import { PlatformLogo } from '@/components/platform-logos'
 import { ProfilePicture } from '@/components/profile-picture'
@@ -130,15 +130,16 @@ export function RosterPage() {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main className="mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
-        <div className="flex items-end justify-between gap-6 pt-8 pb-7 max-md:flex-col max-md:items-stretch max-md:pt-4">
+        <div className="flex items-end justify-between gap-6 pt-8 pb-7 max-lg:flex-col max-lg:items-start max-md:items-stretch max-md:gap-5 max-md:pt-4">
           <h1 className="font-display text-[40px] leading-none tracking-[-0.035em] max-md:text-[30px]">
             Creators
             <span className="ml-3 align-middle font-sans text-[15px] tracking-normal text-ink-4 tabular-nums">
               {loaded ? people.length + handles.length : ''}
             </span>
           </h1>
-          <div className="flex items-center gap-2 max-md:flex-wrap">
-            <label className="relative">
+          {/* On a phone: the search on its own line, the three lists side by side under it. */}
+          <div className="flex items-center gap-2 max-md:grid max-md:grid-cols-3">
+            <label className="relative max-md:col-span-3">
               <span className="sr-only">Search creators</span>
               <SearchGlyph />
               <input
@@ -235,12 +236,12 @@ function Select({
   options: Array<{ value: string; label: string }>
 }) {
   return (
-    <label className="relative flex items-center">
+    <label className="relative flex min-w-0 items-center">
       <span className="sr-only">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 cursor-pointer appearance-none rounded-full bg-surface-2 pr-8 pl-3.5 text-[13.5px] text-ink-2 outline-none hover:bg-surface focus:bg-surface"
+        className="h-9 min-w-0 cursor-pointer appearance-none truncate rounded-full bg-surface-2 pr-8 pl-3.5 text-[13.5px] text-ink-2 outline-none hover:bg-surface focus:bg-surface max-md:w-full max-md:pr-6 max-md:pl-3"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -248,7 +249,7 @@ function Select({
           </option>
         ))}
       </select>
-      <span className="pointer-events-none absolute right-3 text-ink-4">
+      <span className="pointer-events-none absolute right-3 text-ink-4 max-md:right-2.5">
         <ChevronIcon open={false} size={9} />
       </span>
     </label>
@@ -641,24 +642,16 @@ function PersonBody({ person }: { person: RosterPerson }) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-1">
-        <span className={`${LABEL} pb-1.5`}>Accounts</span>
+      <section className="flex flex-col gap-2">
+        <span className={LABEL}>Accounts</span>
         {person.accounts.map((a) => (
-          <a
+          <AccountLink
             key={`${a.platform}:${a.handle}`}
+            platform={a.platform}
+            handle={a.handle}
+            followers={a.followers}
             href={profileUrl(a)}
-            target="_blank"
-            rel="noreferrer"
-            className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors hover:bg-surface-2"
-          >
-            <span className="flex size-5 items-center justify-center text-ink-2">
-              <Logo platform={a.platform} size={15} />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[14px]">@{a.handle}</span>
-            <span className="text-[13.5px] text-ink-3 tabular-nums">
-              {followersOf(a.followers)}
-            </span>
-          </a>
+          />
         ))}
       </section>
 
@@ -689,6 +682,47 @@ function PersonBody({ person }: { person: RosterPerson }) {
   )
 }
 
+/**
+ * One of a creator's accounts, as a link to it on its platform: the platform's mark, the handle,
+ * the platform and followers under it, and an arrow that leans out on hover.
+ */
+function AccountLink({
+  platform,
+  handle,
+  followers,
+  href,
+}: {
+  platform: RosterAccount['platform']
+  handle: string
+  followers: number | null
+  href: string
+}) {
+  const where = PLATFORM_NAME[platform]
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`@${handle} on ${where}`}
+      className="group flex items-center gap-3 rounded-[14px] bg-surface-2 px-3 py-2.5 transition-[background-color,transform] duration-200 outline-none hover:bg-surface focus-visible:bg-surface active:scale-[0.985]"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-page text-ink shadow-[0_0_0_1px_var(--line)]">
+        <Logo platform={platform} size={16} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[14px] font-medium text-ink">@{handle}</span>
+        <span className="text-[12.5px] text-ink-4 tabular-nums">
+          {where}
+          {followers != null && ` · ${followersOf(followers)} followers`}
+        </span>
+      </span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-ink-4 transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ink">
+        <ArrowUpRightIcon size={11} />
+      </span>
+    </a>
+  )
+}
+
 /** A saved collaborator no one on the roster holds: its name for the company, its account. */
 function HandleBody({ h }: { h: SavedHandle }) {
   const { brands } = useBrand()
@@ -702,20 +736,14 @@ function HandleBody({ h }: { h: SavedHandle }) {
         <span className="text-[13.5px] text-ink-4">Not on the roster</span>
       </div>
 
-      <section className="flex flex-col gap-1">
-        <span className={`${LABEL} pb-1.5`}>Accounts</span>
-        <a
-          href={`https://www.instagram.com/${h.handle}/`}
-          target="_blank"
-          rel="noreferrer"
-          className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors hover:bg-surface-2"
-        >
-          <span className="flex size-5 items-center justify-center text-ink-2">
-            <PlatformLogo platform="ig" size={15} />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[14px]">@{h.handle}</span>
-          <span className="text-[13.5px] text-ink-3 tabular-nums">{followersOf(h.followers)}</span>
-        </a>
+      <section className="flex flex-col gap-2">
+        <span className={LABEL}>Accounts</span>
+        <AccountLink
+          platform="instagram"
+          handle={h.handle}
+          followers={h.followers}
+          href={`https://www.instagram.com/${encodeURIComponent(h.handle)}/`}
+        />
       </section>
 
       <section className="flex flex-col gap-1">
