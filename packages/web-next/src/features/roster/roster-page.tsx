@@ -55,6 +55,9 @@ import {
 
 type Entry = { kind: 'person'; p: RosterPerson } | { kind: 'handle'; h: SavedHandle }
 const entryName = (e: Entry) => (e.kind === 'person' ? e.p.name : (e.h.name ?? e.h.handle))
+/** The followers a card shows: the person's main account's, or the saved handle's. */
+const entryFollowers = (e: Entry) =>
+  e.kind === 'person' ? (mainOf(e.p)?.followers ?? null) : e.h.followers
 const handleKey = (h: SavedHandle) => `${h.orgId}:${h.handle}`
 const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : handleKey(e.h))
 
@@ -75,6 +78,7 @@ export function RosterPage() {
   const [query, setQuery] = React.useState('')
   const [brand, setBrand] = React.useState<string>('all')
   const [status, setStatus] = React.useState<StatusFilter>('all')
+  const [sort, setSort] = React.useState<'name' | 'followers'>('name')
   const [open, setOpen] = React.useState<string | null>(null)
   // A phone lists the people in rows; a wider screen shows them as cards.
   const phone = usePhone()
@@ -106,7 +110,12 @@ export function RosterPage() {
   const shown: Entry[] = [
     ...filterRoster(people, filters).map((p) => ({ kind: 'person' as const, p })),
     ...filterHandles(handles, filters).map((h) => ({ kind: 'handle' as const, h })),
-  ].sort((a, b) => entryName(a).localeCompare(entryName(b)))
+  ].sort(
+    (a, b) =>
+      // By followers, most first (none known goes last); by name otherwise, and between equals.
+      (sort === 'followers' ? (entryFollowers(b) ?? -1) - (entryFollowers(a) ?? -1) : 0) ||
+      entryName(a).localeCompare(entryName(b)),
+  )
   // The entry the panel shows, from everyone (a filter that hides it leaves the panel open).
   const person = people.find((p) => p.id === open)
   const handle = handles.find((h) => handleKey(h) === open)
@@ -166,6 +175,15 @@ export function RosterPage() {
               options={[
                 { value: 'all', label: 'Any status' },
                 ...STATUSES.map((s) => ({ value: s, label: STATUS_NAME[s] })),
+              ]}
+            />
+            <Select
+              label="Sort"
+              value={sort}
+              onChange={(v) => setSort(v === 'followers' ? 'followers' : 'name')}
+              options={[
+                { value: 'name', label: 'By name' },
+                { value: 'followers', label: 'By followers' },
               ]}
             />
           </div>

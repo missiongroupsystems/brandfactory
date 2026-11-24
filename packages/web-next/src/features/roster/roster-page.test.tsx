@@ -13,6 +13,10 @@ function Names() {
   return <output>{useProfiles().map((p) => `${p.handle}=${p.name}`)}</output>
 }
 
+/** A card's followers line, "141K followers": a row shows the number alone. */
+const cardFollowers = (_: string, el: Element | null) =>
+  el?.tagName === 'SPAN' && /^[\d.]+[KM]? followers$/.test(el.textContent ?? '')
+
 /** A laptop, or a phone (below 768px): the page shows cards, or rows. */
 function screenWidth(phone: boolean) {
   vi.stubGlobal('matchMedia', (q: string) => ({
@@ -40,7 +44,7 @@ describe('the Creators page in the demo', () => {
       </BrandProvider>,
     )
     // Rows, not cards: a row holds the followers without the word a card has.
-    expect(screen.queryByText(/followers/)).toBeNull()
+    expect(screen.queryAllByText(cardFollowers)).toHaveLength(0)
     fireEvent.click(screen.getByText('Clara Goh'))
     expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toBeInTheDocument()
   })
@@ -51,7 +55,7 @@ describe('the Creators page in the demo', () => {
         <RosterPage />
       </BrandProvider>,
     )
-    expect(screen.getAllByText(/followers/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(cardFollowers).length).toBeGreaterThan(0)
   })
 
   it('saves a note being typed when Escape closes the panel', () => {
@@ -155,6 +159,20 @@ describe('the Creators page in the demo', () => {
     fireEvent.blur(field)
     expect(screen.getByRole('status')).toHaveTextContent('danielfooddiary=Daniel Ang')
     expect(within(panel).getByText('@danielfooddiary')).toBeInTheDocument()
+  })
+
+  it('sorts by followers, most first, or by name', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Aiko Tan')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), {
+      target: { value: 'followers' },
+    })
+    // Ella Wong has the most followers of the demo roster (215K).
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Ella Wong')
   })
 
   it('opens every card in the panel', () => {
