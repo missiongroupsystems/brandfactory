@@ -12,6 +12,7 @@ import { PUBLIC_PATHS } from './legal'
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideas', icon: <IdeaGlyph /> },
+  { href: '/creators', label: 'Creators', icon: <PeopleGlyph /> },
   { href: '/feed', label: 'Feed', icon: <GridGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
   { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
@@ -181,6 +182,26 @@ function BubblesGlyph() {
         d="M7.5 8.5h7M7.5 11.5h4"
         stroke="currentColor"
         strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function PeopleGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <circle cx="8.5" cy="7.5" r="3.25" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M2.75 18c.6-3.1 2.9-5 5.75-5s5.15 1.9 5.75 5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14.25 4.6a3.25 3.25 0 0 1 0 5.8M16.4 13.4c1.5.8 2.5 2.4 2.85 4.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
         strokeLinecap="round"
       />
     </svg>

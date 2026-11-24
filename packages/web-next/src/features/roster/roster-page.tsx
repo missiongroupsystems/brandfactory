@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { AppHeader } from '@/components/app-header'
 import { BrandMark } from '@/components/brand-mark'
 import { ChevronIcon, CloseIcon } from '@/components/icons'
+import { usePhone } from '@/components/use-phone'
 import { PlatformLogo } from '@/components/platform-logos'
 import { ProfilePicture } from '@/components/profile-picture'
 import type { RosterAccount, RosterPerson, RosterStatus } from '@/data/roster'
@@ -47,10 +48,8 @@ import {
  * roster holds: each named in place (a press on it opens a field; Enter saves, Escape leaves), the
  * name the post page then shows for it.
  *
- * Three layouts on the same data, picked by `?look=` for the owner to choose one: `a` a list of
- * rows, `b` a grid of cards, `c` a compact table.
+ * The people show as a grid of cards, and as a list of rows on a phone.
  */
-export type Look = 'a' | 'b' | 'c'
 
 type Entry = { kind: 'person'; p: RosterPerson } | { kind: 'handle'; h: SavedHandle }
 const entryName = (e: Entry) => (e.kind === 'person' ? e.p.name : (e.h.name ?? e.h.handle))
@@ -58,7 +57,10 @@ const entryKey = (e: Entry) => (e.kind === 'person' ? e.p.id : `${e.h.orgId}:${e
 
 const STATUSES: RosterStatus[] = ['active', 'prospect', 'past']
 
-export function RosterPage({ look }: { look: Look }) {
+/** How long the panel takes to slide out (bb-sheet-out). */
+const PANEL_OUT_MS = 240
+
+export function RosterPage() {
   const people = useRoster()
   const loaded = useRosterLoaded()
   const { brands } = useBrand()
@@ -66,6 +68,24 @@ export function RosterPage({ look }: { look: Look }) {
   const [brand, setBrand] = React.useState<string>('all')
   const [status, setStatus] = React.useState<StatusFilter>('all')
   const [open, setOpen] = React.useState<string | null>(null)
+  // A phone lists the people in rows; a wider screen shows them as cards.
+  const phone = usePhone()
+  // The panel slides out before it goes: closing marks it leaving, then takes it away.
+  const [leaving, setLeaving] = React.useState(false)
+  const leave = React.useRef<number | undefined>(undefined)
+  const openPerson = (id: string) => {
+    window.clearTimeout(leave.current)
+    setLeaving(false)
+    setOpen(id)
+  }
+  const closePerson = () => {
+    setLeaving(true)
+    leave.current = window.setTimeout(() => {
+      setOpen(null)
+      setLeaving(false)
+    }, PANEL_OUT_MS)
+  }
+  React.useEffect(() => () => window.clearTimeout(leave.current), [])
   const orgOf = useOrgOf()
   const profiles = useProfiles()
   const saved = useSavedIg(brands.map((b) => b.id))
@@ -98,8 +118,18 @@ export function RosterPage({ look }: { look: Look }) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search"
-                className="h-9 w-[220px] rounded-full bg-surface-2 pr-3 pl-9 [&::-webkit-search-cancel-button]:appearance-none text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface max-md:w-full"
+                className="h-9 w-[220px] rounded-full bg-surface-2 pr-8 pl-9 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface max-md:w-full [&::-webkit-search-cancel-button]:hidden"
               />
+              {query !== '' && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setQuery('')}
+                  className="bb-pop absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  <CloseIcon size={8} />
+                </button>
+              )}
             </label>
             <Select
               label="Brand"
@@ -128,15 +158,13 @@ export function RosterPage({ look }: { look: Look }) {
           <p className="py-16 text-center text-[14px] text-ink-4">
             {filtered ? 'No one matches.' : 'No creators yet.'}
           </p>
-        ) : look === 'b' ? (
-          <Grid entries={shown} onOpen={setOpen} />
-        ) : look === 'c' ? (
-          <Table entries={shown} onOpen={setOpen} />
+        ) : phone ? (
+          <Rows entries={shown} onOpen={openPerson} />
         ) : (
-          <List entries={shown} onOpen={setOpen} />
+          <Grid entries={shown} onOpen={openPerson} />
         )}
       </main>
-      {person && <Panel person={person} onClose={() => setOpen(null)} />}
+      {person && <Panel person={person} leaving={leaving} onClose={closePerson} />}
     </div>
   )
 }
@@ -416,87 +444,10 @@ function Brands({ ids, size = 18, end = false }: { ids: string[]; size?: number;
   )
 }
 
-/** Followers as a short number, always in its place: a quiet dash while none is known. */
-function Followers({
-  n,
-  className = '',
-  cell = false,
-}: {
-  n: number | null | undefined
-  className?: string
-  cell?: boolean
-}) {
-  return (
-    <span
-      role={cell ? 'cell' : undefined}
-      className={`text-right tabular-nums ${n == null ? 'text-ink-5' : ''} ${className}`}
-    >
-      {n == null ? '–' : followersOf(n)}
-    </span>
-  )
-}
-
-// ── Look a: a list of rows ──────────────────────────────────────────────────────────────────
-
-const LIST_COLS = 'grid w-full grid-cols-[40px_minmax(0,1fr)_72px_84px] items-center gap-x-4'
-
-function ListHandle({ h }: { h: SavedHandle }) {
-  const { editing, setEditing, props } = useNaming()
-  return (
-    <div
-      {...props}
-      className={`${LIST_COLS} cursor-text rounded-[12px] px-3 py-3 text-left transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface-2`}
-    >
-      <HandleAvatar h={h} size={40} />
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <HandleName
-          h={h}
-          editing={editing}
-          onEditing={setEditing}
-          className="text-[15px] font-medium"
-        />
-        <HandleLine h={h} />
-      </span>
-      <Followers n={h.followers} className="text-[14px] text-ink-2" />
-      <Brands ids={h.brands} />
-    </div>
-  )
-}
-
-function List({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
-  return (
-    <ul className="flex flex-col">
-      {entries.map((e) => (
-        <li key={entryKey(e)} className="border-t border-line first:border-t-0">
-          {e.kind === 'handle' ? <ListHandle h={e.h} /> : <ListPerson p={e.p} onOpen={onOpen} />}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function ListPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(p.id)}
-      className={`${LIST_COLS} rounded-[12px] px-3 py-3 text-left transition-colors hover:bg-surface-2`}
-    >
-      <Avatar person={p} size={40} />
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-[15px] font-medium">{p.name}</span>
-        <Handle person={p} />
-      </span>
-      <Followers n={mainOf(p)?.followers} className="text-[14px] text-ink-2" />
-      <Brands ids={p.brands} />
-    </button>
-  )
-}
-
-// ── Look b: a grid of cards ─────────────────────────────────────────────────────────────────
+// ── The grid of cards ───────────────────────────────────────────────────────────────────────
 
 const CARD =
-  'flex h-full w-full flex-col items-center gap-3 rounded-[18px] bg-page px-4 pt-6 pb-4 text-center shadow-[0_0_0_1px_var(--line)] transition-shadow outline-none hover:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] focus-visible:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)]'
+  'flex h-full w-full flex-col items-center gap-3 rounded-[18px] bg-page px-4 pt-6 pb-4 text-center shadow-[0_0_0_1px_var(--line)] outline-none transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] focus-visible:-translate-y-0.5 focus-visible:shadow-[0_0_0_1px_var(--line-strong),var(--shadow-soft)] active:translate-y-0 active:scale-[0.98] active:duration-150'
 
 function CardHandle({ h }: { h: SavedHandle }) {
   const { editing, setEditing, props } = useNaming()
@@ -525,12 +476,14 @@ function CardHandle({ h }: { h: SavedHandle }) {
 /** A card's followers, in words: the number stays in its place, a dash while none is known. */
 function CardFollowers({ n }: { n: number | null | undefined }) {
   return (
-    <span className="text-[13px] text-ink-3 tabular-nums">
+    <span className="whitespace-nowrap text-[13px] text-ink-3 tabular-nums">
       {n == null ? (
         <span className="text-ink-5">–</span>
       ) : (
         <>
-          <span className="font-medium text-ink">{followersOf(n)}</span> followers
+          <span className="font-medium text-ink">{followersOf(n)}</span>
+          {/* A phone's card is narrow: the number says it there. */}
+          <span className="max-md:sr-only"> followers</span>
         </>
       )}
     </span>
@@ -540,8 +493,13 @@ function CardFollowers({ n }: { n: number | null | undefined }) {
 function Grid({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
   return (
     <ul className="grid grid-cols-4 gap-3 max-lg:grid-cols-3 max-md:grid-cols-2">
-      {entries.map((e) => (
-        <li key={entryKey(e)}>
+      {entries.map((e, i) => (
+        // A card that comes into the grid rises in; the first screen's cards follow each other.
+        <li
+          key={entryKey(e)}
+          className="bb-card-in"
+          style={{ animationDelay: `${Math.min(i, 12) * 24}ms` }}
+        >
           {e.kind === 'handle' ? <CardHandle h={e.h} /> : <CardPerson p={e.p} onOpen={onOpen} />}
         </li>
       ))}
@@ -567,100 +525,66 @@ function CardPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => vo
   )
 }
 
-// ── Look c: a compact table ─────────────────────────────────────────────────────────────────
+// ── The rows, on a phone ────────────────────────────────────────────────────────────────────
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+const ROW =
+  'grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-[12px] px-2 py-3 text-left outline-none transition-[background-color,transform] duration-200 active:scale-[0.985] active:bg-surface-2'
 
-const TABLE_COLS = 'grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_72px_76px_76px]'
-const TABLE_ROW = `grid ${TABLE_COLS} items-center gap-4 border-t border-line px-3 py-2 transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface-2`
-
-function Table({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
+function RowEnd({ n, ids }: { n: number | null | undefined; ids: string[] }) {
   return (
-    <div role="table" aria-label="Creators" className="flex flex-col">
-      <div role="row" className={`grid ${TABLE_COLS} gap-4 px-3 pb-2`}>
-        <span role="columnheader" className={EYEBROW}>
-          Name
-        </span>
-        <span role="columnheader" className={EYEBROW}>
-          Handle
-        </span>
-        <span role="columnheader" className={`${EYEBROW} text-right`}>
-          Followers
-        </span>
-        <span role="columnheader" className={EYEBROW}>
-          Status
-        </span>
-        <span role="columnheader" className={EYEBROW}>
-          Brands
-        </span>
-      </div>
-      {entries.map((e) =>
-        e.kind === 'handle' ? (
-          <TableHandle key={entryKey(e)} h={e.h} />
-        ) : (
-          <TablePerson key={entryKey(e)} p={e.p} onOpen={onOpen} />
-        ),
-      )}
-    </div>
+    <span className="flex flex-col items-end gap-1">
+      <span className="text-[14px] text-ink-2 tabular-nums">
+        {n == null ? <span className="text-ink-5">–</span> : followersOf(n)}
+      </span>
+      <Brands ids={ids} size={14} end />
+    </span>
   )
 }
 
-function TableHandle({ h }: { h: SavedHandle }) {
-  const { editing, setEditing, props } = useNaming()
+function Rows({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
   return (
-    <div role="row" className={`${TABLE_ROW} cursor-text`}>
-      <span role="cell" className="flex min-w-0 items-center gap-2.5">
-        <HandleAvatar h={h} size={26} />
-        <span {...props} className="min-w-0 flex-1 outline-none">
-          <HandleName
-            h={h}
-            editing={editing}
-            onEditing={setEditing}
-            className="block text-[14px] font-medium"
-          />
-        </span>
-      </span>
-      <span role="cell" className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-4">
-        <span className="truncate">@{h.handle}</span>
-        <PlatformLogo platform="ig" size={11} />
-      </span>
-      <Followers cell n={h.followers} className="text-[13.5px] text-ink-2" />
-      <span role="cell" />
-      <span role="cell" className="flex">
-        <Brands ids={h.brands} size={16} />
-      </span>
-    </div>
+    <ul className="-mx-2 flex flex-col">
+      {entries.map((e, i) => (
+        <li
+          key={entryKey(e)}
+          className="bb-card-in border-t border-line first:border-t-0"
+          style={{ animationDelay: `${Math.min(i, 12) * 24}ms` }}
+        >
+          {e.kind === 'handle' ? <RowHandle h={e.h} /> : <RowPerson p={e.p} onOpen={onOpen} />}
+        </li>
+      ))}
+    </ul>
   )
 }
 
-function TablePerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
+function RowPerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => void }) {
   return (
-    <div
-      role="row"
-      tabIndex={0}
-      onClick={() => onOpen(p.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onOpen(p.id)
-        }
-      }}
-      className={`${TABLE_ROW} cursor-pointer`}
-    >
-      <span role="cell" className="flex min-w-0 items-center gap-2.5">
-        <Avatar person={p} size={26} />
-        <span className="truncate text-[14px] font-medium">{p.name}</span>
-      </span>
-      <span role="cell" className="min-w-0">
+    <button type="button" onClick={() => onOpen(p.id)} className={ROW}>
+      <Avatar person={p} size={40} />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-medium">{p.name}</span>
         <Handle person={p} />
       </span>
-      <Followers cell n={mainOf(p)?.followers} className="text-[13.5px] text-ink-2" />
-      <span role="cell" className="text-[13px] text-ink-3">
-        {STATUS_NAME[p.status]}
+      <RowEnd n={mainOf(p)?.followers} ids={p.brands} />
+    </button>
+  )
+}
+
+function RowHandle({ h }: { h: SavedHandle }) {
+  const { editing, setEditing, props } = useNaming()
+  return (
+    <div {...props} className={`${ROW} cursor-text`}>
+      <HandleAvatar h={h} size={40} />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <HandleName
+          h={h}
+          editing={editing}
+          onEditing={setEditing}
+          className="text-[15px] font-medium"
+        />
+        <HandleLine h={h} />
       </span>
-      <span role="cell" className="flex">
-        <Brands ids={p.brands} size={16} />
-      </span>
+      <RowEnd n={h.followers} ids={h.brands} />
     </div>
   )
 }
@@ -669,7 +593,15 @@ function TablePerson({ p, onOpen }: { p: RosterPerson; onOpen: (id: string) => v
 
 const LABEL = 'text-[12px] font-medium text-ink-4'
 
-function Panel({ person, onClose }: { person: RosterPerson; onClose: () => void }) {
+function Panel({
+  person,
+  leaving,
+  onClose,
+}: {
+  person: RosterPerson
+  leaving: boolean
+  onClose: () => void
+}) {
   const { brands } = useBrand()
   const orgOf = useOrgOf()
   // Only the person's own company's brands can be linked.
@@ -694,7 +626,7 @@ function Panel({ person, onClose }: { person: RosterPerson; onClose: () => void 
         aria-label="Close"
         tabIndex={-1}
         onClick={onClose}
-        className="bb-fade absolute inset-0 bg-ink/10"
+        className={`${leaving ? 'bb-fade-out' : 'bb-fade'} absolute inset-0 bg-ink/10`}
       />
       <div
         ref={panel}
@@ -702,7 +634,7 @@ function Panel({ person, onClose }: { person: RosterPerson; onClose: () => void 
         aria-modal="true"
         aria-label={person.name}
         tabIndex={-1}
-        className="relative flex h-full w-[440px] max-w-full flex-col overflow-y-auto bg-page shadow-sheet outline-none"
+        className={`${leaving ? 'bb-sheet-out max-md:bb-push-out' : 'bb-sheet max-md:bb-push'} relative flex h-full w-[440px] max-w-full flex-col overflow-y-auto bg-page shadow-sheet outline-none`}
       >
         <div className="flex justify-end px-4 pt-4">
           <button

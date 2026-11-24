@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DEMO_ROSTER } from '@/data/roster'
 import { BrandProvider } from '@/features/schedule/posts-store'
@@ -13,42 +13,95 @@ function Names() {
   return <output>{useProfiles().map((p) => `${p.handle}=${p.name}`)}</output>
 }
 
+/** A laptop, or a phone (below 768px): the page shows cards, or rows. */
+function screenWidth(phone: boolean) {
+  vi.stubGlobal('matchMedia', (q: string) => ({
+    matches: phone && q === '(max-width: 767px)',
+    addEventListener() {},
+    removeEventListener() {},
+  }))
+}
+
 describe('the Creators page in the demo', () => {
-  beforeEach(() => resetRoster())
+  beforeEach(() => {
+    resetRoster()
+    screenWidth(false)
+  })
+  afterEach(() => vi.unstubAllGlobals())
 
-  for (const look of ['a', 'b', 'c'] as const) {
-    it(`look ${look}: lists the roster, searches it and opens a person in a side panel`, () => {
-      render(
-        <BrandProvider>
-          <RosterPage look={look} />
-        </BrandProvider>,
-      )
-      expect(screen.getAllByText('Aiko Tan').length).toBeGreaterThan(0)
-      fireEvent.change(screen.getByRole('searchbox', { name: 'Search creators' }), {
-        target: { value: 'clara' },
-      })
-      expect(screen.queryByText('Aiko Tan')).toBeNull()
-      fireEvent.click(screen.getByText('Clara Goh'))
-      const panel = screen.getByRole('dialog', { name: 'Clara Goh' })
-      expect(within(panel).getByText('@winewithclara')).toBeInTheDocument()
-      expect(within(panel).getByRole('checkbox', { name: /Temper/ })).toHaveAttribute(
-        'aria-checked',
-        'true',
-      )
-    })
-  }
-
-  it('links a person to a brand from the panel', () => {
+  it('lists the roster as rows on a phone, and opens a person from a row', () => {
+    screenWidth(true)
     render(
       <BrandProvider>
-        <RosterPage look="a" />
+        <RosterPage />
+      </BrandProvider>,
+    )
+    // A row holds the followers without the word: a card on a laptop says "followers".
+    expect(screen.queryByText(/followers/)).toBeNull()
+    fireEvent.click(screen.getByText('Clara Goh'))
+    expect(screen.getByRole('dialog', { name: 'Clara Goh' })).toHaveClass('max-md:bb-push')
+  })
+
+  it('lists the roster as cards, searches it and opens a person in a side panel', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    expect(screen.getAllByText('Aiko Tan').length).toBeGreaterThan(0)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search creators' }), {
+      target: { value: 'clara' },
+    })
+    expect(screen.queryByText('Aiko Tan')).toBeNull()
+    fireEvent.click(screen.getByText('Clara Goh'))
+    const panel = screen.getByRole('dialog', { name: 'Clara Goh' })
+    expect(within(panel).getByText('@winewithclara')).toBeInTheDocument()
+    // The brands a person is linked to show; they follow the brand's posts, not a click.
+    expect(within(panel).getByText(/Temper/)).toBeInTheDocument()
+    expect(within(panel).queryByRole('checkbox')).toBeNull()
+  })
+
+  it('says how a person gets linked when no brand is yet', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
       </BrandProvider>,
     )
     fireEvent.click(screen.getByText('Aiko Tan'))
-    const casa = screen.getByRole('checkbox', { name: /Casa Vostra/ })
-    expect(casa).toHaveAttribute('aria-checked', 'false')
-    fireEvent.click(casa)
-    expect(casa).toHaveAttribute('aria-checked', 'true')
+    const panel = screen.getByRole('dialog', { name: 'Aiko Tan' })
+    expect(within(panel).getByText(/Linked when a brand’s post tags them/)).toBeInTheDocument()
+  })
+
+  it('sets a person’s status from the panel', () => {
+    render(
+      <BrandProvider>
+        <RosterPage />
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByText('Aiko Tan'))
+    const past = screen.getByRole('radio', { name: 'Past' })
+    fireEvent.click(past)
+    expect(past).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('slides the panel out, then closes it', () => {
+    vi.useFakeTimers()
+    try {
+      render(
+        <BrandProvider>
+          <RosterPage />
+        </BrandProvider>,
+      )
+      fireEvent.click(screen.getByText('Aiko Tan'))
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.getByRole('dialog', { name: 'Aiko Tan' })).toHaveClass('bb-sheet-out')
+      act(() => {
+        vi.advanceTimersByTime(300)
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('names a handle no one on the roster holds in place: Enter saves, Escape leaves it', () => {
@@ -56,7 +109,7 @@ describe('the Creators page in the demo', () => {
     resetRoster(DEMO_ROSTER.filter((p) => p.name !== 'Daniel Ang'))
     render(
       <BrandProvider>
-        <RosterPage look="a" />
+        <RosterPage />
         <Names />
       </BrandProvider>,
     )
