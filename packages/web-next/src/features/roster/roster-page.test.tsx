@@ -27,7 +27,10 @@ describe('the Creators page in the demo', () => {
     resetRoster()
     screenWidth(false)
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
 
   it('lists the roster as rows on a phone, and opens a person from a row', () => {
     screenWidth(true)

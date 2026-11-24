@@ -761,10 +761,19 @@ function NameField({ person }: { person: RosterPerson }) {
 
 /** The team's notes on the person, never published; saved when the field is left. */
 function NotesField({ person }: { person: RosterPerson }) {
-  const known = useNotes(person)
-  if (known === null)
+  const { notes, failed, retry } = useNotes(person)
+  if (failed)
+    return (
+      <p className="text-[13.5px] text-ink-4">
+        Couldn’t load the notes.{' '}
+        <button type="button" onClick={retry} className="text-ink underline underline-offset-2">
+          Try again
+        </button>
+      </p>
+    )
+  if (notes === null)
     return <div aria-hidden="true" className="h-[88px] rounded-[12px] bg-surface-2" />
-  return <NotesInput person={person} saved={known} />
+  return <NotesInput person={person} saved={notes} />
 }
 
 function NotesInput({ person, saved }: { person: RosterPerson; saved: string }) {

@@ -81,11 +81,11 @@ describe('a person’s notes on the core', () => {
       brands: [],
     }
     const { result } = renderHook(() => useNotes(person))
-    expect(result.current).toBeNull()
+    expect(result.current.notes).toBeNull()
     await vi.waitFor(() =>
       expect(gate.sent).toContainEqual(['GET', `/roster/${person.id}`, undefined]),
     )
     gate.answers.shift()!({ ...person, notes: 'Rates sent.' })
-    await vi.waitFor(() => expect(result.current).toBe('Rates sent.'))
+    await vi.waitFor(() => expect(result.current.notes).toBe('Rates sent.'))
   })
 })
