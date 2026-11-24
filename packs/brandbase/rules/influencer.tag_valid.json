@@ -1,0 +1,7 @@
+{
+  "id": "influencer.tag_valid",
+  "sql": "select brandbase.tag_ok(brandbase.tag_of(:tag::text)) as ok",
+  "status": 400,
+  "code": "VALIDATION",
+  "message": "a tag is 1 to 30 letters or digits, with spaces, &, ' or - between them"
+}

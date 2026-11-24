@@ -1,4 +1,5 @@
 import { serveCore } from '@brandfactory/core/src/server'
+import { creatorTags, startCreatorTags, tagsFromEnv } from './creator-tags'
 import { platformsFromEnv } from './env'
 import { socialConnector } from './make'
 import { metaHandler } from './meta-capture'
@@ -11,9 +12,12 @@ import { accountRoutes } from './routes'
  * sign-in and read the brand's board live, run the TikTok sign-in and send a planned video to the
  * brand's TikTok inbox as a draft, and keep each brand's Instagram account and Facebook Page. The
  * `social` connector posts due Instagram and Facebook jobs through our own Meta app for an account
- * linked by its sign-in, through Make otherwise, and refuses every other account.
+ * linked by its sign-in, through Make otherwise, and refuses every other account. With an
+ * OpenRouter key, a job tags the roster's creators every five minutes.
  */
 const platforms = platformsFromEnv()
+// The creator tags' model calls: off without TAGS_OPENROUTER_API_KEY (creator-tags.ts).
+const tags = tagsFromEnv()
 
 await serveCore((core) => {
   const signedReadUrl =
@@ -27,6 +31,7 @@ await serveCore((core) => {
       metaPoll(core, platforms.meta, meta.handle, { as: hooks.as, dms: hooks.pollDms !== false }),
     )
   }
+  if (tags) startCreatorTags(creatorTags(core, platforms.meta, tags))
   return {
     connectors: {
       social: socialConnector({

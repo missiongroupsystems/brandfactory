@@ -1,0 +1,23 @@
+{
+  "name": "influencer.bio_set",
+  "description": "Records one read of a person's Instagram bio: the bio Business Discovery gave (an empty one is kept as empty; null when it could not be read: the bio kept stays). Answers what the model would now tag from (source). Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "bio"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "bio": {
+        "type": ["string", "null"],
+        "maxLength": 1000
+      }
+    }
+  },
+  "before": ["influencer.found"],
+  "internal": true,
+  "returns": "one",
+  "sql": "update brandbase.influencers i set\n  bio = coalesce(btrim(:bio::text), i.bio),\n  bio_read_at = :now::timestamptz\nwhere i.id = :id::uuid\nreturning jsonb_build_object('id', i.id, 'source', brandbase.influencer_tag_source(i.category, i.notes, i.bio)) as result"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "influencer.tag_set",
+  "description": "Records one answer of the model for a person: its tags, each spelled as influencer.tag_add spells them, kept only if valid, never one the team removed or added, at most six, and the source it tagged from (influencer.tag_due). Null tags: the model did not answer well; nothing changes but the time of the try. Internal.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "source", "tags"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "source": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{32}$"
+      },
+      "tags": {
+        "type": ["array", "null"],
+        "maxItems": 12,
+        "items": {
+          "type": "string",
+          "maxLength": 60
+        }
+      }
+    }
+  },
+  "before": ["influencer.found"],
+  "internal": true,
+  "returns": "one",
+  "sql": "update brandbase.influencers i set\n  tags_ai = case when :tags::jsonb is null then i.tags_ai else coalesce((select array_agg(k.t order by k.n) from (select d.t, d.n from (select distinct on (brandbase.tag_of(e.v)) brandbase.tag_of(e.v) as t, e.n from jsonb_array_elements_text(:tags::jsonb) with ordinality as e (v, n) order by brandbase.tag_of(e.v), e.n) d where brandbase.tag_ok(d.t) and d.t <> all (i.tags_hidden) and d.t <> all (i.tags_team) order by d.n limit 6) k), '{}') end,\n  tags_source = case when :tags::jsonb is null then i.tags_source else :source::text end,\n  tagged_at = :now::timestamptz\nwhere i.id = :id::uuid\nreturning jsonb_build_object('id', i.id, 'tags', brandbase.influencer_tags(i.tags_team, i.tags_ai)) as result"
+}

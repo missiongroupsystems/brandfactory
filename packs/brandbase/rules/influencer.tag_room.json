@@ -1,0 +1,7 @@
+{
+  "id": "influencer.tag_room",
+  "sql": "select exists (select 1 from brandbase.influencers i where i.id = :id::uuid and (cardinality(i.tags_team) < 20 or brandbase.tag_of(:tag::text) = any (i.tags_team))) as ok",
+  "status": 409,
+  "code": "TOO_MANY_TAGS",
+  "message": "a creator has at most 20 tags of the team's own"
+}
